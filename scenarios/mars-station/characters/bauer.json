@@ -1,0 +1,44 @@
+{
+  "id": "bauer",
+  "name": "Teo Bauer",
+  "pronouns": "he/him",
+  "role": "hydroponics technician",
+  "age": 24,
+  "traits": [
+    "eager",
+    "anxious",
+    "people-pleaser"
+  ],
+  "want": "prove he belongs on this crew",
+  "secret": "He caused the recycler fault six nights ago by running it past its rated cycle to save a failing crop, then wiped that night's log.",
+  "guard": "low",
+  "voice": "Talks too fast, over-apologizes, tries to be funny.",
+  "skills": {
+    "science": 3,
+    "tech": 2,
+    "athletics": 2,
+    "social": 2,
+    "medicine": 1,
+    "piloting": 1,
+    "stealth": 2
+  },
+  "needs": {
+    "hunger": 0.2,
+    "fatigue": 0.5,
+    "stress": 0.7
+  },
+  "status": {
+    "health": "ok",
+    "location": "commons",
+    "conditions": []
+  },
+  "relations": {
+    "navarro": 20,
+    "okafor": 10,
+    "sorensen": 20,
+    "raman": 15
+  },
+  "knows": [
+    "Hydroponics lost three racks of soy last week; he told the crew it was a lighting fault."
+  ]
+}

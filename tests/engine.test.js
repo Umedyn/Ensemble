@@ -1,0 +1,267 @@
+// Engine rules. Each test pins down a behavior we hit while playtesting with a
+// real 12B model; the comment says what went wrong before the rule existed.
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { newGame, mockLLM, fixedRng, readScenario, scenarioFolders, loadEngine } = require('./helpers');
+
+const intentOf = (o) => JSON.parse(JSON.stringify(o));
+const PRESENT = ['okafor', 'bauer'];
+
+// ---------- scenarios ----------
+
+test('every bundled scenario validates and starts', () => {
+  for (const folder of scenarioFolders()) {
+    const E = loadEngine();
+    const sc = E.Scenario.validate(readScenario(folder));
+    const state = E.Engine.newGame(sc);
+    assert.ok(state.characters[state.player], `${folder}: player exists`);
+    assert.ok(E.Prompts.header(state).includes(sc.title), `${folder}: header builds`);
+  }
+});
+
+test('scenario validation reports authoring mistakes', () => {
+  const E = loadEngine();
+  const sc = readScenario('mars-station');
+  sc.characterData[1].status.location = 'nowhere';
+  sc.characterData[1].guard = 'extreme';
+  assert.throws(() => E.Scenario.validate(sc), (err) =>
+    /unknown location "nowhere"/.test(err.message) && /guard must be low, medium or high/.test(err.message));
+});
+
+// ---------- movement ----------
+
+test('acting on someone in the room cancels a move elsewhere (log 3/4: Kit walked off to hydroponics)', () => {
+  const { E, state } = newGame();
+  const res = E.Engine.resolve(state, intentOf({ player: { summary: 'Kit checks on Teo in hydroponics', move_to: 'hydro' }, intents: [] }), PRESENT, 'See what Teo is up to.', 'hour');
+  assert.equal(state.characters.navarro.status.location, 'commons');
+  assert.match(res.outcomes[0].note, /stayed with Teo Bauer/);
+  assert.match(res.outcomes[0].action, /right here in Commons/, 'narrator gets the player words, not the model summary naming the wrong room');
+});
+
+test('moving to a person goes to wherever they are', () => {
+  const { E, state } = newGame();
+  E.Engine.resolve(state, intentOf({ player: { move_to: 'sorensen' }, intents: [] }), PRESENT, 'Go find Lev.', 'hour');
+  assert.equal(state.characters.navarro.status.location, 'lab');
+});
+
+test('update step: player never moved, NPC moves only if seen in the scene (log 5: everyone got moved to follow a drifting narrator)', () => {
+  const { E, state } = newGame();
+  const r = E.Engine.applyUpdate(state, {
+    state: [
+      { target: 'char:navarro', field: 'location', value: 'hydro' },
+      { target: 'char:okafor', field: 'location', value: 'ops' },
+      { target: 'char:sorensen', field: 'location', value: 'med' },
+    ],
+  }, PRESENT, { startLoc: 'commons', endLoc: 'commons' });
+  assert.equal(state.characters.navarro.status.location, 'commons');
+  assert.equal(state.characters.okafor.status.location, 'ops', 'Okafor left the scene and was seen leaving');
+  assert.equal(state.characters.sorensen.status.location, 'lab', 'Lev was offscreen; nobody saw him move');
+  assert.equal(r.rejected.length, 2);
+});
+
+test('relocation check catches the narrator walking the player into another room', () => {
+  const { E, state } = newGame();
+  const where = (p) => (E.Engine.findRelocation(state, p, 'commons') || {}).id || null;
+  assert.equal(where('You head to hydroponics, the clattering growing louder.'), 'hydro');
+  assert.equal(where('You push open the hydroponics door.'), 'hydro');
+  assert.equal(where('Teo heads for the Suit Room & Airlock.'), null, 'others leaving is fine');
+  assert.equal(where('You glance toward the lab door.'), null, 'looking is not moving');
+});
+
+// ---------- secrets ----------
+
+test('low-guard Teo cracks when confronted while stressed (log 8 felt natural)', () => {
+  const { E, state } = newGame();
+  const res = E.Engine.resolve(state, intentOf({ player: {}, intents: [{ id: 'bauer', action: 'admits the recycler fault is his', says: 'I pushed it too hard to save a crop', reveals: true }] }), PRESENT, 'See what Teo is up to.', 'hour');
+  assert.ok(res.outcomes.find((o) => o.id === 'bauer').reveals);
+});
+
+test('secrets leaking through dialogue are caught when unearned (log 8: reveals:true bypassed the gate)', () => {
+  const { E, state } = newGame();
+  state.characters.bauer.needs.stress = 0.3;
+  const res = E.Engine.resolve(state, intentOf({ player: {}, intents: [{ id: 'bauer', action: 'Teo admits the recycler fault is his', says: 'I ran it past its rated cycle to save the crop' }] }), PRESENT, 'Make coffee.', 'hour');
+  const teo = res.outcomes.find((o) => o.id === 'bauer');
+  assert.equal(teo.reveals, null);
+  assert.equal(teo.says, null);
+  assert.match(teo.action, /keeps the secret/);
+});
+
+test('innocent dialogue is not mistaken for a leak', () => {
+  const { E, state } = newGame();
+  const res = E.Engine.resolve(state, intentOf({ player: {}, intents: [{ id: 'bauer', action: 'checks the readout', says: "The recycler's acting up. Sensor issue." }] }), PRESENT, 'Make coffee.', 'hour');
+  assert.equal(res.outcomes.find((o) => o.id === 'bauer').action, 'checks the readout');
+});
+
+test('high-guard Okafor holds even when asked directly; a social success opens anyone', () => {
+  const ask = (rng, intentPlayer) => {
+    const g = newGame();
+    fixedRng(g.E, rng);
+    const r = g.E.Engine.resolve(g.state, intentOf({ player: intentPlayer, intents: [{ id: 'okafor', action: 'admits she adjusted the report', says: 'I adjusted the purity numbers', reveals: true }] }), PRESENT, 'Ask Okafor why the ice purity numbers look off.', 'hour');
+    return r.outcomes.find((o) => o.id === 'okafor').reveals;
+  };
+  assert.equal(ask([0.5], {}), null);
+  assert.ok(ask([0.95], { needs_roll: true, skill: 'social', difficulty: 'normal' }));
+});
+
+// ---------- feelings ----------
+
+test("player's feelings only change through player_attitude, capped at ±10", () => {
+  const { E, state } = newGame();
+  const r = E.Engine.applyUpdate(state, {
+    relations: [{ from: 'navarro', to: 'bauer', delta: -5 }, { from: 'bauer', to: 'navarro', delta: -3 }],
+    player_attitude: [{ to: 'bauer', delta: -25, reason: 'snapped at Teo' }],
+  }, PRESENT);
+  assert.equal(state.characters.navarro.relations.bauer, 10, '20 - 10 (cap); the relations entry from the player is rejected');
+  assert.equal(state.characters.bauer.relations.navarro, 17);
+  assert.equal(state.characters.navarro.attitudeNotes.bauer, 'snapped at Teo');
+  assert.equal(r.rejected.length, 1);
+});
+
+test('moods are rejected as conditions (stress is a need)', () => {
+  const { E, state } = newGame();
+  E.Engine.applyUpdate(state, { state: [
+    { target: 'char:bauer', field: 'add_condition', value: 'stressed' },
+    { target: 'char:bauer', field: 'add_condition', value: 'grease-stained hands' },
+  ] }, PRESENT);
+  assert.deepEqual([...state.characters.bauer.status.conditions], ['grease-stained hands']);
+});
+
+// ---------- narration cleanup ----------
+
+test('prose cleanup: repeated paragraphs, cut-off sentences, endings on the player', () => {
+  const { E } = newGame();
+  assert.equal(E.Engine.cleanProse('You find Teo.\n\n"You find Teo."\n\nHe looks up.'), 'You find Teo.\n\nHe looks up.');
+  assert.equal(E.Engine.cleanProse('Priya sighs. "I swear, if I have to'), 'Priya sighs.');
+  assert.equal(E.Engine.trimPlayerEnding('Teo hurries off.\n\nYou turn back to the counter.'), 'Teo hurries off.');
+});
+
+test('beats parse minutes, hours and days and stay in order', () => {
+  const { E } = newGame();
+  const b = E.Engine.parseBeats('[+0m] A.\n\n[+40m] B.\n\n[+2h] C.', 180);
+  assert.deepEqual([...b.map((x) => x.at)], [0, 40, 120]);
+  assert.deepEqual([...E.Engine.parseBeats('[+0d] A.\n\n[+3d] B.', 10 * 1440).map((x) => x.at)], [0, 4320]);
+  assert.equal(E.Engine.parseBeats('No markers here.', 60).length, 1);
+});
+
+// ---------- events ----------
+
+test('event tiers: regional/world only when due, effects applied, extras dropped', () => {
+  const { E, state } = newGame();
+  const res = E.Engine.resolve(state, intentOf({ player: {}, intents: [], events: [
+    { scope: 'world', text: 'A hurricane knocks Mission Control offline.', visibility: 'heard',
+      effects: { world: [{ key: 'comms', value: 'no contact with Earth' }], groups: [{ id: 'mission', stance: 'offline' }],
+        new_clock: { name: 'Mission Control blackout', max: 8, perHour: 0.15, fireText: 'Backup control comes online.' } } },
+    { scope: 'regional', text: 'A dust devil scours the solar field.' },
+    { scope: 'world', text: 'A second world event.' },
+    { scope: 'local', text: 'Priya calls on the intercom.', who: ['raman'] },
+  ] }), PRESENT, 'Ask Teo.', 'hour', { world: true, regional: false });
+  assert.deepEqual([...res.director.map((d) => d.scope)], ['world', 'local']);
+  assert.equal(state.world.comms, 'no contact with Earth');
+  assert.equal(state.factions.find((f) => f.id === 'mission').stance, 'offline');
+  assert.ok(state.clocks.find((c) => c.id === 'mission-control-blackout'));
+  assert.equal(state.news.length, 1);
+});
+
+test('hidden events become private knowledge and change nothing public', () => {
+  const { E, state } = newGame();
+  E.Engine.resolve(state, intentOf({ player: {}, intents: [], events: [
+    { scope: 'local', text: 'Lev moves his cultures to a hidden incubator.', who: ['sorensen'], visibility: 'hidden' },
+  ] }), PRESENT, 'Ask Teo.', 'hour', {});
+  assert.ok(E.Memory.privateFacts(state, 'sorensen').some((f) => /hidden incubator/.test(f.text)));
+  assert.ok(!E.Memory.playerFacts(state).some((f) => /hidden incubator/.test(f.text)));
+});
+
+// ---------- time ----------
+
+test('the storm chain: firing a clock starts its follow-ups, and long skips stop at the next one', () => {
+  const { E, state } = newGame();
+  fixedRng(E, [0.999]); // keep random major events far away
+  const plan1 = E.Engine.planMajorSkip(state);
+  assert.equal(plan1.reason, 'clock');
+  assert.equal(plan1.clock.id, 'storm');
+  E.Engine.advanceTime(state, plan1.hours, { events: [] }, true);
+  assert.ok(state.clocks.find((c) => c.id === 'storm-clear') && state.clocks.find((c) => c.id === 'battery'));
+  E.Engine.advanceTime(state, E.Engine.planMajorSkip(state).hours, { events: [] }, true); // recycler fails next
+  const plan3 = E.Engine.planMajorSkip(state);
+  assert.equal(plan3.clock.id, 'battery');
+  assert.ok(plan3.hours > 200, 'about ten sols of storm');
+});
+
+test('routine downtime keeps needs near normal instead of maxing out', () => {
+  const { E, state } = newGame();
+  E.Engine.advanceTime(state, 24 * 14, { events: [] }, true);
+  for (const id of state.order) for (const v of Object.values(state.characters[id].needs)) assert.ok(v < 0.5);
+});
+
+// ---------- full turns ----------
+
+function scriptedModel(E, { prose }) {
+  return mockLLM(E, ({ kind }) => {
+    if (kind.startsWith('intent')) return { player: { summary: 'talk to Teo' }, intents: [
+      { id: 'okafor', action: 'goes to Ops to call Mission Control', move_to: 'ops' },
+      { id: 'bauer', action: 'deflects', says: 'Sensor issue.' }] , events: [] };
+    if (kind.startsWith('narrate')) return prose;
+    if (kind.startsWith('update')) return { facts: [{ about: ['bauer'], text: 'Teo blamed a sensor.', known_by: ['navarro', 'bauer', 'okafor'], weight: 1 }], state: [], relations: [] };
+    return { title: 'T', summary: 'S' };
+  });
+}
+
+test('memory is recorded at the start of the next turn, not right after the scene', async () => {
+  const { E, state } = newGame();
+  const calls = scriptedModel(E, { prose: 'Teo shrugs. "Sensor issue."' });
+  await E.Engine.runTurn(state, 'Ask Teo about the rattle.', 'hour');
+  assert.ok(state.pending);
+  assert.ok(!calls.some((c) => c.kind === 'update'));
+  await E.Engine.runTurn(state, 'Nod.', 'moment');
+  assert.equal(calls.filter((c) => c.kind === 'update').length, 1);
+  assert.ok(E.Memory.playerFacts(state).some((f) => /sensor/.test(f.text)));
+});
+
+test('stepping in after beat 1 rewinds later beats: time, moves and memory', async () => {
+  const { E, state } = newGame();
+  const calls = scriptedModel(E, { prose: '[+0m] You ask Teo. He shrugs.\n\n[+70m] Okafor heads for Ops.\n\n[+160m] Priya stomps in.' });
+  await E.Engine.runTurn(state, 'Ask Teo about the rattle.', 'hours');
+  assert.equal(state.characters.okafor.status.location, 'ops');
+  await E.Engine.runTurn(state, 'Imani, wait.', 'moment', null, 1);
+  const turn1 = state.log.find((e) => e.type === 'action' && e.turn === 1);
+  assert.equal(turn1.until, 'Sol 214, 07:35', 'midpoint between beat 1 (07:00) and beat 2 (08:10)');
+  assert.equal(state.log.find((e) => e.type === 'scene' && e.turn === 1).cutAt, 1);
+  const update = calls.find((c) => c.kind === 'update');
+  assert.ok(!update.user.includes('Priya stomps in'), 'memory only sees the kept beat');
+  assert.match(update.user, /stepped in here/);
+});
+
+test('a failed model call rolls the whole turn back', async () => {
+  const { E, state } = newGame();
+  E.LLM.transport = async () => { throw new TypeError('fetch failed'); };
+  await assert.rejects(E.Engine.runTurn(state, 'Ask Teo.', 'hour'), /Couldn't reach KoboldCpp/);
+  assert.equal(state.turn, 0);
+  assert.equal(state.time.hour, 7);
+});
+
+test('per-step routing sends each step to its backend', async () => {
+  const { E, state } = newGame();
+  E.settings.backends.external = { preset: 'custom', url: 'https://api.example.com/v1', key: 'sk-test', model: 'bigco/story-70b' };
+  E.settings.routing = { intent: 'external', narrate: 'external', update: 'local', chapter: 'local' };
+  const seen = [];
+  E.LLM.transport = async (url, body, kind) => {
+    seen.push(`${kind}@${new URL(url).host}:${body.model}`);
+    if (kind === 'intent') return JSON.stringify({ player: {}, intents: [], events: [] });
+    if (kind === 'narrate') return 'Teo looks up.';
+    return JSON.stringify({ facts: [], state: [], relations: [] });
+  };
+  await E.Engine.runTurn(state, 'Wave.', 'moment');
+  await E.Engine.runTurn(state, 'Wave again.', 'moment');
+  assert.ok(seen.includes('intent@api.example.com:bigco/story-70b'));
+  assert.ok(seen.includes('narrate@api.example.com:bigco/story-70b'));
+  assert.ok(seen.includes('update@localhost:5001:koboldcpp'));
+});
+
+test('old single-endpoint settings migrate to the local backend', () => {
+  const store = { 'ensemble.settings': JSON.stringify({ endpoint: 'http://192.168.1.20:5001', narrateTokens: 420 }) };
+  const E = loadEngine({ localStorage: { getItem: (k) => store[k] ?? null, setItem: (k, v) => { store[k] = v; } } });
+  E.loadSettings();
+  assert.equal(E.settings.backends.local.url, 'http://192.168.1.20:5001/v1');
+  assert.equal(E.settings.narrateTokens, 320);
+  assert.equal(E.settings.routing.narrate, 'local');
+});

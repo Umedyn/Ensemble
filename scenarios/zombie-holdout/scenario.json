@@ -1,0 +1,217 @@
+{
+  "id": "zombie-holdout",
+  "title": "Holdout at Harmon's",
+  "castLabel": "Group",
+  "setting": "Day 23 of the outbreak. Five strangers have barricaded themselves inside Harmon's Hardware, a rural store off a two-lane highway. The town is quiet in the worst way. Radio and phones are mostly dead, gas is scarce, and the dead are slow but endless. Nobody here chose each other.",
+  "rules": [
+    "The dead are slow, relentless and drawn by noise and light. A bite is fatal within a day or two; there is no cure.",
+    "Realistic tone: injuries matter, supplies run out, guns are loud and ammunition is scarce.",
+    "The living are the real danger: fear, grudges and secrets drive conflict inside the group."
+  ],
+  "timeLabel": "Day",
+  "start": {
+    "day": 23,
+    "hour": 9
+  },
+  "wakeHour": 7,
+  "player": "pike",
+  "characters": [
+    "pike",
+    "ortiz",
+    "coleman",
+    "han",
+    "ferris"
+  ],
+  "skills": [
+    "fighting",
+    "shooting",
+    "medicine",
+    "mechanics",
+    "scavenging",
+    "stealth",
+    "persuasion"
+  ],
+  "needs": [
+    {
+      "id": "hunger",
+      "label": "Hunger",
+      "perHour": 0.035
+    },
+    {
+      "id": "fatigue",
+      "label": "Fatigue",
+      "perHour": 0.04
+    },
+    {
+      "id": "fear",
+      "label": "Fear",
+      "perHour": 0.01
+    }
+  ],
+  "locations": [
+    {
+      "id": "floor",
+      "name": "Sales Floor",
+      "desc": "Aisles of tools and paint, front windows boarded with plywood.",
+      "connects": [
+        "stockroom",
+        "office",
+        "dock"
+      ]
+    },
+    {
+      "id": "stockroom",
+      "name": "Stockroom",
+      "desc": "Shelving, bedrolls on cardboard and the group's food pile.",
+      "connects": [
+        "floor",
+        "dock"
+      ]
+    },
+    {
+      "id": "office",
+      "name": "Manager's Office",
+      "desc": "A locked desk, a dead landline and a ladder to the roof hatch.",
+      "connects": [
+        "floor",
+        "roof"
+      ]
+    },
+    {
+      "id": "roof",
+      "name": "Roof",
+      "desc": "Flat tar roof with a view of the highway and the town.",
+      "connects": [
+        "office"
+      ]
+    },
+    {
+      "id": "dock",
+      "name": "Loading Dock",
+      "desc": "Rolling steel door, a forklift and the only vehicle exit.",
+      "connects": [
+        "floor",
+        "stockroom",
+        "lot"
+      ]
+    },
+    {
+      "id": "lot",
+      "name": "Parking Lot",
+      "desc": "Open asphalt, abandoned cars, a pickup with no keys. Exposed.",
+      "connects": [
+        "dock"
+      ]
+    }
+  ],
+  "world": {
+    "barricades": "holding, front windows weak",
+    "food": "about four days for five people",
+    "vehicles": "a pickup in the lot, no keys found"
+  },
+  "factions": [
+    {
+      "id": "convoy",
+      "name": "Coastal rescue convoy",
+      "desc": "An armed convoy evacuating survivors to a coastal safe zone, broadcasting on handheld radio bands.",
+      "stance": "heading for the highway junction; says it can take only three more people"
+    },
+    {
+      "id": "ridge",
+      "name": "The Ridge",
+      "desc": "Armed survivors holed up in the next town over. Nobody here knows much about them.",
+      "stance": "unknown; their trucks were seen scavenging along the highway"
+    }
+  ],
+  "clocks": [
+    {
+      "id": "horde",
+      "name": "Horde drifting toward the store",
+      "value": 0,
+      "max": 12,
+      "perHour": 0.3,
+      "fireText": "The horde reaches Harmon's. Dozens of the dead press against the front windows, and the plywood starts to groan.",
+      "fireWorld": {
+        "barricades": "under siege, front windows failing"
+      },
+      "then": [
+        {
+          "id": "breach",
+          "name": "Barricade gives way",
+          "max": 8,
+          "perHour": 0.25,
+          "fireText": "The front barricade gives way and the dead pour into the sales floor.",
+          "fireWorld": {
+            "barricades": "breached at the front"
+          }
+        },
+        {
+          "id": "horde-moves",
+          "name": "Horde moves on",
+          "max": 10,
+          "perHour": 0.06,
+          "fireText": "The horde slowly drifts away south, leaving the street littered and quiet.",
+          "fireWorld": {
+            "barricades": "battered but holding; the street is clear for now"
+          }
+        }
+      ]
+    },
+    {
+      "id": "food",
+      "name": "Food runs out",
+      "value": 4,
+      "max": 12,
+      "perHour": 0.15,
+      "fireText": "The last of the canned food is gone. Whatever happens next, someone has to go out for supplies.",
+      "fireWorld": {
+        "food": "gone"
+      },
+      "then": [
+        {
+          "id": "starving",
+          "name": "Hunger weakens the group",
+          "max": 10,
+          "perHour": 0.1,
+          "fireText": "Days without real food take their toll: hands shake, tempers fray, and someone is going to make a desperate choice."
+        }
+      ]
+    }
+  ],
+  "eventRates": {
+    "regional": 14,
+    "world": 72
+  },
+  "eventSeeds": {
+    "regional": [
+      "a fire spreading through the town",
+      "a thunderstorm drowning out sound",
+      "another group of survivors passing on the highway",
+      "a power substation failing",
+      "a dog pack roaming the streets",
+      "the dead breaking through somewhere nearby"
+    ],
+    "world": [
+      "a government broadcast about evacuation zones",
+      "the military bombing a nearby city",
+      "the radio going silent across the bands",
+      "rumors of a cure",
+      "the convoy changing its route",
+      "a refugee camp falling"
+    ]
+  },
+  "majorEventDays": 6,
+  "majorHorizonDays": 21,
+  "majorSeeds": [
+    "the dead break through a window",
+    "someone in the group gets bitten",
+    "the generator catches fire",
+    "strangers arrive asking for shelter",
+    "part of the food stash is found missing",
+    "a gunshot nearby draws the dead"
+  ],
+  "facts": [
+    "A large crowd of the dead was seen two miles up the highway yesterday, drifting slowly south toward the store."
+  ],
+  "opening": "Morning light comes through the gaps in the plywood in thin gold stripes. Marlene is already up, counting cans in the stockroom for the third time this week and writing the number on the wall in marker. Four days, the number says.\n\nDex paces the sales floor with the shotgun, checking the windows that don't need checking. Ruth sits cross-legged on the floor beside a disassembled generator, sleeves pushed up, not talking to anyone. Gil Ferris, who owns this place and won't let anyone forget it, has the office door shut again.\n\n\"Herd's still coming,\" Dex says to no one in particular. \"Saw it from the roof at dawn. Maybe a day out.\"\n\nMarlene looks up from her cans and meets your eyes, like she's waiting to hear what you think."
+}

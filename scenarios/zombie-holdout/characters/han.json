@@ -1,0 +1,44 @@
+{
+  "id": "han",
+  "name": "Ruth Han",
+  "pronouns": "she/her",
+  "role": "auto mechanic",
+  "age": 29,
+  "traits": [
+    "quiet",
+    "calculating",
+    "self-reliant"
+  ],
+  "want": "get out of this town for good",
+  "secret": "She fixed a handheld radio and heard a rescue convoy broadcast heading to a coastal safe zone. It said they can only take three more people. She hasn't told anyone.",
+  "guard": "high",
+  "voice": "Short sentences, long silences, rarely smiles.",
+  "skills": {
+    "mechanics": 4,
+    "stealth": 3,
+    "scavenging": 2,
+    "fighting": 1,
+    "shooting": 2,
+    "medicine": 0,
+    "persuasion": 1
+  },
+  "needs": {
+    "hunger": 0.4,
+    "fatigue": 0.3,
+    "fear": 0.3
+  },
+  "status": {
+    "health": "ok",
+    "location": "floor",
+    "conditions": []
+  },
+  "relations": {
+    "pike": 10,
+    "ortiz": 5,
+    "coleman": 20,
+    "ferris": -10
+  },
+  "knows": [
+    "The convoy broadcast said it would pass the highway junction in about two days."
+  ]
+}

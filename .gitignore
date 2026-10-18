@@ -1,0 +1,7 @@
+node_modules/
+tests/screenshots/
+*.log
+.DS_Store
+Thumbs.db
+# personal saves exported from the game
+ensemble-*-turn*.json

@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1a1d22">
+<title>Ensemble</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">Ensemble</div>
+  <div class="group">
+    <select id="scenarioSelect" title="Scenario"></select>
+    <button id="btnNew">New game</button>
+    <label class="btn desktop-only" title="Load scenario folders from disk (pick one scenario folder or the whole scenarios folder)">Open folder<input type="file" id="folderInput" webkitdirectory directory multiple hidden></label>
+  </div>
+  <div class="spacer"></div>
+  <div class="group">
+    <span id="conn" class="conn off" title="KoboldCpp connection">● offline</span>
+    <button id="btnSave">Save</button>
+    <label class="btn">Load<input type="file" id="loadInput" accept=".json,application/json" hidden></label>
+    <button id="btnDebug">Debug</button>
+    <button id="btnSettings">Settings</button>
+  </div>
+</header>
+
+<main class="layout">
+  <section class="story">
+    <div id="sceneBar" class="scene-bar"></div>
+    <div id="log" class="log">
+      <div class="empty">Pick a scenario and press <b>New game</b>.<br>First time? Open <b>Settings</b> and connect a model: KoboldCpp on your computer, or an API key (for example OpenRouter).</div>
+    </div>
+    <form id="actionForm" class="action">
+      <textarea id="actionInput" rows="3" placeholder="What do you do? (Ctrl+Enter to act)"></textarea>
+      <div class="action-row">
+        <select id="timeStep" title="How much time this action takes"></select>
+        <button type="button" id="btnSide" class="mobile-only" title="Situation, people and journal">👥</button>
+        <span id="phase" class="phase"></span>
+        <button type="submit" id="btnAct" class="primary">Act</button>
+      </div>
+    </form>
+  </section>
+
+  <aside class="side" id="side">
+    <div class="side-head mobile-only"><b>Situation &amp; people</b><button type="button" id="btnSideClose">Close</button></div>
+    <section class="panel"><h3>Situation</h3><div id="situation"></div></section>
+    <section class="panel" id="newsPanel"><h3>News</h3><div id="news"></div></section>
+    <section class="panel"><h3 id="castTitle">People</h3><div id="cast"></div></section>
+    <section class="panel"><h3>Journal</h3><div id="journal"><div class="muted">Chapters appear here every few turns.</div></div></section>
+  </aside>
+</main>
+
+<section id="debug" class="debug hidden">
+  <div class="debug-head">
+    <b>Debug</b>
+    <span class="muted">Raw prompts, model output and what the engine accepted.</span>
+    <div class="spacer"></div>
+    <button id="btnDebugClose">Close</button>
+  </div>
+  <div id="debugBody" class="debug-body"></div>
+</section>
+
+<dialog id="settings">
+  <form method="dialog" class="settings">
+    <div class="row"><h3>Settings</h3><div class="spacer"></div><button value="cancel" type="submit" class="ghost" title="Close without saving">✕</button></div>
+
+    <fieldset class="backend" data-backend="local">
+      <legend>Local model</legend>
+      <label>Type <select class="bPreset"></select></label>
+      <div class="hint muted"></div>
+      <label>URL <input class="bUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false"></label>
+      <label class="keyRow">API key / password <input class="bKey" type="password" autocomplete="off" spellcheck="false"></label>
+      <label class="modelRow">Model <input class="bModel" type="text" autocomplete="off" spellcheck="false"></label>
+      <div class="row"><button type="button" class="bTest">Test</button><span class="bStatus muted"></span></div>
+    </fieldset>
+
+    <fieldset class="backend" data-backend="external">
+      <legend>External model (API)</legend>
+      <label>Type <select class="bPreset"></select></label>
+      <div class="hint muted"></div>
+      <label>URL <input class="bUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false"></label>
+      <label class="keyRow">API key <input class="bKey" type="password" autocomplete="off" spellcheck="false"></label>
+      <label class="modelRow">Model <input class="bModel" type="text" autocomplete="off" spellcheck="false" placeholder="vendor/model-name"></label>
+      <div class="row"><button type="button" class="bTest">Test</button><span class="bStatus muted"></span></div>
+      <div class="muted small">Keys are stored only in this browser and are never written into save files.</div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Which model does what</legend>
+      <div id="routing" class="routing"></div>
+      <div class="row wrap">
+        <button type="button" data-route="local">All local</button>
+        <button type="button" data-route="hybrid" title="Characters, events and narration external; bookkeeping local">Hybrid</button>
+        <button type="button" data-route="external">All external</button>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Story</legend>
+      <label>Context size (tokens) — use the smallest among the models you route to
+        <span class="row"><input id="sContext" type="number" min="2048" step="1024"><button type="button" id="btnDetect">Detect</button></span>
+      </label>
+      <label>Scene length (max tokens, scaled by time step) <input id="sNarrate" type="number" min="150" max="1200" step="10"></label>
+      <label>Temperature <input id="sTemp" type="number" min="0" max="2" step="0.05"></label>
+      <label>Turns per chapter <input id="sChapter" type="number" min="2" max="20"></label>
+    </fieldset>
+    <div id="sStatus" class="muted"></div>
+    <div class="row end">
+      <button value="save" class="primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="js/util.js"></script>
+<script src="js/llm.js"></script>
+<script src="js/memory.js"></script>
+<script src="js/prompts.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/scenario.js"></script>
+<script src="js/ui.js"></script>
+</body>
+</html>

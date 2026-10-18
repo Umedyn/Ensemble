@@ -1,0 +1,44 @@
+{
+  "id": "sorensen",
+  "name": "Dr. Lev Sorensen",
+  "pronouns": "he/him",
+  "role": "medic and astrobiologist",
+  "age": 39,
+  "traits": [
+    "curious",
+    "secretive",
+    "gentle"
+  ],
+  "want": "be the first person to confirm life on Mars",
+  "secret": "Cultures from the deep ice core are showing activity he cannot explain as contamination. He has told no one and keeps the samples in an unlogged incubator.",
+  "guard": "medium",
+  "voice": "Soft-spoken, rambles when excited, deflects with jokes.",
+  "skills": {
+    "medicine": 4,
+    "science": 4,
+    "social": 2,
+    "tech": 1,
+    "piloting": 0,
+    "athletics": 1,
+    "stealth": 2
+  },
+  "needs": {
+    "hunger": 0.4,
+    "fatigue": 0.6,
+    "stress": 0.4
+  },
+  "status": {
+    "health": "ok",
+    "location": "lab",
+    "conditions": []
+  },
+  "relations": {
+    "navarro": 15,
+    "okafor": -10,
+    "raman": 10,
+    "bauer": 20
+  },
+  "knows": [
+    "Okafor's published ice-purity figures don't match the raw readings he saw on the shared drive."
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "id": "okafor",
+  "name": "Dr. Imani Okafor",
+  "pronouns": "she/her",
+  "role": "station lead and geologist",
+  "age": 47,
+  "traits": [
+    "exacting",
+    "charismatic",
+    "proud"
+  ],
+  "want": "win funding for a second rotation and secure her legacy with Ares Deep",
+  "secret": "Three weeks ago she adjusted a core-sample report, overstating water-ice purity, because the real numbers might have ended the program.",
+  "guard": "high",
+  "voice": "Clipped and formal, dry humor, never raises her voice.",
+  "skills": {
+    "science": 4,
+    "social": 4,
+    "tech": 2,
+    "medicine": 1,
+    "piloting": 1,
+    "athletics": 1,
+    "stealth": 2
+  },
+  "needs": {
+    "hunger": 0.2,
+    "fatigue": 0.4,
+    "stress": 0.5
+  },
+  "status": {
+    "health": "ok",
+    "location": "commons",
+    "conditions": []
+  },
+  "relations": {
+    "navarro": 10,
+    "sorensen": -10,
+    "raman": 5,
+    "bauer": 0
+  },
+  "knows": [
+    "Lev has been booking lab time far beyond his approved schedule."
+  ]
+}

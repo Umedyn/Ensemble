@@ -1,0 +1,44 @@
+{
+  "id": "ortiz",
+  "name": "Marlene Ortiz",
+  "pronouns": "she/her",
+  "role": "retired ER nurse",
+  "age": 58,
+  "traits": [
+    "practical",
+    "maternal",
+    "guilt-ridden"
+  ],
+  "want": "keep everyone fed and together, and never abandon anyone again",
+  "secret": "On day nine she left her previous group behind during an overrun to save herself. She tells people she was the only survivor.",
+  "guard": "medium",
+  "voice": "Calm and warm, calls people 'honey', goes cold when angry.",
+  "skills": {
+    "medicine": 4,
+    "persuasion": 3,
+    "scavenging": 2,
+    "fighting": 1,
+    "shooting": 1,
+    "stealth": 1,
+    "mechanics": 0
+  },
+  "needs": {
+    "hunger": 0.4,
+    "fatigue": 0.5,
+    "fear": 0.3
+  },
+  "status": {
+    "health": "ok",
+    "location": "stockroom",
+    "conditions": []
+  },
+  "relations": {
+    "pike": 20,
+    "coleman": 10,
+    "han": 15,
+    "ferris": 0
+  },
+  "knows": [
+    "The food count on the wall assumes Gil isn't eating from somewhere else, and she's starting to doubt that."
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "scenarios": [
+    { "folder": "mars-station", "title": "Ares Deep (Mars research station)" },
+    { "folder": "zombie-holdout", "title": "Holdout at Harmon's (zombie survival)" }
+  ]
+}

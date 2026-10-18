@@ -1,0 +1,42 @@
+{
+  "id": "navarro",
+  "name": "Kit Navarro",
+  "pronouns": "they/them",
+  "role": "systems engineer",
+  "age": 34,
+  "traits": [
+    "resourceful",
+    "blunt",
+    "stubborn"
+  ],
+  "want": "keep the station running and get everyone home in one piece",
+  "voice": "Dry and direct, short sentences; swears at machinery, never at people.",
+  "skills": {
+    "tech": 4,
+    "science": 2,
+    "medicine": 1,
+    "piloting": 2,
+    "athletics": 2,
+    "social": 2,
+    "stealth": 1
+  },
+  "needs": {
+    "hunger": 0.2,
+    "fatigue": 0.2,
+    "stress": 0.3
+  },
+  "status": {
+    "health": "ok",
+    "location": "commons",
+    "conditions": []
+  },
+  "relations": {
+    "okafor": 10,
+    "sorensen": 15,
+    "raman": 25,
+    "bauer": 20
+  },
+  "knows": [
+    "The recycler's rattle started six nights ago, the same night Teo had the late hydroponics shift."
+  ]
+}
