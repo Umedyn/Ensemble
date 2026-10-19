@@ -5,3 +5,7 @@ tests/screenshots/
 Thumbs.db
 # personal saves exported from the game
 ensemble-*-turn*.json
+
+# Local prep and workflow files (task notes, Claude commands)
+docs/tasks/
+.claude/

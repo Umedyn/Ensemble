@@ -2,7 +2,7 @@
 
 A local-first, character-driven story sim in the spirit of Pax Historia, at personal scale: the player is one person in a group (a Mars crew, survivors in a hardware store), and every other member is an individual with wants, needs, secrets and feelings. Plain HTML/JS in the browser, talking to KoboldCpp locally or any OpenAI-compatible API.
 
-Read `docs/DESIGN.md` before changing the turn pipeline, prompts or memory. `ROADMAP.md` has the backlog.
+Read `docs/DESIGN.md` before changing the turn pipeline, prompts or memory, and `docs/WORLDS.md` before changing the scenario format or loader. `ROADMAP.md` has the plan.
 
 ## Commands
 
