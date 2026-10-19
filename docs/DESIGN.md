@@ -32,6 +32,7 @@ The model is used for judgment and prose. Everything that must stay true (where 
 5. **Advance time**: needs tick (or settle, for downtime), clocks advance and may fire (adding follow-up clocks).
 6. **Narrate call** (model): a scene frame (starts where/with whom, ends where, who left or arrived), status with pronouns, the player's attitude toward those present, resolved outcomes (covert ones only as "out of sight"), and beat instructions. The narrator never sees secrets.
 7. **Clean the prose**: drop repeated paragraphs, cut back to the last full sentence, drop trailing paragraphs that are the player's own action, regenerate once if it walks the player into another room.
+7b. **Fill a short scene, then settle the clock** (about an hour, a few hours only): if the last beat is before half the step, one continuation call asks for 1–2 closing beats (same cleanup; dropped if it relocates the player). Then time is wound back to the last beat plus 10% of the step, unless a pressure clock fired during the step. The other steps keep their full span.
 8. **Store as pending** with beats, the starting snapshot and everything the update step will need.
 
 A normal turn is three model calls (intent, narrate, update), plus an occasional chapter summary or narration retry.
@@ -65,8 +66,8 @@ A successful social roll works on anyone. A reveal attempt is either the `reveal
 | step | span | narration | events |
 |---|---|---|---|
 | a few minutes | 15 min | 60–120 words, beat by beat | usually none |
-| about an hour | 1 h | 100–200, key exchange live, rest compressed | 0–1 |
-| a few hours | 3 h | 150–250, routine allowed | 1–2 |
+| about an hour | about 1 h (follows the scene) | 100–200, key exchange live, rest compressed | 0–1 |
+| a few hours | up to 3 h (follows the scene) | 150–250, routine allowed | 1–2 |
 | until next morning | to wake hour | 200–300, summary then live morning | 1–3 |
 | until something major happens | to the next clock, random major event, or horizon | 250–350, day-stamped montage then live crisis | up to 2 + the interrupting event |
 

@@ -195,8 +195,9 @@ test('routine downtime keeps needs near normal instead of maxing out', () => {
 
 // ---------- full turns ----------
 
-function scriptedModel(E, { prose }) {
+function scriptedModel(E, { prose, more }) {
   return mockLLM(E, ({ kind }) => {
+    if (kind === 'narrate (continue)' && more !== undefined) return more;
     if (kind.startsWith('intent')) return { player: { summary: 'talk to Teo' }, intents: [
       { id: 'okafor', action: 'goes to Ops to call Mission Control', move_to: 'ops' },
       { id: 'bauer', action: 'deflects', says: 'Sensor issue.' }] , events: [] };
@@ -229,6 +230,63 @@ test('stepping in after beat 1 rewinds later beats: time, moves and memory', asy
   const update = calls.find((c) => c.kind === 'update');
   assert.ok(!update.user.includes('Priya stomps in'), 'memory only sees the kept beat');
   assert.match(update.user, /stepped in here/);
+});
+
+// Log: an "about an hour" scene stopped at [+20m] (token cap), but the clock
+// jumped the full hour, leaving 40 minutes nobody narrated.
+const minutesOf = (state) => state.time.day * 1440 + Math.round(state.time.hour * 60);
+
+test('a scene that stops before half the step is continued once, and the clock follows it', async () => {
+  const { E, state } = newGame();
+  const t0 = minutesOf(state);
+  const calls = scriptedModel(E, {
+    prose: '[+0m] You ask Teo about the rattle.\n\n[+10m] Teo opens the panel.\n\n[+20m] Teo points at a clog. "Could be worse."',
+    more: '[+35m] For the next quarter hour you work the clog loose together.\n\n[+50m] Okafor leans in the doorway. "Arrays next."',
+  });
+  await E.Engine.runTurn(state, 'Ask Teo about the rattle.', 'hour');
+  assert.equal(calls.filter((c) => c.kind === 'narrate (continue)').length, 1);
+  const scene = state.log.find((e) => e.type === 'scene' && e.turn === 1);
+  assert.deepEqual([...scene.beats.map((b) => b.at)], [0, 10, 20, 35, 50]);
+  assert.equal(minutesOf(state) - t0, 56, 'last beat (+50m) plus a little, not the full hour');
+  assert.equal(state.log.find((e) => e.type === 'action' && e.turn === 1).until, 'Sol 214, 07:56');
+});
+
+test('a scene that covers most of the step is not continued and keeps the full step', async () => {
+  const { E, state } = newGame();
+  const t0 = minutesOf(state);
+  const calls = scriptedModel(E, { prose: '[+0m] You ask Teo.\n\n[+30m] Okafor heads out.\n\n[+55m] Teo shrugs. "Sensor."' });
+  await E.Engine.runTurn(state, 'Ask Teo about the rattle.', 'hour');
+  assert.ok(!calls.some((c) => c.kind === 'narrate (continue)'));
+  assert.equal(minutesOf(state) - t0, 60);
+});
+
+test('a short continuation is not retried; the clock still follows the scene', async () => {
+  const { E, state } = newGame();
+  const t0 = minutesOf(state);
+  const calls = scriptedModel(E, { prose: '[+0m] You ask Teo.\n\n[+10m] Teo shrugs.', more: '[+15m] Teo goes quiet. "Anything else?"' });
+  await E.Engine.runTurn(state, 'Ask Teo about the rattle.', 'hour');
+  assert.equal(calls.filter((c) => c.kind === 'narrate (continue)').length, 1);
+  assert.equal(minutesOf(state) - t0, 21);
+});
+
+test('a few minutes is never continued and keeps its span', async () => {
+  const { E, state } = newGame();
+  const t0 = minutesOf(state);
+  const calls = scriptedModel(E, { prose: '[+0m] You ask Teo. He shrugs.' });
+  await E.Engine.runTurn(state, 'Ask Teo about the rattle.', 'moment');
+  assert.ok(!calls.some((c) => c.kind === 'narrate (continue)'));
+  assert.equal(minutesOf(state) - t0, 15);
+});
+
+test('a pressure clock firing during the step keeps the full step', async () => {
+  const { E, state } = newGame();
+  const t0 = minutesOf(state);
+  const cl = state.clocks.find((c) => c.perHour > 0);
+  cl.value = cl.max - cl.perHour * 0.9;
+  scriptedModel(E, { prose: '[+0m] You ask Teo.\n\n[+10m] An alarm goes off. "That\'s not good," Teo says.', more: '' });
+  await E.Engine.runTurn(state, 'Ask Teo about the rattle.', 'hour');
+  assert.ok(cl.fired);
+  assert.equal(minutesOf(state) - t0, 60);
 });
 
 test('a failed model call rolls the whole turn back', async () => {

@@ -232,7 +232,9 @@ ${intentExample(state, present)}`);
     morning: '3 or 4 beats: the rest of the day, the evening, the night, then the morning.',
   };
 
-  P.narrate = function (state, presentStart, action, frame, res) {
+  // Frame, status, last scene, player action and resolved outcomes: shared by
+  // the scene and its continuation.
+  function sceneContext(state, presentStart, action, frame, res) {
     const pc = state.characters[state.player];
     const startLoc = state.locations[frame.startLoc];
     const endLocId = pc.status.location;
@@ -254,11 +256,21 @@ Ends: ${E.fmtTime(state)}, ${pc.name} ${moved ? `now in ${endLoc.name}` : `still
     out.push(lastScene(state));
     out.push(`\n=== PLAYER ACTION (time span: ${frame.stepLabel}) ===\n"${action}"`);
     out.push('\n=== RESOLVED (final — narrate these faithfully) ===\n' + outcomeLines(state, res, true));
+    return { out, pc, startLoc, endLoc, moved };
+  }
+
+  // Steps with a loose length, where the beats should spread across the span.
+  const SPREAD_STEPS = ['hour', 'hours'];
+
+  P.narrate = function (state, presentStart, action, frame, res) {
+    const { out, pc, startLoc, endLoc, moved } = sceneContext(state, presentStart, action, frame, res);
+    const span = frame.spanMinutes || 60;
+    const spread = SPREAD_STEPS.includes(frame.stepId) ? ` Spread the beats across the whole span: the last one starts around [+${Math.round(span * 0.75)}m].` : '';
     out.push(`
 === TASK ===
 Write the next scene in second person, present tense ("you" is ${pc.name}), ${frame.words || '100–200'} words. Bring the characters to life through dialogue and small actions in their own voices.
 Time: ${STEP_GUIDE[frame.stepId] || STEP_GUIDE.hour}
-Beats: ${BEAT_GUIDE[frame.stepId] || BEAT_GUIDE.hour} Start each beat on its own line with a time marker in brackets: minutes since the scene started, like [+0m], [+25m], [+50m] (use hours for long spans, like [+5h]). The last marker is at most [+${frame.spanMinutes || 60}m]. End each beat on something the player could react to, since the player may step in between beats.
+Beats: ${BEAT_GUIDE[frame.stepId] || BEAT_GUIDE.hour} Start each beat on its own line with a time marker in brackets: minutes since the scene started, like [+0m], [+25m], [+50m] (use hours for long spans, like [+5h]). The last marker is at most [+${span}m].${spread} End each beat on something the player could react to, since the player may step in between beats.
 Structure:
 1. The scene is set in ${moved ? `${startLoc.name}, then ${endLoc.name}` : (startLoc ? startLoc.name : frame.startLoc)}. Open with ${pc.name}'s action, carried out in the first paragraph.
 2. Then show how the others react to it and what they do, in the order that makes sense.
@@ -277,6 +289,27 @@ Hard rules:
 - Stop at the end of these outcomes, on a moment that invites the player's response. Do not continue past it.` +
       (frame.correction ? `\n\nCORRECTION: ${frame.correction}` : '') +
       `\nReply with the scene text only.`);
+    return out.join('\n');
+  };
+
+  // The scene stopped well short of the time step: ask for the rest of it.
+  // sceneSoFar carries its time markers; fromMinutes is the last one.
+  P.narrateMore = function (state, presentStart, action, frame, res, sceneSoFar, fromMinutes) {
+    const { out, pc, startLoc, endLoc, moved } = sceneContext(state, presentStart, action, frame, res);
+    const span = frame.spanMinutes || 60;
+    out.push(`\n=== SCENE SO FAR ===\n${sceneSoFar}`);
+    out.push(`
+=== TASK ===
+Continue the scene above. It stops at [+${fromMinutes}m], but this turn covers ${frame.stepLabel} (${span} minutes). Write 1 or 2 more beats, 40–100 words in total, in second person, present tense ("you" is ${pc.name}). Start each beat on its own line with a time marker counted from the start of the scene, later than [+${fromMinutes}m]; the last one around [+${Math.round(span * 0.85)}m] and at most [+${span}m].
+Time: ${STEP_GUIDE[frame.stepId] || STEP_GUIDE.hour} Compress the routine part ("For the next half hour…").
+Hard rules:
+- Carry on from where the scene stops. Do not repeat or rewrite it.
+- Do not make big choices for ${pc.name}: no agreeing to plans, making promises, starting new tasks or deciding what to do next.
+- ${moved ? `${pc.name} stays in ${endLoc.name}.` : `${pc.name} never leaves ${startLoc ? startLoc.name : 'this room'}.`}
+- Use each character's pronouns exactly as given in STATUS.
+- No new events, confessions, reveals or discoveries beyond what the scene already shows.
+- End on the others' latest move. The final paragraph must NEVER be ${pc.name}'s own line or action.
+Reply with the new beats only.`);
     return out.join('\n');
   };
 

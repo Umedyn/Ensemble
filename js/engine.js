@@ -488,7 +488,7 @@
   Eng.cleanProse = function (text) {
     text = Eng.trimIncomplete(text);
     const seen = new Set();
-    const norm = (p) => p.toLowerCase().replace(/["'\u201c\u201d\u2018\u2019*]/g, '').replace(/\s+/g, ' ').trim();
+    const norm = (p) => p.toLowerCase().replace(/^\s*\[[^\]]*\]/, '').replace(/["'\u201c\u201d\u2018\u2019*]/g, '').replace(/\s+/g, ' ').trim();
     return String(text || '')
       .split(/\n\s*\n/)
       .filter((p) => {
@@ -558,6 +558,32 @@
   };
 
   const beatsText = (beats) => beats.map((b) => b.text).join('\n\n');
+  const markedBeats = (beats) => beats.map((b) => `[+${b.at}m] ${b.text}`).join('\n\n');
+
+  // Steps whose length is approximate ("about an hour", "a few hours"). A scene
+  // covering under half the step gets one continuation; then the clock follows
+  // the scene instead of the step. Other steps keep their fixed span.
+  Eng.LOOSE_STEPS = ['hour', 'hours'];
+
+  const timeSnapshot = (state) => ({
+    time: E.clone(state.time),
+    needs: E.clone(state.order.map((id) => state.characters[id].needs)),
+    clocks: state.clocks.map((c) => ({ value: c.value, fired: c.fired })),
+  });
+
+  // Winds the clock back to where the scene actually ended: the last beat plus
+  // a little for the beat itself. Keeps the full step if a pressure clock fired
+  // (the scene is built around it). Returns true when time changed.
+  Eng.settleSceneTime = function (state, beats, spanMinutes, before, res) {
+    const end = Math.min(spanMinutes, beats[beats.length - 1].at + Math.round(spanMinutes * 0.1));
+    if (end >= spanMinutes) return false;
+    if (state.clocks.length !== before.clocks.length || state.clocks.some((c, i) => c.fired !== before.clocks[i].fired)) return false;
+    state.time = E.clone(before.time);
+    state.order.forEach((id, i) => { state.characters[id].needs = E.clone(before.needs[i]); });
+    state.clocks.forEach((c, i) => { c.value = before.clocks[i].value; });
+    Eng.advanceTime(state, end / 60, res);
+    return true;
+  };
 
   // Records the previous turn's scene into memory. With cutAt = k, only beats
   // 1..k happened: the turn is rebuilt from its starting state, time advances
@@ -727,6 +753,7 @@
 
       const frame = { startTime: E.fmtTime(state), startLoc: state.characters[state.player].status.location, stepId: step.id, stepLabel: step.label, words: step.words, spanMinutes: Math.round(step.hours * 60) };
       const res = Eng.resolve(state, intentObj, present, action, step.id, due);
+      const beforeTime = timeSnapshot(state);
       Eng.advanceTime(state, step.hours, res);
 
       phase('Writing the scene…');
@@ -745,10 +772,25 @@
       }
       if (!prose) throw new Error('The model returned an empty scene.');
 
-      const beats = Eng.parseBeats(prose, frame.spanMinutes);
+      let beats = Eng.parseBeats(prose, frame.spanMinutes);
+      let until;
+      if (Eng.LOOSE_STEPS.includes(step.id)) {
+        const lastAt = beats[beats.length - 1].at;
+        if (lastAt < frame.spanMinutes / 2) {
+          phase('Finishing the scene…');
+          const more = Eng.trimPlayerEnding(Eng.cleanProse(await E.LLM.chat({
+            kind: 'narrate (continue)', system, user: E.Prompts.narrateMore(state, present, action, frame, res, markedBeats(beats), lastAt),
+            maxTokens: Math.round(E.settings.narrateTokens * 0.8),
+          })));
+          if (more && !Eng.findRelocation(state, more, frame.startLoc)) {
+            beats = Eng.parseBeats(Eng.trimPlayerEnding(Eng.cleanProse(markedBeats(beats) + '\n\n' + more)), frame.spanMinutes);
+          }
+        }
+        if (Eng.settleSceneTime(state, beats, frame.spanMinutes, beforeTime, res)) until = E.fmtTime(state);
+      }
       const text = beatsText(beats);
       const startMinutes = Math.round(pre.time.hour * 60);
-      state.log.push({ turn: state.turn, type: 'action', text: action, time: frame.startTime });
+      state.log.push({ turn: state.turn, type: 'action', text: action, time: frame.startTime, until });
       state.log.push({ turn: state.turn, type: 'resolve', outcomes: res.outcomes, events: res.events });
       state.log.push({ turn: state.turn, type: 'scene', text, beats, startDay: pre.time.day, startMinutes });
       state.recent = [{ turn: state.turn, action, text }];
