@@ -331,8 +331,8 @@ test('a hosted reply that runs out of room while thinking is retried with more r
   const obj = await E.LLM.chatJSON({ kind: 'intent', system: 's', user: 'u', maxTokens: 300 });
   assert.equal(obj.ok, true);
   assert.equal(bodies.length, 2);
-  assert.equal(bodies[0].max_tokens, 600, 'hosted JSON steps start with double');
-  assert.equal(bodies[1].max_tokens, 2400);
+  assert.equal(bodies[0].max_tokens, 1200, 'hosted JSON steps start with 4x');
+  assert.equal(bodies[1].max_tokens, 4800);
   assert.deepEqual({ ...bodies[0].reasoning }, { effort: 'low', exclude: true }, 'OpenRouter is asked to keep reasoning short');
 });
 

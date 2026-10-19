@@ -50,6 +50,7 @@
   // A reply cut off at the token cap before it said anything usable gets one
   // retry with this much more room (hosted reasoning models think first).
   LLM.moreRoom = (b) => (b.kobold ? 2 : 4);
+  LLM.hostedJSONRoom = 4; // JSON steps on hosted backends start with this multiple of the local limit
 
   // Test a backend. KoboldCpp reports its model and context; other APIs are
   // checked with their model list.
@@ -172,7 +173,7 @@
     if (b.preset === 'openrouter') body.reasoning = { effort: 'low', exclude: true };
     const est = E.estTokens(system) + E.estTokens(user) + body.max_tokens;
     const t0 = Date.now();
-    const entry = { kind, backend: `${b.id}: ${b.model || b.label}`, system, user, raw: '', ms: 0, estTokens: est, overBudget: est > E.settings.contextSize };
+    const entry = { kind, backend: `${b.id}: ${b.model || b.label}`, system, user, raw: '', ms: 0, estTokens: est, overBudget: b.kobold && est > E.settings.contextSize };
     try {
       const out = await LLM.transport(b.url + '/chat/completions', body, kind, b);
       const r = typeof out === 'string' ? { text: out, finish: '' } : out;
@@ -201,8 +202,8 @@
 
   LLM.chatJSON = async function (opts) {
     // Hosted models write richer JSON than the local 12B the limits were sized
-    // for, and only generated tokens are billed, so give them double up front.
-    if (!LLM.backendFor(opts.kind).kobold) opts = Object.assign({}, opts, { maxTokens: (opts.maxTokens || 400) * 2 });
+    // for (DeepSeek overran even double), and only generated tokens are billed.
+    if (!LLM.backendFor(opts.kind).kobold) opts = Object.assign({}, opts, { maxTokens: (opts.maxTokens || 400) * LLM.hostedJSONRoom });
     let text = await LLM.chat(opts);
     let obj = LLM.extractJSON(text);
     if (!obj) {
