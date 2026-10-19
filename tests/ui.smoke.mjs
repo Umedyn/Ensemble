@@ -54,12 +54,27 @@ const act = async (page, text, step) => {
 await check('desktop turn with beats and stepping in', async (page) => {
   await page.click('#btnNew');
   await act(page, 'I open up the recycler.');
-  assert.equal(await page.locator('button[data-cut]').count(), 2, 'two step-in points between three beats');
+  assert.equal(await page.locator('.beat').count(), 1, 'scene opens on its first beat only');
+  assert.equal(await page.locator('button[data-cut]').count(), 1, 'one step-in point, under the newest beat');
+  assert.equal(await page.locator('button[data-next]').count(), 1);
   await page.click('button[data-cut="1"]');
   assert.match(await page.getAttribute('#actionInput', 'placeholder'), /What do you do at 07:00–07:30/);
   await act(page, 'Hold on, Teo. Show me the log.', 'moment');
-  assert.equal(await page.locator('.beat.skipped').count(), 2, 'later beats marked as not happening');
+  assert.equal(await page.locator('.beat-note').count(), 1, 'beats after the step-in are not shown');
   assert.match(await page.locator('.entry.action .when').first().textContent(), /07:00 → Sol 214, 07:15/);
+});
+
+await check('next settles a beat; acting early steps in', async (page) => {
+  await page.click('#btnNew');
+  await act(page, 'I open up the recycler.');
+  await page.click('button[data-cut="1"]');
+  await page.click('button[data-next]');
+  assert.equal(await page.locator('.beat').count(), 2, 'next reveals the second beat');
+  assert.equal(await page.locator('button[data-cut="1"]').count(), 0, 'passed step-in point is gone');
+  assert.equal(await page.locator('button[data-cut="2"].active').count(), 0, 'next cancels a pending step-in');
+  assert.match(await page.getAttribute('#actionInput', 'placeholder'), /^What do you do\?/);
+  await act(page, 'Wait, what was that?', 'moment');
+  assert.equal(await page.locator('.beat-note').count(), 1, 'unread third beat never happened');
 });
 
 await check('settings: API key errors and hybrid routing', async (page) => {

@@ -70,7 +70,7 @@ A successful social roll works on anyone. A reveal attempt is either the `reveal
 | until next morning | to wake hour | 200–300, summary then live morning | 1–3 |
 | until something major happens | to the next clock, random major event, or horizon | 250–350, day-stamped montage then live crisis | up to 2 + the interrupting event |
 
-The longer the step, the more the narrator may fill in for the player, but never big decisions. Scenes are written as beats with time markers (`[+0m]`, `[+40m]`, `[+3d]`); the page offers **Step in here** between beats.
+The longer the step, the more the narrator may fill in for the player, but never big decisions. Scenes are written as beats with time markers (`[+0m]`, `[+40m]`, `[+3d]`); the page reveals them one at a time, offering **Step in here** or **Next ▸** after each; acting early counts as stepping in.
 
 ## Events
 

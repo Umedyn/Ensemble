@@ -7,6 +7,7 @@
   let state = null;
   let busy = false;
   let uiCut = null; // beat number the player wants to step in after
+  let uiShown = 1; // beats of the live scene revealed so far
   const loaded = new Map(); // key -> scenario object (from disk) or {folder} (from server)
 
   // ---------- storage helpers (never fatal) ----------
@@ -87,6 +88,7 @@
       const sc = await resolveScenario($('scenarioSelect').value);
       state = E.Engine.newGame(sc);
       uiCut = null;
+      uiShown = 1;
       E.LLM.calls.length = 0;
       autosave();
       renderAll();
@@ -117,6 +119,7 @@
       if (!s.scenario || !s.characters || !s.player) throw new Error('That file is not an Ensemble save.');
       state = s;
       uiCut = null;
+      uiShown = 1;
       autosave();
       renderAll();
     } catch (e) {
@@ -132,8 +135,12 @@
     if (!text && !skip) return;
     setBusy(true);
     try {
-      const result = await E.Engine.runTurn(state, text, $('timeStep').value, setPhase, uiCut);
+      // Acting before reading the rest of the scene steps in at the newest beat.
+      const live = liveScene();
+      const cut = uiCut || (live && uiShown < live.beats.length ? uiShown : null);
+      const result = await E.Engine.runTurn(state, text, $('timeStep').value, setPhase, cut);
       uiCut = null;
+      uiShown = 1;
       if ($('timeStep').value === 'major') $('timeStep').value = 'hour';
       $('actionInput').value = '';
       $('actionInput').placeholder = 'What do you do? (Ctrl+Enter to act)';
@@ -229,35 +236,62 @@
     return day !== e.startDay ? `${state.scenario.timeLabel || 'Day'} ${day}, ${hhmm}` : hhmm;
   }
 
+  function liveScene() {
+    const e = state && state.pending && state.log.find((x) => x.type === 'scene' && x.turn === state.pending.turn);
+    return e && e.beats && e.beats.length > 1 ? e : null;
+  }
+
+  // The live scene is revealed one beat at a time. Under the newest beat the
+  // player either steps in or moves on; moving on settles that beat for good.
+  // Beats after a step-in never happened, so they are never shown.
   function renderScene(e) {
     if (!e.beats || e.beats.length < 2) return `<div class="entry scene">${esc(e.text)}</div>`;
     const live = state.pending && state.pending.turn === e.turn;
-    const cut = live ? uiCut : e.cutAt;
-    return e.beats.map((b, i) => {
-      const skipped = cut && i >= cut;
-      let h = `<div class="beat ${skipped ? 'skipped' : ''}"><div class="beat-time">${beatClock(e, b)}${skipped && !live ? ' · didn\'t happen, you stepped in' : ''}</div>` +
-        `<div class="entry scene">${esc(b.text)}</div></div>`;
-      if (live && i < e.beats.length - 1) {
-        const on = uiCut === i + 1;
-        h += `<div class="interject"><button type="button" data-cut="${i + 1}" class="${on ? 'active' : ''}">${on ? '✓ Stepping in here (click to cancel)' : '↩ Step in here'}</button></div>`;
-      }
-      return h;
-    }).join('');
+    const shown = live ? Math.min(uiShown, e.beats.length) : (e.cutAt || e.beats.length);
+    let h = e.beats.slice(0, shown).map((b, i) =>
+      `<div class="beat" data-beat="${i}"><div class="beat-time">${beatClock(e, b)}</div><div class="entry scene">${esc(b.text)}</div></div>`
+    ).join('');
+    if (live && shown < e.beats.length) {
+      const on = uiCut === shown;
+      h += `<div class="interject"><button type="button" data-cut="${shown}" class="${on ? 'active' : ''}">${on ? '✓ Stepping in here (click to cancel)' : '↩ Step in here'}</button>` +
+        `<button type="button" data-next>Next ▸</button></div>`;
+    } else if (!live && e.cutAt) {
+      h += '<div class="beat-note">You stepped in here; the rest didn\'t happen.</div>';
+    }
+    return h;
+  }
+
+  function actionPlaceholder() {
+    const entry = liveScene();
+    if (uiCut && entry) return `What do you do at ${beatClock(entry, entry.beats[uiCut - 1])}–${beatClock(entry, entry.beats[uiCut])}? (Ctrl+Enter to act)`;
+    return $('timeStep').value === 'major'
+      ? 'How do you spend the downtime? (optional, e.g. "Keep the arrays clean and avoid Teo")'
+      : 'What do you do? (Ctrl+Enter to act)';
   }
 
   $('log').addEventListener('click', (ev) => {
-    const btn = ev.target.closest('button[data-cut]');
-    if (!btn || busy) return;
-    const n = parseInt(btn.dataset.cut, 10);
-    uiCut = uiCut === n ? null : n;
+    const cutBtn = ev.target.closest('button[data-cut]');
+    const nextBtn = ev.target.closest('button[data-next]');
+    if ((!cutBtn && !nextBtn) || busy) return;
+    if (cutBtn) {
+      const n = parseInt(cutBtn.dataset.cut, 10);
+      uiCut = uiCut === n ? null : n;
+    } else {
+      uiCut = null;
+      uiShown++;
+    }
     const top = $('log').scrollTop;
     renderLog();
     $('log').scrollTop = top;
-    const entry = state.log.find((x) => x.type === 'scene' && state.pending && x.turn === state.pending.turn);
-    $('actionInput').placeholder = uiCut && entry
-      ? `What do you do at ${beatClock(entry, entry.beats[uiCut - 1])}–${beatClock(entry, entry.beats[uiCut])}? (Ctrl+Enter to act)`
-      : 'What do you do? (Ctrl+Enter to act)';
-    $('actionInput').focus();
+    $('actionInput').placeholder = actionPlaceholder();
+    if (nextBtn) {
+      const beat = $('log').querySelector(`.beat[data-beat="${uiShown - 1}"]`);
+      if (beat) beat.scrollIntoView({ block: 'nearest' });
+      const more = $('log').querySelector('.interject');
+      if (more) more.scrollIntoView({ block: 'nearest' });
+    } else {
+      $('actionInput').focus();
+    }
   });
 
   function renderSceneBar() {
@@ -457,10 +491,7 @@
     $('timeStep').innerHTML = E.timeSteps.map((s) => `<option value="${s.id}">${esc(s.label)}</option>`).join('');
     $('timeStep').value = 'hour';
     $('timeStep').addEventListener('change', () => {
-      if (uiCut) return;
-      $('actionInput').placeholder = $('timeStep').value === 'major'
-        ? 'How do you spend the downtime? (optional, e.g. "Keep the arrays clean and avoid Teo")'
-        : 'What do you do? (Ctrl+Enter to act)';
+      $('actionInput').placeholder = actionPlaceholder();
     });
   }
 
