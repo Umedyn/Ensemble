@@ -375,6 +375,37 @@ test('a bad reply that was not cut off retries with the same limit', async () =>
   assert.equal(bodies[1].max_tokens, 300);
 });
 
+// The single "context size" setting looked local-only, but it sized memory for
+// every backend, so an all-DeepSeek game was still squeezed into 8K.
+test('memory budgets follow the smallest context among the backends in use, capped', () => {
+  const E = loadEngine();
+  E.settings.backends.local.context = 8192;
+  E.settings.backends.external.context = 131072;
+  assert.equal(E.Memory.budgets().facts, Math.floor(8192 * 0.2), 'all local');
+  E.settings.routing = { intent: 'external', narrate: 'external', update: 'local', chapter: 'local' };
+  assert.equal(E.memoryContext().tokens, 8192, 'hybrid uses the smaller');
+  E.settings.routing = { intent: 'external', narrate: 'external', update: 'external', chapter: 'external' };
+  assert.deepEqual({ ...E.memoryContext() }, { tokens: 32768, from: 'external', capped: true }, 'all external, capped');
+  E.settings.memoryCap = 65536;
+  assert.equal(E.Memory.budgets().facts, Math.floor(65536 * 0.2));
+});
+
+test('the old global context size carries over to the local backend', () => {
+  const store = { 'ensemble.settings': JSON.stringify({ contextSize: 16384, routing: { narrate: 'external' } }) };
+  const E = loadEngine({ localStorage: { getItem: (k) => store[k] ?? null, setItem: (k, v) => { store[k] = v; } } });
+  E.loadSettings();
+  assert.equal(E.settings.backends.local.context, 16384);
+  assert.equal(E.settings.backends.external.context, 32768);
+  assert.equal(E.settings.contextSize, undefined);
+});
+
+test('Test reads a hosted model\'s context from the provider\'s model list', async () => {
+  const E = loadEngine({ fetch: async () => ({ ok: true, json: async () => ({ data: [{ id: 'other/model', context_length: 4096 }, { id: 'deepseek/v4', context_length: 163840 }] }) }) });
+  E.settings.backends.external = { preset: 'openrouter', url: 'https://openrouter.ai/api/v1', key: 'k', model: 'deepseek/v4', context: 32768 };
+  const info = await E.LLM.ping('external');
+  assert.equal(info.context, 163840);
+});
+
 test('old single-endpoint settings migrate to the local backend', () => {
   const store = { 'ensemble.settings': JSON.stringify({ endpoint: 'http://192.168.1.20:5001', narrateTokens: 420 }) };
   const E = loadEngine({ localStorage: { getItem: (k) => store[k] ?? null, setItem: (k, v) => { store[k] = v; } } });

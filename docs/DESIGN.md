@@ -41,7 +41,7 @@ A normal turn is three model calls (intent, narrate, update), plus an occasional
 
 `system` is identical for every call in a turn: setting, rules, locations, groups, cast (public sheet with pronouns), chapter summaries, and player-known facts. It only grows at the end between turns, so KoboldCpp reuses most of it (in logs, 1,800 tokens processed for the first call and only ~600–1,000 for the next two). Anything that changes per call (status, needs, relations, clocks, secrets, the scene, the task) goes in `user`.
 
-Budgets scale with the context setting: facts ~20%, chapter summaries ~12%. Weight-3 facts are always kept; minor ones go first.
+Budgets scale with `E.memoryContext()`: the smallest context among the backends routing uses, capped by `memoryCap` (default 32K). Facts ~20%, chapter summaries ~12%. Weight-3 facts are always kept; minor ones go first.
 
 ## Memory
 

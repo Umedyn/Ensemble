@@ -24,7 +24,7 @@
     state.facts.filter((f) => !Mem.knows(f, state.player) && Mem.knows(f, id));
 
   Mem.budgets = function () {
-    const ctx = E.settings.contextSize;
+    const ctx = E.memoryContext().tokens;
     return { facts: Math.floor(ctx * 0.2), story: Math.floor(ctx * 0.12) };
   };
 

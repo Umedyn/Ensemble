@@ -399,6 +399,7 @@
     box.querySelector('.bUrl').value = b.url || '';
     box.querySelector('.bKey').value = b.key || '';
     box.querySelector('.bModel').value = b.model || '';
+    box.querySelector('.bContext').value = b.context || E.defaults.backends[id].context;
     box.querySelector('.bStatus').textContent = '';
     showPreset(box, b.preset);
     sel.onchange = () => {
@@ -414,6 +415,7 @@
       try {
         const info = await E.LLM.ping(id);
         st.textContent = `✓ ${info.model}${info.context ? ` · context ${info.context}` : ''}`;
+        if (info.context) { box.querySelector('.bContext').value = info.context; showMemory(); }
       } catch (e) {
         st.textContent = '✕ ' + e.message;
       }
@@ -427,7 +429,21 @@
       url: box.querySelector('.bUrl').value.trim(),
       key: box.querySelector('.bKey').value.trim(),
       model: box.querySelector('.bModel').value.trim(),
+      context: Math.max(2048, parseInt(box.querySelector('.bContext').value, 10) || E.defaults.backends[id].context),
     };
+  }
+
+  // Which context the memory budgets use, so it is clear it follows routing.
+  // Reads the form into a preview without changing the live settings.
+  function showMemory() {
+    const keep = E.clone(E.settings);
+    readSettings();
+    const m = E.memoryContext();
+    Object.keys(E.settings).forEach((k) => delete E.settings[k]);
+    Object.assign(E.settings, keep);
+    const name = m.from === 'external' ? 'the external model' : 'the local model';
+    $('sMemory').textContent = `Memory is planned for ${m.tokens.toLocaleString()} tokens of context: ` +
+      (m.capped ? 'the memory cap.' : `${name}, the smallest in use.`);
   }
 
   function fillRouting() {
@@ -442,13 +458,19 @@
       const v = mode === 'hybrid' ? (['intent', 'narrate'].includes(r.id) ? 'external' : 'local') : mode;
       $('routing').querySelector(`[data-step="${r.id}"]`).value = v;
     });
+    showMemory();
   }));
+  // Keep the memory line current while the dialog is open.
+  $('settings').addEventListener('change', (ev) => {
+    if (ev.target.matches('[data-step], .bContext, #sMemoryCap')) showMemory();
+  });
 
   function fillSettings() {
     fillBackend('local');
     fillBackend('external');
     fillRouting();
-    $('sContext').value = E.settings.contextSize;
+    $('sMemoryCap').value = E.settings.memoryCap;
+    showMemory();
     $('sNarrate').value = E.settings.narrateTokens;
     $('sTemp').value = E.settings.temperature;
     $('sChapter').value = E.settings.chapterLength;
@@ -458,21 +480,12 @@
     readBackend('local');
     readBackend('external');
     E.routeSteps.forEach((r) => { E.settings.routing[r.id] = $('routing').querySelector(`[data-step="${r.id}"]`).value; });
-    E.settings.contextSize = Math.max(2048, parseInt($('sContext').value, 10) || E.defaults.contextSize);
+    E.settings.memoryCap = Math.max(4096, parseInt($('sMemoryCap').value, 10) || E.defaults.memoryCap);
     E.settings.narrateTokens = E.clamp(parseInt($('sNarrate').value, 10) || E.defaults.narrateTokens, 150, 1200);
     E.settings.temperature = E.clamp(parseFloat($('sTemp').value) || E.defaults.temperature, 0, 2);
     E.settings.chapterLength = E.clamp(parseInt($('sChapter').value, 10) || E.defaults.chapterLength, 2, 20);
   }
   $('btnSettings').addEventListener('click', () => { fillSettings(); $('settings').showModal(); });
-  $('btnDetect').addEventListener('click', async () => {
-    readSettings();
-    $('sStatus').textContent = 'Detecting…';
-    try {
-      const info = await E.LLM.ping('local');
-      if (info.context) { $('sContext').value = info.context; $('sStatus').textContent = `Local model context: ${info.context}`; }
-      else $('sStatus').textContent = 'The local backend did not report a context size.';
-    } catch (e) { $('sStatus').textContent = e.message; }
-  });
   $('settings').addEventListener('close', () => {
     if ($('settings').returnValue === 'save') {
       readSettings();

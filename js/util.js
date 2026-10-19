@@ -22,11 +22,11 @@
 
   E.defaults = {
     backends: {
-      local: { preset: 'kobold-local', url: 'http://localhost:5001/v1', key: '', model: 'koboldcpp' },
-      external: { preset: 'openrouter', url: 'https://openrouter.ai/api/v1', key: '', model: '' },
+      local: { preset: 'kobold-local', url: 'http://localhost:5001/v1', key: '', model: 'koboldcpp', context: 8192 },
+      external: { preset: 'openrouter', url: 'https://openrouter.ai/api/v1', key: '', model: '', context: 32768 },
     },
     routing: { intent: 'local', narrate: 'local', update: 'local', chapter: 'local' },
-    contextSize: 8192,
+    memoryCap: 32768, // the most context memory is planned for, however big the model's
     temperature: 0.8,
     narrateTokens: 320,
     chapterLength: 5,
@@ -45,14 +45,37 @@
           saved.backends.local.url = String(saved.endpoint).replace(/\/+$/, '') + '/v1';
         }
         delete saved.endpoint;
+        // Older versions had one global context size, meant for the local model.
+        if (saved.contextSize) {
+          saved.backends = saved.backends || JSON.parse(JSON.stringify(E.defaults.backends));
+          saved.backends.local = Object.assign({}, E.defaults.backends.local, saved.backends.local, { context: saved.contextSize });
+        }
+        delete saved.contextSize;
         Object.assign(E.settings, saved);
         E.settings.backends = Object.assign(JSON.parse(JSON.stringify(E.defaults.backends)), E.settings.backends || {});
+        Object.keys(E.defaults.backends).forEach((id) => {
+          if (!E.settings.backends[id].context) E.settings.backends[id].context = E.defaults.backends[id].context;
+        });
         E.settings.routing = Object.assign({}, E.defaults.routing, E.settings.routing || {});
       }
       // Migrate the old scene-length default; newer prompts target 100-200 words.
       if (E.settings.narrateTokens === 420) E.settings.narrateTokens = E.defaults.narrateTokens;
     } catch (e) { /* storage unavailable */ }
   };
+  // The context memory budgets are planned for: the smallest among the
+  // backends in use (the shared prompt prefix goes to all of them), capped.
+  E.memoryContext = function () {
+    const ids = Array.from(new Set(Object.values(E.settings.routing)));
+    let tokens = Infinity, from = ids[0] || 'local';
+    ids.forEach((id) => {
+      const b = E.settings.backends[id] || {};
+      const c = b.context || (E.defaults.backends[id] || E.defaults.backends.local).context;
+      if (c < tokens) { tokens = c; from = id; }
+    });
+    const cap = E.settings.memoryCap || E.defaults.memoryCap;
+    return tokens > cap ? { tokens: cap, from, capped: true } : { tokens, from, capped: false };
+  };
+
   E.saveSettings = function () {
     try { root.localStorage.setItem('ensemble.settings', JSON.stringify(E.settings)); } catch (e) {}
   };

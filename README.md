@@ -10,7 +10,7 @@ A local, character-driven story sim in the spirit of Pax Historia, but at person
 
 No Python? Open `index.html` directly and use **Open folder** to pick the `scenarios` folder (or a single scenario folder).
 
-Settings also has context size (the **Detect** button reads it from KoboldCpp), scene length, temperature and turns per chapter.
+Each backend has its own context size: **Test** reads it from KoboldCpp, or from the provider's model list when it has one (OpenRouter does). Settings also has the memory cap, scene length, temperature and turns per chapter.
 
 ## Models: local, remote or API
 
@@ -53,7 +53,7 @@ Clocks can have follow-ups (`then`): when one fires, new pressures start. In Are
 
 ## Memory and context
 
-Prompts are ordered for KoboldCpp's prompt cache: a fixed header (rules, setting, places, cast), then chapter summaries and facts the player knows, then everything that changes per call. The header is identical for all calls in a turn and only grows at its end between turns, so most of it is reused. Budgets: facts ≈ 20% of context, chapter summaries ≈ 12%.
+Prompts are ordered for KoboldCpp's prompt cache: a fixed header (rules, setting, places, cast), then chapter summaries and facts the player knows, then everything that changes per call. The header is identical for all calls in a turn and only grows at its end between turns, so most of it is reused. Budgets: facts ≈ 20% of context, chapter summaries ≈ 12%, where context is the smallest among the backends in use (the shared header goes to all of them), capped by the memory cap (default 32K) so a huge hosted context doesn't inflate every prompt.
 
 Every fact records who knows it (`known_by`). The narrator only gets facts the player knows; each character's intent only gets their own private knowledge.
 

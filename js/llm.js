@@ -15,7 +15,7 @@
     const preset = E.backendPresets[b.preset] || {};
     let url = String(b.url || preset.url || '').trim().replace(/\/+$/, '');
     if (preset.kobold && url && !/\/v\d+$/.test(url)) url += '/v1';
-    return { id, preset: b.preset, kobold: !!preset.kobold, url, key: String(b.key || '').trim(), model: String(b.model || preset.model || '').trim(), label: preset.label || b.preset };
+    return { id, preset: b.preset, kobold: !!preset.kobold, url, key: String(b.key || '').trim(), model: String(b.model || preset.model || '').trim(), label: preset.label || b.preset, context: b.context || 0 };
   };
   LLM.backendFor = (kind) => LLM.backend(E.settings.routing[LLM.stepOf(kind)] || 'local');
   LLM.usesExternal = () => Object.values(E.settings.routing).includes('external');
@@ -73,14 +73,19 @@
     if (!b.model) throw new Error('Set a model name for this backend.');
     const r = await fetch(b.url + '/models', { headers });
     if (!r.ok) throw new Error(friendlyHttpError(r.status, b));
-    let known = null;
+    let known = null, context = null;
     try {
       const j = await r.json();
-      const list = (j.data || []).map((m) => m.id);
-      if (list.length) known = list.includes(b.model);
+      const list = j.data || [];
+      if (list.length) {
+        const m = list.find((x) => x.id === b.model);
+        known = !!m;
+        // OpenRouter lists each model's context; other providers may not.
+        if (m) context = parseInt(m.context_length || m.context_window, 10) || null;
+      }
     } catch (e) {}
     if (known === false) throw new Error(`${host(b.url)} is reachable, but doesn't list a model called "${b.model}".`);
-    return { model: b.model, context: null };
+    return { model: b.model, context };
   };
 
   function stripThink(text) {
@@ -173,7 +178,7 @@
     if (b.preset === 'openrouter') body.reasoning = { effort: 'low', exclude: true };
     const est = E.estTokens(system) + E.estTokens(user) + body.max_tokens;
     const t0 = Date.now();
-    const entry = { kind, backend: `${b.id}: ${b.model || b.label}`, system, user, raw: '', ms: 0, estTokens: est, overBudget: b.kobold && est > E.settings.contextSize };
+    const entry = { kind, backend: `${b.id}: ${b.model || b.label}`, system, user, raw: '', ms: 0, estTokens: est, overBudget: !!b.context && est > b.context };
     try {
       const out = await LLM.transport(b.url + '/chat/completions', body, kind, b);
       const r = typeof out === 'string' ? { text: out, finish: '' } : out;
