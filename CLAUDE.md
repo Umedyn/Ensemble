@@ -49,6 +49,10 @@ These came from playtesting a 12B local model. Each has a test; don't loosen one
 - `localStorage` can throw or be empty: wrap every access. API keys live in settings only, never in save files.
 - In tests, objects come from another VM realm: compare arrays as `[...arr]`, check errors by `err.name`, not `instanceof`.
 
+## License
+
+PolyForm Noncommercial 1.0.0 (`LICENSE`). Keep the `Required Notice` line. Contributions come in under the broader grant in `CONTRIBUTING.md` so the owner can include them in paid builds. Player-made scenarios belong to their creators (`MODDING.md`). Don't add dependencies whose licenses conflict with possible paid distribution (e.g. GPL code bundled into the app).
+
 ## Playtesting workflow
 
 The loop that built this: play a turn with the real model, read the KoboldCpp console log (or the Debug panel), find what went wrong, fix it in the engine where possible, and add a test named after the behavior. Reference setup: NemoMix-Unleashed-12B Q4_K_M in KoboldCpp on an RTX 4060 laptop (8 GB), 8K context, **chat adapter set to Mistral-Tekken** (AutoGuess falls back to Alpaca, which caused repetition and ignored rules). Roughly 30–60 seconds per turn; generation speed is the bottleneck, so output length is the main lever.

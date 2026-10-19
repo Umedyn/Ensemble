@@ -105,3 +105,11 @@ npm run test:ui      # browser smoke tests against fake model servers (npx playw
 npm run check        # syntax + scenario validation
 npm run mocks        # fake KoboldCpp on :5001 and fake API on :5002 for manual testing
 ```
+
+## License
+
+Ensemble is free to play, study, modify and share for noncommercial purposes under the [PolyForm Noncommercial License 1.0.0](LICENSE). Selling it, selling modified versions, or running it as a paid service isn't allowed without permission.
+
+Scenarios and characters you create are yours; see [MODDING.md](MODDING.md). Contributions are welcome under the terms in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+Copyright 2026 Umedyn.

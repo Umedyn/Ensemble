@@ -38,6 +38,11 @@ The engine has grown faster than real playtesting. Before adding features:
 
 ## Before publishing
 
-- Pick a license.
-- Check the name "Ensemble" for conflicts.
-- Short privacy note: everything stays in the browser; API calls go directly to the provider the player chose.
+- [x] License: PolyForm Noncommercial 1.0.0 (`LICENSE`), contributor terms (`CONTRIBUTING.md`), mod policy (`MODDING.md`).
+- [ ] Check the name "Ensemble" for conflicts.
+- [ ] Short privacy note: everything stays in the browser; API calls go directly to the provider the player chose.
+- [ ] Before selling anything: a short EULA for the paid build, and a quick legal review of the license setup.
+
+## Revenue (low-key, optional)
+
+Code stays public and the game stays free. Possible income, in order: a Ko-fi or itch.io pay-what-you-want page once people are playing; supporters get builds or scenarios early (everything goes public later); a paid one-click desktop build (KoboldCpp and a model bundled) if there's demand. A hosted token service is deliberately out of scope for now: inference costs, accounts, billing and content moderation make it a separate business.
