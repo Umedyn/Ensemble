@@ -43,6 +43,10 @@ A normal turn is three model calls (intent, narrate, update), plus an occasional
 
 `system` is identical for every call in a turn: setting, rules, locations, groups, cast (public sheet with pronouns), chapter summaries, and player-known facts. It only grows at the end between turns, so KoboldCpp reuses most of it (in logs, 1,800 tokens processed for the first call and only ~600–1,000 for the next two). Anything that changes per call (status, needs, relations, clocks, secrets, the scene, the task) goes in `user`.
 
+**Telemetry.** Each turn (and each reroll) leaves a report in `Engine.telemetry` (the last 20, in memory only): every model call with tokens in and out (from the reply's `usage`, or an estimate marked `~`), wall time, retries and salvage, plus the guards that fired. KoboldCpp doesn't report how much of the prompt it reused, so for KoboldCpp backends the report shows prompt processing time from `/api/extra/perf` after each call: a reused prefix processes in a fraction of the time. Providers that report `prompt_tokens_details.cached_tokens` get a cached column. Debug shows the reports as tables, and "Copy turn report" gives plain text for pasting into a chat.
+
+**Guards.** Whenever the engine overrules or cleans up the model it records `{ stage, type, detail }` in the turn's `res.guards`: `move cancelled`, `reveal blocked`, `leak deflected`, `event dropped` (resolve); `cut to last sentence`, `repeated paragraph removed`, `player ending trimmed`, `relocation regenerated`, `continuation dropped` (scene; Reroll replaces these); `update rejected`, `update failed` (memory, recorded at the next turn's commit and reported with that turn, tagged with the scene's turn). New guards should call `guard()` in `engine.js` so they show up in reports.
+
 Budgets scale with `E.memoryContext()`: the smallest context among the backends routing uses, capped by `memoryCap` (default 32K). Facts ~20%, chapter summaries ~12%. Weight-3 facts are always kept; minor ones go first.
 
 ## Memory

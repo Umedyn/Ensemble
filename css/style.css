@@ -102,6 +102,12 @@ details.rolls li { margin: 2px 0; }
 .debug-body details { border: 1px solid var(--line); border-radius: 6px; margin-bottom: 8px; padding: 6px 10px; }
 .debug-body summary { cursor: pointer; }
 .debug-body pre { white-space: pre-wrap; background: var(--bg); padding: 8px; border-radius: 6px; max-height: 360px; overflow: auto; font-size: 12px; }
+.telemetry table { border-collapse: collapse; margin: 6px 0; font-size: 12px; }
+.telemetry th, .telemetry td { text-align: left; padding: 2px 14px 2px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.telemetry th { color: var(--muted); font-weight: normal; }
+.telemetry .num { text-align: right; font-variant-numeric: tabular-nums; }
+.telemetry .guards { margin: 4px 0 8px; padding-left: 18px; }
+.telemetry { overflow-x: auto; }
 
 dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 10px; width: min(420px, 92vw); }
 dialog::backdrop { background: #0009; }

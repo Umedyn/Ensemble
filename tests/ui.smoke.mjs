@@ -103,6 +103,25 @@ await check('undo and reroll', async (page) => {
   assert.equal(await page.locator('#debugBody details.note').count(), 2, 'Debug lists the undo and the reroll');
 });
 
+await check('debug shows a turn report with tokens, prompt time and guards', async (page) => {
+  await page.click('#btnNew');
+  await act(page, 'I open up the recycler.');
+  await act(page, 'Hold on, Teo.', 'moment');
+  await page.click('#btnDebug');
+  const report = page.locator('#debugBody details.telemetry[open]');
+  assert.equal(await report.count(), 1, 'the newest turn is open');
+  assert.match(await report.locator('summary').textContent(), /^Turn 2 · [\d.]+ s · 3 calls · \d[\d,]* in/, 'mocks report usage, so no estimates');
+  assert.deepEqual(await report.locator('tbody td:first-child').allTextContents(), ['update', 'intent', 'narrate']);
+  assert.equal(await report.locator('th', { hasText: 'prompt' }).count(), 1, 'KoboldCpp perf column shown');
+  assert.equal(await report.locator('th', { hasText: 'cached' }).count(), 0, 'no cache column when nobody reports it');
+  assert.match(await report.textContent(), /update rejected|No guards fired/);
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await report.locator('button[data-copy-report]').click();
+  await page.waitForFunction(() => /Copied|failed/.test(document.querySelector('#debugBody details.telemetry[open] button[data-copy-report]').textContent));
+  assert.equal(await report.locator('button[data-copy-report]').textContent(), 'Copied');
+  assert.match(await page.evaluate(() => navigator.clipboard.readText()), /^Turn 2 · "Hold on, Teo\." · moment[\s\S]*Guards fired/);
+});
+
 await check('first run: setup picks a hosted model and opens its settings', async (page) => {
   await page.evaluate(() => localStorage.removeItem('ensemble.setupDone'));
   await page.reload();

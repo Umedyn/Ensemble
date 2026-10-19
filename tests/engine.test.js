@@ -6,6 +6,7 @@ const { newGame, mockLLM, fixedRng, readScenario, scenarioFolders, loadEngine } 
 
 const intentOf = (o) => JSON.parse(JSON.stringify(o));
 const PRESENT = ['okafor', 'bauer'];
+const guardTypes = (res) => [...(res.guards || [])].map((g) => g.type);
 
 // ---------- scenarios ----------
 
@@ -36,6 +37,7 @@ test('acting on someone in the room cancels a move elsewhere (log 3/4: Kit walke
   assert.equal(state.characters.navarro.status.location, 'commons');
   assert.match(res.outcomes[0].note, /stayed with Teo Bauer/);
   assert.match(res.outcomes[0].action, /right here in Commons/, 'narrator gets the player words, not the model summary naming the wrong room');
+  assert.deepEqual(guardTypes(res), ['move cancelled']);
 });
 
 test('moving to a person goes to wherever they are', () => {
@@ -84,12 +86,14 @@ test('secrets leaking through dialogue are caught when unearned (log 8: reveals:
   assert.equal(teo.reveals, null);
   assert.equal(teo.says, null);
   assert.match(teo.action, /keeps the secret/);
+  assert.deepEqual(guardTypes(res), ['leak deflected'], 'a leak, not the reveals field');
 });
 
 test('innocent dialogue is not mistaken for a leak', () => {
   const { E, state } = newGame();
   const res = E.Engine.resolve(state, intentOf({ player: {}, intents: [{ id: 'bauer', action: 'checks the readout', says: "The recycler's acting up. Sensor issue." }] }), PRESENT, 'Make coffee.', 'hour');
   assert.equal(res.outcomes.find((o) => o.id === 'bauer').action, 'checks the readout');
+  assert.deepEqual(guardTypes(res), []);
 });
 
 test('high-guard Okafor holds even when asked directly; a social success opens anyone', () => {
@@ -97,9 +101,11 @@ test('high-guard Okafor holds even when asked directly; a social success opens a
     const g = newGame();
     fixedRng(g.E, rng);
     const r = g.E.Engine.resolve(g.state, intentOf({ player: intentPlayer, intents: [{ id: 'okafor', action: 'admits she adjusted the report', says: 'I adjusted the purity numbers', reveals: true }] }), PRESENT, 'Ask Okafor why the ice purity numbers look off.', 'hour');
+    ask.guards = guardTypes(r);
     return r.outcomes.find((o) => o.id === 'okafor').reveals;
   };
   assert.equal(ask([0.5], {}), null);
+  assert.deepEqual(ask.guards, ['reveal blocked']);
   assert.ok(ask([0.95], { needs_roll: true, skill: 'social', difficulty: 'normal' }));
 });
 
@@ -133,6 +139,12 @@ test('prose cleanup: repeated paragraphs, cut-off sentences, endings on the play
   assert.equal(E.Engine.cleanProse('You find Teo.\n\n"You find Teo."\n\nHe looks up.'), 'You find Teo.\n\nHe looks up.');
   assert.equal(E.Engine.cleanProse('Priya sighs. "I swear, if I have to'), 'Priya sighs.');
   assert.equal(E.Engine.trimPlayerEnding('Teo hurries off.\n\nYou turn back to the counter.'), 'Teo hurries off.');
+  const res = {};
+  assert.equal(E.Engine.cleanScene('Teo looks up.\n\nTeo looks up.\n\nYou turn back to the counter. "Fine, I\'ll', res), 'Teo looks up.');
+  assert.deepEqual(guardTypes(res), ['cut to last sentence', 'repeated paragraph removed', 'player ending trimmed']);
+  const quiet = {};
+  E.Engine.cleanScene('Teo looks up. "Sensor."', quiet);
+  assert.deepEqual(guardTypes(quiet), [], 'clean prose fires nothing');
 });
 
 test('beats parse minutes, hours and days and stay in order', () => {
@@ -454,6 +466,79 @@ test('reroll of a downtime skip keeps the time jump and where everyone is', asyn
   assert.equal(E.fmtTime(state), time);
   assert.equal(state.characters.bauer.status.location, 'hydro');
   assert.match(state.log.find((e) => e.type === 'scene' && e.turn === 1).text, /Teo looks up/);
+});
+
+// ---------- telemetry ----------
+
+test('a turn report lists its calls and every guard, including the update step rejections from the turn before', async () => {
+  const { E, state } = newGame();
+  let narrations = 0;
+  mockLLM(E, ({ kind }) => {
+    if (kind === 'intent') return { player: { summary: 'Kit checks on Teo in hydroponics', move_to: 'hydro' }, intents: [], events: [] };
+    if (kind.startsWith('narrate')) return narrations++ ? 'Teo shrugs. "Sensor."' : 'You head to hydroponics. Teo is not there.';
+    if (kind === 'update') return { facts: [], state: [{ target: 'char:navarro', field: 'location', value: 'hydro' }], relations: [] };
+    return { title: 'T', summary: 'S' };
+  });
+  await E.Engine.runTurn(state, 'See what Teo is up to.', 'moment');
+  const t1 = E.Engine.telemetry[E.Engine.telemetry.length - 1];
+  assert.equal(t1.turn, 1);
+  assert.deepEqual([...t1.calls.map((c) => c.kind)], ['intent', 'narrate', 'narrate (retry)']);
+  assert.deepEqual([...t1.guards.map((g) => g.type)], ['move cancelled', 'relocation regenerated']);
+  await E.Engine.runTurn(state, 'Nod.', 'moment');
+  const t2 = E.Engine.telemetry[E.Engine.telemetry.length - 1];
+  const rejected = t2.guards.find((g) => g.type === 'update rejected');
+  assert.equal(rejected.turn, 1, 'the update step records turn 1');
+  assert.match(rejected.detail, /only moves through the player's own action/);
+  const text = E.Engine.turnReport(t2);
+  assert.match(text, /^Turn 2 · "Nod\." · moment/);
+  assert.match(text, /- update \[local: koboldcpp\]: ~\d+ in, ~\d+ out/, 'no usage, so counts are estimates');
+  assert.match(text, /update rejected \(turn 1\)/);
+});
+
+test('telemetry uses the reply usage, cached tokens and KoboldCpp perf when they are reported', async () => {
+  const { E, state } = newGame();
+  E.LLM.transport = async (url, body, kind) => kind === 'intent'
+    ? { text: JSON.stringify({ player: {}, intents: [], events: [] }), finish: 'stop' }
+    : { text: 'Teo shrugs. "Sensor."', finish: 'stop', usage: { prompt_tokens: 1800, completion_tokens: 120, prompt_tokens_details: { cached_tokens: 1500 } } };
+  E.LLM.perf = async () => ({ processSec: 0.4, evalSec: 6.2, processTps: 4500, evalTps: 19 });
+  await E.Engine.runTurn(state, 'Ask Teo.', 'moment');
+  const t = E.Engine.telemetry[E.Engine.telemetry.length - 1];
+  const [intent, narrate] = t.calls;
+  assert.equal(intent.estimated, true, 'missing usage falls back to an estimate');
+  assert.ok(intent.promptTokens > 0 && intent.completionTokens > 0);
+  assert.equal(intent.cachedTokens, null, 'no cache figure unless reported');
+  assert.equal(narrate.estimated, false);
+  assert.equal(narrate.promptTokens, 1800);
+  assert.equal(narrate.cachedTokens, 1500);
+  const totals = E.Engine.reportTotals(t);
+  assert.equal(totals.estimated, true, 'one estimate makes the total an estimate');
+  const text = E.Engine.turnReport(t);
+  assert.match(text, /narrate \[local: koboldcpp\]: 1800 in, 120 out, .*1500 cached; prompt 0\.4 s, gen 6\.2 s/);
+  assert.match(text, /Guards fired: none/);
+});
+
+test('a failed turn still leaves a report, with the error', async () => {
+  const { E, state } = newGame();
+  E.LLM.transport = async () => { throw new TypeError('fetch failed'); };
+  await assert.rejects(E.Engine.runTurn(state, 'Ask Teo.', 'moment'));
+  const t = E.Engine.telemetry[E.Engine.telemetry.length - 1];
+  assert.match(t.error, /Couldn't reach KoboldCpp/);
+  assert.equal(t.calls.length, 1);
+  assert.equal(E.LLM.collector, null, 'calls after the turn are not collected into it');
+});
+
+test('a reroll gets its own report, and only the new draft\'s cleanup counts', async () => {
+  const { E, state } = newGame();
+  let n = 0;
+  mockLLM(E, ({ kind }) => kind === 'intent' ? { player: {}, intents: [], events: [] } : (n++ ? 'Teo shrugs.' : 'Teo shrugs.\n\nYou turn away.'));
+  await E.Engine.runTurn(state, 'Ask Teo.', 'moment');
+  assert.deepEqual(guardTypes(state.pending.res), ['player ending trimmed']);
+  await E.Engine.rerollNarration(state);
+  const t = E.Engine.telemetry[E.Engine.telemetry.length - 1];
+  assert.equal(t.kind, 'reroll');
+  assert.deepEqual([...t.calls.map((c) => c.kind)], ['narrate']);
+  assert.deepEqual(guardTypes(state.pending.res), []);
+  assert.match(E.Engine.turnReport(t), /^Reroll of turn 1/);
 });
 
 test('per-step routing sends each step to its backend', async () => {

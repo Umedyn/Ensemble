@@ -56,6 +56,14 @@
     return state;
   };
 
+  // Every time the engine overrules or cleans up the model, it records it in
+  // the turn's res.guards, so Debug can list what fired. stage: resolve |
+  // scene | memory (Reroll replaces the scene ones).
+  const guard = (res, stage, type, detail) => {
+    if (!res) return;
+    (res.guards = res.guards || []).push({ stage, type, detail: String(detail || '').replace(/\s+/g, ' ').trim().slice(0, 200) });
+  };
+
   Eng.alive = (state, id) => state.characters[id] && state.characters[id].status.health !== 'dead';
   Eng.present = (state) => {
     const here = state.characters[state.player].status.location;
@@ -222,7 +230,7 @@
     raw.forEach((ev) => {
       if (!ev || typeof ev.text !== 'string' || !ev.text.trim() || /^one sentence$/i.test(ev.text.trim())) return;
       const scope = ['regional', 'world'].includes(ev.scope) ? ev.scope : 'local';
-      if (used[scope] >= caps[scope]) return;
+      if (used[scope] >= caps[scope]) return guard(res, 'resolve', 'event dropped', `${scope} event not due or over the cap: ${ev.text}`);
       used[scope]++;
       const text = ev.text.trim().slice(0, 220);
       const who = (Array.isArray(ev.who) ? ev.who : []).filter((id) => state.characters[id] && id !== state.player);
@@ -274,6 +282,7 @@
 
   Eng.resolve = function (state, intentObj, present, actionText, stepId, due) {
     const outcomes = [];
+    const res = { outcomes, events: [], guards: [] };
     const list = [cleanIntent(state, intentObj.player, state.player)];
     const given = Array.isArray(intentObj.intents) ? intentObj.intents : [];
     present.forEach((id) => list.push(cleanIntent(state, given.find((g) => g && g.id === id), id)));
@@ -282,6 +291,7 @@
     if (p.moveTo) {
       const about = present.filter((id) => mentions(actionText, state.characters[id]));
       if (about.length && about.every((id) => state.characters[id].status.location !== p.moveTo)) {
+        guard(res, 'resolve', 'move cancelled', `model moved the player to ${p.moveTo}; the action is about ${about.map((id) => state.characters[id].name).join(', ')}, who is here`);
         p.moveTo = null;
         p.moveCancelled = `stayed with ${about.map((id) => state.characters[id].name).join(', ')}`;
         const here = state.locations[state.characters[state.player].status.location];
@@ -300,7 +310,7 @@
           if (!o.reveals) o.reveals = o.says || o.action;
         } else {
           o.note = 'reveal held back (not enough pressure yet)';
-          o.blockedReveal = o.reveals || `${o.action} ${o.says || ''}`.trim();
+          guard(res, 'resolve', it.revealFlag ? 'reveal blocked' : 'leak deflected', `${c.name}: ${o.reveals || `${o.action} ${o.says || ''}`}`);
           o.reveals = null;
           o.action = 'is pressed about it but keeps the secret: deflects, makes an excuse or changes the subject';
           o.says = null;
@@ -314,7 +324,6 @@
       }
       outcomes.push(o);
     });
-    const res = { outcomes, events: [] };
     applyEvents(state, intentObj, present, stepId || 'hour', res, due);
     return res;
   };
@@ -530,6 +539,19 @@
     return paras.join('\n\n').trim();
   };
 
+  // The full cleanup for a model-written scene, recording what it changed.
+  Eng.cleanScene = function (text, res) {
+    const raw = String(text || '').trim();
+    const whole = Eng.trimIncomplete(raw);
+    if (whole !== raw) guard(res, 'scene', 'cut to last sentence', '…' + raw.slice(whole.length));
+    const paras = (t) => t.split(/\n\s*\n/).filter((p) => p.trim()).length;
+    const clean = Eng.cleanProse(whole);
+    if (paras(clean) < paras(whole)) guard(res, 'scene', 'repeated paragraph removed', `${paras(whole) - paras(clean)} of ${paras(whole)}`);
+    const out = Eng.trimPlayerEnding(clean);
+    if (out !== clean) guard(res, 'scene', 'player ending trimmed', clean.slice(out.length));
+    return out;
+  };
+
   // ---------- the turn ----------
   // ---------- beats ----------
   // The narrator marks beats with [+Nm] / [+Nh]. Returns [{at (minutes), text}].
@@ -630,9 +652,11 @@
         maxTokens: 520, temperature: 0.3,
       });
       report = Eng.applyUpdate(state, upd, p.present, { startLoc: p.frame.startLoc, endLoc });
+      report.rejected.forEach((r) => guard(p.res, 'memory', 'update rejected', r));
     } catch (err) {
       E.Memory.addFact(state, { about: [state.player], text: `${state.characters[state.player].name}: ${p.action}`.slice(0, 200), known_by: ['all'], weight: 1 });
       report = { applied: [], rejected: [], warning: 'Update step failed: ' + err.message };
+      guard(p.res, 'memory', 'update failed', err.message);
     }
     if (cut) report.applied.unshift(`interjected after beat ${cut} of ${total}`);
     delete state.pending;
@@ -661,7 +685,7 @@
     const system = E.Prompts.header(state);
     const frame = { startTime: E.fmtTime(state), startLoc: state.characters[state.player].status.location, stepId: 'major', stepLabel: 'until something major happens', spanMinutes: Math.round(plan.hours * 60) };
     const presentStart = Eng.present(state);
-    const res = { outcomes: [], events: [] };
+    const res = { outcomes: [], events: [], guards: [] };
 
     phase('Fast-forwarding…');
     Eng.advanceTime(state, plan.hours, res, true);
@@ -720,10 +744,10 @@
 
   async function writeSkipScene(state, n, p, phase) {
     phase('Writing the downtime…');
-    const prose = Eng.trimPlayerEnding(Eng.cleanProse(await E.LLM.chat({
+    const prose = Eng.cleanScene(await E.LLM.chat({
       kind: 'narrate', system: n.system, user: E.Prompts.narrateSkip(state, n.action, p.frame, n.montage, n.doings, p.res, n.presentStart),
       maxTokens: Math.round(E.settings.narrateTokens * 2.2),
-    })));
+    }), p.res);
     if (!prose) throw new Error('The model returned an empty scene.');
     return Eng.parseBeats(prose, p.frame.spanMinutes);
   }
@@ -736,13 +760,14 @@
     const { step, system } = n;
     const { present, action, frame, res } = p;
     phase('Writing the scene…');
-    const narrateOnce = async () => Eng.trimPlayerEnding(Eng.cleanProse(await E.LLM.chat({
+    const narrateOnce = async () => Eng.cleanScene(await E.LLM.chat({
       kind: frame.correction ? 'narrate (retry)' : 'narrate', system, user: E.Prompts.narrate(state, present, action, frame, res),
       maxTokens: Math.round(E.settings.narrateTokens * (step.lengthMult || 1)),
-    })));
+    }), res);
     let prose = await narrateOnce();
     const strayed = Eng.findRelocation(state, prose, frame.startLoc);
     if (strayed) {
+      guard(res, 'scene', 'relocation regenerated', `first draft took the player to ${strayed.name}`);
       phase('Rewriting the scene…');
       const here = state.locations[state.characters[state.player].status.location].name;
       frame.correction = `Your previous draft took the player character to ${strayed.name}, which did not happen. The whole scene stays in ${here}${state.characters[state.player].status.location !== frame.startLoc ? ' (after the move shown above)' : ''}.`;
@@ -757,11 +782,13 @@
       const lastAt = beats[beats.length - 1].at;
       if (lastAt < frame.spanMinutes / 2) {
         phase('Finishing the scene…');
-        const more = Eng.trimPlayerEnding(Eng.cleanProse(await E.LLM.chat({
+        const more = Eng.cleanScene(await E.LLM.chat({
           kind: 'narrate (continue)', system, user: E.Prompts.narrateMore(state, present, action, frame, res, markedBeats(beats), lastAt),
           maxTokens: Math.round(E.settings.narrateTokens * 0.8),
-        })));
-        if (more && !Eng.findRelocation(state, more, frame.startLoc)) {
+        }), res);
+        const away = more && Eng.findRelocation(state, more, frame.startLoc);
+        if (away) guard(res, 'scene', 'continuation dropped', `it took the player to ${away.name}`);
+        else if (more) {
           beats = Eng.parseBeats(Eng.trimPlayerEnding(Eng.cleanProse(markedBeats(beats) + '\n\n' + more)), frame.spanMinutes);
         }
       }
@@ -777,16 +804,77 @@
     const phase = onPhase || (() => {});
     if (state.flags.gameOver) throw new Error('This story has ended. Start a new game or load a save.');
     const snapshot = E.clone(state);
+    const committing = state.pending ? { turn: state.pending.turn, res: state.pending.res } : null;
+    const tel = startReport('turn', state.turn + 1, action, stepId);
+    // The update step's guards belong to the scene it records, the turn before this one.
+    const guardsOf = () => [].concat(
+      committing && committing.res && committing.res.guards ? committing.res.guards.filter((g) => g.stage === 'memory').map((g) => Object.assign({ turn: committing.turn }, g)) : [],
+      state.pending && state.pending.turn === state.turn && state.pending.res !== (committing && committing.res) ? (state.pending.res.guards || []).map((g) => Object.assign({ turn: state.turn }, g)) : []);
     try {
       const out = await playTurn(state, action, stepId, phase, cutAt);
       delete snapshot.undo;
       state.undo = { state: snapshot, turn: state.turn, action, stepId, cutAt: cutAt || null };
+      finishReport(tel, guardsOf());
       return out;
     } catch (err) {
+      finishReport(tel, guardsOf(), err);
       replaceState(state, snapshot);
       phase('');
       throw err;
     }
+  };
+
+  // ---------- telemetry ----------
+  // One report per turn (and per reroll): its model calls with tokens and
+  // timing, and the guards that fired. In memory only, never saved.
+  Eng.telemetry = [];
+  Eng.telemetryMax = 20;
+
+  function startReport(kind, turn, action, stepId) {
+    const t = { kind, turn, action: action || '', stepId, calls: [], guards: [], ms: 0, started: Date.now() };
+    E.LLM.collector = t.calls;
+    return t;
+  }
+  function finishReport(t, guards, err) {
+    if (E.LLM.collector === t.calls) E.LLM.collector = null;
+    t.ms = Date.now() - t.started;
+    t.guards = guards || [];
+    if (err) t.error = String(err.message || err);
+    Eng.telemetry.push(t);
+    if (Eng.telemetry.length > Eng.telemetryMax) Eng.telemetry.shift();
+  }
+
+  // Totals for a report; tokens marked estimated if any call lacked usage.
+  Eng.reportTotals = function (t) {
+    const sum = (f) => t.calls.reduce((a, c) => a + (Number(c[f]) || 0), 0);
+    return {
+      calls: t.calls.length, promptTokens: sum('promptTokens'), completionTokens: sum('completionTokens'),
+      estimated: t.calls.some((c) => c.estimated !== false), modelMs: sum('ms'),
+      retries: t.calls.filter((c) => c.retry).length, salvaged: t.calls.filter((c) => c.salvaged).length,
+    };
+  };
+
+  // Plain text, for pasting into a chat. "~" marks estimated token counts.
+  Eng.turnReport = function (t) {
+    const sec = (ms) => (ms / 1000).toFixed(1) + ' s';
+    const tok = (c, f) => (c.estimated !== false ? '~' : '') + (Number(c[f]) || 0);
+    const tot = Eng.reportTotals(t);
+    const lines = [];
+    lines.push(`${t.kind === 'reroll' ? 'Reroll of turn' : 'Turn'} ${t.turn}${t.action ? ` · "${t.action}"` : ''}${t.stepId ? ` · ${t.stepId}` : ''} · ${sec(t.ms)}${t.error ? ` · FAILED: ${t.error}` : ''}`);
+    lines.push(`${tot.calls} call(s), ${tot.estimated ? '~' : ''}${tot.promptTokens} tokens in, ${tot.estimated ? '~' : ''}${tot.completionTokens} out, ${sec(tot.modelMs)} waiting on the model` +
+      (tot.retries ? `, ${tot.retries} retr${tot.retries > 1 ? 'ies' : 'y'}` : '') + (tot.salvaged ? `, ${tot.salvaged} salvaged` : ''));
+    t.calls.forEach((c) => {
+      const extra = [];
+      if (c.cachedTokens != null) extra.push(`${c.cachedTokens} cached`);
+      if (c.perf) extra.push(`prompt ${c.perf.processSec.toFixed(1)} s, gen ${c.perf.evalSec.toFixed(1)} s`);
+      if (c.finish === 'length') extra.push('cut off');
+      if (c.salvaged) extra.push('salvaged');
+      if (c.error) extra.push('error: ' + c.error);
+      lines.push(`- ${c.kind} [${c.backend}]: ${tok(c, 'promptTokens')} in, ${tok(c, 'completionTokens')} out, ${sec(c.ms || 0)}${extra.length ? ' (' + extra.join('; ') + ')' : ''}`);
+    });
+    lines.push(t.guards.length ? `Guards fired (${t.guards.length}):` : 'Guards fired: none');
+    t.guards.forEach((g) => lines.push(`- ${g.type}${g.turn != null && g.turn !== t.turn ? ` (turn ${g.turn})` : ''}: ${g.detail}`));
+    return lines.join('\n');
   };
 
   const replaceState = (state, from) => { Object.keys(state).forEach((k) => delete state[k]); Object.assign(state, from); };
@@ -869,10 +957,13 @@
     const p = state.pending;
     const n = p.narration;
     const oldText = beatsText(p.beats);
+    const tel = startReport('reroll', p.turn, p.action, p.frame.stepId);
+    const sceneGuards = () => (p.res.guards || []).filter((g) => g.stage === 'scene').map((g) => Object.assign({ turn: p.turn }, g));
     try {
-      // back to the moment the scene was first written
+      // back to the moment the scene was first written; the old draft's cleanup no longer applies
       state.recent = E.clone(p.pre.recent || []);
       delete p.frame.correction;
+      p.res.guards = (p.res.guards || []).filter((g) => g.stage !== 'scene');
       if (n.after) restoreTime(state, n.after);
       let beats, until;
       if (n.skip) beats = await writeSkipScene(state, n, p, phase);
@@ -884,9 +975,11 @@
       if (act && !n.skip) { if (until) act.until = until; else delete act.until; }
       state.recent = [{ turn: p.turn, action: n.skip ? n.action : p.action, text }];
       p.beats = beats;
+      finishReport(tel, sceneGuards());
       phase('');
       return { turn: p.turn, oldText, prose: text, beats, until };
     } catch (err) {
+      finishReport(tel, sceneGuards(), err);
       replaceState(state, snapshot);
       phase('');
       throw err;

@@ -44,8 +44,42 @@
     if (j.error) throw new Error(`${host(url)}: ${j.error.message || JSON.stringify(j.error).slice(0, 200)}`);
     const choice = (j.choices && j.choices[0]) || {};
     // finish "length" = cut off at max_tokens (reasoning models count their thinking too)
-    return { text: (choice.message && choice.message.content) || '', finish: choice.finish_reason || '' };
+    return { text: (choice.message && choice.message.content) || '', finish: choice.finish_reason || '', usage: j.usage || null };
   };
+
+  // Token counts from the response's usage block; estimates (marked) when absent.
+  // Cached prompt tokens only when the provider reports them.
+  LLM.readUsage = function (usage, system, user, raw) {
+    const u = usage && typeof usage === 'object' ? usage : {};
+    const num = (v) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Number(v) : null);
+    const prompt = num(u.prompt_tokens ?? u.input_tokens);
+    const completion = num(u.completion_tokens ?? u.output_tokens);
+    const details = u.prompt_tokens_details || u.input_tokens_details || {};
+    const cached = num(details.cached_tokens ?? u.cache_read_input_tokens);
+    return {
+      promptTokens: prompt ?? E.estTokens(system) + E.estTokens(user),
+      completionTokens: completion ?? E.estTokens(raw),
+      estimated: prompt == null || completion == null,
+      cachedTokens: cached,
+    };
+  };
+
+  // KoboldCpp's perf endpoint: how long the last prompt took to process and
+  // how long generation took. Prompt time is the cache signal: a reused prefix
+  // processes in a fraction of the time. Swappable for tests; null when absent.
+  LLM.perf = async function (b) {
+    if (!b.kobold || typeof fetch !== 'function') return null;
+    try {
+      const r = await fetch(b.url.replace(/\/v\d+$/, '') + '/api/extra/perf', { headers: b.key ? { Authorization: 'Bearer ' + b.key } : {} });
+      if (!r.ok) return null;
+      const j = await r.json();
+      if (j.last_process_time == null && j.last_eval_time == null) return null;
+      return { processSec: Number(j.last_process_time) || 0, evalSec: Number(j.last_eval_time) || 0, processTps: Number(j.last_process_speed) || null, evalTps: Number(j.last_eval_speed) || null };
+    } catch (e) { return null; }
+  };
+
+  // While a turn runs, every call is also added to this list (see Engine.runTurn).
+  LLM.collector = null;
 
   // A reply cut off at the token cap before it said anything usable gets one
   // retry with this much more room (hosted reasoning models think first).
@@ -154,6 +188,7 @@
   function record(entry) {
     LLM.calls.push(entry);
     if (LLM.calls.length > LLM.maxHistory) LLM.calls.shift();
+    if (LLM.collector) LLM.collector.push(entry);
     if (LLM.onCall) try { LLM.onCall(entry); } catch (e) {}
   }
 
@@ -178,13 +213,16 @@
     if (b.preset === 'openrouter') body.reasoning = { effort: 'low', exclude: true };
     const est = E.estTokens(system) + E.estTokens(user) + body.max_tokens;
     const t0 = Date.now();
-    const entry = { kind, backend: `${b.id}: ${b.model || b.label}`, system, user, raw: '', ms: 0, estTokens: est, overBudget: !!b.context && est > b.context };
+    const entry = { kind, step: LLM.stepOf(kind), backend: `${b.id}: ${b.model || b.label}`, system, user, raw: '', ms: 0, estTokens: est, overBudget: !!b.context && est > b.context,
+      retry: /\((retry|more room)\)/.test(kind) };
     try {
       const out = await LLM.transport(b.url + '/chat/completions', body, kind, b);
       const r = typeof out === 'string' ? { text: out, finish: '' } : out;
       entry.raw = r.text || '';
       entry.finish = r.finish || '';
       entry.ms = Date.now() - t0;
+      Object.assign(entry, LLM.readUsage(r.usage, system, user, entry.raw));
+      entry.perf = await LLM.perf(b);
       record(entry);
       LLM.lastFinish = entry.finish;
       const text = stripThink(entry.raw);

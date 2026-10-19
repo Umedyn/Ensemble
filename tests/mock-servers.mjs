@@ -9,7 +9,11 @@ const json = (res, code, obj) => {
   res.writeHead(code, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*' });
   res.end(JSON.stringify(obj));
 };
-const reply = (res, content) => json(res, 200, { choices: [{ message: { role: 'assistant', content } }] });
+// Real servers report token usage; the counts here are rough but stable.
+const reply = (res, content, prompt) => json(res, 200, {
+  choices: [{ message: { role: 'assistant', content }, finish_reason: 'stop' }],
+  usage: { prompt_tokens: Math.ceil(prompt.length / 4), completion_tokens: Math.ceil(content.length / 4), total_tokens: Math.ceil((prompt.length + content.length) / 4) },
+});
 
 // Answers each pipeline step with plausible content, based on the prompt text.
 function answer(user) {
@@ -46,6 +50,7 @@ function handler(requireKey) {
     if (req.method === 'GET') {
       if (!authed) return json(res, 401, { error: { message: 'bad key' } });
       if (url.includes('true_max_context_length')) return json(res, 200, { value: 8192 });
+      if (!requireKey && url.includes('/api/extra/perf')) return json(res, 200, { last_process_time: 0.35, last_eval_time: 2.4, last_process_speed: 5200, last_eval_speed: 24 });
       if (url.includes('/api/v1/model')) return json(res, 200, { result: 'koboldcpp/Mock-12B-Q4' });
       if (url.endsWith('/models')) return json(res, 200, { data: [{ id: 'test/story-70b' }] });
       return json(res, 404, {});
@@ -56,7 +61,7 @@ function handler(requireKey) {
       if (!authed) return json(res, 401, { error: { message: 'bad key' } });
       const b = JSON.parse(body || '{}');
       handler.log.push({ port: requireKey ? 5002 : 5001, model: b.model, user: b.messages[1].content });
-      reply(res, answer(b.messages[1].content));
+      reply(res, answer(b.messages[1].content), b.messages[0].content + b.messages[1].content);
     });
   };
 }

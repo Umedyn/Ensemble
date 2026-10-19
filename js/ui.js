@@ -91,6 +91,7 @@
       uiCut = null;
       uiShown = 1;
       E.LLM.calls.length = 0;
+      E.Engine.telemetry.length = 0;
       notes.length = 0;
       autosave();
       renderAll();
@@ -419,6 +420,7 @@
     const calls = E.LLM.calls.slice().reverse();
     const facts = state ? state.facts.map((f) => `[T${f.turn} w${f.weight}] ${f.text}   (known by: ${f.known_by.join(', ')})`).join('\n') : '';
     $('debugBody').innerHTML =
+      renderTelemetry() +
       (state ? `<details><summary>Fact store (${state.facts.length})</summary><pre>${esc(facts)}</pre></details>` : '') +
       notes.slice().reverse().map((n) => `<details class="note"><summary><b>${esc(n.kind)}</b> · ${esc(n.summary)}</summary><pre>${esc(n.detail)}</pre></details>`).join('') +
       calls.map((c) => `<details><summary><b>${esc(c.kind)}</b> · ${esc(c.backend || '')} · ${c.ms} ms · ~${c.estTokens} tokens${c.overBudget ? ' <span class="fail">over context!</span>' : ''}${c.finish === 'length' ? ' <span class="fail">cut off at the token limit</span>' : ''}${c.salvaged ? ' <span class="fail">salvaged: kept the complete part</span>' : ''}${c.error ? ' <span class="fail">' + esc(c.error) + '</span>' : ''}</summary>
@@ -427,6 +429,58 @@
         <div class="muted">Raw output</div><pre>${esc(c.raw)}</pre></details>`).join('') ||
       '<div class="muted">No model calls yet.</div>';
   }
+  // Where each turn's time and tokens went, and which guards fired. The newest
+  // turn is open; "~" marks estimates (the backend didn't report usage).
+  function renderTelemetry() {
+    const reports = E.Engine.telemetry.slice().reverse();
+    if (!reports.length) return '';
+    const sec = (ms) => (ms / 1000).toFixed(1) + ' s';
+    const tok = (c, f) => (c.estimated !== false ? '~' : '') + (Number(c[f]) || 0).toLocaleString();
+    const anyCache = (t) => t.calls.some((c) => c.cachedTokens != null);
+    const anyPerf = (t) => t.calls.some((c) => c.perf);
+    return reports.map((t, i) => {
+      const tot = E.Engine.reportTotals(t);
+      const cache = anyCache(t), perf = anyPerf(t);
+      const rows = t.calls.map((c) =>
+        `<tr${c.error ? ' class="fail"' : ''}><td>${esc(c.kind)}${c.salvaged ? ' <span class="fail">salvaged</span>' : ''}${c.finish === 'length' ? ' <span class="fail">cut off</span>' : ''}</td><td>${esc(c.backend || '')}</td>` +
+        `<td class="num">${tok(c, 'promptTokens')}</td><td class="num">${tok(c, 'completionTokens')}</td>` +
+        (cache ? `<td class="num">${c.cachedTokens != null ? c.cachedTokens.toLocaleString() : ''}</td>` : '') +
+        (perf ? `<td class="num">${c.perf ? sec(c.perf.processSec * 1000) : ''}</td>` : '') +
+        `<td class="num">${sec(c.ms || 0)}</td></tr>`).join('');
+      const est = tot.estimated ? '~' : '';
+      const guards = t.guards.length
+        ? `<ul class="guards">${t.guards.map((g) => `<li><b>${esc(g.type)}</b>${g.turn != null && g.turn !== t.turn ? ` <span class="muted">(turn ${g.turn})</span>` : ''}: ${esc(g.detail)}</li>`).join('')}</ul>`
+        : '<div class="muted">No guards fired.</div>';
+      return `<details class="telemetry"${i === 0 ? ' open' : ''}><summary><b>${t.kind === 'reroll' ? 'Reroll of turn' : 'Turn'} ${t.turn}</b> · ${sec(t.ms)} · ${tot.calls} call${tot.calls === 1 ? '' : 's'} · ${est}${tot.promptTokens.toLocaleString()} in / ${est}${tot.completionTokens.toLocaleString()} out` +
+        `${t.guards.length ? ` · ${t.guards.length} guard${t.guards.length === 1 ? '' : 's'}` : ''}${t.error ? ' <span class="fail">failed</span>' : ''}</summary>` +
+        `<table><thead><tr><th>step</th><th>backend</th><th class="num">in</th><th class="num">out</th>${cache ? '<th class="num" title="Prompt tokens the provider served from its cache">cached</th>' : ''}${perf ? '<th class="num" title="KoboldCpp prompt processing time; short means the shared prefix was reused">prompt</th>' : ''}<th class="num">time</th></tr></thead><tbody>${rows}</tbody></table>` +
+        `<div class="muted small">Guards fired</div>${guards}` +
+        `<button type="button" class="small" data-copy-report="${E.Engine.telemetry.indexOf(t)}">Copy turn report</button></details>`;
+    }).join('');
+  }
+
+  async function copyText(text) {
+    try { await navigator.clipboard.writeText(text); return true; } catch (e) {}
+    // Fallback for pages opened from disk, where the clipboard API can be blocked.
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      ta.remove();
+      return ok;
+    } catch (e) { return false; }
+  }
+
+  $('debugBody').addEventListener('click', async (ev) => {
+    const btn = ev.target.closest('button[data-copy-report]');
+    if (!btn) return;
+    const t = E.Engine.telemetry[parseInt(btn.dataset.copyReport, 10)];
+    if (!t) return;
+    btn.textContent = (await copyText(E.Engine.turnReport(t))) ? 'Copied' : 'Copy failed (select the text in a call below instead)';
+  });
+
   $('btnDebug').addEventListener('click', () => { $('debug').classList.toggle('hidden'); renderDebug(); });
   $('btnDebugClose').addEventListener('click', () => $('debug').classList.add('hidden'));
 
