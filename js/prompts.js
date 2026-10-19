@@ -247,7 +247,10 @@ ${intentExample(state, present)}`);
     out.push(`=== SCENE FRAME ===
 Starts: ${frame.startTime}, in ${startLoc ? startLoc.name : frame.startLoc}, with ${presentStart.length ? presentStart.map((id) => name(state, id)).join(', ') : 'no one'}.
 Ends: ${E.fmtTime(state)}, ${pc.name} ${moved ? `now in ${endLoc.name}` : `still in ${startLoc ? startLoc.name : frame.startLoc}`}.` +
-      (left.length ? `\nDuring the scene, ${left.map((id) => `${name(state, id)} leaves for ${state.locations[state.characters[id].status.location].name}`).join('; ')}.` : '') +
+      // When the player moves, people who stay put are left behind, not leaving.
+      (left.length ? `\nDuring the scene, ${left.map((id) => state.characters[id].status.location === frame.startLoc
+        ? `${name(state, id)} stays behind in ${startLoc ? startLoc.name : frame.startLoc}`
+        : `${name(state, id)} leaves for ${state.locations[state.characters[id].status.location].name}`).join('; ')}.` : '') +
       (arrived.length ? `\n${arrived.map((id) => name(state, id)).join(', ')} ${arrived.length > 1 ? 'are' : 'is'} there at the end.` : '') +
       `\n${worldLines(state)}`);
     out.push('\n=== STATUS ===');

@@ -85,6 +85,10 @@
   // retry with this much more room (hosted reasoning models think first).
   LLM.moreRoom = () => 2;
   LLM.hostedJSONTokens = 10000; // JSON steps on hosted backends
+  // Prose steps on hosted backends get this much extra room: reasoning models
+  // spend part of max_tokens thinking even when asked not to, and only tokens
+  // actually generated are billed. Length is steered by the prompt's word count.
+  LLM.hostedTextHeadroom = 1024;
 
   // Test a backend. KoboldCpp reports its model and context; other APIs are
   // checked with their model list.
@@ -205,7 +209,7 @@
         { role: 'system', content: system },
         { role: 'user', content: user },
       ],
-      max_tokens: maxTokens || 400,
+      max_tokens: (maxTokens || 400) + (!b.kobold && (maxTokens || 400) < LLM.hostedJSONTokens ? LLM.hostedTextHeadroom : 0),
       temperature: temperature ?? E.settings.temperature,
       stream: false,
     };

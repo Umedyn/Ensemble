@@ -129,6 +129,10 @@
     return nameTokens(c).some((w) => t.includes(' ' + w + ' ') || t.includes(' ' + w + "'s "));
   };
 
+  // The player saying they go somewhere: "I head down to…", "then go…", "Go to…".
+  // "Ask Teo to go…" is someone else moving, so a subject or sentence start is required.
+  const PLAYER_MOVES = /(^|\b(?:i|we|then|and)\s+|[,;.]\s*)(?:go|head|walk|return|leave|hurry|make (?:my|our) way|move over|come back)\b/i;
+
   // Secrets have to be earned: a successful social check this turn, a character
   // at breaking point (critical stress/fear), or one who already trusts the player.
   // How much pressure it takes depends on the character's guard (low/medium/high):
@@ -286,11 +290,15 @@
     const list = [cleanIntent(state, intentObj.player, state.player)];
     const given = Array.isArray(intentObj.intents) ? intentObj.intents : [];
     present.forEach((id) => list.push(cleanIntent(state, given.find((g) => g && g.id === id), id)));
-    // If the player's action is about someone already in the room, they don't go anywhere.
+    // If the player's action is about someone already in the room, they don't go
+    // anywhere, unless the action says so ("…then head to the garage") or names
+    // someone who is at the destination.
     const p = list[0];
     if (p.moveTo) {
       const about = present.filter((id) => mentions(actionText, state.characters[id]));
-      if (about.length && about.every((id) => state.characters[id].status.location !== p.moveTo)) {
+      const statesMove = PLAYER_MOVES.test(String(actionText || '')) ||
+        state.order.some((id) => id !== state.player && !present.includes(id) && state.characters[id].status.location === p.moveTo && mentions(actionText, state.characters[id]));
+      if (about.length && !statesMove && about.every((id) => state.characters[id].status.location !== p.moveTo)) {
         guard(res, 'resolve', 'move cancelled', `model moved the player to ${p.moveTo}; the action is about ${about.map((id) => state.characters[id].name).join(', ')}, who is here`);
         p.moveTo = null;
         p.moveCancelled = `stayed with ${about.map((id) => state.characters[id].name).join(', ')}`;
@@ -477,7 +485,7 @@
       const d = E.clamp(Math.round(Number(a.delta) || 0), -10, 10);
       if (!d) return;
       pc.relations[a.to] = E.clamp((pc.relations[a.to] || 0) + d, -100, 100);
-      if (a.reason) pc.attitudeNotes[a.to] = String(a.reason).slice(0, 80);
+      if (a.reason) pc.attitudeNotes[a.to] = E.shorten(a.reason, 80);
       report.applied.push(`your attitude: →${a.to} ${d > 0 ? '+' : ''}${d}${a.reason ? ' (' + a.reason + ')' : ''}`);
     });
 
@@ -513,7 +521,9 @@
   // Detects narration that walks the player into a room they never moved to,
   // e.g. "You head to hydroponics". Returns the location or null.
   Eng.findRelocation = function (state, prose, startLoc) {
-    const allowed = new Set([startLoc, state.characters[state.player].status.location]);
+    const endLoc = state.characters[state.player].status.location;
+    // Rooms passed through on the way are fine ("you cross the commons to the med bay").
+    const allowed = new Set([startLoc, endLoc].concat(Eng.route(state, startLoc, endLoc)));
     const verbs = "head|heads|heading|walk|walks|go|goes|step|steps|stepping|make your way|enter|enters|duck|ducks|push open|pushes open|slip|slips|hurry|hurries|return|returns|wander|wanders|move|moves|cross|crosses";
     for (const l of Object.values(state.locations)) {
       if (allowed.has(l.id)) continue;
@@ -525,6 +535,29 @@
       }
     }
     return null;
+  };
+
+  // Shortest path between two locations through `connects`, both ends included.
+  // Empty when either is unknown or there is no way through.
+  Eng.route = function (state, from, to) {
+    if (!state.locations[from] || !state.locations[to]) return [];
+    if (from === to) return [from];
+    const prev = { [from]: null };
+    const queue = [from];
+    while (queue.length) {
+      const id = queue.shift();
+      for (const next of state.locations[id].connects || []) {
+        if (!state.locations[next] || next in prev) continue;
+        prev[next] = id;
+        if (next === to) {
+          const path = [to];
+          for (let at = id; at !== null; at = prev[at]) path.unshift(at);
+          return path;
+        }
+        queue.push(next);
+      }
+    }
+    return [];
   };
 
   // Drops trailing paragraphs that are the player character's own action or

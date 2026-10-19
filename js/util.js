@@ -82,6 +82,14 @@
 
   E.clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   E.clone = (o) => JSON.parse(JSON.stringify(o));
+  // Cuts at a word boundary with an ellipsis instead of mid-word.
+  E.shorten = (s, n) => {
+    const t = String(s == null ? '' : s).trim();
+    if (t.length <= n) return t;
+    const cut = t.slice(0, n - 1);
+    const sp = cut.lastIndexOf(' ');
+    return (sp > n * 0.6 ? cut.slice(0, sp) : cut).replace(/[\s,;:.]+$/, '') + '…';
+  };
   E.estTokens = (s) => Math.ceil((s || '').length / 3.6);
   E.rng = Math.random;
 

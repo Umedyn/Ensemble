@@ -40,6 +40,25 @@ test('acting on someone in the room cancels a move elsewhere (log 3/4: Kit walke
   assert.deepEqual(guardTypes(res), ['move cancelled']);
 });
 
+// Playtest 2026-10-19 (DeepSeek): the guard above cancelled four moves the
+// player asked for, because each action also named someone in the room.
+test('a move the player states is kept even when the action names someone in the room', () => {
+  const move = (action, to, present, setup) => {
+    const { E, state } = newGame();
+    if (setup) setup(state);
+    const res = E.Engine.resolve(state, intentOf({ player: { move_to: to }, intents: [] }), present, action, 'hour');
+    return { where: state.characters.navarro.status.location, guards: guardTypes(res) };
+  };
+  const toGarage = (s) => { s.characters.raman.status.location = 'garage'; s.characters.navarro.status.location = 'garage'; };
+  assert.equal(move('Help Priya then go work on the Array.', 'surface', ['raman'], toGarage).where, 'surface', '"then go"');
+  assert.equal(move('Ask Teo to watch the console while I head down to the garage.', 'garage', PRESENT).where, 'garage', '"I head"');
+  assert.equal(move('Help Priya while Teo works on the shaft.', 'garage', PRESENT).where, 'garage', 'Priya is in the garage');
+  assert.equal(move('Grab the toolkit and go to the lab with Teo.', 'lab', PRESENT).where, 'lab', '"and go"');
+  const asked = move('Ask Teo to go to the lab.', 'lab', PRESENT);
+  assert.equal(asked.where, 'commons', 'Teo going is not the player going');
+  assert.deepEqual(asked.guards, ['move cancelled']);
+});
+
 test('moving to a person goes to wherever they are', () => {
   const { E, state } = newGame();
   E.Engine.resolve(state, intentOf({ player: { move_to: 'sorensen' }, intents: [] }), PRESENT, 'Go find Lev.', 'hour');
@@ -68,6 +87,28 @@ test('relocation check catches the narrator walking the player into another room
   assert.equal(where('You push open the hydroponics door.'), 'hydro');
   assert.equal(where('Teo heads for the Suit Room & Airlock.'), null, 'others leaving is fine');
   assert.equal(where('You glance toward the lab door.'), null, 'looking is not moving');
+});
+
+// Playtest 2026-10-19: "you cross the commons" on the way from Hydroponics to
+// the Med Bay triggered a rewrite; the Commons is the only way through.
+test('rooms passed through on the way are not a relocation', () => {
+  const { E, state } = newGame();
+  state.characters.navarro.status.location = 'med';
+  assert.deepEqual([...E.Engine.route(state, 'hydro', 'med')], ['hydro', 'commons', 'med']);
+  assert.equal(E.Engine.findRelocation(state, 'You leave Teo at the console and cross the commons to the med bay.', 'hydro'), null);
+  assert.equal(E.Engine.findRelocation(state, 'You head into the lab first.', 'hydro').id, 'lab', 'a detour still counts');
+});
+
+// Playtest 2026-10-19: walking to the garage, the frame told the narrator that
+// Okafor "leaves for Commons", the room she never left.
+test('when the player moves, people who stay put are left behind, not leaving', () => {
+  const { E, state } = newGame();
+  state.characters.navarro.status.location = 'garage';
+  state.characters.bauer.status.location = 'hydro';
+  const user = E.Prompts.narrate(state, PRESENT, 'Check on the Mule.', { startLoc: 'commons', startTime: 'Sol 214, 07:15', stepId: 'hour', stepLabel: 'about an hour', spanMinutes: 60 }, { outcomes: [], events: [] });
+  assert.match(user, /Dr\. Imani Okafor stays behind in Commons/);
+  assert.match(user, /Teo Bauer leaves for Hydroponics/);
+  assert.ok(!/leaves for Commons/.test(user));
 });
 
 // ---------- secrets ----------
@@ -581,6 +622,27 @@ test('a hosted reply that runs out of room while thinking is retried with more r
   assert.equal(bodies[0].max_tokens, 10000, 'hosted JSON steps get a flat 10k');
   assert.equal(bodies[1].max_tokens, 20000, 'and double that if cut off');
   assert.deepEqual({ ...bodies[0].reasoning }, { effort: 'low', exclude: true }, 'OpenRouter is asked to keep reasoning short');
+});
+
+// Playtest 2026-10-19 (DeepSeek): one scene came back empty after 725 tokens of
+// thinking, another was cut off mid-sentence and lost its last event.
+test('hosted prose calls get headroom for reasoning; local and JSON limits are unchanged', async () => {
+  const { E } = newGame();
+  E.settings.backends.external = { preset: 'openrouter', url: 'https://openrouter.ai/api/v1', key: 'k', model: 'deepseek/x' };
+  E.settings.routing.narrate = 'external';
+  const bodies = cutOffModel(E, [{ text: 'Teo shrugs.', finish: 'stop' }]);
+  await E.LLM.chat({ kind: 'narrate', system: 's', user: 'u', maxTokens: 350 });
+  await E.LLM.chat({ kind: 'update', system: 's', user: 'u', maxTokens: 350 });
+  assert.equal(bodies[0].max_tokens, 350 + E.LLM.hostedTextHeadroom);
+  assert.equal(bodies[1].max_tokens, 350, 'local KoboldCpp keeps the exact limit');
+});
+
+test('attitude notes are cut at a word, not mid-word', () => {
+  const { E, state } = newGame();
+  E.Engine.applyUpdate(state, { player_attitude: [{ to: 'raman', delta: 4, reason: 'Kit dropped what they were doing to cycle the airlock and get Raman out of the storm.' }] }, PRESENT);
+  const note = state.characters.navarro.attitudeNotes.raman;
+  assert.ok(note.length <= 80);
+  assert.match(note, /get Raman out of the…$/);
 });
 
 test('JSON cut off mid-object is retried with a bigger limit, not the same one', async () => {

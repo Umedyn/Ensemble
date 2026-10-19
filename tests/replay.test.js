@@ -30,6 +30,27 @@ test('the sample session replays turn by turn, the same way every time', async (
   assert.ok(a.state.facts.some((f) => /sensor issue/.test(f.text)), 'memory recorded from the replayed update calls');
 });
 
+// Real session (DeepSeek, 2026-10-19), see the note in the fixture.
+test('playtest: the storm session replays, and Kit gets where the player sent them', async () => {
+  const r = await replay('playtest-deepseek-storm');
+  const at = (n) => r.steps[n - 1].state.characters.navarro.status.location;
+  assert.equal(at(3), 'surface', '"Help Priya then go work on the Array."');
+  assert.equal(at(6), 'surface', '"Help Priya while Teo works on the shaft." (Priya is outside)');
+  assert.equal(at(8), 'garage', '"…while I head down to the garage."');
+  assert.equal(at(11), 'med');
+  assert.equal(r.state.turn, 16);
+  for (const s of r.steps) {
+    const res = s.state.pending && s.state.pending.res;
+    assert.ok(!res || !res.outcomes.some((o) => o.reveals), `action ${s.index}: nobody's secret came out`);
+  }
+});
+
+test('playtest: walking out to the garage leaves Okafor behind instead of sending her to the Commons', async () => {
+  const r = await replay('playtest-deepseek-storm', { until: 2 });
+  const narrate = r.E.LLM.calls.filter((c) => c.kind === 'narrate').pop();
+  assert.match(narrate.user, /Dr\. Imani Okafor stays behind in Commons/);
+});
+
 test('until stops after that many actions', async () => {
   const r = await replay('mock-session', { until: 2 });
   assert.equal(r.steps.length, 2);
