@@ -29,7 +29,7 @@ async function check(name, fn) {
   page.on('pageerror', (e) => errors.push(String(e)));
   try {
     await page.goto(BASE);
-    await page.evaluate(() => localStorage.clear());
+    await page.evaluate(() => { localStorage.clear(); localStorage.setItem('ensemble.setupDone', '1'); });
     await page.reload();
     await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
     await fn(page);
@@ -75,6 +75,22 @@ await check('next settles a beat; acting early steps in', async (page) => {
   assert.match(await page.getAttribute('#actionInput', 'placeholder'), /^What do you do\?/);
   await act(page, 'Wait, what was that?', 'moment');
   assert.equal(await page.locator('.beat-note').count(), 1, 'unread third beat never happened');
+});
+
+await check('first run: setup picks a hosted model and opens its settings', async (page) => {
+  await page.evaluate(() => localStorage.removeItem('ensemble.setupDone'));
+  await page.reload();
+  await page.waitForSelector('#setup[open]');
+  await page.waitForFunction(() => /KoboldCpp is running here/.test(document.getElementById('setupLocal').textContent));
+  await page.click('#setup button[value="external"]');
+  await page.waitForSelector('#settings[open]');
+  assert.ok(await page.locator('details[data-section="external"]').evaluate((d) => d.open), 'external section open');
+  assert.equal(await page.inputValue('#routing [data-step="narrate"]'), 'external');
+  assert.equal(await page.evaluate(() => document.activeElement.className), 'bKey', 'cursor in the API key field');
+  await page.click('#settings button[value="cancel"]');
+  await page.reload();
+  await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
+  assert.equal(await page.locator('#setup[open]').count(), 0, 'asked only once');
 });
 
 await check('settings: API key errors and hybrid routing', async (page) => {

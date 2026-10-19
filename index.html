@@ -61,52 +61,71 @@
   <div id="debugBody" class="debug-body"></div>
 </section>
 
+<dialog id="setup">
+  <form method="dialog" class="settings setup">
+    <h3>Welcome to Ensemble</h3>
+    <div class="muted">Ensemble needs a language model to write the story. How do you want to run it?</div>
+    <button value="external" class="choice"><b>A hosted model (API key)</b><span>OpenRouter or any OpenAI-compatible service. Works on any computer and costs a little per turn.</span></button>
+    <button value="local" class="choice"><b>KoboldCpp on this computer</b><span>Free and private, but needs a capable graphics card.</span><span id="setupLocal" class="small"></span></button>
+    <button value="hybrid" class="choice"><b>Both</b><span>The hosted model plays the characters and narrates; KoboldCpp keeps the records.</span></button>
+    <div class="row end"><button value="skip" class="ghost">Decide later</button></div>
+  </form>
+</dialog>
+
 <dialog id="settings">
   <form method="dialog" class="settings">
-    <div class="row"><h3>Settings</h3><div class="spacer"></div><button value="cancel" type="submit" class="ghost" title="Close without saving">✕</button></div>
+    <div class="row"><h3>Settings</h3><div class="spacer"></div><button type="button" id="btnSetup" class="ghost small">Setup guide</button><button value="cancel" type="submit" class="ghost" title="Close without saving">✕</button></div>
 
-    <fieldset class="backend" data-backend="local">
-      <legend>Local model</legend>
-      <label>Type <select class="bPreset"></select></label>
-      <div class="hint muted"></div>
-      <label>URL <input class="bUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false"></label>
-      <label class="keyRow">API key / password <input class="bKey" type="password" autocomplete="off" spellcheck="false"></label>
-      <label class="modelRow">Model <input class="bModel" type="text" autocomplete="off" spellcheck="false"></label>
-      <label>Context size (tokens) <input class="bContext" type="number" min="2048" step="1024"></label>
-      <div class="row"><button type="button" class="bTest">Test</button><span class="bStatus muted"></span></div>
-      <div class="muted small">Test reads the context size from KoboldCpp.</div>
-    </fieldset>
+    <details class="section" data-section="external" open>
+      <summary>External model (API)</summary>
+      <fieldset class="backend" data-backend="external">
+        <label>Type <select class="bPreset"></select></label>
+        <div class="hint muted"></div>
+        <label>URL <input class="bUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false"></label>
+        <label class="keyRow">API key <input class="bKey" type="password" autocomplete="off" spellcheck="false"></label>
+        <label class="modelRow">Model <input class="bModel" type="text" autocomplete="off" spellcheck="false" placeholder="vendor/model-name"></label>
+        <label>Context size (tokens) <input class="bContext" type="number" min="2048" step="1024"></label>
+        <div class="row"><button type="button" class="bTest">Test</button><span class="bStatus muted"></span></div>
+        <div class="muted small">Test reads the context size when the provider lists it (OpenRouter does). Keys are stored only in this browser and are never written into save files.</div>
+      </fieldset>
+    </details>
 
-    <fieldset class="backend" data-backend="external">
-      <legend>External model (API)</legend>
-      <label>Type <select class="bPreset"></select></label>
-      <div class="hint muted"></div>
-      <label>URL <input class="bUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false"></label>
-      <label class="keyRow">API key <input class="bKey" type="password" autocomplete="off" spellcheck="false"></label>
-      <label class="modelRow">Model <input class="bModel" type="text" autocomplete="off" spellcheck="false" placeholder="vendor/model-name"></label>
-      <label>Context size (tokens) <input class="bContext" type="number" min="2048" step="1024"></label>
-      <div class="row"><button type="button" class="bTest">Test</button><span class="bStatus muted"></span></div>
-      <div class="muted small">Test reads the context size when the provider lists it (OpenRouter does). Keys are stored only in this browser and are never written into save files.</div>
-    </fieldset>
+    <details class="section" data-section="local">
+      <summary>Local model</summary>
+      <fieldset class="backend" data-backend="local">
+        <label>Type <select class="bPreset"></select></label>
+        <div class="hint muted"></div>
+        <label>URL <input class="bUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false"></label>
+        <label class="keyRow">API key / password <input class="bKey" type="password" autocomplete="off" spellcheck="false"></label>
+        <label class="modelRow">Model <input class="bModel" type="text" autocomplete="off" spellcheck="false"></label>
+        <label>Context size (tokens) <input class="bContext" type="number" min="2048" step="1024"></label>
+        <div class="row"><button type="button" class="bTest">Test</button><span class="bStatus muted"></span></div>
+        <div class="muted small">Test reads the context size from KoboldCpp.</div>
+      </fieldset>
+    </details>
 
-    <fieldset>
-      <legend>Which model does what</legend>
-      <div id="routing" class="routing"></div>
-      <div class="row wrap">
-        <button type="button" data-route="local">All local</button>
-        <button type="button" data-route="hybrid" title="Characters, events and narration external; bookkeeping local">Hybrid</button>
-        <button type="button" data-route="external">All external</button>
-      </div>
-    </fieldset>
+    <details class="section" data-section="routing" open>
+      <summary>Which model does what</summary>
+      <fieldset>
+        <div id="routing" class="routing"></div>
+        <div class="row wrap">
+          <button type="button" data-route="local">All local</button>
+          <button type="button" data-route="hybrid" title="Characters, events and narration external; bookkeeping local">Hybrid</button>
+          <button type="button" data-route="external">All external</button>
+        </div>
+      </fieldset>
+    </details>
 
-    <fieldset>
-      <legend>Story</legend>
-      <div id="sMemory" class="muted small"></div>
-      <label>Memory cap (tokens): the most context memory is planned for, even on bigger models <input id="sMemoryCap" type="number" min="4096" step="4096"></label>
-      <label>Scene length (max tokens, scaled by time step) <input id="sNarrate" type="number" min="150" max="1200" step="10"></label>
-      <label>Temperature <input id="sTemp" type="number" min="0" max="2" step="0.05"></label>
-      <label>Turns per chapter <input id="sChapter" type="number" min="2" max="20"></label>
-    </fieldset>
+    <details class="section" data-section="story">
+      <summary>Story</summary>
+      <fieldset>
+        <div id="sMemory" class="muted small"></div>
+        <label>Memory cap (tokens): the most context memory is planned for, even on bigger models <input id="sMemoryCap" type="number" min="4096" step="4096"></label>
+        <label>Scene length (max tokens, scaled by time step) <input id="sNarrate" type="number" min="150" max="1200" step="10"></label>
+        <label>Temperature <input id="sTemp" type="number" min="0" max="2" step="0.05"></label>
+        <label>Turns per chapter <input id="sChapter" type="number" min="2" max="20"></label>
+      </fieldset>
+    </details>
     <div id="sStatus" class="muted"></div>
     <div class="row end">
       <button value="save" class="primary">Save</button>

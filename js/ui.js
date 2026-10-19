@@ -452,12 +452,15 @@
     ).join('');
     E.routeSteps.forEach((r) => { $('routing').querySelector(`[data-step="${r.id}"]`).value = E.settings.routing[r.id] || 'local'; });
   }
+  // local | external | hybrid (characters and narration external, bookkeeping local)
+  function routingFor(mode) {
+    const out = {};
+    E.routeSteps.forEach((r) => { out[r.id] = mode === 'hybrid' ? (['intent', 'narrate'].includes(r.id) ? 'external' : 'local') : mode; });
+    return out;
+  }
   document.querySelectorAll('[data-route]').forEach((btn) => btn.addEventListener('click', () => {
-    const mode = btn.dataset.route;
-    E.routeSteps.forEach((r) => {
-      const v = mode === 'hybrid' ? (['intent', 'narrate'].includes(r.id) ? 'external' : 'local') : mode;
-      $('routing').querySelector(`[data-step="${r.id}"]`).value = v;
-    });
+    const routes = routingFor(btn.dataset.route);
+    E.routeSteps.forEach((r) => { $('routing').querySelector(`[data-step="${r.id}"]`).value = routes[r.id]; });
     showMemory();
   }));
   // Keep the memory line current while the dialog is open.
@@ -486,6 +489,42 @@
     E.settings.chapterLength = E.clamp(parseInt($('sChapter').value, 10) || E.defaults.chapterLength, 2, 20);
   }
   $('btnSettings').addEventListener('click', () => { fillSettings(); $('settings').showModal(); });
+
+  // ---------- first-run setup ----------
+  // Shown once, before any settings are saved: pick how to run the model, then
+  // Settings opens on the section that still needs filling in.
+  function openSetup() {
+    $('setupLocal').textContent = 'Checking for KoboldCpp…';
+    $('setupLocal').className = 'small';
+    E.LLM.ping('local').then(
+      (info) => { $('setupLocal').textContent = `✓ KoboldCpp is running here (${info.model}).`; $('setupLocal').className = 'small ok'; },
+      () => { $('setupLocal').textContent = 'KoboldCpp isn\'t running right now.'; },
+    );
+    $('setup').showModal();
+  }
+  $('setup').addEventListener('close', () => {
+    store.set('ensemble.setupDone', '1');
+    const mode = $('setup').returnValue;
+    if (!['external', 'local', 'hybrid'].includes(mode)) { checkConnection(false); return; }
+    E.settings.routing = routingFor(mode);
+    E.saveSettings();
+    checkConnection(false);
+    fillSettings();
+    document.querySelectorAll('#settings details.section').forEach((d) => {
+      d.open = d.dataset.section === (mode === 'local' ? 'local' : 'external') || d.dataset.section === 'routing';
+    });
+    $('settings').showModal();
+    const box = backendBox(mode === 'local' ? 'local' : 'external');
+    (mode === 'local' ? box.querySelector('.bTest') : box.querySelector('.bKey')).focus();
+  });
+  $('btnSetup').addEventListener('click', () => { $('settings').close('cancel'); openSetup(); });
+  // Settings sections remember whether they were left open.
+  document.querySelectorAll('#settings details.section').forEach((d) => {
+    const k = 'ensemble.section.' + d.dataset.section;
+    const v = store.get(k);
+    if (v !== null) d.open = v === '1';
+    d.addEventListener('toggle', () => store.set(k, d.open ? '1' : '0'));
+  });
   $('settings').addEventListener('close', () => {
     if ($('settings').returnValue === 'save') {
       readSettings();
@@ -509,10 +548,12 @@
   }
 
   async function boot() {
+    const firstRun = store.get('ensemble.settings') === null && store.get('ensemble.setupDone') === null;
     E.loadSettings();
     initTimeSteps();
     await loadServerList();
-    checkConnection(false);
+    if (firstRun) openSetup();
+    else checkConnection(false);
     const saved = store.get('ensemble.autosave');
     if (saved) {
       try {

@@ -4,9 +4,10 @@ A local, character-driven story sim in the spirit of Pax Historia, but at person
 
 ## Running it
 
-1. Start KoboldCpp with any instruct or roleplay model. 8K context or more is recommended. Set the **chat completions adapter** to match your model's format (for Mistral Nemo-based models such as NemoMix, pick the Mistral/Nemo adapter). If the console says "Chat template heuristics failed… Alpaca will be used", the model is being prompted in the wrong format and quality will suffer.
+1. For a local model, start KoboldCpp with any instruct or roleplay model. 8K context or more is recommended. Set the **chat completions adapter** to match your model's format (for Mistral Nemo-based models such as NemoMix, pick the Mistral/Nemo adapter). If the console says "Chat template heuristics failed… Alpaca will be used", the model is being prompted in the wrong format and quality will suffer. Using a hosted model instead? Skip this step; you only need an API key (see below).
 2. Double-click `start.bat` (Windows) or run `./start.sh`. This serves the folder at http://localhost:8000 (using Node if installed, otherwise Python) and opens your browser. With Node you can also run `npm run serve`.
-3. Pick a scenario, press **New game**, and type what you do.
+3. On your first visit, a short setup asks how you want to run the model (hosted, KoboldCpp, or both), checks whether KoboldCpp is running, and opens Settings where you finish up. **Settings → Setup guide** brings it back.
+4. Pick a scenario, press **New game**, and type what you do.
 
 No Python? Open `index.html` directly and use **Open folder** to pick the `scenarios` folder (or a single scenario folder).
 
