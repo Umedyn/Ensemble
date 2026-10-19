@@ -91,7 +91,7 @@ Progress autosaves to the browser after every turn. **Save** downloads a JSON fi
 
 ## Next steps
 
-Location map, relationship web graph, a director that tracks tension and injects events, and a scenario editor.
+See `ROADMAP.md`: worlds with multiple starts, character creation, cast tiers, world/regional/local maps, lore and a canon timeline, and a creator suite.
 
 ## Development
 
