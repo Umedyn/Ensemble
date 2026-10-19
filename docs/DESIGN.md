@@ -21,7 +21,7 @@ The model is used for judgment and prose. Everything that must stay true (where 
 - `characters[id]`: sheet (name, pronouns, role, traits, want, secret, guard, voice, skills), `needs` (0–1), `status` (health, location, conditions), `relations[otherId]` (−100..100: how this person feels about the other), and for the player `attitudeNotes` (latest reason per person)
 - `locations`, `world` (key → short status), `factions` (name, desc, stance), `clocks` (pressures with `value/max/perHour`, `fireText`, `fireWorld`, follow-up `then` clocks)
 - `facts[]`: `{ text, about[], known_by[] | ['all'], weight 1–3, turn, chapter }`
-- `chapters[]`, `recent` (last scene), `log` (display only), `news`, `pending` (the last turn awaiting memory), `tierLast` (when regional/world events last happened)
+- `chapters[]`, `recent` (last scene), `log` (display only), `news`, `pending` (the last turn awaiting memory), `undo` (the whole state from before the last action), `tierLast` (when regional/world events last happened)
 
 ## The turn
 
@@ -33,9 +33,11 @@ The model is used for judgment and prose. Everything that must stay true (where 
 6. **Narrate call** (model): a scene frame (starts where/with whom, ends where, who left or arrived), status with pronouns, the player's attitude toward those present, resolved outcomes (covert ones only as "out of sight"), and beat instructions. The narrator never sees secrets.
 7. **Clean the prose**: drop repeated paragraphs, cut back to the last full sentence, drop trailing paragraphs that are the player's own action, regenerate once if it walks the player into another room.
 7b. **Fill a short scene, then settle the clock** (about an hour, a few hours only): if the last beat is before half the step, one continuation call asks for 1–2 closing beats (same cleanup; dropped if it relocates the player). Then time is wound back to the last beat plus 10% of the step, unless a pressure clock fired during the step. The other steps keep their full span.
-8. **Store as pending** with beats, the starting snapshot and everything the update step will need.
+8. **Store as pending** with beats, the starting snapshot, everything the update step will need, and `narration` (the turn's system prompt, step, and the time state before and after the step) for Reroll.
 
 A normal turn is three model calls (intent, narrate, update), plus an occasional chapter summary or narration retry.
+
+**Undo and reroll** (playtest tools). `runTurn` clones the whole state before step 1; when the turn succeeds the clone (minus its own `undo`) becomes `state.undo`, so there is one level of undo. Undo swaps it back in: facts, time, clocks, rolls, any chapter the commit closed, and the previous scene pending again with all its beats (a step-in is undone too; the page re-selects it). Reroll works only on the pending turn: it puts `recent` and time/needs/clock values back to just after step 5 and re-runs steps 6–7b with the stored system prompt, so rolls, moves, events and clocks stay and only the prose, beats and settled time change. Save files leave `undo` out; the autosave keeps it.
 
 ## Prompts and the cache
 

@@ -28,8 +28,8 @@ The plan from here to a game that can host any kind of story: a Mars crew, a zom
 
 Every later phase needs fast testing against a real model, and turns take 30–60 seconds.
 
-- [ ] **Undo last turn.** Restore the turn's starting snapshot (already kept in `pending`).
-- [ ] **Reroll narration.** Keep the intent and resolution, and only rewrite the scene.
+- [x] **Undo last turn.** Restore the state from before the last action (one level, `state.undo`).
+- [x] **Reroll narration.** Keep the intent and resolution, and only rewrite the scene.
 - [ ] **Turn telemetry in Debug.** Tokens in and out per call, cache reuse (from KoboldCpp's perf endpoint where available), seconds per step, and which guards fired.
 - [ ] **Turn recorder and replay tests.** Export a session's raw model responses as a fixture, and add a fake backend that replays them so a real bad log becomes a regression test. Fixtures live in `tests/fixtures/`.
 - [ ] **Validation pass (carried over).** Play every time step on the reference setup; run several major-event skips in a row; compare Hybrid with all-local; tune reveal thresholds, event rates and scene lengths; play the zombie holdout end to end.

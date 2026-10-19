@@ -297,6 +297,165 @@ test('a failed model call rolls the whole turn back', async () => {
   assert.equal(state.time.hour, 7);
 });
 
+// ---------- undo and reroll (playtest tools) ----------
+
+const withoutUndo = (state) => { const s = JSON.parse(JSON.stringify(state)); delete s.undo; return JSON.stringify(s); };
+
+// Like scriptedModel, but the player's action needs a roll and prose can change between calls.
+function rollingModel(E, proses) {
+  let n = 0;
+  return mockLLM(E, ({ kind }) => {
+    if (kind.startsWith('intent')) return { player: { summary: 'fix the recycler', needs_roll: true, skill: 'tech', difficulty: 'hard' }, intents: [
+      { id: 'okafor', action: 'goes to Ops to call Mission Control', move_to: 'ops' },
+      { id: 'bauer', action: 'deflects', says: 'Sensor issue.' }], events: [] };
+    if (kind === 'narrate (continue)') return '';
+    if (kind.startsWith('narrate')) return proses[Math.min(n++, proses.length - 1)];
+    if (kind.startsWith('update')) return { facts: [{ about: ['bauer'], text: 'Teo blamed a sensor.', known_by: ['navarro', 'bauer'], weight: 2 }], state: [], relations: [{ from: 'bauer', to: 'navarro', delta: -5 }] };
+    return { title: 'The Rattle', summary: 'Kit looked into the recycler.' };
+  });
+}
+
+test('undo returns the exact state from before the last action: facts, time, clocks and rolls', async () => {
+  const { E, state } = newGame();
+  fixedRng(E, [0.5, 0.9, 0.1, 0.7]);
+  rollingModel(E, ['[+0m] You open the panel.\n\n[+40m] Teo shrugs. "Sensor."']);
+  await E.Engine.runTurn(state, 'Fix the recycler.', 'hour');
+  const before = withoutUndo(state);
+  await E.Engine.runTurn(state, 'Ask Teo again.', 'hours');
+  assert.notEqual(withoutUndo(state), before, 'the second turn changed things');
+  const info = E.Engine.undo(state);
+  assert.equal(withoutUndo(state), before);
+  assert.equal(info.turn, 2);
+  assert.equal(info.action, 'Ask Teo again.');
+  assert.equal(info.stepId, 'hours');
+  assert.equal(state.pending.turn, 1, 'turn 1 is pending again, its memory not yet recorded');
+  assert.ok(!state.facts.some((f) => /sensor/.test(f.text)));
+  assert.ok(!E.Engine.canUndo(state), 'only one level of undo');
+  assert.equal(E.Engine.undo(state), null);
+});
+
+test('undo after a chapter close also removes that chapter', async () => {
+  const { E, state } = newGame();
+  E.settings.chapterLength = 2;
+  rollingModel(E, ['[+0m] You open the panel. Teo shrugs.']);
+  await E.Engine.runTurn(state, 'Fix the recycler.', 'moment');
+  await E.Engine.runTurn(state, 'Keep at it.', 'moment');
+  const before = withoutUndo(state);
+  await E.Engine.runTurn(state, 'Ask Teo.', 'moment');
+  assert.equal(state.chapters.length, 1);
+  assert.ok(state.log.some((e) => e.type === 'chapter'));
+  const info = E.Engine.undo(state);
+  assert.deepEqual([...info.chaptersRemoved], [1]);
+  assert.equal(state.chapters.length, 0);
+  assert.equal(state.chapter, 1);
+  assert.ok(!state.log.some((e) => e.type === 'chapter'));
+  assert.equal(withoutUndo(state), before);
+});
+
+test('undo after stepping in brings back the whole previous scene, still pending', async () => {
+  const { E, state } = newGame();
+  scriptedModel(E, { prose: '[+0m] You ask Teo. He shrugs.\n\n[+70m] Okafor heads for Ops.\n\n[+160m] Priya stomps in.' });
+  await E.Engine.runTurn(state, 'Ask Teo about the rattle.', 'hours');
+  const t1 = E.fmtTime(state);
+  await E.Engine.runTurn(state, 'Imani, wait.', 'moment', null, 1);
+  const info = E.Engine.undo(state);
+  assert.equal(info.cutAt, 1, 'the page can put the step-in point back');
+  assert.equal(state.pending.turn, 1);
+  assert.equal(state.pending.beats.length, 3, 'beats after the step-in are back, since the step-in was undone');
+  assert.equal(state.log.find((e) => e.type === 'scene' && e.turn === 1).cutAt, undefined);
+  assert.equal(state.characters.okafor.status.location, 'ops');
+  assert.equal(E.fmtTime(state), t1);
+});
+
+test('a failed turn keeps the previous undo', async () => {
+  const { E, state } = newGame();
+  scriptedModel(E, { prose: 'Teo shrugs. "Sensor issue."' });
+  await E.Engine.runTurn(state, 'Ask Teo.', 'moment');
+  E.LLM.transport = async () => { throw new TypeError('fetch failed'); };
+  await assert.rejects(E.Engine.runTurn(state, 'Nod.', 'moment'));
+  assert.equal(state.undo.action, 'Ask Teo.');
+  E.Engine.undo(state);
+  assert.equal(state.turn, 0);
+});
+
+test('reroll keeps the rolls, positions, events and time, and replaces only the prose and beats', async () => {
+  const { E, state } = newGame();
+  fixedRng(E, [0.5, 0.95]);
+  const calls = rollingModel(E, ['[+0m] You open the panel.\n\n[+40m] Teo shrugs. "Sensor."', '[+0m] You crack the casing.\n\n[+20m] Okafor leaves.\n\n[+40m] Teo frowns. "Careful."']);
+  await E.Engine.runTurn(state, 'Fix the recycler.', 'hour');
+  const keep = (s) => JSON.stringify({ time: s.time, outcomes: s.pending.res.outcomes, chars: s.characters, clocks: s.clocks.map((c) => c.fired), facts: s.facts, world: s.world, turn: s.turn });
+  const kept = keep(state);
+  const firstSystem = calls.find((c) => c.kind === 'narrate').system;
+  const out = await E.Engine.rerollNarration(state);
+  assert.equal(calls.filter((c) => c.kind === 'intent').length, 1, 'no new intent call');
+  assert.equal(calls.filter((c) => c.kind === 'narrate').length, 2);
+  const reroll = calls.filter((c) => c.kind === 'narrate')[1];
+  assert.equal(reroll.system, firstSystem, 'same cached prefix as the turn');
+  assert.ok(!reroll.user.includes('You open the panel'), 'the old draft is not fed back as the last scene');
+  assert.equal(keep(state), kept);
+  assert.match(out.oldText, /open the panel/);
+  const scene = state.log.find((e) => e.type === 'scene' && e.turn === 1);
+  assert.match(scene.text, /crack the casing/);
+  assert.equal(scene.beats.length, 3);
+  assert.equal(state.pending.beats.length, 3);
+  assert.match(state.recent[0].text, /crack the casing/);
+  assert.equal(state.log.filter((e) => e.turn === 1).length, 3, 'no extra log entries');
+});
+
+test('reroll on a loose step settles the clock on the new scene', async () => {
+  const { E, state } = newGame();
+  const t0 = minutesOf(state);
+  rollingModel(E, ['[+0m] You open the panel.\n\n[+40m] Teo shrugs.', '[+0m] You open the panel.\n\n[+20m] Teo shrugs.\n\n[+55m] Okafor calls.']);
+  await E.Engine.runTurn(state, 'Fix the recycler.', 'hour');
+  assert.equal(minutesOf(state) - t0, 46);
+  assert.equal(state.log.find((e) => e.type === 'action').until, 'Sol 214, 07:46');
+  await E.Engine.rerollNarration(state);
+  assert.equal(minutesOf(state) - t0, 60, 'new last beat covers the hour');
+  assert.equal(state.log.find((e) => e.type === 'action').until, undefined);
+});
+
+test('reroll then next turn: memory sees the rerolled scene; undo still goes back past both', async () => {
+  const { E, state } = newGame();
+  const calls = rollingModel(E, ['[+0m] Teo shrugs.', '[+0m] Teo glares. "Leave it."', '[+0m] Teo nods.']);
+  await E.Engine.runTurn(state, 'Ask Teo.', 'moment');
+  await E.Engine.rerollNarration(state);
+  await E.Engine.runTurn(state, 'Nod.', 'moment');
+  const upd = calls.find((c) => c.kind === 'update');
+  assert.match(upd.user, /Leave it/);
+  assert.ok(!upd.user.includes('Teo shrugs'));
+  assert.ok(!E.Engine.canReroll(state) || state.pending.turn === 2, 'only the pending turn can be rerolled');
+  E.Engine.undo(state);
+  assert.equal(state.pending.turn, 1);
+  assert.match(state.recent[0].text, /Leave it/, 'undo returns to the rerolled scene');
+});
+
+test('a failed reroll leaves the scene as it was', async () => {
+  const { E, state } = newGame();
+  rollingModel(E, ['[+0m] Teo shrugs.']);
+  await E.Engine.runTurn(state, 'Ask Teo.', 'moment');
+  const before = JSON.stringify(state);
+  E.LLM.transport = async () => { throw new TypeError('fetch failed'); };
+  await assert.rejects(E.Engine.rerollNarration(state));
+  assert.equal(JSON.stringify(state), before);
+});
+
+test('reroll of a downtime skip keeps the time jump and where everyone is', async () => {
+  const { E, state } = newGame();
+  fixedRng(E, [0.995]);
+  let n = 0;
+  const calls = mockLLM(E, ({ kind }) => {
+    if (kind === 'intent') return { montage: [{ after: '1d', text: 'Routine.' }], events: [], major_event: null, positions: [{ id: 'bauer', where: 'hydro', doing: 'pruning' }], player_where: 'commons' };
+    return n++ ? '[+0h] Days pass.\n\n[+20h] The alarm sounds. Teo looks up.' : '[+0h] Quiet days.\n\n[+20h] An alarm. Priya swears.';
+  });
+  await E.Engine.runTurn(state, '', 'major');
+  const time = E.fmtTime(state);
+  await E.Engine.rerollNarration(state);
+  assert.equal(calls.filter((c) => c.kind === 'intent').length, 1);
+  assert.equal(E.fmtTime(state), time);
+  assert.equal(state.characters.bauer.status.location, 'hydro');
+  assert.match(state.log.find((e) => e.type === 'scene' && e.turn === 1).text, /Teo looks up/);
+});
+
 test('per-step routing sends each step to its backend', async () => {
   const { E, state } = newGame();
   E.settings.backends.external = { preset: 'custom', url: 'https://api.example.com/v1', key: 'sk-test', model: 'bigco/story-70b' };

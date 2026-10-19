@@ -574,13 +574,17 @@
   // Winds the clock back to where the scene actually ended: the last beat plus
   // a little for the beat itself. Keeps the full step if a pressure clock fired
   // (the scene is built around it). Returns true when time changed.
+  const restoreTime = (state, snap) => {
+    state.time = E.clone(snap.time);
+    state.order.forEach((id, i) => { state.characters[id].needs = E.clone(snap.needs[i]); });
+    state.clocks.forEach((c, i) => { if (snap.clocks[i]) c.value = snap.clocks[i].value; });
+  };
+
   Eng.settleSceneTime = function (state, beats, spanMinutes, before, res) {
     const end = Math.min(spanMinutes, beats[beats.length - 1].at + Math.round(spanMinutes * 0.1));
     if (end >= spanMinutes) return false;
     if (state.clocks.length !== before.clocks.length || state.clocks.some((c, i) => c.fired !== before.clocks[i].fired)) return false;
-    state.time = E.clone(before.time);
-    state.order.forEach((id, i) => { state.characters[id].needs = E.clone(before.needs[i]); });
-    state.clocks.forEach((c, i) => { c.value = before.clocks[i].value; });
+    restoreTime(state, before);
     Eng.advanceTime(state, end / 60, res);
     return true;
   };
@@ -652,7 +656,7 @@
   async function skipTurn(state, action, phase) {
     const plan = Eng.planMajorSkip(state);
     const pre = E.clone(state);
-    delete pre.log; delete pre.pending;
+    delete pre.log; delete pre.pending; delete pre.undo;
     state.turn += 1;
     const system = E.Prompts.header(state);
     const frame = { startTime: E.fmtTime(state), startLoc: state.characters[state.player].status.location, stepId: 'major', stepLabel: 'until something major happens', spanMinutes: Math.round(plan.hours * 60) };
@@ -697,16 +701,10 @@
     res.outcomes.push({ id: state.player, action: action || 'keeps to routine through the downtime', visible: true, roll: null, moved: null });
     state.flags.chapterWorthy = true;
 
-    phase('Writing the downtime…');
     const montage = Array.isArray(obj.montage) ? obj.montage.filter((x) => x && x.text).slice(0, 5) : [];
     const doings = Array.isArray(obj.positions) ? obj.positions.filter((p) => p && state.characters[p.id] && p.doing) : [];
-    let prose = Eng.trimPlayerEnding(Eng.cleanProse(await E.LLM.chat({
-      kind: 'narrate', system, user: E.Prompts.narrateSkip(state, action, frame, montage, doings, res, presentStart),
-      maxTokens: Math.round(E.settings.narrateTokens * 2.2),
-    })));
-    if (!prose) throw new Error('The model returned an empty scene.');
-
-    const beats = Eng.parseBeats(prose, frame.spanMinutes);
+    const narration = { skip: true, system, action, montage, doings, presentStart };
+    const beats = await writeSkipScene(state, narration, { frame, res }, phase);
     const text = beatsText(beats);
     state.log.push({ turn: state.turn, type: 'action', text: action || '(downtime)', time: frame.startTime, until: frame.endTime, skip: plan.reason });
     state.log.push({ turn: state.turn, type: 'resolve', outcomes: res.outcomes, events: res.events });
@@ -715,95 +713,181 @@
     const here = state.characters[state.player].status.location;
     const witnesses = state.order.filter((id) => id !== state.player && Eng.alive(state, id) && state.characters[id].status.location === here);
     frame.startLoc = here;
-    state.pending = { turn: state.turn, action: action || 'Keeps to routine through the downtime.', res, frame, present: witnesses, beats, pre, routine: true };
+    state.pending = { turn: state.turn, action: action || 'Keeps to routine through the downtime.', res, frame, present: witnesses, beats, pre, routine: true, narration };
     phase('');
     return { prose: text, beats, res, plan };
   }
 
+  async function writeSkipScene(state, n, p, phase) {
+    phase('Writing the downtime…');
+    const prose = Eng.trimPlayerEnding(Eng.cleanProse(await E.LLM.chat({
+      kind: 'narrate', system: n.system, user: E.Prompts.narrateSkip(state, n.action, p.frame, n.montage, n.doings, p.res, n.presentStart),
+      maxTokens: Math.round(E.settings.narrateTokens * 2.2),
+    })));
+    if (!prose) throw new Error('The model returned an empty scene.');
+    return Eng.parseBeats(prose, p.frame.spanMinutes);
+  }
+
+  // Writes the scene for a resolved turn: narrate, keep the player in the room,
+  // fill a short scene, settle the clock. Shared by the turn and Reroll.
+  // n: what the narrate call needs (system, step, time before the step);
+  // p: present, action, frame, res. Returns { beats, until }.
+  async function writeScene(state, n, p, phase) {
+    const { step, system } = n;
+    const { present, action, frame, res } = p;
+    phase('Writing the scene…');
+    const narrateOnce = async () => Eng.trimPlayerEnding(Eng.cleanProse(await E.LLM.chat({
+      kind: frame.correction ? 'narrate (retry)' : 'narrate', system, user: E.Prompts.narrate(state, present, action, frame, res),
+      maxTokens: Math.round(E.settings.narrateTokens * (step.lengthMult || 1)),
+    })));
+    let prose = await narrateOnce();
+    const strayed = Eng.findRelocation(state, prose, frame.startLoc);
+    if (strayed) {
+      phase('Rewriting the scene…');
+      const here = state.locations[state.characters[state.player].status.location].name;
+      frame.correction = `Your previous draft took the player character to ${strayed.name}, which did not happen. The whole scene stays in ${here}${state.characters[state.player].status.location !== frame.startLoc ? ' (after the move shown above)' : ''}.`;
+      const retry = await narrateOnce();
+      if (retry) prose = retry;
+    }
+    if (!prose) throw new Error('The model returned an empty scene.');
+
+    let beats = Eng.parseBeats(prose, frame.spanMinutes);
+    let until;
+    if (Eng.LOOSE_STEPS.includes(step.id)) {
+      const lastAt = beats[beats.length - 1].at;
+      if (lastAt < frame.spanMinutes / 2) {
+        phase('Finishing the scene…');
+        const more = Eng.trimPlayerEnding(Eng.cleanProse(await E.LLM.chat({
+          kind: 'narrate (continue)', system, user: E.Prompts.narrateMore(state, present, action, frame, res, markedBeats(beats), lastAt),
+          maxTokens: Math.round(E.settings.narrateTokens * 0.8),
+        })));
+        if (more && !Eng.findRelocation(state, more, frame.startLoc)) {
+          beats = Eng.parseBeats(Eng.trimPlayerEnding(Eng.cleanProse(markedBeats(beats) + '\n\n' + more)), frame.spanMinutes);
+        }
+      }
+      if (Eng.settleSceneTime(state, beats, frame.spanMinutes, n.before, res)) until = E.fmtTime(state);
+    }
+    return { beats, until };
+  }
+
   // ---------- the turn ----------
   // cutAt: when the player interjects, the beat number they step in after.
+  // A finished turn keeps the state it started from in state.undo (one level).
   Eng.runTurn = async function (state, action, stepId, onPhase, cutAt) {
     const phase = onPhase || (() => {});
     if (state.flags.gameOver) throw new Error('This story has ended. Start a new game or load a save.');
     const snapshot = E.clone(state);
-    const restore = () => { Object.keys(state).forEach((k) => delete state[k]); Object.assign(state, snapshot); };
-
     try {
-      const report = await Eng.commitPending(state, cutAt, phase);
-      if (state.flags.gameOver) { phase(''); return { report, ended: true }; }
-      if (stepId === 'major') {
-        const out = await skipTurn(state, action, phase);
-        out.report = report || { applied: [], rejected: [] };
-        return out;
-      }
-      const step = E.stepHours(state, stepId);
-
-      const pre = E.clone(state);
-      delete pre.log; delete pre.pending;
-      state.turn += 1;
-      const present = Eng.present(state);
-      const system = E.Prompts.header(state); // same prefix for all calls this turn
-
-      const due = Eng.tiersDue(state, step.hours);
-      phase(due.world ? 'The wider world stirs…' : due.regional ? 'Something stirs nearby…' : 'Characters deciding…');
-      const intentObj = await E.LLM.chatJSON({
-        kind: 'intent', system, user: E.Prompts.intent(state, present, action, step.label, step.id, due),
-        maxTokens: 260 + 150 * present.length + (due.regional ? 120 : 0) + (due.world ? 140 : 0), temperature: 0.7,
-      });
-
-      const frame = { startTime: E.fmtTime(state), startLoc: state.characters[state.player].status.location, stepId: step.id, stepLabel: step.label, words: step.words, spanMinutes: Math.round(step.hours * 60) };
-      const res = Eng.resolve(state, intentObj, present, action, step.id, due);
-      const beforeTime = timeSnapshot(state);
-      Eng.advanceTime(state, step.hours, res);
-
-      phase('Writing the scene…');
-      const narrateOnce = async () => Eng.trimPlayerEnding(Eng.cleanProse(await E.LLM.chat({
-        kind: frame.correction ? 'narrate (retry)' : 'narrate', system, user: E.Prompts.narrate(state, present, action, frame, res),
-        maxTokens: Math.round(E.settings.narrateTokens * (step.lengthMult || 1)),
-      })));
-      let prose = await narrateOnce();
-      const strayed = Eng.findRelocation(state, prose, frame.startLoc);
-      if (strayed) {
-        phase('Rewriting the scene…');
-        const here = state.locations[state.characters[state.player].status.location].name;
-        frame.correction = `Your previous draft took the player character to ${strayed.name}, which did not happen. The whole scene stays in ${here}${state.characters[state.player].status.location !== frame.startLoc ? ' (after the move shown above)' : ''}.`;
-        const retry = await narrateOnce();
-        if (retry) prose = retry;
-      }
-      if (!prose) throw new Error('The model returned an empty scene.');
-
-      let beats = Eng.parseBeats(prose, frame.spanMinutes);
-      let until;
-      if (Eng.LOOSE_STEPS.includes(step.id)) {
-        const lastAt = beats[beats.length - 1].at;
-        if (lastAt < frame.spanMinutes / 2) {
-          phase('Finishing the scene…');
-          const more = Eng.trimPlayerEnding(Eng.cleanProse(await E.LLM.chat({
-            kind: 'narrate (continue)', system, user: E.Prompts.narrateMore(state, present, action, frame, res, markedBeats(beats), lastAt),
-            maxTokens: Math.round(E.settings.narrateTokens * 0.8),
-          })));
-          if (more && !Eng.findRelocation(state, more, frame.startLoc)) {
-            beats = Eng.parseBeats(Eng.trimPlayerEnding(Eng.cleanProse(markedBeats(beats) + '\n\n' + more)), frame.spanMinutes);
-          }
-        }
-        if (Eng.settleSceneTime(state, beats, frame.spanMinutes, beforeTime, res)) until = E.fmtTime(state);
-      }
-      const text = beatsText(beats);
-      const startMinutes = Math.round(pre.time.hour * 60);
-      state.log.push({ turn: state.turn, type: 'action', text: action, time: frame.startTime, until });
-      state.log.push({ turn: state.turn, type: 'resolve', outcomes: res.outcomes, events: res.events });
-      state.log.push({ turn: state.turn, type: 'scene', text, beats, startDay: pre.time.day, startMinutes });
-      state.recent = [{ turn: state.turn, action, text }];
-
-      // Memory is recorded at the start of the next turn, once we know how
-      // much of this scene the player let play out.
-      const playerOut = res.outcomes.find((o) => o.id === state.player);
-      state.pending = { turn: state.turn, action, res, frame, present, beats, pre, playerMovedTo: playerOut && playerOut.moved };
-
-      phase('');
-      return { prose: text, beats, res, report: report || { applied: [], rejected: [] } };
+      const out = await playTurn(state, action, stepId, phase, cutAt);
+      delete snapshot.undo;
+      state.undo = { state: snapshot, turn: state.turn, action, stepId, cutAt: cutAt || null };
+      return out;
     } catch (err) {
-      restore();
+      replaceState(state, snapshot);
+      phase('');
+      throw err;
+    }
+  };
+
+  const replaceState = (state, from) => { Object.keys(state).forEach((k) => delete state[k]); Object.assign(state, from); };
+
+  async function playTurn(state, action, stepId, phase, cutAt) {
+    const report = await Eng.commitPending(state, cutAt, phase);
+    if (state.flags.gameOver) { phase(''); return { report, ended: true }; }
+    if (stepId === 'major') {
+      const out = await skipTurn(state, action, phase);
+      out.report = report || { applied: [], rejected: [] };
+      return out;
+    }
+    const step = E.stepHours(state, stepId);
+
+    const pre = E.clone(state);
+    delete pre.log; delete pre.pending; delete pre.undo;
+    state.turn += 1;
+    const present = Eng.present(state);
+    const system = E.Prompts.header(state); // same prefix for all calls this turn
+
+    const due = Eng.tiersDue(state, step.hours);
+    phase(due.world ? 'The wider world stirs…' : due.regional ? 'Something stirs nearby…' : 'Characters deciding…');
+    const intentObj = await E.LLM.chatJSON({
+      kind: 'intent', system, user: E.Prompts.intent(state, present, action, step.label, step.id, due),
+      maxTokens: 260 + 150 * present.length + (due.regional ? 120 : 0) + (due.world ? 140 : 0), temperature: 0.7,
+    });
+
+    const frame = { startTime: E.fmtTime(state), startLoc: state.characters[state.player].status.location, stepId: step.id, stepLabel: step.label, words: step.words, spanMinutes: Math.round(step.hours * 60) };
+    const res = Eng.resolve(state, intentObj, present, action, step.id, due);
+    const before = timeSnapshot(state);
+    Eng.advanceTime(state, step.hours, res);
+
+    // Everything Reroll needs to write this scene again from the same resolution.
+    const narration = { system, step, before, after: timeSnapshot(state) };
+    const { beats, until } = await writeScene(state, narration, { present, action, frame, res }, phase);
+    const text = beatsText(beats);
+    const startMinutes = Math.round(pre.time.hour * 60);
+    state.log.push({ turn: state.turn, type: 'action', text: action, time: frame.startTime, until });
+    state.log.push({ turn: state.turn, type: 'resolve', outcomes: res.outcomes, events: res.events });
+    state.log.push({ turn: state.turn, type: 'scene', text, beats, startDay: pre.time.day, startMinutes });
+    state.recent = [{ turn: state.turn, action, text }];
+
+    // Memory is recorded at the start of the next turn, once we know how
+    // much of this scene the player let play out.
+    const playerOut = res.outcomes.find((o) => o.id === state.player);
+    state.pending = { turn: state.turn, action, res, frame, present, beats, pre, playerMovedTo: playerOut && playerOut.moved, narration };
+
+    phase('');
+    return { prose: text, beats, res, report: report || { applied: [], rejected: [] } };
+  }
+
+  // ---------- undo and reroll ----------
+  Eng.canUndo = (state) => !!(state && state.undo && state.undo.state);
+
+  // Puts the whole state back to how it was before the last action: facts,
+  // time, clocks, rolls, chapters, and the previous scene pending again.
+  // Returns what was undone so the page can refill the action box.
+  Eng.undo = function (state) {
+    if (!Eng.canUndo(state)) return null;
+    const u = state.undo;
+    const before = u.state;
+    const info = {
+      turn: u.turn, action: u.action, stepId: u.stepId, cutAt: u.cutAt,
+      from: E.fmtTime(state), to: E.fmtTime(before),
+      chaptersRemoved: state.chapters.slice(before.chapters.length).map((c) => c.n),
+    };
+    replaceState(state, before);
+    return info;
+  };
+
+  Eng.canReroll = (state) => !!(state && state.pending && state.pending.narration && !state.flags.gameOver);
+
+  // Writes the pending scene again. The intent call's result and the engine's
+  // resolution (rolls, moves, events, clocks) stay; only the prose, its beats
+  // and the time a loose step settles on change.
+  Eng.rerollNarration = async function (state, onPhase) {
+    const phase = onPhase || (() => {});
+    if (!Eng.canReroll(state)) throw new Error('There is no scene to rewrite.');
+    const snapshot = E.clone(state);
+    const p = state.pending;
+    const n = p.narration;
+    const oldText = beatsText(p.beats);
+    try {
+      // back to the moment the scene was first written
+      state.recent = E.clone(p.pre.recent || []);
+      delete p.frame.correction;
+      if (n.after) restoreTime(state, n.after);
+      let beats, until;
+      if (n.skip) beats = await writeSkipScene(state, n, p, phase);
+      else ({ beats, until } = await writeScene(state, n, p, phase));
+      const text = beatsText(beats);
+      const scene = state.log.find((e) => e.turn === p.turn && e.type === 'scene');
+      if (scene) { scene.text = text; scene.beats = beats; }
+      const act = state.log.find((e) => e.turn === p.turn && e.type === 'action');
+      if (act && !n.skip) { if (until) act.until = until; else delete act.until; }
+      state.recent = [{ turn: p.turn, action: n.skip ? n.action : p.action, text }];
+      p.beats = beats;
+      phase('');
+      return { turn: p.turn, oldText, prose: text, beats, until };
+    } catch (err) {
+      replaceState(state, snapshot);
       phase('');
       throw err;
     }

@@ -8,6 +8,7 @@
   let busy = false;
   let uiCut = null; // beat number the player wants to step in after
   let uiShown = 1; // beats of the live scene revealed so far
+  const notes = []; // undo/reroll history for the Debug panel
   const loaded = new Map(); // key -> scenario object (from disk) or {folder} (from server)
 
   // ---------- storage helpers (never fatal) ----------
@@ -90,6 +91,7 @@
       uiCut = null;
       uiShown = 1;
       E.LLM.calls.length = 0;
+      notes.length = 0;
       autosave();
       renderAll();
       $('actionInput').focus();
@@ -102,7 +104,8 @@
 
   $('btnSave').addEventListener('click', () => {
     if (!state) return;
-    const blob = new Blob([JSON.stringify(state, null, 1)], { type: 'application/json' });
+    // The undo snapshot is a second copy of the game; save files leave it out.
+    const blob = new Blob([JSON.stringify(Object.assign({}, state, { undo: undefined }), null, 1)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = `ensemble-${state.scenario.folder || state.scenario.id}-turn${state.turn}.json`;
@@ -160,27 +163,73 @@
     if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); act(); }
   });
 
+  // ---------- undo and reroll ----------
+  $('btnUndo').addEventListener('click', () => {
+    if (busy || !E.Engine.canUndo(state)) return;
+    const info = E.Engine.undo(state);
+    $('actionInput').value = info.action || '';
+    if (E.timeSteps.some((s) => s.id === info.stepId)) $('timeStep').value = info.stepId;
+    // Back on the previous scene, as far as it had been read, with the step-in point re-selected.
+    const live = liveScene();
+    uiCut = live && info.cutAt && info.cutAt < live.beats.length ? info.cutAt : null;
+    uiShown = live ? uiCut || live.beats.length : 1;
+    const removed = info.chaptersRemoved.length ? ` Removed chapter ${info.chaptersRemoved.join(', ')}.` : '';
+    notes.push({ kind: 'undo', summary: `turn ${info.turn} undone, back to ${info.to}.${removed}`, detail: `Action: ${info.action || '(downtime)'}\nTime step: ${info.stepId}${info.cutAt ? `\nIt had stepped in after beat ${info.cutAt}; that beat choice is restored.` : ''}` });
+    autosave();
+    renderAll();
+    $('actionInput').placeholder = actionPlaceholder();
+    showNote(`Turn ${info.turn} undone; your action is back in the box.${removed} Only one turn can be undone.`);
+    $('actionInput').focus();
+  });
+
+  $('btnReroll').addEventListener('click', async () => {
+    if (busy || !E.Engine.canReroll(state)) return;
+    setBusy(true);
+    try {
+      const out = await E.Engine.rerollNarration(state, setPhase);
+      uiCut = null;
+      uiShown = 1;
+      notes.push({ kind: 'reroll', summary: `turn ${out.turn} rewritten (same rolls, moves and events)`, detail: `Old scene:\n${out.oldText}\n\nNew scene:\n${out.prose}` });
+      autosave();
+      renderAll();
+    } catch (e) {
+      setPhase('');
+      showWarning(e.message);
+    } finally {
+      setBusy(false);
+      renderDebug();
+    }
+  });
+
+  function renderControls() {
+    $('btnUndo').disabled = busy || !E.Engine.canUndo(state);
+    $('btnReroll').disabled = busy || !E.Engine.canReroll(state);
+  }
+
   function setBusy(b) {
     busy = b;
     $('btnAct').disabled = b;
     $('btnNew').disabled = b;
     $('actionInput').disabled = b;
+    renderControls();
   }
   function setPhase(text) {
     const el = $('phase');
     el.textContent = text;
     el.classList.toggle('busy', !!text);
   }
-  function showWarning(msg) {
+  function showWarning(msg) { showNote('⚠ ' + msg, 'warn'); }
+  function showNote(msg, cls) {
     const div = document.createElement('div');
-    div.className = 'entry warn';
-    div.textContent = '⚠ ' + msg;
+    div.className = 'entry ' + (cls || 'note');
+    div.textContent = msg;
     $('log').appendChild(div);
     $('log').scrollTop = $('log').scrollHeight;
   }
 
   // ---------- rendering ----------
   function renderAll() {
+    renderControls();
     renderLog();
     renderSceneBar();
     renderSituation();
@@ -371,6 +420,7 @@
     const facts = state ? state.facts.map((f) => `[T${f.turn} w${f.weight}] ${f.text}   (known by: ${f.known_by.join(', ')})`).join('\n') : '';
     $('debugBody').innerHTML =
       (state ? `<details><summary>Fact store (${state.facts.length})</summary><pre>${esc(facts)}</pre></details>` : '') +
+      notes.slice().reverse().map((n) => `<details class="note"><summary><b>${esc(n.kind)}</b> · ${esc(n.summary)}</summary><pre>${esc(n.detail)}</pre></details>`).join('') +
       calls.map((c) => `<details><summary><b>${esc(c.kind)}</b> · ${esc(c.backend || '')} · ${c.ms} ms · ~${c.estTokens} tokens${c.overBudget ? ' <span class="fail">over context!</span>' : ''}${c.finish === 'length' ? ' <span class="fail">cut off at the token limit</span>' : ''}${c.salvaged ? ' <span class="fail">salvaged: kept the complete part</span>' : ''}${c.error ? ' <span class="fail">' + esc(c.error) + '</span>' : ''}</summary>
         <div class="muted">System (shared prefix)</div><pre>${esc(c.system)}</pre>
         <div class="muted">User</div><pre>${esc(c.user)}</pre>

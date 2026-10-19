@@ -77,6 +77,32 @@ await check('next settles a beat; acting early steps in', async (page) => {
   assert.equal(await page.locator('.beat-note').count(), 1, 'unread third beat never happened');
 });
 
+await check('undo and reroll', async (page) => {
+  await page.click('#btnNew');
+  assert.ok(await page.locator('#btnUndo').isDisabled(), 'nothing to undo yet');
+  assert.ok(await page.locator('#btnReroll').isDisabled(), 'nothing to reroll yet');
+  await act(page, 'I open up the recycler.');
+  mocks.log.length = 0;
+  await page.click('button[data-next]');
+  await page.click('#btnReroll');
+  await page.waitForFunction(() => !document.getElementById('btnReroll').disabled, null, { timeout: 15000 });
+  assert.equal(mocks.log.filter((c) => /Write the next scene/.test(c.user)).length, 1, 'one new narration call');
+  assert.equal(mocks.log.filter((c) => /Judge the player/.test(c.user)).length, 0, 'no new intent call');
+  assert.equal(await page.locator('.beat').count(), 1, 'the new scene starts again at its first beat');
+  await act(page, 'Hold on, Teo.', 'moment');
+  assert.match(await page.textContent('#sceneBar'), /turn 2/);
+  await page.click('#btnUndo');
+  assert.equal(await page.inputValue('#actionInput'), 'Hold on, Teo.', 'action back in the box');
+  assert.equal(await page.inputValue('#timeStep'), 'moment');
+  assert.match(await page.textContent('#sceneBar'), /turn 1/);
+  assert.equal(await page.locator('button[data-cut="1"].active').count(), 1, 'the step-in point is selected again');
+  assert.match(await page.textContent('#log'), /Only one turn can be undone/);
+  assert.ok(await page.locator('#btnUndo').isDisabled(), 'one level only');
+  assert.ok(!(await page.locator('#btnReroll').isDisabled()), 'turn 1 is pending again, so it can be rerolled');
+  await page.click('#btnDebug');
+  assert.equal(await page.locator('#debugBody details.note').count(), 2, 'Debug lists the undo and the reroll');
+});
+
 await check('first run: setup picks a hosted model and opens its settings', async (page) => {
   await page.evaluate(() => localStorage.removeItem('ensemble.setupDone'));
   await page.reload();
@@ -135,6 +161,15 @@ await check('phone layout', async (page) => {
   const box = await page.locator('#btnSettings').boundingBox();
   assert.ok(box && box.x + box.width <= 390, 'Settings button is on screen');
   await page.click('#btnNew');
+  await act(page, 'Look around.');
+  for (const id of ['#btnUndo', '#btnReroll', '#btnAct']) {
+    const b = await page.locator(id).boundingBox();
+    assert.ok(b && b.x >= 0 && b.x + b.width <= 390, `${id} is on screen`);
+  }
+  await page.click('#btnReroll');
+  await page.waitForFunction(() => !document.getElementById('btnReroll').disabled, null, { timeout: 15000 });
+  await page.click('#btnUndo');
+  assert.equal(await page.inputValue('#actionInput'), 'Look around.');
   await act(page, 'Look around.');
   await page.click('#btnSide');
   await page.waitForTimeout(350);
