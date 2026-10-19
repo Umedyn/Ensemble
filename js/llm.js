@@ -42,8 +42,14 @@
     }
     const j = await r.json();
     if (j.error) throw new Error(`${host(url)}: ${j.error.message || JSON.stringify(j.error).slice(0, 200)}`);
-    return (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '';
+    const choice = (j.choices && j.choices[0]) || {};
+    // finish "length" = cut off at max_tokens (reasoning models count their thinking too)
+    return { text: (choice.message && choice.message.content) || '', finish: choice.finish_reason || '' };
   };
+
+  // A reply cut off at the token cap before it said anything usable gets one
+  // retry with this much more room (hosted reasoning models think first).
+  LLM.moreRoom = (b) => (b.kobold ? 2 : 4);
 
   // Test a backend. KoboldCpp reports its model and context; other APIs are
   // checked with their model list.
@@ -80,6 +86,7 @@
     let t = String(text || '');
     t = t.replace(/<think>[\s\S]*?<\/think>/gi, '');
     t = t.replace(/^[\s\S]*?<\/think>/i, ''); // unopened tag from templates that prefill <think>
+    t = t.replace(/<think>[\s\S]*$/i, ''); // thinking cut off before it closed
     return t.trim();
   }
 
@@ -114,7 +121,10 @@
     if (LLM.onCall) try { LLM.onCall(entry); } catch (e) {}
   }
 
-  LLM.chat = async function ({ kind, system, user, maxTokens, temperature }) {
+  LLM.lastFinish = ''; // finish reason of the most recent call
+
+  LLM.chat = async function (opts) {
+    const { kind, system, user, maxTokens, temperature } = opts;
     const b = LLM.backendFor(kind);
     if (!b.url) throw new Error(`No URL is set for the ${b.id} backend (used for ${LLM.stepOf(kind)}). Check Settings.`);
     if (!b.kobold && !b.model) throw new Error(`No model name is set for the ${b.id} backend. Check Settings.`);
@@ -128,14 +138,24 @@
       temperature: temperature ?? E.settings.temperature,
       stream: false,
     };
+    // Keep OpenRouter's reasoning models from spending the budget thinking.
+    if (b.preset === 'openrouter') body.reasoning = { effort: 'low', exclude: true };
     const est = E.estTokens(system) + E.estTokens(user) + body.max_tokens;
     const t0 = Date.now();
     const entry = { kind, backend: `${b.id}: ${b.model || b.label}`, system, user, raw: '', ms: 0, estTokens: est, overBudget: est > E.settings.contextSize };
     try {
-      entry.raw = await LLM.transport(b.url + '/chat/completions', body, kind, b);
+      const out = await LLM.transport(b.url + '/chat/completions', body, kind, b);
+      const r = typeof out === 'string' ? { text: out, finish: '' } : out;
+      entry.raw = r.text || '';
+      entry.finish = r.finish || '';
       entry.ms = Date.now() - t0;
       record(entry);
-      return stripThink(entry.raw);
+      LLM.lastFinish = entry.finish;
+      const text = stripThink(entry.raw);
+      if (!text && entry.finish === 'length' && !opts.moreRoom) {
+        return LLM.chat(Object.assign({}, opts, { kind: kind + ' (more room)', maxTokens: body.max_tokens * LLM.moreRoom(b), moreRoom: true }));
+      }
+      return text;
     } catch (err) {
       entry.ms = Date.now() - t0;
       entry.error = String(err.message || err);
@@ -153,9 +173,13 @@
     let text = await LLM.chat(opts);
     let obj = LLM.extractJSON(text);
     if (!obj) {
+      // cut off mid-JSON: the same limit would fail the same way
+      const cutOff = LLM.lastFinish === 'length';
       text = await LLM.chat(Object.assign({}, opts, {
         kind: opts.kind + ' (retry)',
         temperature: 0.3,
+        maxTokens: cutOff ? (opts.maxTokens || 400) * LLM.moreRoom(LLM.backendFor(opts.kind)) : opts.maxTokens,
+        moreRoom: cutOff || opts.moreRoom,
         user: opts.user + '\n\nIMPORTANT: Reply with ONLY the JSON object. No prose, no code fences.',
       }));
       obj = LLM.extractJSON(text);

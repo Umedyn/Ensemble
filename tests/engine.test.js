@@ -315,6 +315,42 @@ test('per-step routing sends each step to its backend', async () => {
   assert.ok(seen.includes('update@localhost:5001:koboldcpp'));
 });
 
+// OpenRouter free reasoning models: thinking counts against max_tokens, so the
+// reply came back empty or cut off mid-JSON, and the retry used the same limit.
+function cutOffModel(E, replies) {
+  const bodies = [];
+  E.LLM.transport = async (url, body) => { bodies.push(body); return replies[Math.min(bodies.length - 1, replies.length - 1)]; };
+  return bodies;
+}
+
+test('a hosted reply that runs out of room while thinking is retried with more room', async () => {
+  const { E } = newGame();
+  E.settings.backends.external = { preset: 'openrouter', url: 'https://openrouter.ai/api/v1', key: 'k', model: 'some/reasoner:free' };
+  E.settings.routing.intent = 'external';
+  const bodies = cutOffModel(E, [{ text: '<think>Let me consider each character carefully', finish: 'length' }, { text: '{"ok": true}', finish: 'stop' }]);
+  const obj = await E.LLM.chatJSON({ kind: 'intent', system: 's', user: 'u', maxTokens: 300 });
+  assert.equal(obj.ok, true);
+  assert.equal(bodies.length, 2);
+  assert.equal(bodies[1].max_tokens, 1200);
+  assert.deepEqual({ ...bodies[0].reasoning }, { effort: 'low', exclude: true }, 'OpenRouter is asked to keep reasoning short');
+});
+
+test('JSON cut off mid-object is retried with a bigger limit, not the same one', async () => {
+  const { E } = newGame();
+  const bodies = cutOffModel(E, [{ text: '{"player": {"summary": "talk to', finish: 'length' }, { text: '{"player": {"summary": "talk to Teo"}}', finish: 'stop' }]);
+  const obj = await E.LLM.chatJSON({ kind: 'intent', system: 's', user: 'u', maxTokens: 300 });
+  assert.equal(obj.player.summary, 'talk to Teo');
+  assert.equal(bodies[1].max_tokens, 600, 'local KoboldCpp gets double');
+  assert.equal(bodies[0].reasoning, undefined, 'only OpenRouter gets the reasoning setting');
+});
+
+test('a bad reply that was not cut off retries with the same limit', async () => {
+  const { E } = newGame();
+  const bodies = cutOffModel(E, [{ text: 'Sure! Here is what happens.', finish: 'stop' }, { text: '{"a": 1}', finish: 'stop' }]);
+  await E.LLM.chatJSON({ kind: 'intent', system: 's', user: 'u', maxTokens: 300 });
+  assert.equal(bodies[1].max_tokens, 300);
+});
+
 test('old single-endpoint settings migrate to the local backend', () => {
   const store = { 'ensemble.settings': JSON.stringify({ endpoint: 'http://192.168.1.20:5001', narrateTokens: 420 }) };
   const E = loadEngine({ localStorage: { getItem: (k) => store[k] ?? null, setItem: (k, v) => { store[k] = v; } } });
