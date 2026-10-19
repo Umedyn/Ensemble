@@ -1,0 +1,1294 @@
+{
+ "format": "ensemble-recording",
+ "version": 1,
+ "recorded": "2026-10-19T15:06:36.164Z",
+ "note": "Recorded from the mock servers by `npm run fixture:mock`: two turns, a step-in, a reroll, an undo and a redo.",
+ "settings": {
+  "narrateTokens": 320,
+  "temperature": 0.8,
+  "chapterLength": 5,
+  "memoryCap": 32768,
+  "routing": {
+   "intent": "local",
+   "narrate": "local",
+   "update": "local",
+   "chapter": "local"
+  },
+  "backends": {
+   "local": {
+    "preset": "kobold-local",
+    "model": "koboldcpp",
+    "context": 8192
+   },
+   "external": {
+    "preset": "openrouter",
+    "model": "",
+    "context": 32768
+   }
+  }
+ },
+ "start": {
+  "version": 1,
+  "scenario": {
+   "id": "mars-station",
+   "title": "Ares Deep",
+   "castLabel": "Crew",
+   "setting": "Ares Deep is a five-person research outpost dug into the rim of Hellas Planitia on Mars, 214 sols into a 500-sol rotation. The nearest help is a cargo lander nine weeks out, and Earth is 14 light-minutes away. The station is cramped; everyone knows everyone's habits, but not their secrets. Whether the program gets a second rotation depends on what this crew sends home.",
+   "rules": [
+    "Grounded near-future technology. No aliens, no magic. Any biological discovery is microbial at most and must stay scientifically plausible.",
+    "Mars is lethal: suit breaches, CO2 buildup, cold, radiation and dust are real dangers. Going outside requires a suit.",
+    "Messages to Earth take 14 minutes each way. There is no real-time help.",
+    "The crew are capable professionals under strain. Conflict comes from personality, pressure and secrets, not villainy."
+   ],
+   "timeLabel": "Sol",
+   "start": {
+    "day": 214,
+    "hour": 7
+   },
+   "wakeHour": 7,
+   "player": "navarro",
+   "characters": [
+    "navarro",
+    "okafor",
+    "sorensen",
+    "raman",
+    "bauer"
+   ],
+   "skills": [
+    "tech",
+    "science",
+    "medicine",
+    "piloting",
+    "athletics",
+    "social",
+    "stealth"
+   ],
+   "needs": [
+    {
+     "id": "hunger",
+     "label": "Hunger",
+     "perHour": 0.03
+    },
+    {
+     "id": "fatigue",
+     "label": "Fatigue",
+     "perHour": 0.04
+    },
+    {
+     "id": "stress",
+     "label": "Stress",
+     "perHour": 0.01
+    }
+   ],
+   "locations": [
+    {
+     "id": "commons",
+     "name": "Commons",
+     "desc": "Hub module with the galley table and the station's only real window.",
+     "connects": [
+      "ops",
+      "med",
+      "lab",
+      "hydro",
+      "quarters",
+      "suitroom"
+     ]
+    },
+    {
+     "id": "ops",
+     "name": "Ops & Comms",
+     "desc": "Status boards, the long-delay comm link and the station logs.",
+     "connects": [
+      "commons"
+     ]
+    },
+    {
+     "id": "med",
+     "name": "Med Bay",
+     "desc": "Two cots, a scanner and a locked drug cabinet.",
+     "connects": [
+      "commons"
+     ]
+    },
+    {
+     "id": "lab",
+     "name": "Lab",
+     "desc": "Core sample racks, a glovebox and incubators for ice cultures.",
+     "connects": [
+      "commons"
+     ]
+    },
+    {
+     "id": "hydro",
+     "name": "Hydroponics",
+     "desc": "Grow racks under purple light and the water recycler, rattling.",
+     "connects": [
+      "commons"
+     ]
+    },
+    {
+     "id": "quarters",
+     "name": "Crew Quarters",
+     "desc": "Five curtained bunks. The only privacy on the station.",
+     "connects": [
+      "commons"
+     ]
+    },
+    {
+     "id": "suitroom",
+     "name": "Suit Room & Airlock",
+     "desc": "Five EVA suits on racks, the airlock and the dust-scrub bay.",
+     "connects": [
+      "commons",
+      "garage",
+      "surface"
+     ]
+    },
+    {
+     "id": "garage",
+     "name": "Rover Garage",
+     "desc": "Pressurized bay holding the rover, nicknamed the Mule.",
+     "connects": [
+      "suitroom",
+      "surface"
+     ]
+    },
+    {
+     "id": "surface",
+     "name": "Surface",
+     "desc": "Rust-colored regolith, the solar field and the drill site. Suits required.",
+     "connects": [
+      "suitroom",
+      "garage"
+     ]
+    }
+   ],
+   "world": {
+    "power": "solar arrays nominal",
+    "comms": "online, 14-minute delay",
+    "recycler": "degraded, about 70% output",
+    "rover": "the Mule, operational"
+   },
+   "factions": [
+    {
+     "id": "mission",
+     "name": "Mission Control",
+     "desc": "The Ares program's ground team on Earth, 14 light-minutes away. Reviews everything the crew sends and decides on the second rotation.",
+     "stance": "supportive but anxious; reviewing this rotation's data for the renewal decision"
+    },
+    {
+     "id": "sponsor",
+     "name": "Halvorsen Aerospace",
+     "desc": "The corporate sponsor funding most of Ares Deep. Wants headlines and results it can sell.",
+     "stance": "publicly upbeat; privately watching costs and crew performance"
+    }
+   ],
+   "clocks": [
+    {
+     "id": "storm",
+     "name": "Dust storm arrival",
+     "value": 0,
+     "max": 10,
+     "perHour": 0.5,
+     "fireText": "The dust storm arrives. The sky turns the color of rust, solar output collapses and anyone outside has minutes to get in.",
+     "fireWorld": {
+      "power": "solar output collapsed, running on battery reserve"
+     },
+     "then": [
+      {
+       "id": "storm-clear",
+       "name": "Storm clears",
+       "max": 10,
+       "perHour": 0.035,
+       "fireText": "The storm finally breaks. Weak sunlight returns, and the solar field sits under a thick blanket of dust.",
+       "fireWorld": {
+        "power": "solar arrays recovering; panels caked with dust"
+       }
+      },
+      {
+       "id": "battery",
+       "name": "Battery reserve depleted",
+       "max": 10,
+       "perHour": 0.04,
+       "fireText": "The battery reserve hits critical. Non-essential systems shut down, and life support switches to rationing.",
+       "fireWorld": {
+        "power": "critical: battery nearly drained, life support only"
+       }
+      }
+     ]
+    },
+    {
+     "id": "recycler",
+     "name": "Water recycler failure",
+     "value": 3,
+     "max": 10,
+     "perHour": 0.2,
+     "fireText": "The water recycler grinds to a halt. Until it is repaired, the station is on stored water only.",
+     "fireWorld": {
+      "recycler": "failed"
+     },
+     "then": [
+      {
+       "id": "water",
+       "name": "Stored water runs low",
+       "max": 10,
+       "perHour": 0.03,
+       "fireText": "Stored water drops below the safety margin. Every liter now has to be argued over.",
+       "fireWorld": {
+        "recycler": "failed; stored water below safety margin"
+       }
+      }
+     ]
+    }
+   ],
+   "eventRates": {
+    "regional": 18,
+    "world": 96
+   },
+   "eventSeeds": {
+    "regional": [
+     "dust devils crossing the solar field",
+     "an ice shelf collapsing near the drill site",
+     "a micrometeorite strike",
+     "a quake in the crater rim",
+     "the neighboring outpost going quiet on the regional relay",
+     "a supply drop landing off target",
+     "a rover track washed out by a slope failure"
+    ],
+    "world": [
+     "the sponsor in financial trouble",
+     "Mission Control knocked offline by a disaster on Earth",
+     "a political crisis threatening space budgets",
+     "a launch failure delaying the resupply",
+     "a rival mission announcing a discovery",
+     "a public scandal about the program",
+     "a solar storm warning from Earth"
+    ]
+   },
+   "majorEventDays": 9,
+   "majorHorizonDays": 30,
+   "majorSeeds": [
+    "a blocked CO2 scrubber filter starts life support failing",
+    "a meteorite punches into the rover garage",
+    "a crew member collapses with a medical emergency",
+    "a hull seal starts leaking in the habitat",
+    "an electrical fire",
+    "an argument between crew members turns physical"
+   ],
+   "facts": [
+    "An orbital weather relay shows a regional dust storm building east of Hellas and tracking toward Ares Deep, roughly twenty hours out."
+   ],
+   "opening": "The coffee substitute tastes like hot cardboard, same as every morning. What isn't the same is the sound: the water recycler in hydroponics has picked up a dry, unhealthy rattle that carries all the way into the commons.\n\nOkafor sits at the galley table with her tablet, reading the overnight weather relay. \"Dust storm building east of us,\" she says without looking up. \"Twenty hours, maybe less. I want the arrays secured and the Mule inside by tonight.\"\n\nTeo hovers by the galley counter, eyes on the recycler readout, unusually quiet. Somewhere down the corridor the lab door has been sealed since before you woke; that's Lev. Then the intercom crackles: Priya, from the garage, asking whether anyone has signed off on the Mule's battery swap yet, because she is not doing it twice.\n\nIt's going to be a long sol.",
+   "characterData": [
+    {
+     "id": "navarro",
+     "name": "Kit Navarro",
+     "pronouns": "they/them",
+     "role": "systems engineer",
+     "age": 34,
+     "traits": [
+      "resourceful",
+      "blunt",
+      "stubborn"
+     ],
+     "want": "keep the station running and get everyone home in one piece",
+     "voice": "Dry and direct, short sentences; swears at machinery, never at people.",
+     "skills": {
+      "tech": 4,
+      "science": 2,
+      "medicine": 1,
+      "piloting": 2,
+      "athletics": 2,
+      "social": 2,
+      "stealth": 1
+     },
+     "needs": {
+      "hunger": 0.2,
+      "fatigue": 0.2,
+      "stress": 0.3
+     },
+     "status": {
+      "health": "ok",
+      "location": "commons",
+      "conditions": []
+     },
+     "relations": {
+      "okafor": 10,
+      "sorensen": 15,
+      "raman": 25,
+      "bauer": 20
+     },
+     "knows": [
+      "The recycler's rattle started six nights ago, the same night Teo had the late hydroponics shift."
+     ]
+    },
+    {
+     "id": "okafor",
+     "name": "Dr. Imani Okafor",
+     "pronouns": "she/her",
+     "role": "station lead and geologist",
+     "age": 47,
+     "traits": [
+      "exacting",
+      "charismatic",
+      "proud"
+     ],
+     "want": "win funding for a second rotation and secure her legacy with Ares Deep",
+     "secret": "Three weeks ago she adjusted a core-sample report, overstating water-ice purity, because the real numbers might have ended the program.",
+     "guard": "high",
+     "voice": "Clipped and formal, dry humor, never raises her voice.",
+     "skills": {
+      "science": 4,
+      "social": 4,
+      "tech": 2,
+      "medicine": 1,
+      "piloting": 1,
+      "athletics": 1,
+      "stealth": 2
+     },
+     "needs": {
+      "hunger": 0.2,
+      "fatigue": 0.4,
+      "stress": 0.5
+     },
+     "status": {
+      "health": "ok",
+      "location": "commons",
+      "conditions": []
+     },
+     "relations": {
+      "navarro": 10,
+      "sorensen": -10,
+      "raman": 5,
+      "bauer": 0
+     },
+     "knows": [
+      "Lev has been booking lab time far beyond his approved schedule."
+     ]
+    },
+    {
+     "id": "sorensen",
+     "name": "Dr. Lev Sorensen",
+     "pronouns": "he/him",
+     "role": "medic and astrobiologist",
+     "age": 39,
+     "traits": [
+      "curious",
+      "secretive",
+      "gentle"
+     ],
+     "want": "be the first person to confirm life on Mars",
+     "secret": "Cultures from the deep ice core are showing activity he cannot explain as contamination. He has told no one and keeps the samples in an unlogged incubator.",
+     "guard": "medium",
+     "voice": "Soft-spoken, rambles when excited, deflects with jokes.",
+     "skills": {
+      "medicine": 4,
+      "science": 4,
+      "social": 2,
+      "tech": 1,
+      "piloting": 0,
+      "athletics": 1,
+      "stealth": 2
+     },
+     "needs": {
+      "hunger": 0.4,
+      "fatigue": 0.6,
+      "stress": 0.4
+     },
+     "status": {
+      "health": "ok",
+      "location": "lab",
+      "conditions": []
+     },
+     "relations": {
+      "navarro": 15,
+      "okafor": -10,
+      "raman": 10,
+      "bauer": 20
+     },
+     "knows": [
+      "Okafor's published ice-purity figures don't match the raw readings he saw on the shared drive."
+     ]
+    },
+    {
+     "id": "raman",
+     "name": "Priya Raman",
+     "pronouns": "she/her",
+     "role": "pilot and rover technician",
+     "age": 31,
+     "traits": [
+      "warm",
+      "impatient",
+      "fiercely loyal"
+     ],
+     "want": "get home on schedule for her daughter's sixth birthday",
+     "secret": "The mission's corporate sponsor quietly pays her a bonus for private reports on crew performance, and she has been sending them.",
+     "guard": "medium",
+     "voice": "Fast and teasing; swears in Tamil when stressed.",
+     "skills": {
+      "piloting": 4,
+      "tech": 3,
+      "athletics": 3,
+      "social": 3,
+      "science": 1,
+      "medicine": 1,
+      "stealth": 1
+     },
+     "needs": {
+      "hunger": 0.3,
+      "fatigue": 0.3,
+      "stress": 0.4
+     },
+     "status": {
+      "health": "ok",
+      "location": "garage",
+      "conditions": []
+     },
+     "relations": {
+      "navarro": 25,
+      "okafor": 5,
+      "sorensen": 10,
+      "bauer": 15
+     },
+     "knows": [
+      "Her latest private report to the sponsor described Okafor as increasingly erratic."
+     ]
+    },
+    {
+     "id": "bauer",
+     "name": "Teo Bauer",
+     "pronouns": "he/him",
+     "role": "hydroponics technician",
+     "age": 24,
+     "traits": [
+      "eager",
+      "anxious",
+      "people-pleaser"
+     ],
+     "want": "prove he belongs on this crew",
+     "secret": "He caused the recycler fault six nights ago by running it past its rated cycle to save a failing crop, then wiped that night's log.",
+     "guard": "low",
+     "voice": "Talks too fast, over-apologizes, tries to be funny.",
+     "skills": {
+      "science": 3,
+      "tech": 2,
+      "athletics": 2,
+      "social": 2,
+      "medicine": 1,
+      "piloting": 1,
+      "stealth": 2
+     },
+     "needs": {
+      "hunger": 0.2,
+      "fatigue": 0.5,
+      "stress": 0.7
+     },
+     "status": {
+      "health": "ok",
+      "location": "commons",
+      "conditions": []
+     },
+     "relations": {
+      "navarro": 20,
+      "okafor": 10,
+      "sorensen": 20,
+      "raman": 15
+     },
+     "knows": [
+      "Hydroponics lost three racks of soy last week; he told the crew it was a lighting fault."
+     ]
+    }
+   ],
+   "folder": "mars-station"
+  },
+  "player": "navarro",
+  "order": [
+   "navarro",
+   "okafor",
+   "sorensen",
+   "raman",
+   "bauer"
+  ],
+  "characters": {
+   "navarro": {
+    "id": "navarro",
+    "name": "Kit Navarro",
+    "pronouns": "they/them",
+    "role": "systems engineer",
+    "age": 34,
+    "traits": [
+     "resourceful",
+     "blunt",
+     "stubborn"
+    ],
+    "want": "keep the station running and get everyone home in one piece",
+    "voice": "Dry and direct, short sentences; swears at machinery, never at people.",
+    "skills": {
+     "tech": 4,
+     "science": 2,
+     "medicine": 1,
+     "piloting": 2,
+     "athletics": 2,
+     "social": 2,
+     "stealth": 1
+    },
+    "needs": {
+     "hunger": 0.2,
+     "fatigue": 0.2,
+     "stress": 0.3
+    },
+    "status": {
+     "health": "ok",
+     "conditions": [],
+     "location": "commons"
+    },
+    "relations": {
+     "okafor": 10,
+     "sorensen": 15,
+     "raman": 25,
+     "bauer": 20
+    },
+    "knows": [
+     "The recycler's rattle started six nights ago, the same night Teo had the late hydroponics shift."
+    ]
+   },
+   "okafor": {
+    "id": "okafor",
+    "name": "Dr. Imani Okafor",
+    "pronouns": "she/her",
+    "role": "station lead and geologist",
+    "age": 47,
+    "traits": [
+     "exacting",
+     "charismatic",
+     "proud"
+    ],
+    "want": "win funding for a second rotation and secure her legacy with Ares Deep",
+    "secret": "Three weeks ago she adjusted a core-sample report, overstating water-ice purity, because the real numbers might have ended the program.",
+    "guard": "high",
+    "voice": "Clipped and formal, dry humor, never raises her voice.",
+    "skills": {
+     "science": 4,
+     "social": 4,
+     "tech": 2,
+     "medicine": 1,
+     "piloting": 1,
+     "athletics": 1,
+     "stealth": 2
+    },
+    "needs": {
+     "hunger": 0.2,
+     "fatigue": 0.4,
+     "stress": 0.5
+    },
+    "status": {
+     "health": "ok",
+     "conditions": [],
+     "location": "commons"
+    },
+    "relations": {
+     "navarro": 10,
+     "sorensen": -10,
+     "raman": 5,
+     "bauer": 0
+    },
+    "knows": [
+     "Lev has been booking lab time far beyond his approved schedule."
+    ]
+   },
+   "sorensen": {
+    "id": "sorensen",
+    "name": "Dr. Lev Sorensen",
+    "pronouns": "he/him",
+    "role": "medic and astrobiologist",
+    "age": 39,
+    "traits": [
+     "curious",
+     "secretive",
+     "gentle"
+    ],
+    "want": "be the first person to confirm life on Mars",
+    "secret": "Cultures from the deep ice core are showing activity he cannot explain as contamination. He has told no one and keeps the samples in an unlogged incubator.",
+    "guard": "medium",
+    "voice": "Soft-spoken, rambles when excited, deflects with jokes.",
+    "skills": {
+     "medicine": 4,
+     "science": 4,
+     "social": 2,
+     "tech": 1,
+     "piloting": 0,
+     "athletics": 1,
+     "stealth": 2
+    },
+    "needs": {
+     "hunger": 0.4,
+     "fatigue": 0.6,
+     "stress": 0.4
+    },
+    "status": {
+     "health": "ok",
+     "conditions": [],
+     "location": "lab"
+    },
+    "relations": {
+     "navarro": 15,
+     "okafor": -10,
+     "raman": 10,
+     "bauer": 20
+    },
+    "knows": [
+     "Okafor's published ice-purity figures don't match the raw readings he saw on the shared drive."
+    ]
+   },
+   "raman": {
+    "id": "raman",
+    "name": "Priya Raman",
+    "pronouns": "she/her",
+    "role": "pilot and rover technician",
+    "age": 31,
+    "traits": [
+     "warm",
+     "impatient",
+     "fiercely loyal"
+    ],
+    "want": "get home on schedule for her daughter's sixth birthday",
+    "secret": "The mission's corporate sponsor quietly pays her a bonus for private reports on crew performance, and she has been sending them.",
+    "guard": "medium",
+    "voice": "Fast and teasing; swears in Tamil when stressed.",
+    "skills": {
+     "piloting": 4,
+     "tech": 3,
+     "athletics": 3,
+     "social": 3,
+     "science": 1,
+     "medicine": 1,
+     "stealth": 1
+    },
+    "needs": {
+     "hunger": 0.3,
+     "fatigue": 0.3,
+     "stress": 0.4
+    },
+    "status": {
+     "health": "ok",
+     "conditions": [],
+     "location": "garage"
+    },
+    "relations": {
+     "navarro": 25,
+     "okafor": 5,
+     "sorensen": 10,
+     "bauer": 15
+    },
+    "knows": [
+     "Her latest private report to the sponsor described Okafor as increasingly erratic."
+    ]
+   },
+   "bauer": {
+    "id": "bauer",
+    "name": "Teo Bauer",
+    "pronouns": "he/him",
+    "role": "hydroponics technician",
+    "age": 24,
+    "traits": [
+     "eager",
+     "anxious",
+     "people-pleaser"
+    ],
+    "want": "prove he belongs on this crew",
+    "secret": "He caused the recycler fault six nights ago by running it past its rated cycle to save a failing crop, then wiped that night's log.",
+    "guard": "low",
+    "voice": "Talks too fast, over-apologizes, tries to be funny.",
+    "skills": {
+     "science": 3,
+     "tech": 2,
+     "athletics": 2,
+     "social": 2,
+     "medicine": 1,
+     "piloting": 1,
+     "stealth": 2
+    },
+    "needs": {
+     "hunger": 0.2,
+     "fatigue": 0.5,
+     "stress": 0.7
+    },
+    "status": {
+     "health": "ok",
+     "conditions": [],
+     "location": "commons"
+    },
+    "relations": {
+     "navarro": 20,
+     "okafor": 10,
+     "sorensen": 20,
+     "raman": 15
+    },
+    "knows": [
+     "Hydroponics lost three racks of soy last week; he told the crew it was a lighting fault."
+    ]
+   }
+  },
+  "locations": {
+   "commons": {
+    "connects": [
+     "ops",
+     "med",
+     "lab",
+     "hydro",
+     "quarters",
+     "suitroom"
+    ],
+    "id": "commons",
+    "name": "Commons",
+    "desc": "Hub module with the galley table and the station's only real window."
+   },
+   "ops": {
+    "connects": [
+     "commons"
+    ],
+    "id": "ops",
+    "name": "Ops & Comms",
+    "desc": "Status boards, the long-delay comm link and the station logs."
+   },
+   "med": {
+    "connects": [
+     "commons"
+    ],
+    "id": "med",
+    "name": "Med Bay",
+    "desc": "Two cots, a scanner and a locked drug cabinet."
+   },
+   "lab": {
+    "connects": [
+     "commons"
+    ],
+    "id": "lab",
+    "name": "Lab",
+    "desc": "Core sample racks, a glovebox and incubators for ice cultures."
+   },
+   "hydro": {
+    "connects": [
+     "commons"
+    ],
+    "id": "hydro",
+    "name": "Hydroponics",
+    "desc": "Grow racks under purple light and the water recycler, rattling."
+   },
+   "quarters": {
+    "connects": [
+     "commons"
+    ],
+    "id": "quarters",
+    "name": "Crew Quarters",
+    "desc": "Five curtained bunks. The only privacy on the station."
+   },
+   "suitroom": {
+    "connects": [
+     "commons",
+     "garage",
+     "surface"
+    ],
+    "id": "suitroom",
+    "name": "Suit Room & Airlock",
+    "desc": "Five EVA suits on racks, the airlock and the dust-scrub bay."
+   },
+   "garage": {
+    "connects": [
+     "suitroom",
+     "surface"
+    ],
+    "id": "garage",
+    "name": "Rover Garage",
+    "desc": "Pressurized bay holding the rover, nicknamed the Mule."
+   },
+   "surface": {
+    "connects": [
+     "suitroom",
+     "garage"
+    ],
+    "id": "surface",
+    "name": "Surface",
+    "desc": "Rust-colored regolith, the solar field and the drill site. Suits required."
+   }
+  },
+  "world": {
+   "power": "solar arrays nominal",
+   "comms": "online, 14-minute delay",
+   "recycler": "degraded, about 70% output",
+   "rover": "the Mule, operational"
+  },
+  "factions": [
+   {
+    "id": "mission",
+    "name": "Mission Control",
+    "desc": "The Ares program's ground team on Earth, 14 light-minutes away. Reviews everything the crew sends and decides on the second rotation.",
+    "stance": "supportive but anxious; reviewing this rotation's data for the renewal decision"
+   },
+   {
+    "id": "sponsor",
+    "name": "Halvorsen Aerospace",
+    "desc": "The corporate sponsor funding most of Ares Deep. Wants headlines and results it can sell.",
+    "stance": "publicly upbeat; privately watching costs and crew performance"
+   }
+  ],
+  "clocks": [
+   {
+    "value": 0,
+    "perHour": 0.5,
+    "fired": false,
+    "id": "storm",
+    "name": "Dust storm arrival",
+    "max": 10,
+    "fireText": "The dust storm arrives. The sky turns the color of rust, solar output collapses and anyone outside has minutes to get in.",
+    "fireWorld": {
+     "power": "solar output collapsed, running on battery reserve"
+    },
+    "then": [
+     {
+      "id": "storm-clear",
+      "name": "Storm clears",
+      "max": 10,
+      "perHour": 0.035,
+      "fireText": "The storm finally breaks. Weak sunlight returns, and the solar field sits under a thick blanket of dust.",
+      "fireWorld": {
+       "power": "solar arrays recovering; panels caked with dust"
+      }
+     },
+     {
+      "id": "battery",
+      "name": "Battery reserve depleted",
+      "max": 10,
+      "perHour": 0.04,
+      "fireText": "The battery reserve hits critical. Non-essential systems shut down, and life support switches to rationing.",
+      "fireWorld": {
+       "power": "critical: battery nearly drained, life support only"
+      }
+     }
+    ]
+   },
+   {
+    "value": 3,
+    "perHour": 0.2,
+    "fired": false,
+    "id": "recycler",
+    "name": "Water recycler failure",
+    "max": 10,
+    "fireText": "The water recycler grinds to a halt. Until it is repaired, the station is on stored water only.",
+    "fireWorld": {
+     "recycler": "failed"
+    },
+    "then": [
+     {
+      "id": "water",
+      "name": "Stored water runs low",
+      "max": 10,
+      "perHour": 0.03,
+      "fireText": "Stored water drops below the safety margin. Every liter now has to be argued over.",
+      "fireWorld": {
+       "recycler": "failed; stored water below safety margin"
+      }
+     }
+    ]
+   }
+  ],
+  "time": {
+   "day": 214,
+   "hour": 7
+  },
+  "turn": 0,
+  "chapter": 1,
+  "chapterStartTurn": 1,
+  "facts": [
+   {
+    "id": "f1",
+    "turn": 0,
+    "chapter": 1,
+    "about": [
+     "navarro"
+    ],
+    "text": "The recycler's rattle started six nights ago, the same night Teo had the late hydroponics shift.",
+    "known_by": [
+     "navarro"
+    ],
+    "weight": 2
+   },
+   {
+    "id": "f2",
+    "turn": 0,
+    "chapter": 1,
+    "about": [
+     "okafor"
+    ],
+    "text": "Lev has been booking lab time far beyond his approved schedule.",
+    "known_by": [
+     "okafor"
+    ],
+    "weight": 2
+   },
+   {
+    "id": "f3",
+    "turn": 0,
+    "chapter": 1,
+    "about": [
+     "sorensen"
+    ],
+    "text": "Okafor's published ice-purity figures don't match the raw readings he saw on the shared drive.",
+    "known_by": [
+     "sorensen"
+    ],
+    "weight": 2
+   },
+   {
+    "id": "f4",
+    "turn": 0,
+    "chapter": 1,
+    "about": [
+     "raman"
+    ],
+    "text": "Her latest private report to the sponsor described Okafor as increasingly erratic.",
+    "known_by": [
+     "raman"
+    ],
+    "weight": 2
+   },
+   {
+    "id": "f5",
+    "turn": 0,
+    "chapter": 1,
+    "about": [
+     "bauer"
+    ],
+    "text": "Hydroponics lost three racks of soy last week; he told the crew it was a lighting fault.",
+    "known_by": [
+     "bauer"
+    ],
+    "weight": 2
+   },
+   {
+    "id": "f6",
+    "turn": 0,
+    "chapter": 1,
+    "about": [],
+    "text": "An orbital weather relay shows a regional dust storm building east of Hellas and tracking toward Ares Deep, roughly twenty hours out.",
+    "known_by": [
+     "all"
+    ],
+    "weight": 2
+   }
+  ],
+  "nextFactId": 7,
+  "chapters": [],
+  "recent": [
+   {
+    "turn": 0,
+    "action": null,
+    "text": "The coffee substitute tastes like hot cardboard, same as every morning. What isn't the same is the sound: the water recycler in hydroponics has picked up a dry, unhealthy rattle that carries all the way into the commons.\n\nOkafor sits at the galley table with her tablet, reading the overnight weather relay. \"Dust storm building east of us,\" she says without looking up. \"Twenty hours, maybe less. I want the arrays secured and the Mule inside by tonight.\"\n\nTeo hovers by the galley counter, eyes on the recycler readout, unusually quiet. Somewhere down the corridor the lab door has been sealed since before you woke; that's Lev. Then the intercom crackles: Priya, from the garage, asking whether anyone has signed off on the Mule's battery swap yet, because she is not doing it twice.\n\nIt's going to be a long sol."
+   }
+  ],
+  "log": [
+   {
+    "turn": 0,
+    "type": "scene",
+    "text": "The coffee substitute tastes like hot cardboard, same as every morning. What isn't the same is the sound: the water recycler in hydroponics has picked up a dry, unhealthy rattle that carries all the way into the commons.\n\nOkafor sits at the galley table with her tablet, reading the overnight weather relay. \"Dust storm building east of us,\" she says without looking up. \"Twenty hours, maybe less. I want the arrays secured and the Mule inside by tonight.\"\n\nTeo hovers by the galley counter, eyes on the recycler readout, unusually quiet. Somewhere down the corridor the lab door has been sealed since before you woke; that's Lev. Then the intercom crackles: Priya, from the garage, asking whether anyone has signed off on the Mule's battery swap yet, because she is not doing it twice.\n\nIt's going to be a long sol."
+   }
+  ],
+  "flags": {
+   "chapterWorthy": false,
+   "gameOver": false
+  },
+  "tierLast": {},
+  "news": []
+ },
+ "actions": [
+  {
+   "type": "turn",
+   "action": "I open up the recycler.",
+   "stepId": "hour",
+   "cutAt": null,
+   "rng": [
+    0.658662258172974,
+    0.5985081961711646,
+    0.490800855686248
+   ],
+   "calls": [
+    {
+     "kind": "intent",
+     "backend": "local",
+     "request": {
+      "system": "You are the simulation engine and narrator for an interactive, character-driven story.\n\n=== SETTING: Ares Deep ===\nAres Deep is a five-person research outpost dug into the rim of Hellas Planitia on Mars, 214 sols into a 500-sol rotation. The nearest help is a cargo lander nine weeks out, and Earth is 14 light-minutes away. The station is cramped; everyone knows everyone's habits, but not their secrets. Whether the program gets a second rotation depends on what this crew sends home.\n\n=== RULES ===\n- The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. The player commands no faction.\n- The player controls only Kit Navarro (id: navarro). Never decide Kit Navarro's choices, words or feelings beyond what the player's action states.\n- Outcomes marked RESOLVED are final. Failures have real consequences. Injuries and deaths are permanent.\n- Characters act from their own personality, wants, needs, secrets and feelings, not to serve the player.\n- Grounded near-future technology. No aliens, no magic. Any biological discovery is microbial at most and must stay scientifically plausible.\n- Mars is lethal: suit breaches, CO2 buildup, cold, radiation and dust are real dangers. Going outside requires a suit.\n- Messages to Earth take 14 minutes each way. There is no real-time help.\n- The crew are capable professionals under strain. Conflict comes from personality, pressure and secrets, not villainy.\n\n=== LOCATIONS ===\n- commons: Commons — Hub module with the galley table and the station's only real window. (connects: ops, med, lab, hydro, quarters, suitroom)\n- ops: Ops & Comms — Status boards, the long-delay comm link and the station logs. (connects: commons)\n- med: Med Bay — Two cots, a scanner and a locked drug cabinet. (connects: commons)\n- lab: Lab — Core sample racks, a glovebox and incubators for ice cultures. (connects: commons)\n- hydro: Hydroponics — Grow racks under purple light and the water recycler, rattling. (connects: commons)\n- quarters: Crew Quarters — Five curtained bunks. The only privacy on the station. (connects: commons)\n- suitroom: Suit Room & Airlock — Five EVA suits on racks, the airlock and the dust-scrub bay. (connects: commons, garage, surface)\n- garage: Rover Garage — Pressurized bay holding the rover, nicknamed the Mule. (connects: suitroom, surface)\n- surface: Surface — Rust-colored regolith, the solar field and the drill site. Suits required. (connects: suitroom, garage)\n\n=== GROUPS ===\n- mission: Mission Control — The Ares program's ground team on Earth, 14 light-minutes away. Reviews everything the crew sends and decides on the second rotation.\n- sponsor: Halvorsen Aerospace — The corporate sponsor funding most of Ares Deep. Wants headlines and results it can sell.\n\n=== CAST ===\n- navarro (PLAYER): Kit Navarro (they/them), systems engineer, 34. Traits: resourceful, blunt, stubborn. Voice: Dry and direct, short sentences; swears at machinery, never at people.\n- okafor: Dr. Imani Okafor (she/her), station lead and geologist, 47. Traits: exacting, charismatic, proud. Wants: win funding for a second rotation and secure her legacy with Ares Deep. Voice: Clipped and formal, dry humor, never raises her voice.\n- sorensen: Dr. Lev Sorensen (he/him), medic and astrobiologist, 39. Traits: curious, secretive, gentle. Wants: be the first person to confirm life on Mars. Voice: Soft-spoken, rambles when excited, deflects with jokes.\n- raman: Priya Raman (she/her), pilot and rover technician, 31. Traits: warm, impatient, fiercely loyal. Wants: get home on schedule for her daughter's sixth birthday. Voice: Fast and teasing; swears in Tamil when stressed.\n- bauer: Teo Bauer (he/him), hydroponics technician, 24. Traits: eager, anxious, people-pleaser. Wants: prove he belongs on this crew. Voice: Talks too fast, over-apologizes, tries to be funny.\n\n=== ESTABLISHED FACTS (known to the player) ===\n- [T0] The recycler's rattle started six nights ago, the same night Teo had the late hydroponics shift.\n- [T0] An orbital weather relay shows a regional dust storm building east of Hellas and tracking toward Ares Deep, roughly twenty hours out.",
+      "user": "=== NOW: Sol 214, 07:00 ===\nKit Navarro is in Commons.\nWorld: power: solar arrays nominal; comms: online, 14-minute delay; recycler: degraded, about 70% output; rover: the Mule, operational\nPressures: Dust storm arrival 0/10; Water recycler failure 3/10\nGroups: Mission Control: supportive but anxious; reviewing this rotation's data for the renewal decision; Halvorsen Aerospace: publicly upbeat; privately watching costs and crew performance\nPresent with Kit Navarro: Dr. Imani Okafor, Teo Bauer\nElsewhere: Dr. Lev Sorensen (Lab), Priya Raman (Rover Garage)\n\n=== STATUS ===\n- Kit Navarro (they/them) [navarro]: health unhurt; hunger low, fatigue low, stress moderate; feels toward: Dr. Imani Okafor neutral (10), Teo Bauer friendly (20)\n- Dr. Imani Okafor (she/her) [okafor]: health unhurt; hunger low, fatigue moderate, stress moderate; feels toward Kit Navarro: neutral (10); toward others here: Teo Bauer neutral\n- Teo Bauer (he/him) [bauer]: health unhurt; hunger low, fatigue moderate, stress high; feels toward Kit Navarro: friendly (20); toward others here: Dr. Imani Okafor neutral\n\n=== PRIVATE (each item is known ONLY to the character named) ===\n- Dr. Imani Okafor's secret: Three weeks ago she adjusted a core-sample report, overstating water-ice purity, because the real numbers might have ended the program. (guard: high; very hard to crack)\n- Dr. Imani Okafor knows: Lev has been booking lab time far beyond his approved schedule.\n- Teo Bauer's secret: He caused the recycler fault six nights ago by running it past its rated cycle to save a failing crop, then wiped that night's log. (guard: low; cracks easily when confronted)\n- Teo Bauer knows: Hydroponics lost three racks of soy last week; he told the crew it was a lighting fault.\n\n=== OFFSTAGE (not with the player; for events only) ===\n- sorensen (Dr. Lev Sorensen), in Lab: wants be the first person to confirm life on Mars; secret: Cultures from the deep ice core are showing activity he cannot explain as contamination. He has told no one and keeps the samples in an unlogged incubator.\n- raman (Priya Raman), in Rover Garage: wants get home on schedule for her daughter's sixth birthday; secret: The mission's corporate sponsor quietly pays her a bonus for private reports on crew performance, and she has been sending them.\n\n=== LAST SCENE ===\nThe coffee substitute tastes like hot cardboard, same as every morning. What isn't the same is the sound: the water recycler in hydroponics has picked up a dry, unhealthy rattle that carries all the way into the commons.\n\nOkafor sits at the galley table with her tablet, reading the overnight weather relay. \"Dust storm building east of us,\" she says without looking up. \"Twenty hours, maybe less. I want the arrays secured and the Mule inside by tonight.\"\n\nTeo hovers by the galley counter, eyes on the recycler readout, unusually quiet. Somewhere down the corridor the lab door has been sealed since before you woke; that's Lev. Then the intercom crackles: Priya, from the garage, asking whether anyone has signed off on the Mule's battery swap yet, because she is not doing it twice.\n\nIt's going to be a long sol.\n\n=== PLAYER ACTION (time passing: about an hour) ===\n\"I open up the recycler.\"\nThe player's action takes up this whole span. Others act during the same span.\n\n=== TASK ===\n1. Judge the player's action. If it is risky, contested or depends on skill, set needs_roll to true and choose a skill (one of: tech, science, medicine, piloting, athletics, social, stealth) and a difficulty (easy, normal, hard). Talking, looking around and simple tasks need no roll. Everyone listed as present is in the same room as Kit Navarro right now, so an action about them needs no move. Only if the action clearly takes Kit Navarro somewhere else, set move_to to that location id (or to a character id to go where that character is).\n2. You MUST give exactly one intent for EACH present character: okafor, bauer. Decide what each actually tries to do during this time, driven by their personality, wants, needs, secrets and feelings. They may help, argue, refuse, lie, deflect, pursue their own goals, or leave (move_to). Set visible to false if they act covertly so the player would not notice.\n3. \"says\": the gist of anything they say aloud this turn (or null).\n4. \"reveals\": almost always null. Only fill it if the character deliberately says their secret or private knowledge out loud this turn, and that matches their \"says\". Being asked once, or being nervous, is not enough: people deflect, make excuses or lie first.\n5. \"events\": things that happen during this span outside the player's control, to keep the world moving: offstage characters pursuing their wants and secrets, groups making moves that affect the people here, someone arriving, a call over the intercom, equipment trouble, the pressures above getting closer. How many: 0 or 1. Each event has:\n   - \"text\": one sentence, with names.\n   - \"who\": character ids involved (not the player).\n   - \"where\": location id where it happens.\n   - \"visibility\": \"seen\" (happens in the player's room), \"heard\" (the player gets a sound, call or message about it) or \"hidden\" (the player has no idea).\n   - \"moves\": [{\"id\":\"character_id\",\"to\":\"location_id\"}] for offstage characters who go somewhere because of it, else [].\n   - \"scope\": \"local\" for these.\n   No regional or world events this turn; keep events local.\nReply with JSON only, exactly in this shape:\n{\"player\":{\"summary\":\"the player's action restated as a concrete attempt\",\"needs_roll\":false,\"skill\":null,\"difficulty\":\"normal\",\"move_to\":null},\n \"intents\":[\n  {\"id\":\"okafor\",\"action\":\"one sentence\",\"says\":null,\"reveals\":null,\"visible\":true,\"needs_roll\":false,\"skill\":null,\"difficulty\":\"normal\",\"move_to\":null},\n  {\"id\":\"bauer\",\"action\":\"one sentence\",\"says\":null,\"reveals\":null,\"visible\":true,\"needs_roll\":false,\"skill\":null,\"difficulty\":\"normal\",\"move_to\":null}\n ],\n \"events\":[{\"text\":\"one sentence\",\"scope\":\"local\",\"who\":[\"character_id\"],\"where\":\"location_id\",\"visibility\":\"heard\",\"moves\":[]}]}",
+      "max_tokens": 560,
+      "temperature": 0.7
+     },
+     "response": {
+      "text": "{\"player\":{\"summary\":\"inspect the recycler\",\"needs_roll\":true,\"skill\":\"tech\",\"difficulty\":\"normal\",\"move_to\":null},\"intents\":[{\"id\":\"bauer\",\"action\":\"hovers nervously near the log panel\",\"says\":\"Probably just a sensor issue.\",\"visible\":true},{\"id\":\"okafor\",\"action\":\"heads to Ops to draft a storm plan\",\"visible\":true,\"move_to\":\"ops\"}],\"events\":[]}",
+      "finish": "stop",
+      "usage": {
+       "prompt_tokens": 2586,
+       "completion_tokens": 87,
+       "total_tokens": 2673
+      }
+     }
+    },
+    {
+     "kind": "narrate",
+     "backend": "local",
+     "request": {
+      "system": "You are the simulation engine and narrator for an interactive, character-driven story.\n\n=== SETTING: Ares Deep ===\nAres Deep is a five-person research outpost dug into the rim of Hellas Planitia on Mars, 214 sols into a 500-sol rotation. The nearest help is a cargo lander nine weeks out, and Earth is 14 light-minutes away. The station is cramped; everyone knows everyone's habits, but not their secrets. Whether the program gets a second rotation depends on what this crew sends home.\n\n=== RULES ===\n- The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. The player commands no faction.\n- The player controls only Kit Navarro (id: navarro). Never decide Kit Navarro's choices, words or feelings beyond what the player's action states.\n- Outcomes marked RESOLVED are final. Failures have real consequences. Injuries and deaths are permanent.\n- Characters act from their own personality, wants, needs, secrets and feelings, not to serve the player.\n- Grounded near-future technology. No aliens, no magic. Any biological discovery is microbial at most and must stay scientifically plausible.\n- Mars is lethal: suit breaches, CO2 buildup, cold, radiation and dust are real dangers. Going outside requires a suit.\n- Messages to Earth take 14 minutes each way. There is no real-time help.\n- The crew are capable professionals under strain. Conflict comes from personality, pressure and secrets, not villainy.\n\n=== LOCATIONS ===\n- commons: Commons — Hub module with the galley table and the station's only real window. (connects: ops, med, lab, hydro, quarters, suitroom)\n- ops: Ops & Comms — Status boards, the long-delay comm link and the station logs. (connects: commons)\n- med: Med Bay — Two cots, a scanner and a locked drug cabinet. (connects: commons)\n- lab: Lab — Core sample racks, a glovebox and incubators for ice cultures. (connects: commons)\n- hydro: Hydroponics — Grow racks under purple light and the water recycler, rattling. (connects: commons)\n- quarters: Crew Quarters — Five curtained bunks. The only privacy on the station. (connects: commons)\n- suitroom: Suit Room & Airlock — Five EVA suits on racks, the airlock and the dust-scrub bay. (connects: commons, garage, surface)\n- garage: Rover Garage — Pressurized bay holding the rover, nicknamed the Mule. (connects: suitroom, surface)\n- surface: Surface — Rust-colored regolith, the solar field and the drill site. Suits required. (connects: suitroom, garage)\n\n=== GROUPS ===\n- mission: Mission Control — The Ares program's ground team on Earth, 14 light-minutes away. Reviews everything the crew sends and decides on the second rotation.\n- sponsor: Halvorsen Aerospace — The corporate sponsor funding most of Ares Deep. Wants headlines and results it can sell.\n\n=== CAST ===\n- navarro (PLAYER): Kit Navarro (they/them), systems engineer, 34. Traits: resourceful, blunt, stubborn. Voice: Dry and direct, short sentences; swears at machinery, never at people.\n- okafor: Dr. Imani Okafor (she/her), station lead and geologist, 47. Traits: exacting, charismatic, proud. Wants: win funding for a second rotation and secure her legacy with Ares Deep. Voice: Clipped and formal, dry humor, never raises her voice.\n- sorensen: Dr. Lev Sorensen (he/him), medic and astrobiologist, 39. Traits: curious, secretive, gentle. Wants: be the first person to confirm life on Mars. Voice: Soft-spoken, rambles when excited, deflects with jokes.\n- raman: Priya Raman (she/her), pilot and rover technician, 31. Traits: warm, impatient, fiercely loyal. Wants: get home on schedule for her daughter's sixth birthday. Voice: Fast and teasing; swears in Tamil when stressed.\n- bauer: Teo Bauer (he/him), hydroponics technician, 24. Traits: eager, anxious, people-pleaser. Wants: prove he belongs on this crew. Voice: Talks too fast, over-apologizes, tries to be funny.\n\n=== ESTABLISHED FACTS (known to the player) ===\n- [T0] The recycler's rattle started six nights ago, the same night Teo had the late hydroponics shift.\n- [T0] An orbital weather relay shows a regional dust storm building east of Hellas and tracking toward Ares Deep, roughly twenty hours out.",
+      "user": "=== SCENE FRAME ===\nStarts: Sol 214, 07:00, in Commons, with Dr. Imani Okafor, Teo Bauer.\nEnds: Sol 214, 08:00, Kit Navarro still in Commons.\nDuring the scene, Dr. Imani Okafor leaves for Ops & Comms.\nWorld: power: solar arrays nominal; comms: online, 14-minute delay; recycler: degraded, about 70% output; rover: the Mule, operational\nPressures: Dust storm arrival 0/10; Water recycler failure 3/10\nGroups: Mission Control: supportive but anxious; reviewing this rotation's data for the renewal decision; Halvorsen Aerospace: publicly upbeat; privately watching costs and crew performance\n\n=== STATUS ===\n- Kit Navarro (they/them) [navarro]: health unhurt; feels toward: Dr. Imani Okafor neutral (10), Teo Bauer friendly (20)\n- Dr. Imani Okafor (she/her) [okafor]: health unhurt\n- Teo Bauer (he/him) [bauer]: health unhurt; stress high\n\n=== LAST SCENE ===\nThe coffee substitute tastes like hot cardboard, same as every morning. What isn't the same is the sound: the water recycler in hydroponics has picked up a dry, unhealthy rattle that carries all the way into the commons.\n\nOkafor sits at the galley table with her tablet, reading the overnight weather relay. \"Dust storm building east of us,\" she says without looking up. \"Twenty hours, maybe less. I want the arrays secured and the Mule inside by tonight.\"\n\nTeo hovers by the galley counter, eyes on the recycler readout, unusually quiet. Somewhere down the corridor the lab door has been sealed since before you woke; that's Lev. Then the intercom crackles: Priya, from the garage, asking whether anyone has signed off on the Mule's battery swap yet, because she is not doing it twice.\n\nIt's going to be a long sol.\n\n=== PLAYER ACTION (time span: about an hour) ===\n\"I open up the recycler.\"\n\n=== RESOLVED (final — narrate these faithfully) ===\n- You (Kit Navarro): inspect the recycler → SUCCESS (tech check: rolled 18 vs 12)\n- Dr. Imani Okafor: heads to Ops to draft a storm plan → happens (no roll needed) [moves to Ops & Comms]\n- Teo Bauer: hovers nervously near the log panel → happens (no roll needed)\n    says (gist): Probably just a sensor issue.\n\n=== TASK ===\nWrite the next scene in second person, present tense (\"you\" is Kit Navarro), 100–200 words. Bring the characters to life through dialogue and small actions in their own voices.\nTime: This covers about an hour, all spent on the stated action. Play the key exchange as a live scene and compress the rest of the hour with a line or two (\"For the next forty minutes…\"). You may show how it naturally unfolds, but the player character starts no new activities and goes nowhere else. Their manner toward others matches the feelings listed in STATUS.\nBeats: 2 or 3 beats. Start each beat on its own line with a time marker in brackets: minutes since the scene started, like [+0m], [+25m], [+50m] (use hours for long spans, like [+5h]). The last marker is at most [+60m]. Spread the beats across the whole span: the last one starts around [+45m]. End each beat on something the player could react to, since the player may step in between beats.\nStructure:\n1. The scene is set in Commons. Open with Kit Navarro's action, carried out in the first paragraph.\n2. Then show how the others react to it and what they do, in the order that makes sense.\n3. End on the others' latest move: a reply, a look, a question or a new problem the player can respond to. The final paragraph must NEVER be Kit Navarro's own line or action; leave Kit Navarro's response open for the player.\nHard rules:\n- Narrate ONLY the resolved outcomes above, faithfully. Failures should cost something.\n- Play Kit Navarro naturally, in character (voice: Dry and direct, short sentences; swears at machinery, never at people.). If the action is vague, fill it in the way Kit Navarro would: small gestures, a line or two of dialogue, how they go about it.\n- Do not make big choices for Kit Navarro: no agreeing to plans, making promises, starting new tasks, revealing what Kit Navarro knows beyond the action, or deciding what to do next. When a real choice comes up, stop there and leave it to the player.\n- Kit Navarro never leaves Commons. Do not take Kit Navarro anywhere else.\n- Only the characters in the frame appear. Anyone \"out of your sight\" is NOT seen doing it; at most a sound or a hint.\n- Characters may leave or arrive when it fits the outcomes and events; anyone who leaves is seen leaving, not followed.\n- EVENTs tagged [regional] or [world] reach the scene the way they realistically would (a tremor, an alarm, a message or news report), and the present characters react to them in character.\n- Use each character's pronouns exactly as given in STATUS (e.g. he/him means \"he\", never \"they\").\n- Characters reveal only what is listed under REVEALS. Anything else they keep to themselves: they deflect, stall, joke or lie.\n- Do not invent new events, confessions or discoveries.\n- Stop at the end of these outcomes, on a moment that invites the player's response. Do not continue past it.\nReply with the scene text only.",
+      "max_tokens": 384,
+      "temperature": 0.8
+     },
+     "response": {
+      "text": "[+0m] You pry the access panel off the recycler. Teo hovers at your shoulder.\n\n[+30m] Okafor gathers her tablet and heads for Ops.\n\n[+55m] Teo hands you a spanner. \"Probably just a sensor issue,\" he says, a little too fast.",
+      "finish": "stop",
+      "usage": {
+       "prompt_tokens": 2331,
+       "completion_tokens": 56,
+       "total_tokens": 2387
+      }
+     }
+    }
+   ]
+  },
+  {
+   "type": "turn",
+   "action": "Hold on, Teo.",
+   "stepId": "moment",
+   "cutAt": 2,
+   "rng": [
+    0.25375959336068443,
+    0.7786288865925871,
+    0.27981287844492886
+   ],
+   "calls": [
+    {
+     "kind": "update",
+     "backend": "local",
+     "request": {
+      "system": "You are the simulation engine and narrator for an interactive, character-driven story.\n\n=== SETTING: Ares Deep ===\nAres Deep is a five-person research outpost dug into the rim of Hellas Planitia on Mars, 214 sols into a 500-sol rotation. The nearest help is a cargo lander nine weeks out, and Earth is 14 light-minutes away. The station is cramped; everyone knows everyone's habits, but not their secrets. Whether the program gets a second rotation depends on what this crew sends home.\n\n=== RULES ===\n- The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. The player commands no faction.\n- The player controls only Kit Navarro (id: navarro). Never decide Kit Navarro's choices, words or feelings beyond what the player's action states.\n- Outcomes marked RESOLVED are final. Failures have real consequences. Injuries and deaths are permanent.\n- Characters act from their own personality, wants, needs, secrets and feelings, not to serve the player.\n- Grounded near-future technology. No aliens, no magic. Any biological discovery is microbial at most and must stay scientifically plausible.\n- Mars is lethal: suit breaches, CO2 buildup, cold, radiation and dust are real dangers. Going outside requires a suit.\n- Messages to Earth take 14 minutes each way. There is no real-time help.\n- The crew are capable professionals under strain. Conflict comes from personality, pressure and secrets, not villainy.\n\n=== LOCATIONS ===\n- commons: Commons — Hub module with the galley table and the station's only real window. (connects: ops, med, lab, hydro, quarters, suitroom)\n- ops: Ops & Comms — Status boards, the long-delay comm link and the station logs. (connects: commons)\n- med: Med Bay — Two cots, a scanner and a locked drug cabinet. (connects: commons)\n- lab: Lab — Core sample racks, a glovebox and incubators for ice cultures. (connects: commons)\n- hydro: Hydroponics — Grow racks under purple light and the water recycler, rattling. (connects: commons)\n- quarters: Crew Quarters — Five curtained bunks. The only privacy on the station. (connects: commons)\n- suitroom: Suit Room & Airlock — Five EVA suits on racks, the airlock and the dust-scrub bay. (connects: commons, garage, surface)\n- garage: Rover Garage — Pressurized bay holding the rover, nicknamed the Mule. (connects: suitroom, surface)\n- surface: Surface — Rust-colored regolith, the solar field and the drill site. Suits required. (connects: suitroom, garage)\n\n=== GROUPS ===\n- mission: Mission Control — The Ares program's ground team on Earth, 14 light-minutes away. Reviews everything the crew sends and decides on the second rotation.\n- sponsor: Halvorsen Aerospace — The corporate sponsor funding most of Ares Deep. Wants headlines and results it can sell.\n\n=== CAST ===\n- navarro (PLAYER): Kit Navarro (they/them), systems engineer, 34. Traits: resourceful, blunt, stubborn. Voice: Dry and direct, short sentences; swears at machinery, never at people.\n- okafor: Dr. Imani Okafor (she/her), station lead and geologist, 47. Traits: exacting, charismatic, proud. Wants: win funding for a second rotation and secure her legacy with Ares Deep. Voice: Clipped and formal, dry humor, never raises her voice.\n- sorensen: Dr. Lev Sorensen (he/him), medic and astrobiologist, 39. Traits: curious, secretive, gentle. Wants: be the first person to confirm life on Mars. Voice: Soft-spoken, rambles when excited, deflects with jokes.\n- raman: Priya Raman (she/her), pilot and rover technician, 31. Traits: warm, impatient, fiercely loyal. Wants: get home on schedule for her daughter's sixth birthday. Voice: Fast and teasing; swears in Tamil when stressed.\n- bauer: Teo Bauer (he/him), hydroponics technician, 24. Traits: eager, anxious, people-pleaser. Wants: prove he belongs on this crew. Voice: Talks too fast, over-apologizes, tries to be funny.\n\n=== ESTABLISHED FACTS (known to the player) ===\n- [T0] The recycler's rattle started six nights ago, the same night Teo had the late hydroponics shift.\n- [T0] An orbital weather relay shows a regional dust storm building east of Hellas and tracking toward Ares Deep, roughly twenty hours out.",
+      "user": "=== VALID IDS ===\ncharacters: navarro, okafor, sorensen, raman, bauer\nlocations: commons, ops, med, lab, hydro, quarters, suitroom, garage, surface\nworld keys: power, comms, recycler, rover\ngroups: mission, sponsor\nclocks: storm, recycler\nneeds: hunger, fatigue, stress\npresent this turn: navarro, okafor, bauer\n\n=== WHAT HAPPENED THIS TURN (full truth, including hidden actions) ===\nPlayer action: \"I open up the recycler.\"\n- You (Kit Navarro): inspect the recycler → SUCCESS (tech check: rolled 18 vs 12)\n- Dr. Imani Okafor: heads to Ops to draft a storm plan → happens (no roll needed) [moves to Ops & Comms]\n- Teo Bauer: hovers nervously near the log panel → happens (no roll needed)\n    says (gist): Probably just a sensor issue.\n\n=== SCENE AS NARRATED ===\nYou pry the access panel off the recycler. Teo hovers at your shoulder.\n\nOkafor gathers her tablet and heads for Ops.\n\n[The player stepped in here. Anything planned above that is not in this scene did NOT happen; record only what is in the scene.]\n\n=== TASK ===\nRecord what changed this turn. Reply with JSON only, exactly in this shape:\n{\"facts\":[{\"about\":[\"character_id\"],\"text\":\"one short sentence using names, not pronouns\",\"known_by\":[\"character_id\"],\"weight\":2}],\n \"state\":[{\"target\":\"char:character_id\",\"field\":\"health\",\"value\":\"ok|hurt|badly_hurt|dead\"},\n          {\"target\":\"char:character_id\",\"field\":\"location\",\"value\":\"location_id\"},\n          {\"target\":\"char:character_id\",\"field\":\"add_condition\",\"value\":\"short condition\"},\n          {\"target\":\"char:character_id\",\"field\":\"remove_condition\",\"value\":\"existing condition\"},\n          {\"target\":\"char:character_id\",\"field\":\"need\",\"need\":\"need_id\",\"delta\":-0.5},\n          {\"target\":\"world:key\",\"value\":\"new short description\"},\n          {\"target\":\"faction:group_id\",\"value\":\"new short stance\"},\n          {\"target\":\"clock:clock_id\",\"delta\":-2}],\n \"relations\":[{\"from\":\"character_id\",\"to\":\"character_id\",\"delta\":5,\"reason\":\"short reason\"}],\n \"player_attitude\":[{\"to\":\"character_id\",\"delta\":-5,\"reason\":\"short reason in past tense\"}],\n \"chapter_worthy\":false}\nGuidelines:\n- 1 to 5 facts. Only things that actually happened or were revealed. Skip trivia.\n- known_by lists who witnessed or was told. Use [\"all\"] only when everyone at the station/location would know. Hidden actions are known only by the actor and anyone who caught them.\n- What Kit Navarro knows is limited to what they could see or hear in the narrated scene. Other characters' motives, plans and secrets are NOT known by Kit Navarro unless explicitly revealed; record those as known only by that character.\n- weight: 1 minor detail, 2 notable, 3 major turning point (injury, death, betrayal, discovery, confession).\n- Anything listed under REVEALS should become a fact known by the revealer and whoever was told.\n- state: only real changes. Eating or resting lowers needs (negative delta). Repairs or sabotage can move clocks (negative delta delays, positive hastens). location: only for other characters who were seen leaving or arriving in the scene (where they went or came from). Never for Kit Navarro.\n- groups: update a group's stance only when this turn's events would realistically change how that group sees things.\n- world values are short factual status (e.g. \"degraded, about 70% output\"). Only change one when that status actually changed this turn.\n- Conditions are physical or situational (e.g. \"sprained ankle\", \"covered in dust\"), not moods; stress and fear are needs.\n- relations: how this turn changed how non-player characters feel about others (never Kit Navarro's own feelings), delta between -15 and 15. Leave empty if nothing changed.\n- player_attitude: how Kit Navarro's own feelings toward someone shifted, judged ONLY from the player action as quoted above (their words and tone), never from how the narrator embellished it. Snapping, mocking or threatening lowers it; thanking, helping, joking warmly or confiding raises it. Delta between -10 and 10. Leave empty if the action was neutral.\n- chapter_worthy: true only for a major turning point.\nUse [] for any list with nothing to record.",
+      "max_tokens": 520,
+      "temperature": 0.3
+     },
+     "response": {
+      "text": "{\"facts\":[{\"about\":[\"bauer\"],\"text\":\"Teo blamed the rattle on a sensor issue.\",\"known_by\":[\"navarro\",\"bauer\"],\"weight\":1}],\"state\":[],\"relations\":[{\"from\":\"bauer\",\"to\":\"navarro\",\"delta\":-2,\"reason\":\"nervous\"}],\"player_attitude\":[]}",
+      "finish": "stop",
+      "usage": {
+       "prompt_tokens": 2103,
+       "completion_tokens": 58,
+       "total_tokens": 2161
+      }
+     }
+    },
+    {
+     "kind": "intent",
+     "backend": "local",
+     "request": {
+      "system": "You are the simulation engine and narrator for an interactive, character-driven story.\n\n=== SETTING: Ares Deep ===\nAres Deep is a five-person research outpost dug into the rim of Hellas Planitia on Mars, 214 sols into a 500-sol rotation. The nearest help is a cargo lander nine weeks out, and Earth is 14 light-minutes away. The station is cramped; everyone knows everyone's habits, but not their secrets. Whether the program gets a second rotation depends on what this crew sends home.\n\n=== RULES ===\n- The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. The player commands no faction.\n- The player controls only Kit Navarro (id: navarro). Never decide Kit Navarro's choices, words or feelings beyond what the player's action states.\n- Outcomes marked RESOLVED are final. Failures have real consequences. Injuries and deaths are permanent.\n- Characters act from their own personality, wants, needs, secrets and feelings, not to serve the player.\n- Grounded near-future technology. No aliens, no magic. Any biological discovery is microbial at most and must stay scientifically plausible.\n- Mars is lethal: suit breaches, CO2 buildup, cold, radiation and dust are real dangers. Going outside requires a suit.\n- Messages to Earth take 14 minutes each way. There is no real-time help.\n- The crew are capable professionals under strain. Conflict comes from personality, pressure and secrets, not villainy.\n\n=== LOCATIONS ===\n- commons: Commons — Hub module with the galley table and the station's only real window. (connects: ops, med, lab, hydro, quarters, suitroom)\n- ops: Ops & Comms — Status boards, the long-delay comm link and the station logs. (connects: commons)\n- med: Med Bay — Two cots, a scanner and a locked drug cabinet. (connects: commons)\n- lab: Lab — Core sample racks, a glovebox and incubators for ice cultures. (connects: commons)\n- hydro: Hydroponics — Grow racks under purple light and the water recycler, rattling. (connects: commons)\n- quarters: Crew Quarters — Five curtained bunks. The only privacy on the station. (connects: commons)\n- suitroom: Suit Room & Airlock — Five EVA suits on racks, the airlock and the dust-scrub bay. (connects: commons, garage, surface)\n- garage: Rover Garage — Pressurized bay holding the rover, nicknamed the Mule. (connects: suitroom, surface)\n- surface: Surface — Rust-colored regolith, the solar field and the drill site. Suits required. (connects: suitroom, garage)\n\n=== GROUPS ===\n- mission: Mission Control — The Ares program's ground team on Earth, 14 light-minutes away. Reviews everything the crew sends and decides on the second rotation.\n- sponsor: Halvorsen Aerospace — The corporate sponsor funding most of Ares Deep. Wants headlines and results it can sell.\n\n=== CAST ===\n- navarro (PLAYER): Kit Navarro (they/them), systems engineer, 34. Traits: resourceful, blunt, stubborn. Voice: Dry and direct, short sentences; swears at machinery, never at people.\n- okafor: Dr. Imani Okafor (she/her), station lead and geologist, 47. Traits: exacting, charismatic, proud. Wants: win funding for a second rotation and secure her legacy with Ares Deep. Voice: Clipped and formal, dry humor, never raises her voice.\n- sorensen: Dr. Lev Sorensen (he/him), medic and astrobiologist, 39. Traits: curious, secretive, gentle. Wants: be the first person to confirm life on Mars. Voice: Soft-spoken, rambles when excited, deflects with jokes.\n- raman: Priya Raman (she/her), pilot and rover technician, 31. Traits: warm, impatient, fiercely loyal. Wants: get home on schedule for her daughter's sixth birthday. Voice: Fast and teasing; swears in Tamil when stressed.\n- bauer: Teo Bauer (he/him), hydroponics technician, 24. Traits: eager, anxious, people-pleaser. Wants: prove he belongs on this crew. Voice: Talks too fast, over-apologizes, tries to be funny.\n\n=== ESTABLISHED FACTS (known to the player) ===\n- [T0] The recycler's rattle started six nights ago, the same night Teo had the late hydroponics shift.\n- [T0] An orbital weather relay shows a regional dust storm building east of Hellas and tracking toward Ares Deep, roughly twenty hours out.\n- [T1] Teo blamed the rattle on a sensor issue.",
+      "user": "=== NOW: Sol 214, 07:43 ===\nKit Navarro is in Commons.\nWorld: power: solar arrays nominal; comms: online, 14-minute delay; recycler: degraded, about 70% output; rover: the Mule, operational\nPressures: Dust storm arrival 0/10; Water recycler failure 3/10\nGroups: Mission Control: supportive but anxious; reviewing this rotation's data for the renewal decision; Halvorsen Aerospace: publicly upbeat; privately watching costs and crew performance\nPresent with Kit Navarro: Dr. Imani Okafor, Teo Bauer\nElsewhere: Dr. Lev Sorensen (Lab), Priya Raman (Rover Garage)\n\n=== STATUS ===\n- Kit Navarro (they/them) [navarro]: health unhurt; hunger low, fatigue low, stress moderate; feels toward: Dr. Imani Okafor neutral (10), Teo Bauer friendly (20)\n- Dr. Imani Okafor (she/her) [okafor]: health unhurt; hunger low, fatigue moderate, stress moderate; feels toward Kit Navarro: neutral (10); toward others here: Teo Bauer neutral\n- Teo Bauer (he/him) [bauer]: health unhurt; hunger low, fatigue moderate, stress high; feels toward Kit Navarro: friendly (18); toward others here: Dr. Imani Okafor neutral\n\n=== PRIVATE (each item is known ONLY to the character named) ===\n- Dr. Imani Okafor's secret: Three weeks ago she adjusted a core-sample report, overstating water-ice purity, because the real numbers might have ended the program. (guard: high; very hard to crack)\n- Dr. Imani Okafor knows: Lev has been booking lab time far beyond his approved schedule.\n- Teo Bauer's secret: He caused the recycler fault six nights ago by running it past its rated cycle to save a failing crop, then wiped that night's log. (guard: low; cracks easily when confronted)\n- Teo Bauer knows: Hydroponics lost three racks of soy last week; he told the crew it was a lighting fault.\n\n=== OFFSTAGE (not with the player; for events only) ===\n- sorensen (Dr. Lev Sorensen), in Lab: wants be the first person to confirm life on Mars; secret: Cultures from the deep ice core are showing activity he cannot explain as contamination. He has told no one and keeps the samples in an unlogged incubator.\n- raman (Priya Raman), in Rover Garage: wants get home on schedule for her daughter's sixth birthday; secret: The mission's corporate sponsor quietly pays her a bonus for private reports on crew performance, and she has been sending them.\n\n=== LAST SCENE ===\nYou pry the access panel off the recycler. Teo hovers at your shoulder.\n\nOkafor gathers her tablet and heads for Ops.\n\n[Kit Navarro steps in here, at Sol 214, 07:43.]\n\n=== PLAYER ACTION (time passing: a few minutes) ===\n\"Hold on, Teo.\"\nThe player's action takes up this whole span. Others act during the same span.\n\n=== TASK ===\n1. Judge the player's action. If it is risky, contested or depends on skill, set needs_roll to true and choose a skill (one of: tech, science, medicine, piloting, athletics, social, stealth) and a difficulty (easy, normal, hard). Talking, looking around and simple tasks need no roll. Everyone listed as present is in the same room as Kit Navarro right now, so an action about them needs no move. Only if the action clearly takes Kit Navarro somewhere else, set move_to to that location id (or to a character id to go where that character is).\n2. You MUST give exactly one intent for EACH present character: okafor, bauer. Decide what each actually tries to do during this time, driven by their personality, wants, needs, secrets and feelings. They may help, argue, refuse, lie, deflect, pursue their own goals, or leave (move_to). Set visible to false if they act covertly so the player would not notice.\n3. \"says\": the gist of anything they say aloud this turn (or null).\n4. \"reveals\": almost always null. Only fill it if the character deliberately says their secret or private knowledge out loud this turn, and that matches their \"says\". Being asked once, or being nervous, is not enough: people deflect, make excuses or lie first.\n5. \"events\": things that happen during this span outside the player's control, to keep the world moving: offstage characters pursuing their wants and secrets, groups making moves that affect the people here, someone arriving, a call over the intercom, equipment trouble, the pressures above getting closer. How many: Usually none for a few minutes; at most 1, only if something is already about to happen. Each event has:\n   - \"text\": one sentence, with names.\n   - \"who\": character ids involved (not the player).\n   - \"where\": location id where it happens.\n   - \"visibility\": \"seen\" (happens in the player's room), \"heard\" (the player gets a sound, call or message about it) or \"hidden\" (the player has no idea).\n   - \"moves\": [{\"id\":\"character_id\",\"to\":\"location_id\"}] for offstage characters who go somewhere because of it, else [].\n   - \"scope\": \"local\" for these.\n   No regional or world events this turn; keep events local.\nReply with JSON only, exactly in this shape:\n{\"player\":{\"summary\":\"the player's action restated as a concrete attempt\",\"needs_roll\":false,\"skill\":null,\"difficulty\":\"normal\",\"move_to\":null},\n \"intents\":[\n  {\"id\":\"okafor\",\"action\":\"one sentence\",\"says\":null,\"reveals\":null,\"visible\":true,\"needs_roll\":false,\"skill\":null,\"difficulty\":\"normal\",\"move_to\":null},\n  {\"id\":\"bauer\",\"action\":\"one sentence\",\"says\":null,\"reveals\":null,\"visible\":true,\"needs_roll\":false,\"skill\":null,\"difficulty\":\"normal\",\"move_to\":null}\n ],\n \"events\":[{\"text\":\"one sentence\",\"scope\":\"local\",\"who\":[\"character_id\"],\"where\":\"location_id\",\"visibility\":\"heard\",\"moves\":[]}]}",
+      "max_tokens": 560,
+      "temperature": 0.7
+     },
+     "response": {
+      "text": "{\"player\":{\"summary\":\"inspect the recycler\",\"needs_roll\":true,\"skill\":\"tech\",\"difficulty\":\"normal\",\"move_to\":null},\"intents\":[{\"id\":\"bauer\",\"action\":\"hovers nervously near the log panel\",\"says\":\"Probably just a sensor issue.\",\"visible\":true},{\"id\":\"okafor\",\"action\":\"heads to Ops to draft a storm plan\",\"visible\":true,\"move_to\":\"ops\"}],\"events\":[]}",
+      "finish": "stop",
+      "usage": {
+       "prompt_tokens": 2453,
+       "completion_tokens": 87,
+       "total_tokens": 2540
+      }
+     }
+    },
+    {
+     "kind": "narrate",
+     "backend": "local",
+     "request": {
+      "system": "You are the simulation engine and narrator for an interactive, character-driven story.\n\n=== SETTING: Ares Deep ===\nAres Deep is a five-person research outpost dug into the rim of Hellas Planitia on Mars, 214 sols into a 500-sol rotation. The nearest help is a cargo lander nine weeks out, and Earth is 14 light-minutes away. The station is cramped; everyone knows everyone's habits, but not their secrets. Whether the program gets a second rotation depends on what this crew sends home.\n\n=== RULES ===\n- The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. The player commands no faction.\n- The player controls only Kit Navarro (id: navarro). Never decide Kit Navarro's choices, words or feelings beyond what the player's action states.\n- Outcomes marked RESOLVED are final. Failures have real consequences. Injuries and deaths are permanent.\n- Characters act from their own personality, wants, needs, secrets and feelings, not to serve the player.\n- Grounded near-future technology. No aliens, no magic. Any biological discovery is microbial at most and must stay scientifically plausible.\n- Mars is lethal: suit breaches, CO2 buildup, cold, radiation and dust are real dangers. Going outside requires a suit.\n- Messages to Earth take 14 minutes each way. There is no real-time help.\n- The crew are capable professionals under strain. Conflict comes from personality, pressure and secrets, not villainy.\n\n=== LOCATIONS ===\n- commons: Commons — Hub module with the galley table and the station's only real window. (connects: ops, med, lab, hydro, quarters, suitroom)\n- ops: Ops & Comms — Status boards, the long-delay comm link and the station logs. (connects: commons)\n- med: Med Bay — Two cots, a scanner and a locked drug cabinet. (connects: commons)\n- lab: Lab — Core sample racks, a glovebox and incubators for ice cultures. (connects: commons)\n- hydro: Hydroponics — Grow racks under purple light and the water recycler, rattling. (connects: commons)\n- quarters: Crew Quarters — Five curtained bunks. The only privacy on the station. (connects: commons)\n- suitroom: Suit Room & Airlock — Five EVA suits on racks, the airlock and the dust-scrub bay. (connects: commons, garage, surface)\n- garage: Rover Garage — Pressurized bay holding the rover, nicknamed the Mule. (connects: suitroom, surface)\n- surface: Surface — Rust-colored regolith, the solar field and the drill site. Suits required. (connects: suitroom, garage)\n\n=== GROUPS ===\n- mission: Mission Control — The Ares program's ground team on Earth, 14 light-minutes away. Reviews everything the crew sends and decides on the second rotation.\n- sponsor: Halvorsen Aerospace — The corporate sponsor funding most of Ares Deep. Wants headlines and results it can sell.\n\n=== CAST ===\n- navarro (PLAYER): Kit Navarro (they/them), systems engineer, 34. Traits: resourceful, blunt, stubborn. Voice: Dry and direct, short sentences; swears at machinery, never at people.\n- okafor: Dr. Imani Okafor (she/her), station lead and geologist, 47. Traits: exacting, charismatic, proud. Wants: win funding for a second rotation and secure her legacy with Ares Deep. Voice: Clipped and formal, dry humor, never raises her voice.\n- sorensen: Dr. Lev Sorensen (he/him), medic and astrobiologist, 39. Traits: curious, secretive, gentle. Wants: be the first person to confirm life on Mars. Voice: Soft-spoken, rambles when excited, deflects with jokes.\n- raman: Priya Raman (she/her), pilot and rover technician, 31. Traits: warm, impatient, fiercely loyal. Wants: get home on schedule for her daughter's sixth birthday. Voice: Fast and teasing; swears in Tamil when stressed.\n- bauer: Teo Bauer (he/him), hydroponics technician, 24. Traits: eager, anxious, people-pleaser. Wants: prove he belongs on this crew. Voice: Talks too fast, over-apologizes, tries to be funny.\n\n=== ESTABLISHED FACTS (known to the player) ===\n- [T0] The recycler's rattle started six nights ago, the same night Teo had the late hydroponics shift.\n- [T0] An orbital weather relay shows a regional dust storm building east of Hellas and tracking toward Ares Deep, roughly twenty hours out.\n- [T1] Teo blamed the rattle on a sensor issue.",
+      "user": "=== SCENE FRAME ===\nStarts: Sol 214, 07:43, in Commons, with Dr. Imani Okafor, Teo Bauer.\nEnds: Sol 214, 07:58, Kit Navarro still in Commons.\nDuring the scene, Dr. Imani Okafor leaves for Ops & Comms.\nWorld: power: solar arrays nominal; comms: online, 14-minute delay; recycler: degraded, about 70% output; rover: the Mule, operational\nPressures: Dust storm arrival 0/10; Water recycler failure 3/10\nGroups: Mission Control: supportive but anxious; reviewing this rotation's data for the renewal decision; Halvorsen Aerospace: publicly upbeat; privately watching costs and crew performance\n\n=== STATUS ===\n- Kit Navarro (they/them) [navarro]: health unhurt; feels toward: Dr. Imani Okafor neutral (10), Teo Bauer friendly (20)\n- Dr. Imani Okafor (she/her) [okafor]: health unhurt\n- Teo Bauer (he/him) [bauer]: health unhurt; stress high\n\n=== LAST SCENE ===\nYou pry the access panel off the recycler. Teo hovers at your shoulder.\n\nOkafor gathers her tablet and heads for Ops.\n\n[Kit Navarro steps in here, at Sol 214, 07:43.]\n\n=== PLAYER ACTION (time span: a few minutes) ===\n\"Hold on, Teo.\"\n\n=== RESOLVED (final — narrate these faithfully) ===\n- You (Kit Navarro): inspect the recycler → SUCCESS (tech check: rolled 14 vs 12)\n- Dr. Imani Okafor: heads to Ops to draft a storm plan → happens (no roll needed) [moves to Ops & Comms]\n- Teo Bauer: hovers nervously near the log panel → happens (no roll needed)\n    says (gist): Probably just a sensor issue.\n\n=== TASK ===\nWrite the next scene in second person, present tense (\"you\" is Kit Navarro), 60–120 words. Bring the characters to life through dialogue and small actions in their own voices.\nTime: This covers only a few minutes. Play out the stated action beat by beat. Add nothing else for the player character beyond small gestures and a line of dialogue.\nBeats: 1 beat: [+0m]. Start each beat on its own line with a time marker in brackets: minutes since the scene started, like [+0m], [+25m], [+50m] (use hours for long spans, like [+5h]). The last marker is at most [+15m]. End each beat on something the player could react to, since the player may step in between beats.\nStructure:\n1. The scene is set in Commons. Open with Kit Navarro's action, carried out in the first paragraph.\n2. Then show how the others react to it and what they do, in the order that makes sense.\n3. End on the others' latest move: a reply, a look, a question or a new problem the player can respond to. The final paragraph must NEVER be Kit Navarro's own line or action; leave Kit Navarro's response open for the player.\nHard rules:\n- Narrate ONLY the resolved outcomes above, faithfully. Failures should cost something.\n- Play Kit Navarro naturally, in character (voice: Dry and direct, short sentences; swears at machinery, never at people.). If the action is vague, fill it in the way Kit Navarro would: small gestures, a line or two of dialogue, how they go about it.\n- Do not make big choices for Kit Navarro: no agreeing to plans, making promises, starting new tasks, revealing what Kit Navarro knows beyond the action, or deciding what to do next. When a real choice comes up, stop there and leave it to the player.\n- Kit Navarro never leaves Commons. Do not take Kit Navarro anywhere else.\n- Only the characters in the frame appear. Anyone \"out of your sight\" is NOT seen doing it; at most a sound or a hint.\n- Characters may leave or arrive when it fits the outcomes and events; anyone who leaves is seen leaving, not followed.\n- EVENTs tagged [regional] or [world] reach the scene the way they realistically would (a tremor, an alarm, a message or news report), and the present characters react to them in character.\n- Use each character's pronouns exactly as given in STATUS (e.g. he/him means \"he\", never \"they\").\n- Characters reveal only what is listed under REVEALS. Anything else they keep to themselves: they deflect, stall, joke or lie.\n- Do not invent new events, confessions or discoveries.\n- Stop at the end of these outcomes, on a moment that invites the player's response. Do not continue past it.\nReply with the scene text only.",
+      "max_tokens": 224,
+      "temperature": 0.8
+     },
+     "response": {
+      "text": "[+0m] You pry the access panel off the recycler. Teo hovers at your shoulder.\n\n[+30m] Okafor gathers her tablet and heads for Ops.\n\n[+55m] Teo hands you a spanner. \"Probably just a sensor issue,\" he says, a little too fast.",
+      "finish": "stop",
+      "usage": {
+       "prompt_tokens": 2110,
+       "completion_tokens": 56,
+       "total_tokens": 2165
+      }
+     }
+    }
+   ]
+  },
+  {
+   "type": "reroll",
+   "rng": [],
+   "calls": [
+    {
+     "kind": "narrate",
+     "backend": "local",
+     "request": {
+      "system": "You are the simulation engine and narrator for an interactive, character-driven story.\n\n=== SETTING: Ares Deep ===\nAres Deep is a five-person research outpost dug into the rim of Hellas Planitia on Mars, 214 sols into a 500-sol rotation. The nearest help is a cargo lander nine weeks out, and Earth is 14 light-minutes away. The station is cramped; everyone knows everyone's habits, but not their secrets. Whether the program gets a second rotation depends on what this crew sends home.\n\n=== RULES ===\n- The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. The player commands no faction.\n- The player controls only Kit Navarro (id: navarro). Never decide Kit Navarro's choices, words or feelings beyond what the player's action states.\n- Outcomes marked RESOLVED are final. Failures have real consequences. Injuries and deaths are permanent.\n- Characters act from their own personality, wants, needs, secrets and feelings, not to serve the player.\n- Grounded near-future technology. No aliens, no magic. Any biological discovery is microbial at most and must stay scientifically plausible.\n- Mars is lethal: suit breaches, CO2 buildup, cold, radiation and dust are real dangers. Going outside requires a suit.\n- Messages to Earth take 14 minutes each way. There is no real-time help.\n- The crew are capable professionals under strain. Conflict comes from personality, pressure and secrets, not villainy.\n\n=== LOCATIONS ===\n- commons: Commons — Hub module with the galley table and the station's only real window. (connects: ops, med, lab, hydro, quarters, suitroom)\n- ops: Ops & Comms — Status boards, the long-delay comm link and the station logs. (connects: commons)\n- med: Med Bay — Two cots, a scanner and a locked drug cabinet. (connects: commons)\n- lab: Lab — Core sample racks, a glovebox and incubators for ice cultures. (connects: commons)\n- hydro: Hydroponics — Grow racks under purple light and the water recycler, rattling. (connects: commons)\n- quarters: Crew Quarters — Five curtained bunks. The only privacy on the station. (connects: commons)\n- suitroom: Suit Room & Airlock — Five EVA suits on racks, the airlock and the dust-scrub bay. (connects: commons, garage, surface)\n- garage: Rover Garage — Pressurized bay holding the rover, nicknamed the Mule. (connects: suitroom, surface)\n- surface: Surface — Rust-colored regolith, the solar field and the drill site. Suits required. (connects: suitroom, garage)\n\n=== GROUPS ===\n- mission: Mission Control — The Ares program's ground team on Earth, 14 light-minutes away. Reviews everything the crew sends and decides on the second rotation.\n- sponsor: Halvorsen Aerospace — The corporate sponsor funding most of Ares Deep. Wants headlines and results it can sell.\n\n=== CAST ===\n- navarro (PLAYER): Kit Navarro (they/them), systems engineer, 34. Traits: resourceful, blunt, stubborn. Voice: Dry and direct, short sentences; swears at machinery, never at people.\n- okafor: Dr. Imani Okafor (she/her), station lead and geologist, 47. Traits: exacting, charismatic, proud. Wants: win funding for a second rotation and secure her legacy with Ares Deep. Voice: Clipped and formal, dry humor, never raises her voice.\n- sorensen: Dr. Lev Sorensen (he/him), medic and astrobiologist, 39. Traits: curious, secretive, gentle. Wants: be the first person to confirm life on Mars. Voice: Soft-spoken, rambles when excited, deflects with jokes.\n- raman: Priya Raman (she/her), pilot and rover technician, 31. Traits: warm, impatient, fiercely loyal. Wants: get home on schedule for her daughter's sixth birthday. Voice: Fast and teasing; swears in Tamil when stressed.\n- bauer: Teo Bauer (he/him), hydroponics technician, 24. Traits: eager, anxious, people-pleaser. Wants: prove he belongs on this crew. Voice: Talks too fast, over-apologizes, tries to be funny.\n\n=== ESTABLISHED FACTS (known to the player) ===\n- [T0] The recycler's rattle started six nights ago, the same night Teo had the late hydroponics shift.\n- [T0] An orbital weather relay shows a regional dust storm building east of Hellas and tracking toward Ares Deep, roughly twenty hours out.\n- [T1] Teo blamed the rattle on a sensor issue.",
+      "user": "=== SCENE FRAME ===\nStarts: Sol 214, 07:43, in Commons, with Dr. Imani Okafor, Teo Bauer.\nEnds: Sol 214, 07:58, Kit Navarro still in Commons.\nDuring the scene, Dr. Imani Okafor leaves for Ops & Comms.\nWorld: power: solar arrays nominal; comms: online, 14-minute delay; recycler: degraded, about 70% output; rover: the Mule, operational\nPressures: Dust storm arrival 0/10; Water recycler failure 3/10\nGroups: Mission Control: supportive but anxious; reviewing this rotation's data for the renewal decision; Halvorsen Aerospace: publicly upbeat; privately watching costs and crew performance\n\n=== STATUS ===\n- Kit Navarro (they/them) [navarro]: health unhurt; feels toward: Dr. Imani Okafor neutral (10), Teo Bauer friendly (20)\n- Dr. Imani Okafor (she/her) [okafor]: health unhurt\n- Teo Bauer (he/him) [bauer]: health unhurt; stress high\n\n=== LAST SCENE ===\nYou pry the access panel off the recycler. Teo hovers at your shoulder.\n\nOkafor gathers her tablet and heads for Ops.\n\n[Kit Navarro steps in here, at Sol 214, 07:43.]\n\n=== PLAYER ACTION (time span: a few minutes) ===\n\"Hold on, Teo.\"\n\n=== RESOLVED (final — narrate these faithfully) ===\n- You (Kit Navarro): inspect the recycler → SUCCESS (tech check: rolled 14 vs 12)\n- Dr. Imani Okafor: heads to Ops to draft a storm plan → happens (no roll needed) [moves to Ops & Comms]\n- Teo Bauer: hovers nervously near the log panel → happens (no roll needed)\n    says (gist): Probably just a sensor issue.\n\n=== TASK ===\nWrite the next scene in second person, present tense (\"you\" is Kit Navarro), 60–120 words. Bring the characters to life through dialogue and small actions in their own voices.\nTime: This covers only a few minutes. Play out the stated action beat by beat. Add nothing else for the player character beyond small gestures and a line of dialogue.\nBeats: 1 beat: [+0m]. Start each beat on its own line with a time marker in brackets: minutes since the scene started, like [+0m], [+25m], [+50m] (use hours for long spans, like [+5h]). The last marker is at most [+15m]. End each beat on something the player could react to, since the player may step in between beats.\nStructure:\n1. The scene is set in Commons. Open with Kit Navarro's action, carried out in the first paragraph.\n2. Then show how the others react to it and what they do, in the order that makes sense.\n3. End on the others' latest move: a reply, a look, a question or a new problem the player can respond to. The final paragraph must NEVER be Kit Navarro's own line or action; leave Kit Navarro's response open for the player.\nHard rules:\n- Narrate ONLY the resolved outcomes above, faithfully. Failures should cost something.\n- Play Kit Navarro naturally, in character (voice: Dry and direct, short sentences; swears at machinery, never at people.). If the action is vague, fill it in the way Kit Navarro would: small gestures, a line or two of dialogue, how they go about it.\n- Do not make big choices for Kit Navarro: no agreeing to plans, making promises, starting new tasks, revealing what Kit Navarro knows beyond the action, or deciding what to do next. When a real choice comes up, stop there and leave it to the player.\n- Kit Navarro never leaves Commons. Do not take Kit Navarro anywhere else.\n- Only the characters in the frame appear. Anyone \"out of your sight\" is NOT seen doing it; at most a sound or a hint.\n- Characters may leave or arrive when it fits the outcomes and events; anyone who leaves is seen leaving, not followed.\n- EVENTs tagged [regional] or [world] reach the scene the way they realistically would (a tremor, an alarm, a message or news report), and the present characters react to them in character.\n- Use each character's pronouns exactly as given in STATUS (e.g. he/him means \"he\", never \"they\").\n- Characters reveal only what is listed under REVEALS. Anything else they keep to themselves: they deflect, stall, joke or lie.\n- Do not invent new events, confessions or discoveries.\n- Stop at the end of these outcomes, on a moment that invites the player's response. Do not continue past it.\nReply with the scene text only.",
+      "max_tokens": 224,
+      "temperature": 0.8
+     },
+     "response": {
+      "text": "[+0m] You pry the access panel off the recycler. Teo hovers at your shoulder.\n\n[+30m] Okafor gathers her tablet and heads for Ops.\n\n[+55m] Teo hands you a spanner. \"Probably just a sensor issue,\" he says, a little too fast.",
+      "finish": "stop",
+      "usage": {
+       "prompt_tokens": 2110,
+       "completion_tokens": 56,
+       "total_tokens": 2165
+      }
+     }
+    }
+   ]
+  },
+  {
+   "type": "turn",
+   "action": "Show me the log.",
+   "stepId": "moment",
+   "cutAt": 1,
+   "rng": [
+    0.9930423977138129,
+    0.17065555999885518,
+    0.5560808310604584
+   ],
+   "calls": [
+    {
+     "kind": "update",
+     "backend": "local",
+     "request": {
+      "system": "You are the simulation engine and narrator for an interactive, character-driven story.\n\n=== SETTING: Ares Deep ===\nAres Deep is a five-person research outpost dug into the rim of Hellas Planitia on Mars, 214 sols into a 500-sol rotation. The nearest help is a cargo lander nine weeks out, and Earth is 14 light-minutes away. The station is cramped; everyone knows everyone's habits, but not their secrets. Whether the program gets a second rotation depends on what this crew sends home.\n\n=== RULES ===\n- The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. The player commands no faction.\n- The player controls only Kit Navarro (id: navarro). Never decide Kit Navarro's choices, words or feelings beyond what the player's action states.\n- Outcomes marked RESOLVED are final. Failures have real consequences. Injuries and deaths are permanent.\n- Characters act from their own personality, wants, needs, secrets and feelings, not to serve the player.\n- Grounded near-future technology. No aliens, no magic. Any biological discovery is microbial at most and must stay scientifically plausible.\n- Mars is lethal: suit breaches, CO2 buildup, cold, radiation and dust are real dangers. Going outside requires a suit.\n- Messages to Earth take 14 minutes each way. There is no real-time help.\n- The crew are capable professionals under strain. Conflict comes from personality, pressure and secrets, not villainy.\n\n=== LOCATIONS ===\n- commons: Commons — Hub module with the galley table and the station's only real window. (connects: ops, med, lab, hydro, quarters, suitroom)\n- ops: Ops & Comms — Status boards, the long-delay comm link and the station logs. (connects: commons)\n- med: Med Bay — Two cots, a scanner and a locked drug cabinet. (connects: commons)\n- lab: Lab — Core sample racks, a glovebox and incubators for ice cultures. (connects: commons)\n- hydro: Hydroponics — Grow racks under purple light and the water recycler, rattling. (connects: commons)\n- quarters: Crew Quarters — Five curtained bunks. The only privacy on the station. (connects: commons)\n- suitroom: Suit Room & Airlock — Five EVA suits on racks, the airlock and the dust-scrub bay. (connects: commons, garage, surface)\n- garage: Rover Garage — Pressurized bay holding the rover, nicknamed the Mule. (connects: suitroom, surface)\n- surface: Surface — Rust-colored regolith, the solar field and the drill site. Suits required. (connects: suitroom, garage)\n\n=== GROUPS ===\n- mission: Mission Control — The Ares program's ground team on Earth, 14 light-minutes away. Reviews everything the crew sends and decides on the second rotation.\n- sponsor: Halvorsen Aerospace — The corporate sponsor funding most of Ares Deep. Wants headlines and results it can sell.\n\n=== CAST ===\n- navarro (PLAYER): Kit Navarro (they/them), systems engineer, 34. Traits: resourceful, blunt, stubborn. Voice: Dry and direct, short sentences; swears at machinery, never at people.\n- okafor: Dr. Imani Okafor (she/her), station lead and geologist, 47. Traits: exacting, charismatic, proud. Wants: win funding for a second rotation and secure her legacy with Ares Deep. Voice: Clipped and formal, dry humor, never raises her voice.\n- sorensen: Dr. Lev Sorensen (he/him), medic and astrobiologist, 39. Traits: curious, secretive, gentle. Wants: be the first person to confirm life on Mars. Voice: Soft-spoken, rambles when excited, deflects with jokes.\n- raman: Priya Raman (she/her), pilot and rover technician, 31. Traits: warm, impatient, fiercely loyal. Wants: get home on schedule for her daughter's sixth birthday. Voice: Fast and teasing; swears in Tamil when stressed.\n- bauer: Teo Bauer (he/him), hydroponics technician, 24. Traits: eager, anxious, people-pleaser. Wants: prove he belongs on this crew. Voice: Talks too fast, over-apologizes, tries to be funny.\n\n=== ESTABLISHED FACTS (known to the player) ===\n- [T0] The recycler's rattle started six nights ago, the same night Teo had the late hydroponics shift.\n- [T0] An orbital weather relay shows a regional dust storm building east of Hellas and tracking toward Ares Deep, roughly twenty hours out.\n- [T1] Teo blamed the rattle on a sensor issue.",
+      "user": "=== VALID IDS ===\ncharacters: navarro, okafor, sorensen, raman, bauer\nlocations: commons, ops, med, lab, hydro, quarters, suitroom, garage, surface\nworld keys: power, comms, recycler, rover\ngroups: mission, sponsor\nclocks: storm, recycler\nneeds: hunger, fatigue, stress\npresent this turn: navarro, okafor, bauer\n\n=== WHAT HAPPENED THIS TURN (full truth, including hidden actions) ===\nPlayer action: \"Hold on, Teo.\"\n- You (Kit Navarro): inspect the recycler → SUCCESS (tech check: rolled 14 vs 12)\n- Dr. Imani Okafor: heads to Ops to draft a storm plan → happens (no roll needed) [moves to Ops & Comms]\n- Teo Bauer: hovers nervously near the log panel → happens (no roll needed)\n    says (gist): Probably just a sensor issue.\n\n=== SCENE AS NARRATED ===\nYou pry the access panel off the recycler. Teo hovers at your shoulder.\n\n[The player stepped in here. Anything planned above that is not in this scene did NOT happen; record only what is in the scene.]\n\n=== TASK ===\nRecord what changed this turn. Reply with JSON only, exactly in this shape:\n{\"facts\":[{\"about\":[\"character_id\"],\"text\":\"one short sentence using names, not pronouns\",\"known_by\":[\"character_id\"],\"weight\":2}],\n \"state\":[{\"target\":\"char:character_id\",\"field\":\"health\",\"value\":\"ok|hurt|badly_hurt|dead\"},\n          {\"target\":\"char:character_id\",\"field\":\"location\",\"value\":\"location_id\"},\n          {\"target\":\"char:character_id\",\"field\":\"add_condition\",\"value\":\"short condition\"},\n          {\"target\":\"char:character_id\",\"field\":\"remove_condition\",\"value\":\"existing condition\"},\n          {\"target\":\"char:character_id\",\"field\":\"need\",\"need\":\"need_id\",\"delta\":-0.5},\n          {\"target\":\"world:key\",\"value\":\"new short description\"},\n          {\"target\":\"faction:group_id\",\"value\":\"new short stance\"},\n          {\"target\":\"clock:clock_id\",\"delta\":-2}],\n \"relations\":[{\"from\":\"character_id\",\"to\":\"character_id\",\"delta\":5,\"reason\":\"short reason\"}],\n \"player_attitude\":[{\"to\":\"character_id\",\"delta\":-5,\"reason\":\"short reason in past tense\"}],\n \"chapter_worthy\":false}\nGuidelines:\n- 1 to 5 facts. Only things that actually happened or were revealed. Skip trivia.\n- known_by lists who witnessed or was told. Use [\"all\"] only when everyone at the station/location would know. Hidden actions are known only by the actor and anyone who caught them.\n- What Kit Navarro knows is limited to what they could see or hear in the narrated scene. Other characters' motives, plans and secrets are NOT known by Kit Navarro unless explicitly revealed; record those as known only by that character.\n- weight: 1 minor detail, 2 notable, 3 major turning point (injury, death, betrayal, discovery, confession).\n- Anything listed under REVEALS should become a fact known by the revealer and whoever was told.\n- state: only real changes. Eating or resting lowers needs (negative delta). Repairs or sabotage can move clocks (negative delta delays, positive hastens). location: only for other characters who were seen leaving or arriving in the scene (where they went or came from). Never for Kit Navarro.\n- groups: update a group's stance only when this turn's events would realistically change how that group sees things.\n- world values are short factual status (e.g. \"degraded, about 70% output\"). Only change one when that status actually changed this turn.\n- Conditions are physical or situational (e.g. \"sprained ankle\", \"covered in dust\"), not moods; stress and fear are needs.\n- relations: how this turn changed how non-player characters feel about others (never Kit Navarro's own feelings), delta between -15 and 15. Leave empty if nothing changed.\n- player_attitude: how Kit Navarro's own feelings toward someone shifted, judged ONLY from the player action as quoted above (their words and tone), never from how the narrator embellished it. Snapping, mocking or threatening lowers it; thanking, helping, joking warmly or confiding raises it. Delta between -10 and 10. Leave empty if the action was neutral.\n- chapter_worthy: true only for a major turning point.\nUse [] for any list with nothing to record.",
+      "max_tokens": 520,
+      "temperature": 0.3
+     },
+     "response": {
+      "text": "{\"facts\":[{\"about\":[\"bauer\"],\"text\":\"Teo blamed the rattle on a sensor issue.\",\"known_by\":[\"navarro\",\"bauer\"],\"weight\":1}],\"state\":[],\"relations\":[{\"from\":\"bauer\",\"to\":\"navarro\",\"delta\":-2,\"reason\":\"nervous\"}],\"player_attitude\":[]}",
+      "finish": "stop",
+      "usage": {
+       "prompt_tokens": 2101,
+       "completion_tokens": 58,
+       "total_tokens": 2159
+      }
+     }
+    },
+    {
+     "kind": "intent",
+     "backend": "local",
+     "request": {
+      "system": "You are the simulation engine and narrator for an interactive, character-driven story.\n\n=== SETTING: Ares Deep ===\nAres Deep is a five-person research outpost dug into the rim of Hellas Planitia on Mars, 214 sols into a 500-sol rotation. The nearest help is a cargo lander nine weeks out, and Earth is 14 light-minutes away. The station is cramped; everyone knows everyone's habits, but not their secrets. Whether the program gets a second rotation depends on what this crew sends home.\n\n=== RULES ===\n- The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. The player commands no faction.\n- The player controls only Kit Navarro (id: navarro). Never decide Kit Navarro's choices, words or feelings beyond what the player's action states.\n- Outcomes marked RESOLVED are final. Failures have real consequences. Injuries and deaths are permanent.\n- Characters act from their own personality, wants, needs, secrets and feelings, not to serve the player.\n- Grounded near-future technology. No aliens, no magic. Any biological discovery is microbial at most and must stay scientifically plausible.\n- Mars is lethal: suit breaches, CO2 buildup, cold, radiation and dust are real dangers. Going outside requires a suit.\n- Messages to Earth take 14 minutes each way. There is no real-time help.\n- The crew are capable professionals under strain. Conflict comes from personality, pressure and secrets, not villainy.\n\n=== LOCATIONS ===\n- commons: Commons — Hub module with the galley table and the station's only real window. (connects: ops, med, lab, hydro, quarters, suitroom)\n- ops: Ops & Comms — Status boards, the long-delay comm link and the station logs. (connects: commons)\n- med: Med Bay — Two cots, a scanner and a locked drug cabinet. (connects: commons)\n- lab: Lab — Core sample racks, a glovebox and incubators for ice cultures. (connects: commons)\n- hydro: Hydroponics — Grow racks under purple light and the water recycler, rattling. (connects: commons)\n- quarters: Crew Quarters — Five curtained bunks. The only privacy on the station. (connects: commons)\n- suitroom: Suit Room & Airlock — Five EVA suits on racks, the airlock and the dust-scrub bay. (connects: commons, garage, surface)\n- garage: Rover Garage — Pressurized bay holding the rover, nicknamed the Mule. (connects: suitroom, surface)\n- surface: Surface — Rust-colored regolith, the solar field and the drill site. Suits required. (connects: suitroom, garage)\n\n=== GROUPS ===\n- mission: Mission Control — The Ares program's ground team on Earth, 14 light-minutes away. Reviews everything the crew sends and decides on the second rotation.\n- sponsor: Halvorsen Aerospace — The corporate sponsor funding most of Ares Deep. Wants headlines and results it can sell.\n\n=== CAST ===\n- navarro (PLAYER): Kit Navarro (they/them), systems engineer, 34. Traits: resourceful, blunt, stubborn. Voice: Dry and direct, short sentences; swears at machinery, never at people.\n- okafor: Dr. Imani Okafor (she/her), station lead and geologist, 47. Traits: exacting, charismatic, proud. Wants: win funding for a second rotation and secure her legacy with Ares Deep. Voice: Clipped and formal, dry humor, never raises her voice.\n- sorensen: Dr. Lev Sorensen (he/him), medic and astrobiologist, 39. Traits: curious, secretive, gentle. Wants: be the first person to confirm life on Mars. Voice: Soft-spoken, rambles when excited, deflects with jokes.\n- raman: Priya Raman (she/her), pilot and rover technician, 31. Traits: warm, impatient, fiercely loyal. Wants: get home on schedule for her daughter's sixth birthday. Voice: Fast and teasing; swears in Tamil when stressed.\n- bauer: Teo Bauer (he/him), hydroponics technician, 24. Traits: eager, anxious, people-pleaser. Wants: prove he belongs on this crew. Voice: Talks too fast, over-apologizes, tries to be funny.\n\n=== ESTABLISHED FACTS (known to the player) ===\n- [T0] The recycler's rattle started six nights ago, the same night Teo had the late hydroponics shift.\n- [T0] An orbital weather relay shows a regional dust storm building east of Hellas and tracking toward Ares Deep, roughly twenty hours out.\n- [T1] Teo blamed the rattle on a sensor issue.\n- [T2] Teo blamed the rattle on a sensor issue.",
+      "user": "=== NOW: Sol 214, 07:51 ===\nKit Navarro is in Commons.\nWorld: power: solar arrays nominal; comms: online, 14-minute delay; recycler: degraded, about 70% output; rover: the Mule, operational\nPressures: Dust storm arrival 0/10; Water recycler failure 3/10\nGroups: Mission Control: supportive but anxious; reviewing this rotation's data for the renewal decision; Halvorsen Aerospace: publicly upbeat; privately watching costs and crew performance\nPresent with Kit Navarro: Dr. Imani Okafor, Teo Bauer\nElsewhere: Dr. Lev Sorensen (Lab), Priya Raman (Rover Garage)\n\n=== STATUS ===\n- Kit Navarro (they/them) [navarro]: health unhurt; hunger low, fatigue low, stress moderate; feels toward: Dr. Imani Okafor neutral (10), Teo Bauer friendly (20)\n- Dr. Imani Okafor (she/her) [okafor]: health unhurt; hunger low, fatigue moderate, stress moderate; feels toward Kit Navarro: neutral (10); toward others here: Teo Bauer neutral\n- Teo Bauer (he/him) [bauer]: health unhurt; hunger low, fatigue moderate, stress high; feels toward Kit Navarro: friendly (16); toward others here: Dr. Imani Okafor neutral\n\n=== PRIVATE (each item is known ONLY to the character named) ===\n- Dr. Imani Okafor's secret: Three weeks ago she adjusted a core-sample report, overstating water-ice purity, because the real numbers might have ended the program. (guard: high; very hard to crack)\n- Dr. Imani Okafor knows: Lev has been booking lab time far beyond his approved schedule.\n- Teo Bauer's secret: He caused the recycler fault six nights ago by running it past its rated cycle to save a failing crop, then wiped that night's log. (guard: low; cracks easily when confronted)\n- Teo Bauer knows: Hydroponics lost three racks of soy last week; he told the crew it was a lighting fault.\n\n=== OFFSTAGE (not with the player; for events only) ===\n- sorensen (Dr. Lev Sorensen), in Lab: wants be the first person to confirm life on Mars; secret: Cultures from the deep ice core are showing activity he cannot explain as contamination. He has told no one and keeps the samples in an unlogged incubator.\n- raman (Priya Raman), in Rover Garage: wants get home on schedule for her daughter's sixth birthday; secret: The mission's corporate sponsor quietly pays her a bonus for private reports on crew performance, and she has been sending them.\n\n=== LAST SCENE ===\nYou pry the access panel off the recycler. Teo hovers at your shoulder.\n\n[Kit Navarro steps in here, at Sol 214, 07:51.]\n\n=== PLAYER ACTION (time passing: a few minutes) ===\n\"Show me the log.\"\nThe player's action takes up this whole span. Others act during the same span.\n\n=== TASK ===\n1. Judge the player's action. If it is risky, contested or depends on skill, set needs_roll to true and choose a skill (one of: tech, science, medicine, piloting, athletics, social, stealth) and a difficulty (easy, normal, hard). Talking, looking around and simple tasks need no roll. Everyone listed as present is in the same room as Kit Navarro right now, so an action about them needs no move. Only if the action clearly takes Kit Navarro somewhere else, set move_to to that location id (or to a character id to go where that character is).\n2. You MUST give exactly one intent for EACH present character: okafor, bauer. Decide what each actually tries to do during this time, driven by their personality, wants, needs, secrets and feelings. They may help, argue, refuse, lie, deflect, pursue their own goals, or leave (move_to). Set visible to false if they act covertly so the player would not notice.\n3. \"says\": the gist of anything they say aloud this turn (or null).\n4. \"reveals\": almost always null. Only fill it if the character deliberately says their secret or private knowledge out loud this turn, and that matches their \"says\". Being asked once, or being nervous, is not enough: people deflect, make excuses or lie first.\n5. \"events\": things that happen during this span outside the player's control, to keep the world moving: offstage characters pursuing their wants and secrets, groups making moves that affect the people here, someone arriving, a call over the intercom, equipment trouble, the pressures above getting closer. How many: Usually none for a few minutes; at most 1, only if something is already about to happen. Each event has:\n   - \"text\": one sentence, with names.\n   - \"who\": character ids involved (not the player).\n   - \"where\": location id where it happens.\n   - \"visibility\": \"seen\" (happens in the player's room), \"heard\" (the player gets a sound, call or message about it) or \"hidden\" (the player has no idea).\n   - \"moves\": [{\"id\":\"character_id\",\"to\":\"location_id\"}] for offstage characters who go somewhere because of it, else [].\n   - \"scope\": \"local\" for these.\n   No regional or world events this turn; keep events local.\nReply with JSON only, exactly in this shape:\n{\"player\":{\"summary\":\"the player's action restated as a concrete attempt\",\"needs_roll\":false,\"skill\":null,\"difficulty\":\"normal\",\"move_to\":null},\n \"intents\":[\n  {\"id\":\"okafor\",\"action\":\"one sentence\",\"says\":null,\"reveals\":null,\"visible\":true,\"needs_roll\":false,\"skill\":null,\"difficulty\":\"normal\",\"move_to\":null},\n  {\"id\":\"bauer\",\"action\":\"one sentence\",\"says\":null,\"reveals\":null,\"visible\":true,\"needs_roll\":false,\"skill\":null,\"difficulty\":\"normal\",\"move_to\":null}\n ],\n \"events\":[{\"text\":\"one sentence\",\"scope\":\"local\",\"who\":[\"character_id\"],\"where\":\"location_id\",\"visibility\":\"heard\",\"moves\":[]}]}",
+      "max_tokens": 560,
+      "temperature": 0.7
+     },
+     "response": {
+      "text": "{\"player\":{\"summary\":\"inspect the recycler\",\"needs_roll\":true,\"skill\":\"tech\",\"difficulty\":\"normal\",\"move_to\":null},\"intents\":[{\"id\":\"bauer\",\"action\":\"hovers nervously near the log panel\",\"says\":\"Probably just a sensor issue.\",\"visible\":true},{\"id\":\"okafor\",\"action\":\"heads to Ops to draft a storm plan\",\"visible\":true,\"move_to\":\"ops\"}],\"events\":[]}",
+      "finish": "stop",
+      "usage": {
+       "prompt_tokens": 2455,
+       "completion_tokens": 87,
+       "total_tokens": 2542
+      }
+     }
+    },
+    {
+     "kind": "narrate",
+     "backend": "local",
+     "request": {
+      "system": "You are the simulation engine and narrator for an interactive, character-driven story.\n\n=== SETTING: Ares Deep ===\nAres Deep is a five-person research outpost dug into the rim of Hellas Planitia on Mars, 214 sols into a 500-sol rotation. The nearest help is a cargo lander nine weeks out, and Earth is 14 light-minutes away. The station is cramped; everyone knows everyone's habits, but not their secrets. Whether the program gets a second rotation depends on what this crew sends home.\n\n=== RULES ===\n- The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. The player commands no faction.\n- The player controls only Kit Navarro (id: navarro). Never decide Kit Navarro's choices, words or feelings beyond what the player's action states.\n- Outcomes marked RESOLVED are final. Failures have real consequences. Injuries and deaths are permanent.\n- Characters act from their own personality, wants, needs, secrets and feelings, not to serve the player.\n- Grounded near-future technology. No aliens, no magic. Any biological discovery is microbial at most and must stay scientifically plausible.\n- Mars is lethal: suit breaches, CO2 buildup, cold, radiation and dust are real dangers. Going outside requires a suit.\n- Messages to Earth take 14 minutes each way. There is no real-time help.\n- The crew are capable professionals under strain. Conflict comes from personality, pressure and secrets, not villainy.\n\n=== LOCATIONS ===\n- commons: Commons — Hub module with the galley table and the station's only real window. (connects: ops, med, lab, hydro, quarters, suitroom)\n- ops: Ops & Comms — Status boards, the long-delay comm link and the station logs. (connects: commons)\n- med: Med Bay — Two cots, a scanner and a locked drug cabinet. (connects: commons)\n- lab: Lab — Core sample racks, a glovebox and incubators for ice cultures. (connects: commons)\n- hydro: Hydroponics — Grow racks under purple light and the water recycler, rattling. (connects: commons)\n- quarters: Crew Quarters — Five curtained bunks. The only privacy on the station. (connects: commons)\n- suitroom: Suit Room & Airlock — Five EVA suits on racks, the airlock and the dust-scrub bay. (connects: commons, garage, surface)\n- garage: Rover Garage — Pressurized bay holding the rover, nicknamed the Mule. (connects: suitroom, surface)\n- surface: Surface — Rust-colored regolith, the solar field and the drill site. Suits required. (connects: suitroom, garage)\n\n=== GROUPS ===\n- mission: Mission Control — The Ares program's ground team on Earth, 14 light-minutes away. Reviews everything the crew sends and decides on the second rotation.\n- sponsor: Halvorsen Aerospace — The corporate sponsor funding most of Ares Deep. Wants headlines and results it can sell.\n\n=== CAST ===\n- navarro (PLAYER): Kit Navarro (they/them), systems engineer, 34. Traits: resourceful, blunt, stubborn. Voice: Dry and direct, short sentences; swears at machinery, never at people.\n- okafor: Dr. Imani Okafor (she/her), station lead and geologist, 47. Traits: exacting, charismatic, proud. Wants: win funding for a second rotation and secure her legacy with Ares Deep. Voice: Clipped and formal, dry humor, never raises her voice.\n- sorensen: Dr. Lev Sorensen (he/him), medic and astrobiologist, 39. Traits: curious, secretive, gentle. Wants: be the first person to confirm life on Mars. Voice: Soft-spoken, rambles when excited, deflects with jokes.\n- raman: Priya Raman (she/her), pilot and rover technician, 31. Traits: warm, impatient, fiercely loyal. Wants: get home on schedule for her daughter's sixth birthday. Voice: Fast and teasing; swears in Tamil when stressed.\n- bauer: Teo Bauer (he/him), hydroponics technician, 24. Traits: eager, anxious, people-pleaser. Wants: prove he belongs on this crew. Voice: Talks too fast, over-apologizes, tries to be funny.\n\n=== ESTABLISHED FACTS (known to the player) ===\n- [T0] The recycler's rattle started six nights ago, the same night Teo had the late hydroponics shift.\n- [T0] An orbital weather relay shows a regional dust storm building east of Hellas and tracking toward Ares Deep, roughly twenty hours out.\n- [T1] Teo blamed the rattle on a sensor issue.\n- [T2] Teo blamed the rattle on a sensor issue.",
+      "user": "=== SCENE FRAME ===\nStarts: Sol 214, 07:51, in Commons, with Dr. Imani Okafor, Teo Bauer.\nEnds: Sol 214, 08:06, Kit Navarro still in Commons.\nDuring the scene, Dr. Imani Okafor leaves for Ops & Comms.\nWorld: power: solar arrays nominal; comms: online, 14-minute delay; recycler: degraded, about 70% output; rover: the Mule, operational\nPressures: Dust storm arrival 0/10; Water recycler failure 3/10\nGroups: Mission Control: supportive but anxious; reviewing this rotation's data for the renewal decision; Halvorsen Aerospace: publicly upbeat; privately watching costs and crew performance\n\n=== STATUS ===\n- Kit Navarro (they/them) [navarro]: health unhurt; feels toward: Dr. Imani Okafor neutral (10), Teo Bauer friendly (20)\n- Dr. Imani Okafor (she/her) [okafor]: health unhurt\n- Teo Bauer (he/him) [bauer]: health unhurt; stress high\n\n=== LAST SCENE ===\nYou pry the access panel off the recycler. Teo hovers at your shoulder.\n\n[Kit Navarro steps in here, at Sol 214, 07:51.]\n\n=== PLAYER ACTION (time span: a few minutes) ===\n\"Show me the log.\"\n\n=== RESOLVED (final — narrate these faithfully) ===\n- You (Kit Navarro): inspect the recycler → SUCCESS (tech check: rolled 20 vs 12)\n- Dr. Imani Okafor: heads to Ops to draft a storm plan → happens (no roll needed) [moves to Ops & Comms]\n- Teo Bauer: hovers nervously near the log panel → happens (no roll needed)\n    says (gist): Probably just a sensor issue.\n\n=== TASK ===\nWrite the next scene in second person, present tense (\"you\" is Kit Navarro), 60–120 words. Bring the characters to life through dialogue and small actions in their own voices.\nTime: This covers only a few minutes. Play out the stated action beat by beat. Add nothing else for the player character beyond small gestures and a line of dialogue.\nBeats: 1 beat: [+0m]. Start each beat on its own line with a time marker in brackets: minutes since the scene started, like [+0m], [+25m], [+50m] (use hours for long spans, like [+5h]). The last marker is at most [+15m]. End each beat on something the player could react to, since the player may step in between beats.\nStructure:\n1. The scene is set in Commons. Open with Kit Navarro's action, carried out in the first paragraph.\n2. Then show how the others react to it and what they do, in the order that makes sense.\n3. End on the others' latest move: a reply, a look, a question or a new problem the player can respond to. The final paragraph must NEVER be Kit Navarro's own line or action; leave Kit Navarro's response open for the player.\nHard rules:\n- Narrate ONLY the resolved outcomes above, faithfully. Failures should cost something.\n- Play Kit Navarro naturally, in character (voice: Dry and direct, short sentences; swears at machinery, never at people.). If the action is vague, fill it in the way Kit Navarro would: small gestures, a line or two of dialogue, how they go about it.\n- Do not make big choices for Kit Navarro: no agreeing to plans, making promises, starting new tasks, revealing what Kit Navarro knows beyond the action, or deciding what to do next. When a real choice comes up, stop there and leave it to the player.\n- Kit Navarro never leaves Commons. Do not take Kit Navarro anywhere else.\n- Only the characters in the frame appear. Anyone \"out of your sight\" is NOT seen doing it; at most a sound or a hint.\n- Characters may leave or arrive when it fits the outcomes and events; anyone who leaves is seen leaving, not followed.\n- EVENTs tagged [regional] or [world] reach the scene the way they realistically would (a tremor, an alarm, a message or news report), and the present characters react to them in character.\n- Use each character's pronouns exactly as given in STATUS (e.g. he/him means \"he\", never \"they\").\n- Characters reveal only what is listed under REVEALS. Anything else they keep to themselves: they deflect, stall, joke or lie.\n- Do not invent new events, confessions or discoveries.\n- Stop at the end of these outcomes, on a moment that invites the player's response. Do not continue past it.\nReply with the scene text only.",
+      "max_tokens": 224,
+      "temperature": 0.8
+     },
+     "response": {
+      "text": "[+0m] You pry the access panel off the recycler. Teo hovers at your shoulder.\n\n[+30m] Okafor gathers her tablet and heads for Ops.\n\n[+55m] Teo hands you a spanner. \"Probably just a sensor issue,\" he says, a little too fast.",
+      "finish": "stop",
+      "usage": {
+       "prompt_tokens": 2111,
+       "completion_tokens": 56,
+       "total_tokens": 2167
+      }
+     }
+    }
+   ]
+  },
+  {
+   "type": "undo"
+  },
+  {
+   "type": "turn",
+   "action": "Ask Teo what he wiped from the log.",
+   "stepId": "moment",
+   "cutAt": 1,
+   "rng": [
+    0.9148056622787776,
+    0.47095208211470296,
+    0.3887745983419054
+   ],
+   "calls": [
+    {
+     "kind": "update",
+     "backend": "local",
+     "request": {
+      "system": "You are the simulation engine and narrator for an interactive, character-driven story.\n\n=== SETTING: Ares Deep ===\nAres Deep is a five-person research outpost dug into the rim of Hellas Planitia on Mars, 214 sols into a 500-sol rotation. The nearest help is a cargo lander nine weeks out, and Earth is 14 light-minutes away. The station is cramped; everyone knows everyone's habits, but not their secrets. Whether the program gets a second rotation depends on what this crew sends home.\n\n=== RULES ===\n- The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. The player commands no faction.\n- The player controls only Kit Navarro (id: navarro). Never decide Kit Navarro's choices, words or feelings beyond what the player's action states.\n- Outcomes marked RESOLVED are final. Failures have real consequences. Injuries and deaths are permanent.\n- Characters act from their own personality, wants, needs, secrets and feelings, not to serve the player.\n- Grounded near-future technology. No aliens, no magic. Any biological discovery is microbial at most and must stay scientifically plausible.\n- Mars is lethal: suit breaches, CO2 buildup, cold, radiation and dust are real dangers. Going outside requires a suit.\n- Messages to Earth take 14 minutes each way. There is no real-time help.\n- The crew are capable professionals under strain. Conflict comes from personality, pressure and secrets, not villainy.\n\n=== LOCATIONS ===\n- commons: Commons — Hub module with the galley table and the station's only real window. (connects: ops, med, lab, hydro, quarters, suitroom)\n- ops: Ops & Comms — Status boards, the long-delay comm link and the station logs. (connects: commons)\n- med: Med Bay — Two cots, a scanner and a locked drug cabinet. (connects: commons)\n- lab: Lab — Core sample racks, a glovebox and incubators for ice cultures. (connects: commons)\n- hydro: Hydroponics — Grow racks under purple light and the water recycler, rattling. (connects: commons)\n- quarters: Crew Quarters — Five curtained bunks. The only privacy on the station. (connects: commons)\n- suitroom: Suit Room & Airlock — Five EVA suits on racks, the airlock and the dust-scrub bay. (connects: commons, garage, surface)\n- garage: Rover Garage — Pressurized bay holding the rover, nicknamed the Mule. (connects: suitroom, surface)\n- surface: Surface — Rust-colored regolith, the solar field and the drill site. Suits required. (connects: suitroom, garage)\n\n=== GROUPS ===\n- mission: Mission Control — The Ares program's ground team on Earth, 14 light-minutes away. Reviews everything the crew sends and decides on the second rotation.\n- sponsor: Halvorsen Aerospace — The corporate sponsor funding most of Ares Deep. Wants headlines and results it can sell.\n\n=== CAST ===\n- navarro (PLAYER): Kit Navarro (they/them), systems engineer, 34. Traits: resourceful, blunt, stubborn. Voice: Dry and direct, short sentences; swears at machinery, never at people.\n- okafor: Dr. Imani Okafor (she/her), station lead and geologist, 47. Traits: exacting, charismatic, proud. Wants: win funding for a second rotation and secure her legacy with Ares Deep. Voice: Clipped and formal, dry humor, never raises her voice.\n- sorensen: Dr. Lev Sorensen (he/him), medic and astrobiologist, 39. Traits: curious, secretive, gentle. Wants: be the first person to confirm life on Mars. Voice: Soft-spoken, rambles when excited, deflects with jokes.\n- raman: Priya Raman (she/her), pilot and rover technician, 31. Traits: warm, impatient, fiercely loyal. Wants: get home on schedule for her daughter's sixth birthday. Voice: Fast and teasing; swears in Tamil when stressed.\n- bauer: Teo Bauer (he/him), hydroponics technician, 24. Traits: eager, anxious, people-pleaser. Wants: prove he belongs on this crew. Voice: Talks too fast, over-apologizes, tries to be funny.\n\n=== ESTABLISHED FACTS (known to the player) ===\n- [T0] The recycler's rattle started six nights ago, the same night Teo had the late hydroponics shift.\n- [T0] An orbital weather relay shows a regional dust storm building east of Hellas and tracking toward Ares Deep, roughly twenty hours out.\n- [T1] Teo blamed the rattle on a sensor issue.",
+      "user": "=== VALID IDS ===\ncharacters: navarro, okafor, sorensen, raman, bauer\nlocations: commons, ops, med, lab, hydro, quarters, suitroom, garage, surface\nworld keys: power, comms, recycler, rover\ngroups: mission, sponsor\nclocks: storm, recycler\nneeds: hunger, fatigue, stress\npresent this turn: navarro, okafor, bauer\n\n=== WHAT HAPPENED THIS TURN (full truth, including hidden actions) ===\nPlayer action: \"Hold on, Teo.\"\n- You (Kit Navarro): inspect the recycler → SUCCESS (tech check: rolled 14 vs 12)\n- Dr. Imani Okafor: heads to Ops to draft a storm plan → happens (no roll needed) [moves to Ops & Comms]\n- Teo Bauer: hovers nervously near the log panel → happens (no roll needed)\n    says (gist): Probably just a sensor issue.\n\n=== SCENE AS NARRATED ===\nYou pry the access panel off the recycler. Teo hovers at your shoulder.\n\n[The player stepped in here. Anything planned above that is not in this scene did NOT happen; record only what is in the scene.]\n\n=== TASK ===\nRecord what changed this turn. Reply with JSON only, exactly in this shape:\n{\"facts\":[{\"about\":[\"character_id\"],\"text\":\"one short sentence using names, not pronouns\",\"known_by\":[\"character_id\"],\"weight\":2}],\n \"state\":[{\"target\":\"char:character_id\",\"field\":\"health\",\"value\":\"ok|hurt|badly_hurt|dead\"},\n          {\"target\":\"char:character_id\",\"field\":\"location\",\"value\":\"location_id\"},\n          {\"target\":\"char:character_id\",\"field\":\"add_condition\",\"value\":\"short condition\"},\n          {\"target\":\"char:character_id\",\"field\":\"remove_condition\",\"value\":\"existing condition\"},\n          {\"target\":\"char:character_id\",\"field\":\"need\",\"need\":\"need_id\",\"delta\":-0.5},\n          {\"target\":\"world:key\",\"value\":\"new short description\"},\n          {\"target\":\"faction:group_id\",\"value\":\"new short stance\"},\n          {\"target\":\"clock:clock_id\",\"delta\":-2}],\n \"relations\":[{\"from\":\"character_id\",\"to\":\"character_id\",\"delta\":5,\"reason\":\"short reason\"}],\n \"player_attitude\":[{\"to\":\"character_id\",\"delta\":-5,\"reason\":\"short reason in past tense\"}],\n \"chapter_worthy\":false}\nGuidelines:\n- 1 to 5 facts. Only things that actually happened or were revealed. Skip trivia.\n- known_by lists who witnessed or was told. Use [\"all\"] only when everyone at the station/location would know. Hidden actions are known only by the actor and anyone who caught them.\n- What Kit Navarro knows is limited to what they could see or hear in the narrated scene. Other characters' motives, plans and secrets are NOT known by Kit Navarro unless explicitly revealed; record those as known only by that character.\n- weight: 1 minor detail, 2 notable, 3 major turning point (injury, death, betrayal, discovery, confession).\n- Anything listed under REVEALS should become a fact known by the revealer and whoever was told.\n- state: only real changes. Eating or resting lowers needs (negative delta). Repairs or sabotage can move clocks (negative delta delays, positive hastens). location: only for other characters who were seen leaving or arriving in the scene (where they went or came from). Never for Kit Navarro.\n- groups: update a group's stance only when this turn's events would realistically change how that group sees things.\n- world values are short factual status (e.g. \"degraded, about 70% output\"). Only change one when that status actually changed this turn.\n- Conditions are physical or situational (e.g. \"sprained ankle\", \"covered in dust\"), not moods; stress and fear are needs.\n- relations: how this turn changed how non-player characters feel about others (never Kit Navarro's own feelings), delta between -15 and 15. Leave empty if nothing changed.\n- player_attitude: how Kit Navarro's own feelings toward someone shifted, judged ONLY from the player action as quoted above (their words and tone), never from how the narrator embellished it. Snapping, mocking or threatening lowers it; thanking, helping, joking warmly or confiding raises it. Delta between -10 and 10. Leave empty if the action was neutral.\n- chapter_worthy: true only for a major turning point.\nUse [] for any list with nothing to record.",
+      "max_tokens": 520,
+      "temperature": 0.3
+     },
+     "response": {
+      "text": "{\"facts\":[{\"about\":[\"bauer\"],\"text\":\"Teo blamed the rattle on a sensor issue.\",\"known_by\":[\"navarro\",\"bauer\"],\"weight\":1}],\"state\":[],\"relations\":[{\"from\":\"bauer\",\"to\":\"navarro\",\"delta\":-2,\"reason\":\"nervous\"}],\"player_attitude\":[]}",
+      "finish": "stop",
+      "usage": {
+       "prompt_tokens": 2101,
+       "completion_tokens": 58,
+       "total_tokens": 2159
+      }
+     }
+    },
+    {
+     "kind": "intent",
+     "backend": "local",
+     "request": {
+      "system": "You are the simulation engine and narrator for an interactive, character-driven story.\n\n=== SETTING: Ares Deep ===\nAres Deep is a five-person research outpost dug into the rim of Hellas Planitia on Mars, 214 sols into a 500-sol rotation. The nearest help is a cargo lander nine weeks out, and Earth is 14 light-minutes away. The station is cramped; everyone knows everyone's habits, but not their secrets. Whether the program gets a second rotation depends on what this crew sends home.\n\n=== RULES ===\n- The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. The player commands no faction.\n- The player controls only Kit Navarro (id: navarro). Never decide Kit Navarro's choices, words or feelings beyond what the player's action states.\n- Outcomes marked RESOLVED are final. Failures have real consequences. Injuries and deaths are permanent.\n- Characters act from their own personality, wants, needs, secrets and feelings, not to serve the player.\n- Grounded near-future technology. No aliens, no magic. Any biological discovery is microbial at most and must stay scientifically plausible.\n- Mars is lethal: suit breaches, CO2 buildup, cold, radiation and dust are real dangers. Going outside requires a suit.\n- Messages to Earth take 14 minutes each way. There is no real-time help.\n- The crew are capable professionals under strain. Conflict comes from personality, pressure and secrets, not villainy.\n\n=== LOCATIONS ===\n- commons: Commons — Hub module with the galley table and the station's only real window. (connects: ops, med, lab, hydro, quarters, suitroom)\n- ops: Ops & Comms — Status boards, the long-delay comm link and the station logs. (connects: commons)\n- med: Med Bay — Two cots, a scanner and a locked drug cabinet. (connects: commons)\n- lab: Lab — Core sample racks, a glovebox and incubators for ice cultures. (connects: commons)\n- hydro: Hydroponics — Grow racks under purple light and the water recycler, rattling. (connects: commons)\n- quarters: Crew Quarters — Five curtained bunks. The only privacy on the station. (connects: commons)\n- suitroom: Suit Room & Airlock — Five EVA suits on racks, the airlock and the dust-scrub bay. (connects: commons, garage, surface)\n- garage: Rover Garage — Pressurized bay holding the rover, nicknamed the Mule. (connects: suitroom, surface)\n- surface: Surface — Rust-colored regolith, the solar field and the drill site. Suits required. (connects: suitroom, garage)\n\n=== GROUPS ===\n- mission: Mission Control — The Ares program's ground team on Earth, 14 light-minutes away. Reviews everything the crew sends and decides on the second rotation.\n- sponsor: Halvorsen Aerospace — The corporate sponsor funding most of Ares Deep. Wants headlines and results it can sell.\n\n=== CAST ===\n- navarro (PLAYER): Kit Navarro (they/them), systems engineer, 34. Traits: resourceful, blunt, stubborn. Voice: Dry and direct, short sentences; swears at machinery, never at people.\n- okafor: Dr. Imani Okafor (she/her), station lead and geologist, 47. Traits: exacting, charismatic, proud. Wants: win funding for a second rotation and secure her legacy with Ares Deep. Voice: Clipped and formal, dry humor, never raises her voice.\n- sorensen: Dr. Lev Sorensen (he/him), medic and astrobiologist, 39. Traits: curious, secretive, gentle. Wants: be the first person to confirm life on Mars. Voice: Soft-spoken, rambles when excited, deflects with jokes.\n- raman: Priya Raman (she/her), pilot and rover technician, 31. Traits: warm, impatient, fiercely loyal. Wants: get home on schedule for her daughter's sixth birthday. Voice: Fast and teasing; swears in Tamil when stressed.\n- bauer: Teo Bauer (he/him), hydroponics technician, 24. Traits: eager, anxious, people-pleaser. Wants: prove he belongs on this crew. Voice: Talks too fast, over-apologizes, tries to be funny.\n\n=== ESTABLISHED FACTS (known to the player) ===\n- [T0] The recycler's rattle started six nights ago, the same night Teo had the late hydroponics shift.\n- [T0] An orbital weather relay shows a regional dust storm building east of Hellas and tracking toward Ares Deep, roughly twenty hours out.\n- [T1] Teo blamed the rattle on a sensor issue.\n- [T2] Teo blamed the rattle on a sensor issue.",
+      "user": "=== NOW: Sol 214, 07:51 ===\nKit Navarro is in Commons.\nWorld: power: solar arrays nominal; comms: online, 14-minute delay; recycler: degraded, about 70% output; rover: the Mule, operational\nPressures: Dust storm arrival 0/10; Water recycler failure 3/10\nGroups: Mission Control: supportive but anxious; reviewing this rotation's data for the renewal decision; Halvorsen Aerospace: publicly upbeat; privately watching costs and crew performance\nPresent with Kit Navarro: Dr. Imani Okafor, Teo Bauer\nElsewhere: Dr. Lev Sorensen (Lab), Priya Raman (Rover Garage)\n\n=== STATUS ===\n- Kit Navarro (they/them) [navarro]: health unhurt; hunger low, fatigue low, stress moderate; feels toward: Dr. Imani Okafor neutral (10), Teo Bauer friendly (20)\n- Dr. Imani Okafor (she/her) [okafor]: health unhurt; hunger low, fatigue moderate, stress moderate; feels toward Kit Navarro: neutral (10); toward others here: Teo Bauer neutral\n- Teo Bauer (he/him) [bauer]: health unhurt; hunger low, fatigue moderate, stress high; feels toward Kit Navarro: friendly (16); toward others here: Dr. Imani Okafor neutral\n\n=== PRIVATE (each item is known ONLY to the character named) ===\n- Dr. Imani Okafor's secret: Three weeks ago she adjusted a core-sample report, overstating water-ice purity, because the real numbers might have ended the program. (guard: high; very hard to crack)\n- Dr. Imani Okafor knows: Lev has been booking lab time far beyond his approved schedule.\n- Teo Bauer's secret: He caused the recycler fault six nights ago by running it past its rated cycle to save a failing crop, then wiped that night's log. (guard: low; cracks easily when confronted)\n- Teo Bauer knows: Hydroponics lost three racks of soy last week; he told the crew it was a lighting fault.\n\n=== OFFSTAGE (not with the player; for events only) ===\n- sorensen (Dr. Lev Sorensen), in Lab: wants be the first person to confirm life on Mars; secret: Cultures from the deep ice core are showing activity he cannot explain as contamination. He has told no one and keeps the samples in an unlogged incubator.\n- raman (Priya Raman), in Rover Garage: wants get home on schedule for her daughter's sixth birthday; secret: The mission's corporate sponsor quietly pays her a bonus for private reports on crew performance, and she has been sending them.\n\n=== LAST SCENE ===\nYou pry the access panel off the recycler. Teo hovers at your shoulder.\n\n[Kit Navarro steps in here, at Sol 214, 07:51.]\n\n=== PLAYER ACTION (time passing: a few minutes) ===\n\"Ask Teo what he wiped from the log.\"\nThe player's action takes up this whole span. Others act during the same span.\n\n=== TASK ===\n1. Judge the player's action. If it is risky, contested or depends on skill, set needs_roll to true and choose a skill (one of: tech, science, medicine, piloting, athletics, social, stealth) and a difficulty (easy, normal, hard). Talking, looking around and simple tasks need no roll. Everyone listed as present is in the same room as Kit Navarro right now, so an action about them needs no move. Only if the action clearly takes Kit Navarro somewhere else, set move_to to that location id (or to a character id to go where that character is).\n2. You MUST give exactly one intent for EACH present character: okafor, bauer. Decide what each actually tries to do during this time, driven by their personality, wants, needs, secrets and feelings. They may help, argue, refuse, lie, deflect, pursue their own goals, or leave (move_to). Set visible to false if they act covertly so the player would not notice.\n3. \"says\": the gist of anything they say aloud this turn (or null).\n4. \"reveals\": almost always null. Only fill it if the character deliberately says their secret or private knowledge out loud this turn, and that matches their \"says\". Being asked once, or being nervous, is not enough: people deflect, make excuses or lie first.\n5. \"events\": things that happen during this span outside the player's control, to keep the world moving: offstage characters pursuing their wants and secrets, groups making moves that affect the people here, someone arriving, a call over the intercom, equipment trouble, the pressures above getting closer. How many: Usually none for a few minutes; at most 1, only if something is already about to happen. Each event has:\n   - \"text\": one sentence, with names.\n   - \"who\": character ids involved (not the player).\n   - \"where\": location id where it happens.\n   - \"visibility\": \"seen\" (happens in the player's room), \"heard\" (the player gets a sound, call or message about it) or \"hidden\" (the player has no idea).\n   - \"moves\": [{\"id\":\"character_id\",\"to\":\"location_id\"}] for offstage characters who go somewhere because of it, else [].\n   - \"scope\": \"local\" for these.\n   No regional or world events this turn; keep events local.\nReply with JSON only, exactly in this shape:\n{\"player\":{\"summary\":\"the player's action restated as a concrete attempt\",\"needs_roll\":false,\"skill\":null,\"difficulty\":\"normal\",\"move_to\":null},\n \"intents\":[\n  {\"id\":\"okafor\",\"action\":\"one sentence\",\"says\":null,\"reveals\":null,\"visible\":true,\"needs_roll\":false,\"skill\":null,\"difficulty\":\"normal\",\"move_to\":null},\n  {\"id\":\"bauer\",\"action\":\"one sentence\",\"says\":null,\"reveals\":null,\"visible\":true,\"needs_roll\":false,\"skill\":null,\"difficulty\":\"normal\",\"move_to\":null}\n ],\n \"events\":[{\"text\":\"one sentence\",\"scope\":\"local\",\"who\":[\"character_id\"],\"where\":\"location_id\",\"visibility\":\"heard\",\"moves\":[]}]}",
+      "max_tokens": 560,
+      "temperature": 0.7
+     },
+     "response": {
+      "text": "{\"player\":{\"summary\":\"inspect the recycler\",\"needs_roll\":true,\"skill\":\"tech\",\"difficulty\":\"normal\",\"move_to\":null},\"intents\":[{\"id\":\"bauer\",\"action\":\"hovers nervously near the log panel\",\"says\":\"Probably just a sensor issue.\",\"visible\":true},{\"id\":\"okafor\",\"action\":\"heads to Ops to draft a storm plan\",\"visible\":true,\"move_to\":\"ops\"}],\"events\":[]}",
+      "finish": "stop",
+      "usage": {
+       "prompt_tokens": 2459,
+       "completion_tokens": 87,
+       "total_tokens": 2546
+      }
+     }
+    },
+    {
+     "kind": "narrate",
+     "backend": "local",
+     "request": {
+      "system": "You are the simulation engine and narrator for an interactive, character-driven story.\n\n=== SETTING: Ares Deep ===\nAres Deep is a five-person research outpost dug into the rim of Hellas Planitia on Mars, 214 sols into a 500-sol rotation. The nearest help is a cargo lander nine weeks out, and Earth is 14 light-minutes away. The station is cramped; everyone knows everyone's habits, but not their secrets. Whether the program gets a second rotation depends on what this crew sends home.\n\n=== RULES ===\n- The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. The player commands no faction.\n- The player controls only Kit Navarro (id: navarro). Never decide Kit Navarro's choices, words or feelings beyond what the player's action states.\n- Outcomes marked RESOLVED are final. Failures have real consequences. Injuries and deaths are permanent.\n- Characters act from their own personality, wants, needs, secrets and feelings, not to serve the player.\n- Grounded near-future technology. No aliens, no magic. Any biological discovery is microbial at most and must stay scientifically plausible.\n- Mars is lethal: suit breaches, CO2 buildup, cold, radiation and dust are real dangers. Going outside requires a suit.\n- Messages to Earth take 14 minutes each way. There is no real-time help.\n- The crew are capable professionals under strain. Conflict comes from personality, pressure and secrets, not villainy.\n\n=== LOCATIONS ===\n- commons: Commons — Hub module with the galley table and the station's only real window. (connects: ops, med, lab, hydro, quarters, suitroom)\n- ops: Ops & Comms — Status boards, the long-delay comm link and the station logs. (connects: commons)\n- med: Med Bay — Two cots, a scanner and a locked drug cabinet. (connects: commons)\n- lab: Lab — Core sample racks, a glovebox and incubators for ice cultures. (connects: commons)\n- hydro: Hydroponics — Grow racks under purple light and the water recycler, rattling. (connects: commons)\n- quarters: Crew Quarters — Five curtained bunks. The only privacy on the station. (connects: commons)\n- suitroom: Suit Room & Airlock — Five EVA suits on racks, the airlock and the dust-scrub bay. (connects: commons, garage, surface)\n- garage: Rover Garage — Pressurized bay holding the rover, nicknamed the Mule. (connects: suitroom, surface)\n- surface: Surface — Rust-colored regolith, the solar field and the drill site. Suits required. (connects: suitroom, garage)\n\n=== GROUPS ===\n- mission: Mission Control — The Ares program's ground team on Earth, 14 light-minutes away. Reviews everything the crew sends and decides on the second rotation.\n- sponsor: Halvorsen Aerospace — The corporate sponsor funding most of Ares Deep. Wants headlines and results it can sell.\n\n=== CAST ===\n- navarro (PLAYER): Kit Navarro (they/them), systems engineer, 34. Traits: resourceful, blunt, stubborn. Voice: Dry and direct, short sentences; swears at machinery, never at people.\n- okafor: Dr. Imani Okafor (she/her), station lead and geologist, 47. Traits: exacting, charismatic, proud. Wants: win funding for a second rotation and secure her legacy with Ares Deep. Voice: Clipped and formal, dry humor, never raises her voice.\n- sorensen: Dr. Lev Sorensen (he/him), medic and astrobiologist, 39. Traits: curious, secretive, gentle. Wants: be the first person to confirm life on Mars. Voice: Soft-spoken, rambles when excited, deflects with jokes.\n- raman: Priya Raman (she/her), pilot and rover technician, 31. Traits: warm, impatient, fiercely loyal. Wants: get home on schedule for her daughter's sixth birthday. Voice: Fast and teasing; swears in Tamil when stressed.\n- bauer: Teo Bauer (he/him), hydroponics technician, 24. Traits: eager, anxious, people-pleaser. Wants: prove he belongs on this crew. Voice: Talks too fast, over-apologizes, tries to be funny.\n\n=== ESTABLISHED FACTS (known to the player) ===\n- [T0] The recycler's rattle started six nights ago, the same night Teo had the late hydroponics shift.\n- [T0] An orbital weather relay shows a regional dust storm building east of Hellas and tracking toward Ares Deep, roughly twenty hours out.\n- [T1] Teo blamed the rattle on a sensor issue.\n- [T2] Teo blamed the rattle on a sensor issue.",
+      "user": "=== SCENE FRAME ===\nStarts: Sol 214, 07:51, in Commons, with Dr. Imani Okafor, Teo Bauer.\nEnds: Sol 214, 08:06, Kit Navarro still in Commons.\nDuring the scene, Dr. Imani Okafor leaves for Ops & Comms.\nWorld: power: solar arrays nominal; comms: online, 14-minute delay; recycler: degraded, about 70% output; rover: the Mule, operational\nPressures: Dust storm arrival 0/10; Water recycler failure 3/10\nGroups: Mission Control: supportive but anxious; reviewing this rotation's data for the renewal decision; Halvorsen Aerospace: publicly upbeat; privately watching costs and crew performance\n\n=== STATUS ===\n- Kit Navarro (they/them) [navarro]: health unhurt; feels toward: Dr. Imani Okafor neutral (10), Teo Bauer friendly (20)\n- Dr. Imani Okafor (she/her) [okafor]: health unhurt\n- Teo Bauer (he/him) [bauer]: health unhurt; stress high\n\n=== LAST SCENE ===\nYou pry the access panel off the recycler. Teo hovers at your shoulder.\n\n[Kit Navarro steps in here, at Sol 214, 07:51.]\n\n=== PLAYER ACTION (time span: a few minutes) ===\n\"Ask Teo what he wiped from the log.\"\n\n=== RESOLVED (final — narrate these faithfully) ===\n- You (Kit Navarro): inspect the recycler → SUCCESS (tech check: rolled 16 vs 12)\n- Dr. Imani Okafor: heads to Ops to draft a storm plan → happens (no roll needed) [moves to Ops & Comms]\n- Teo Bauer: hovers nervously near the log panel → happens (no roll needed)\n    says (gist): Probably just a sensor issue.\n\n=== TASK ===\nWrite the next scene in second person, present tense (\"you\" is Kit Navarro), 60–120 words. Bring the characters to life through dialogue and small actions in their own voices.\nTime: This covers only a few minutes. Play out the stated action beat by beat. Add nothing else for the player character beyond small gestures and a line of dialogue.\nBeats: 1 beat: [+0m]. Start each beat on its own line with a time marker in brackets: minutes since the scene started, like [+0m], [+25m], [+50m] (use hours for long spans, like [+5h]). The last marker is at most [+15m]. End each beat on something the player could react to, since the player may step in between beats.\nStructure:\n1. The scene is set in Commons. Open with Kit Navarro's action, carried out in the first paragraph.\n2. Then show how the others react to it and what they do, in the order that makes sense.\n3. End on the others' latest move: a reply, a look, a question or a new problem the player can respond to. The final paragraph must NEVER be Kit Navarro's own line or action; leave Kit Navarro's response open for the player.\nHard rules:\n- Narrate ONLY the resolved outcomes above, faithfully. Failures should cost something.\n- Play Kit Navarro naturally, in character (voice: Dry and direct, short sentences; swears at machinery, never at people.). If the action is vague, fill it in the way Kit Navarro would: small gestures, a line or two of dialogue, how they go about it.\n- Do not make big choices for Kit Navarro: no agreeing to plans, making promises, starting new tasks, revealing what Kit Navarro knows beyond the action, or deciding what to do next. When a real choice comes up, stop there and leave it to the player.\n- Kit Navarro never leaves Commons. Do not take Kit Navarro anywhere else.\n- Only the characters in the frame appear. Anyone \"out of your sight\" is NOT seen doing it; at most a sound or a hint.\n- Characters may leave or arrive when it fits the outcomes and events; anyone who leaves is seen leaving, not followed.\n- EVENTs tagged [regional] or [world] reach the scene the way they realistically would (a tremor, an alarm, a message or news report), and the present characters react to them in character.\n- Use each character's pronouns exactly as given in STATUS (e.g. he/him means \"he\", never \"they\").\n- Characters reveal only what is listed under REVEALS. Anything else they keep to themselves: they deflect, stall, joke or lie.\n- Do not invent new events, confessions or discoveries.\n- Stop at the end of these outcomes, on a moment that invites the player's response. Do not continue past it.\nReply with the scene text only.",
+      "max_tokens": 224,
+      "temperature": 0.8
+     },
+     "response": {
+      "text": "[+0m] You pry the access panel off the recycler. Teo hovers at your shoulder.\n\n[+30m] Okafor gathers her tablet and heads for Ops.\n\n[+55m] Teo hands you a spanner. \"Probably just a sensor issue,\" he says, a little too fast.",
+      "finish": "stop",
+      "usage": {
+       "prompt_tokens": 2116,
+       "completion_tokens": 56,
+       "total_tokens": 2171
+      }
+     }
+    }
+   ]
+  }
+ ]
+}

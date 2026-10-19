@@ -92,6 +92,7 @@
       uiShown = 1;
       E.LLM.calls.length = 0;
       E.Engine.telemetry.length = 0;
+      stopRecording();
       notes.length = 0;
       autosave();
       renderAll();
@@ -103,15 +104,46 @@
 
   function autosave() { if (state) store.set('ensemble.autosave', JSON.stringify(state)); }
 
+  function download(name, obj) {
+    const blob = new Blob([JSON.stringify(obj, null, 1)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
+
   $('btnSave').addEventListener('click', () => {
     if (!state) return;
     // The undo snapshot is a second copy of the game; save files leave it out.
-    const blob = new Blob([JSON.stringify(Object.assign({}, state, { undo: undefined }), null, 1)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `ensemble-${state.scenario.folder || state.scenario.id}-turn${state.turn}.json`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    download(`ensemble-${state.scenario.folder || state.scenario.id}-turn${state.turn}.json`, Object.assign({}, state, { undo: undefined }));
+  });
+
+  // ---------- recorder (Debug) ----------
+  function renderRecorder() {
+    const on = E.Recorder.active();
+    const f = E.Recorder.fixture();
+    const n = E.Recorder.count();
+    $('btnRecord').textContent = on ? `■ Stop recording (${n})` : '● Record';
+    $('btnRecord').classList.toggle('recording', on);
+    $('btnExportRec').disabled = !f;
+    $('btnExportRec').textContent = f ? `Export recording (${n} action${n === 1 ? '' : 's'})` : 'Export recording';
+  }
+  // A new game or a loaded save ends the recording; it can still be exported.
+  function stopRecording() { if (E.Recorder.active()) E.Recorder.stop(); renderRecorder(); }
+
+  $('btnRecord').addEventListener('click', () => {
+    if (busy) return;
+    if (E.Recorder.active()) E.Recorder.stop();
+    else if (!state) { alert('Start or load a game first, then record.'); return; }
+    else E.Recorder.start(state);
+    renderRecorder();
+  });
+  $('btnExportRec').addEventListener('click', () => {
+    const f = E.Recorder.fixture();
+    if (!f) return;
+    const sc = f.start.scenario || {};
+    download(`ensemble-recording-${sc.folder || sc.id || 'game'}-${f.recorded.slice(0, 16).replace(/[:T]/g, '-')}.json`, f);
   });
 
   $('loadInput').addEventListener('change', async (ev) => {
@@ -121,6 +153,7 @@
     try {
       const s = JSON.parse(await f.text());
       if (!s.scenario || !s.characters || !s.player) throw new Error('That file is not an Ensemble save.');
+      stopRecording();
       state = s;
       uiCut = null;
       uiShown = 1;
@@ -416,6 +449,7 @@
 
   // ---------- debug ----------
   function renderDebug() {
+    renderRecorder();
     if ($('debug').classList.contains('hidden')) return;
     const calls = E.LLM.calls.slice().reverse();
     const facts = state ? state.facts.map((f) => `[T${f.turn} w${f.weight}] ${f.text}   (known by: ${f.known_by.join(', ')})`).join('\n') : '';

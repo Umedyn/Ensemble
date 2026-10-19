@@ -122,6 +122,40 @@ await check('debug shows a turn report with tokens, prompt time and guards', asy
   assert.match(await page.evaluate(() => navigator.clipboard.readText()), /^Turn 2 · "Hold on, Teo\." · moment[\s\S]*Guards fired/);
 });
 
+// Also writes the sample fixture when run as `npm run fixture:mock`.
+await check('record a session and export it as a fixture', async (page) => {
+  // A key and a private URL that must never reach the recording.
+  await page.evaluate(() => Object.assign(window.Ensemble.settings.backends.external, { key: 'sk-secret-test', url: 'https://private-tunnel.example/v1' }));
+  await page.click('#btnNew');
+  await page.click('#btnDebug');
+  assert.ok(await page.locator('#btnExportRec').isDisabled(), 'nothing to export yet');
+  await page.click('#btnRecord');
+  await page.click('#btnDebugClose');
+  await act(page, 'I open up the recycler.');
+  await page.click('button[data-next]');
+  await act(page, 'Hold on, Teo.', 'moment');
+  await page.click('#btnReroll');
+  await page.waitForFunction(() => !document.getElementById('btnReroll').disabled, null, { timeout: 15000 });
+  await act(page, 'Show me the log.', 'moment');
+  await page.click('#btnUndo');
+  await act(page, 'Ask Teo what he wiped from the log.', 'moment');
+  await page.click('#btnDebug');
+  assert.match(await page.textContent('#btnRecord'), /Stop recording \(6\)/);
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#btnExportRec')]);
+  const text = fs.readFileSync(await dl.path(), 'utf8');
+  assert.ok(!text.includes('sk-secret-test') && !text.includes('private-tunnel'), 'no keys or URLs in the recording');
+  const f = JSON.parse(text);
+  assert.equal(f.format, 'ensemble-recording');
+  assert.deepEqual(f.actions.map((a) => a.type), ['turn', 'turn', 'reroll', 'turn', 'undo', 'turn']);
+  assert.equal(f.actions[1].cutAt, 2, 'acting after reading two beats steps in after beat 2');
+  assert.ok(f.actions[0].calls.every((c) => c.response && c.request.user));
+  if (process.argv.includes('--save-fixture')) {
+    f.note = 'Recorded from the mock servers by `npm run fixture:mock`: two turns, a step-in, a reroll, an undo and a redo.';
+    fs.writeFileSync(path.join(here, 'fixtures', 'mock-session.json'), JSON.stringify(f, null, 1) + '\n');
+    console.log('  wrote tests/fixtures/mock-session.json');
+  }
+});
+
 await check('first run: setup picks a hosted model and opens its settings', async (page) => {
   await page.evaluate(() => localStorage.removeItem('ensemble.setupDone'));
   await page.reload();

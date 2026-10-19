@@ -493,6 +493,9 @@ test('a turn report lists its calls and every guard, including the update step r
   assert.match(text, /^Turn 2 · "Nod\." · moment/);
   assert.match(text, /- update \[local: koboldcpp\]: ~\d+ in, ~\d+ out/, 'no usage, so counts are estimates');
   assert.match(text, /update rejected \(turn 1\)/);
+  const t1text = E.Engine.turnReport(t1);
+  assert.match(t1text, /What happened:\n- Kit Navarro: See what Teo is up to\. \(right here in Commons\) · stayed with Teo Bauer/, 'what the engine decided');
+  assert.match(t1text, /Scene:\n\[\+0m\] Teo shrugs\. "Sensor\."$/, 'the scene as kept, with beat times');
 });
 
 test('telemetry uses the reply usage, cached tokens and KoboldCpp perf when they are reported', async () => {

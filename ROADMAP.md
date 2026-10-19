@@ -31,7 +31,7 @@ Every later phase needs fast testing against a real model, and turns take 30–6
 - [x] **Undo last turn.** Restore the state from before the last action (one level, `state.undo`).
 - [x] **Reroll narration.** Keep the intent and resolution, and only rewrite the scene.
 - [x] **Turn telemetry in Debug.** Tokens in and out per call, cache reuse (cached tokens where the provider reports them; KoboldCpp's prompt processing time from its perf endpoint), seconds per step, and which guards fired.
-- [ ] **Turn recorder and replay tests.** Export a session's raw model responses as a fixture, and add a fake backend that replays them so a real bad log becomes a regression test. Fixtures live in `tests/fixtures/`.
+- [x] **Turn recorder and replay tests.** Export a session's raw model responses as a fixture, and add a fake backend that replays them so a real bad log becomes a regression test. Fixtures live in `tests/fixtures/`.
 - [ ] **Validation pass (carried over).** Play every time step on the reference setup; run several major-event skips in a row; compare Hybrid with all-local; tune reveal thresholds, event rates and scene lengths; play the zombie holdout end to end.
 
 ## Phase 1: Foundations

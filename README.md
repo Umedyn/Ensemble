@@ -105,6 +105,7 @@ npm test             # engine tests, no browser or model needed
 npm run test:ui      # browser smoke tests against fake model servers (npx playwright install chromium once)
 npm run check        # syntax + scenario validation
 npm run mocks        # fake KoboldCpp on :5001 and fake API on :5002 for manual testing
+npm run fixture:mock # re-record the sample replay fixture (tests/fixtures/README.md)
 ```
 
 ## License

@@ -58,6 +58,8 @@
     <b>Debug</b>
     <span class="muted">Raw prompts, model output and what the engine accepted.</span>
     <div class="spacer"></div>
+    <button id="btnRecord" title="Record every model reply and dice roll from now on, for a replay test">● Record</button>
+    <button id="btnExportRec" title="Download the recording as a test fixture (no API keys or URLs)" disabled>Export recording</button>
     <button id="btnDebugClose">Close</button>
   </div>
   <div id="debugBody" class="debug-body"></div>
@@ -137,6 +139,7 @@
 
 <script src="js/util.js"></script>
 <script src="js/llm.js"></script>
+<script src="js/recorder.js"></script>
 <script src="js/memory.js"></script>
 <script src="js/prompts.js"></script>
 <script src="js/engine.js"></script>

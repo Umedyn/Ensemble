@@ -806,6 +806,7 @@
     const snapshot = E.clone(state);
     const committing = state.pending ? { turn: state.pending.turn, res: state.pending.res } : null;
     const tel = startReport('turn', state.turn + 1, action, stepId);
+    const rec = E.Recorder && E.Recorder.begin('turn', { action, stepId, cutAt: cutAt || null });
     // The update step's guards belong to the scene it records, the turn before this one.
     const guardsOf = () => [].concat(
       committing && committing.res && committing.res.guards ? committing.res.guards.filter((g) => g.stage === 'memory').map((g) => Object.assign({ turn: committing.turn }, g)) : [],
@@ -814,10 +815,13 @@
       const out = await playTurn(state, action, stepId, phase, cutAt);
       delete snapshot.undo;
       state.undo = { state: snapshot, turn: state.turn, action, stepId, cutAt: cutAt || null };
+      if (state.pending && state.pending.turn === state.turn) Object.assign(tel, describeTurn(state, state.pending));
       finishReport(tel, guardsOf());
+      if (rec) rec.end();
       return out;
     } catch (err) {
       finishReport(tel, guardsOf(), err);
+      if (rec) rec.end(err);
       replaceState(state, snapshot);
       phase('');
       throw err;
@@ -842,6 +846,25 @@
     if (err) t.error = String(err.message || err);
     Eng.telemetry.push(t);
     if (Eng.telemetry.length > Eng.telemetryMax) Eng.telemetry.shift();
+  }
+
+  // What the engine decided and the scene as written, for the copied report.
+  // This is Debug, so covert actions and hidden events are shown as they are.
+  function describeTurn(state, p) {
+    const nm = (id) => (state.characters[id] ? state.characters[id].name : id);
+    const outcomes = (p.res.outcomes || []).map((o) => {
+      const bits = [`${nm(o.id)}: ${o.action}`];
+      if (o.roll) bits.push(`${o.skill} d20 ${o.roll.d} → ${o.roll.total} vs ${o.roll.dc}: ${o.roll.result}`);
+      if (o.moved) bits.push(`moved to ${state.locations[o.moved] ? state.locations[o.moved].name : o.moved}`);
+      if (o.says) bits.push(`says "${o.says}"`);
+      if (o.reveals) bits.push(`REVEALS: ${o.reveals}`);
+      if (o.note) bits.push(o.note);
+      if (o.visible === false) bits.push('unseen by the player');
+      return bits.join(' · ');
+    });
+    const events = (p.res.director || []).map((d) => `event [${d.scope}, ${d.visibility}]: ${d.text}${d.effects && d.effects.length ? ` (${d.effects.join('; ')})` : ''}`);
+    if (p.res.major) events.push(`major: ${p.res.major.text}`);
+    return { outcomes: outcomes.concat(events), scene: markedBeats(p.beats) };
   }
 
   // Totals for a report; tokens marked estimated if any call lacked usage.
@@ -874,6 +897,11 @@
     });
     lines.push(t.guards.length ? `Guards fired (${t.guards.length}):` : 'Guards fired: none');
     t.guards.forEach((g) => lines.push(`- ${g.type}${g.turn != null && g.turn !== t.turn ? ` (turn ${g.turn})` : ''}: ${g.detail}`));
+    if (t.outcomes && t.outcomes.length) {
+      lines.push('What happened:');
+      t.outcomes.forEach((o) => lines.push('- ' + o));
+    }
+    if (t.scene) lines.push('Scene:', t.scene);
     return lines.join('\n');
   };
 
@@ -934,6 +962,8 @@
   // Returns what was undone so the page can refill the action box.
   Eng.undo = function (state) {
     if (!Eng.canUndo(state)) return null;
+    const rec = E.Recorder && E.Recorder.begin('undo', {});
+    if (rec) rec.end();
     const u = state.undo;
     const before = u.state;
     const info = {
@@ -958,6 +988,7 @@
     const n = p.narration;
     const oldText = beatsText(p.beats);
     const tel = startReport('reroll', p.turn, p.action, p.frame.stepId);
+    const rec = E.Recorder && E.Recorder.begin('reroll', {});
     const sceneGuards = () => (p.res.guards || []).filter((g) => g.stage === 'scene').map((g) => Object.assign({ turn: p.turn }, g));
     try {
       // back to the moment the scene was first written; the old draft's cleanup no longer applies
@@ -975,11 +1006,14 @@
       if (act && !n.skip) { if (until) act.until = until; else delete act.until; }
       state.recent = [{ turn: p.turn, action: n.skip ? n.action : p.action, text }];
       p.beats = beats;
+      Object.assign(tel, describeTurn(state, p));
       finishReport(tel, sceneGuards());
+      if (rec) rec.end();
       phase('');
       return { turn: p.turn, oldText, prose: text, beats, until };
     } catch (err) {
       finishReport(tel, sceneGuards(), err);
+      if (rec) rec.end(err);
       replaceState(state, snapshot);
       phase('');
       throw err;

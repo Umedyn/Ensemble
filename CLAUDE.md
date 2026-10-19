@@ -11,20 +11,22 @@ Read `docs/DESIGN.md` before changing the turn pipeline, prompts or memory, and 
 - `npm run check`: syntax-checks every script and validates every scenario folder.
 - `npm run serve`: serves the app at http://localhost:8000.
 - `npm run mocks`: fake KoboldCpp on :5001 and fake API on :5002 (key `sk-test`, model `test/story-70b`) for manual testing without a model.
+- `npm run fixture:mock`: re-records `tests/fixtures/mock-session.json` from the mock servers (runs the UI smoke tests).
 
 No build step and no runtime dependencies. Playwright is a dev dependency for UI tests only.
 
 ## Layout
 
 - `js/util.js`: namespace (`window.Ensemble`), settings, backend presets, time steps, helpers
-- `js/llm.js`: backends, per-step routing, transport, tolerant JSON extraction with one retry
+- `js/llm.js`: backends, per-step routing, transport, tolerant JSON extraction with one retry, token usage
+- `js/recorder.js`: records dice and model calls per action into a replay fixture
 - `js/memory.js`: facts with `known_by`, chapter rollups, prompt budgets
 - `js/prompts.js`: every prompt (intent, narrate, update, chapter, downtime intent, downtime narration)
 - `js/engine.js`: game state, resolution, guards, events, time, beats, skip, the turn loop
 - `js/scenario.js`: loading and validating scenario folders
 - `js/ui.js`: the page; the only file that touches the DOM
 - `scenarios/<folder>/`: `scenario.json` + `characters/<id>.json`, listed in `scenarios/index.json`
-- `tests/`: `helpers.js` loads the engine into a Node VM; `engine.test.js`; `ui.smoke.mjs`; `mock-servers.mjs`
+- `tests/`: `helpers.js` loads the engine into a Node VM; `engine.test.js`; `replay.js` + `replay.test.js` + `fixtures/` (recorded sessions); `ui.smoke.mjs`; `mock-servers.mjs`
 
 ## Rules that keep the game working
 
@@ -55,4 +57,11 @@ PolyForm Noncommercial 1.0.0 (`LICENSE`). Keep the `Required Notice` line. Contr
 
 ## Playtesting workflow
 
-The loop that built this: play a turn with the real model, read the KoboldCpp console log (or the Debug panel), find what went wrong, fix it in the engine where possible, and add a test named after the behavior. Reference setup: NemoMix-Unleashed-12B Q4_K_M in KoboldCpp on an RTX 4060 laptop (8 GB), 8K context, **chat adapter set to Mistral-Tekken** (AutoGuess falls back to Alpaca, which caused repetition and ignored rules). Roughly 30–60 seconds per turn; generation speed is the bottleneck, so output length is the main lever.
+The loop that built this: play a turn with the real model, read the KoboldCpp console log (or the Debug panel), find what went wrong, fix it in the engine where possible, and add a test named after the behavior. Debug › "Copy turn report" gives the calls, tokens, times, guards fired, what the engine decided and the scene, in one paste. Reference setup: NemoMix-Unleashed-12B Q4_K_M in KoboldCpp on an RTX 4060 laptop (8 GB), 8K context, **chat adapter set to Mistral-Tekken** (AutoGuess falls back to Alpaca, which caused repetition and ignored rules). Roughly 30–60 seconds per turn; generation speed is the bottleneck, so output length is the main lever.
+
+### Turn a bad log into a test
+
+1. Before playing the turns that go wrong, open Debug and press **● Record** (or record from a loaded save just before the problem).
+2. Play until it goes wrong, then **Export recording** and copy the file into `tests/fixtures/` with a name that describes the problem.
+3. Write a test named after the behaviour that replays it (`replay('name', { until })` from `tests/replay.js`) and asserts the right outcome at that turn. It should fail.
+4. Fix the engine (guard first, rule 1) until it passes. If the fix adds or removes a model call, the replay reports a mismatch: re-record, or edit that fixture's `calls`. Format and details: `tests/fixtures/README.md`.
