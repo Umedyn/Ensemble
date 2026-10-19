@@ -331,7 +331,8 @@ test('a hosted reply that runs out of room while thinking is retried with more r
   const obj = await E.LLM.chatJSON({ kind: 'intent', system: 's', user: 'u', maxTokens: 300 });
   assert.equal(obj.ok, true);
   assert.equal(bodies.length, 2);
-  assert.equal(bodies[1].max_tokens, 1200);
+  assert.equal(bodies[0].max_tokens, 600, 'hosted JSON steps start with double');
+  assert.equal(bodies[1].max_tokens, 2400);
   assert.deepEqual({ ...bodies[0].reasoning }, { effort: 'low', exclude: true }, 'OpenRouter is asked to keep reasoning short');
 });
 
@@ -342,6 +343,29 @@ test('JSON cut off mid-object is retried with a bigger limit, not the same one',
   assert.equal(obj.player.summary, 'talk to Teo');
   assert.equal(bodies[1].max_tokens, 600, 'local KoboldCpp gets double');
   assert.equal(bodies[0].reasoning, undefined, 'only OpenRouter gets the reasoning setting');
+});
+
+// Log (DeepSeek): rich intents ran past the limit inside the second event.
+const DEEPSEEK_CUT = '{"player":{"summary":"Kit checks in on Teo.","needs_roll":false,"skill":null,"move_to":null},' +
+  '"intents":[{"id":"okafor","action":"assigns the sol\'s work","says":"Arrays and the Mule by 18:00.","visible":true},' +
+  '{"id":"bauer","action":"deflects hard","says":"It\'s probably just the filter housing, honestly, I\'ll handle it.","visible":true}],' +
+  '"events":[{"text":"Priya comes back over the intercom.","scope":"local","who":["raman"],"visibility":"heard","moves":[],"effects":null},' +
+  '{"text":"The orbital weather relay pushes a new pass: the storm front has accelerated, now tracking to reach';
+
+test('JSON still cut off after the bigger retry is salvaged up to the last complete item', async () => {
+  const { E } = newGame();
+  cutOffModel(E, [{ text: DEEPSEEK_CUT, finish: 'length' }]);
+  const obj = await E.LLM.chatJSON({ kind: 'intent', system: 's', user: 'u', maxTokens: 300 });
+  assert.equal(obj.intents.length, 2);
+  assert.equal(obj.events.length, 1, 'the half-written event is dropped');
+  assert.equal(obj.events[0].who[0], 'raman');
+  assert.ok(E.LLM.calls[E.LLM.calls.length - 1].salvaged, 'marked in Debug');
+});
+
+test('a reply that was not cut off is never salvaged', async () => {
+  const { E } = newGame();
+  cutOffModel(E, [{ text: DEEPSEEK_CUT, finish: 'stop' }]);
+  await assert.rejects(E.LLM.chatJSON({ kind: 'intent', system: 's', user: 'u', maxTokens: 300 }), /valid JSON/);
 });
 
 test('a bad reply that was not cut off retries with the same limit', async () => {

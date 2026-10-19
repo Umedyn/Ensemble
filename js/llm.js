@@ -115,6 +115,36 @@
     return null;
   };
 
+  // Last resort for JSON cut off at the token cap: keep everything up to the
+  // last complete item (cut at the last comma outside a string) and close the
+  // open brackets. Returns null if nothing usable is left.
+  LLM.salvageJSON = function (text) {
+    const t = String(text || '').replace(/```(?:json)?/gi, '');
+    const start = t.indexOf('{');
+    if (start < 0) return null;
+    const stack = [];
+    const cuts = []; // [index of comma, closers needed there]
+    let inStr = false, esc = false;
+    for (let i = start; i < t.length; i++) {
+      const c = t[i];
+      if (inStr) {
+        if (esc) esc = false;
+        else if (c === '\\') esc = true;
+        else if (c === '"') inStr = false;
+        continue;
+      }
+      if (c === '"') inStr = true;
+      else if (c === '{') stack.push('}');
+      else if (c === '[') stack.push(']');
+      else if (c === '}' || c === ']') stack.pop();
+      else if (c === ',') cuts.push([i, stack.slice().reverse().join('')]);
+    }
+    for (let k = cuts.length - 1; k >= 0; k--) {
+      try { return JSON.parse(t.slice(start, cuts[k][0]) + cuts[k][1]); } catch (e) {}
+    }
+    return null;
+  };
+
   function record(entry) {
     LLM.calls.push(entry);
     if (LLM.calls.length > LLM.maxHistory) LLM.calls.shift();
@@ -170,6 +200,9 @@
   };
 
   LLM.chatJSON = async function (opts) {
+    // Hosted models write richer JSON than the local 12B the limits were sized
+    // for, and only generated tokens are billed, so give them double up front.
+    if (!LLM.backendFor(opts.kind).kobold) opts = Object.assign({}, opts, { maxTokens: (opts.maxTokens || 400) * 2 });
     let text = await LLM.chat(opts);
     let obj = LLM.extractJSON(text);
     if (!obj) {
@@ -183,6 +216,11 @@
         user: opts.user + '\n\nIMPORTANT: Reply with ONLY the JSON object. No prose, no code fences.',
       }));
       obj = LLM.extractJSON(text);
+      if (!obj && LLM.lastFinish === 'length') {
+        obj = LLM.salvageJSON(text);
+        const last = LLM.calls[LLM.calls.length - 1];
+        if (obj && last) last.salvaged = true;
+      }
     }
     if (!obj) throw new Error(`The model didn't return valid JSON for the ${opts.kind} step.`);
     return obj;
