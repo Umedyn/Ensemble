@@ -60,6 +60,25 @@ test('playtest: after stepping in on Teo, he is still there to be confronted', a
   assert.ok(report.guards.some((g) => g.type === 'update rejected' && /stepped in before they left/.test(g.detail) && g.turn === 4));
 });
 
+// Holdout at Harmon's (NemoMix 12B, 2026-10-20), see the note in the fixture.
+test('playtest: stepping outside without naming a room is caught, and Pike stays on the sales floor', async () => {
+  const r = await replay('playtest-zombie-steps-outside', { until: 1 });
+  const guards = [...r.steps[0].state.pending.res.guards];
+  assert.ok(guards.some((g) => g.type === 'relocation regenerated' && /outside/.test(g.detail)), '"You nod, then step outside into the cool morning air"');
+  const retry = r.E.LLM.calls.find((c) => c.kind === 'narrate (retry)');
+  assert.match(retry.user, /took the player character outside, which did not happen\. The whole scene stays in Sales Floor/);
+  assert.equal(r.state.characters.pike.status.location, 'floor');
+  assert.doesNotMatch(r.state.recent[0].text, /step outside/);
+});
+
+test('playtest: a scene fact is known only by the people who were there (Marlene and Gil were in other rooms)', async () => {
+  const r = await replay('playtest-zombie-steps-outside');
+  const fact = r.state.facts.find((f) => /scavenge lumber/.test(f.text));
+  assert.deepEqual([...fact.known_by], ['coleman', 'han']);
+  const report = r.E.Engine.telemetry[r.E.Engine.telemetry.length - 1];
+  assert.ok(report.guards.some((g) => g.type === 'update rejected' && /dropped ortiz, ferris: not in the scene/.test(g.detail)));
+});
+
 test('until stops after that many actions', async () => {
   const r = await replay('mock-session', { until: 2 });
   assert.equal(r.steps.length, 2);

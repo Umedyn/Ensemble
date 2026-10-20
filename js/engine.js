@@ -325,6 +325,8 @@
       used[scope]++;
       const text = ev.text.trim().slice(0, 220);
       const who = (Array.isArray(ev.who) ? ev.who : []).filter((id) => state.characters[id] && id !== state.player);
+      // Offstage people in an event may know facts about it (see applyUpdate).
+      res.involved = [...new Set((res.involved || []).concat(who))];
       const where = Eng.resolveLocation(state, ev.where, false) || (scope === 'local' && who[0] ? state.characters[who[0]].status.location : null);
       let vis = ['seen', 'heard', 'hidden'].includes(ev.visibility) ? ev.visibility : 'heard';
       if (vis === 'seen' && where !== here) vis = 'heard';
@@ -490,11 +492,21 @@
     const ids = new Set(Eng.cast(state));
     const reject = (what, why) => report.rejected.push(`${what} — ${why}`);
     const witnesses = [state.player].concat(present);
+    // Who could know this turn's facts: the player, the people present and
+    // anyone in this turn's events (hidden ones included). Playtest
+    // (playtest-zombie-steps-outside): a scene fact was given to two people
+    // in other rooms.
+    const couldKnow = new Set(witnesses.concat(ctx.involved || []));
 
     (Array.isArray(upd.facts) ? upd.facts : []).slice(0, 6).forEach((f) => {
       if (!f || !f.text) return reject('fact', 'no text');
       const about = (f.about || []).filter((x) => ids.has(x));
       let known = (f.known_by || []).filter((x) => x === 'all' || ids.has(x));
+      if (!known.includes('all')) {
+        const absent = known.filter((x) => !couldKnow.has(x));
+        if (absent.length) reject('fact known_by', `dropped ${absent.join(', ')}: not in the scene (${String(f.text).slice(0, 60)})`);
+        known = known.filter((x) => couldKnow.has(x));
+      }
       if (!known.length) known = witnesses.slice();
       const fact = E.Memory.addFact(state, { about, text: f.text, known_by: known, weight: f.weight });
       if (fact.weight >= 3) state.flags.chapterWorthy = true;
@@ -621,6 +633,12 @@
     // Rooms passed through on the way are fine ("you cross the commons to the med bay").
     const allowed = new Set([startLoc, endLoc].concat(Eng.route(state, startLoc, endLoc)));
     const verbs = "head|heads|heading|walk|walks|go|goes|step|steps|stepping|make your way|enter|enters|duck|ducks|push open|pushes open|slip|slips|hurry|hurries|return|returns|wander|wanders|move|moves|cross|crosses";
+    // Going outside names no room (playtest-zombie-steps-outside: "You nod, then
+    // step outside into the cool morning air"). Only when the player isn't moving:
+    // a stated move outdoors is checked by room name below.
+    if (startLoc === endLoc && new RegExp(`\\byou\\b[^.!?\\n]{0,30}\\b(?:${verbs})\\b\\s+(?:back\\s+)?(?:outside|outdoors|out into|out the (?:front |back )?door)\\b`, 'i').test(prose)) {
+      return { id: null, name: 'outside', to: 'outside' };
+    }
     for (const l of Object.values(state.locations)) {
       if (allowed.has(l.id)) continue;
       const names = [l.name, l.id].concat(l.name.split(/\s*&\s*|\s+and\s+/)).filter((n) => n && n.length > 2);
@@ -780,7 +798,7 @@
         kind: 'update', system: E.Prompts.header(state), user: E.Prompts.update(state, p.action, p.res, prose, p.present, !!cut),
         maxTokens: 520, temperature: 0.3,
       });
-      report = Eng.applyUpdate(state, upd, p.present, { startLoc: p.frame.startLoc, endLoc, keptProse: cut ? prose : null });
+      report = Eng.applyUpdate(state, upd, p.present, { startLoc: p.frame.startLoc, endLoc, keptProse: cut ? prose : null, involved: p.res.involved });
       report.rejected.forEach((r) => guard(p.res, 'memory', 'update rejected', r));
     } catch (err) {
       E.Memory.addFact(state, { about: [state.player], text: `${state.characters[state.player].name}: ${p.action}`.slice(0, 200), known_by: ['all'], weight: 1 });
@@ -896,10 +914,11 @@
     let prose = await narrateOnce();
     const strayed = Eng.findRelocation(state, prose, frame.startLoc);
     if (strayed) {
-      guard(res, 'scene', 'relocation regenerated', `first draft took the player to ${strayed.name}`);
+      const where = strayed.to || `to ${strayed.name}`;
+      guard(res, 'scene', 'relocation regenerated', `first draft took the player ${where}`);
       phase('Rewriting the scene…');
       const here = state.locations[state.characters[state.player].status.location].name;
-      frame.correction = `Your previous draft took the player character to ${strayed.name}, which did not happen. The whole scene stays in ${here}${state.characters[state.player].status.location !== frame.startLoc ? ' (after the move shown above)' : ''}.`;
+      frame.correction = `Your previous draft took the player character ${where}, which did not happen. The whole scene stays in ${here}${state.characters[state.player].status.location !== frame.startLoc ? ' (after the move shown above)' : ''}.`;
       const retry = await narrateOnce();
       if (retry) prose = retry;
     }
@@ -916,7 +935,7 @@
           maxTokens: Math.round(E.settings.narrateTokens * 0.8),
         }), res);
         const away = more && Eng.findRelocation(state, more, frame.startLoc);
-        if (away) guard(res, 'scene', 'continuation dropped', `it took the player to ${away.name}`);
+        if (away) guard(res, 'scene', 'continuation dropped', `it took the player ${away.to || `to ${away.name}`}`);
         else if (more) {
           beats = Eng.parseBeats(Eng.trimPlayerEnding(Eng.cleanProse(markedBeats(beats) + '\n\n' + more)), frame.spanMinutes);
         }

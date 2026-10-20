@@ -120,6 +120,40 @@ test('relocation check catches the narrator walking the player into another room
   assert.equal(where('You glance toward the lab door.'), null, 'looking is not moving');
 });
 
+// Playtest 2026-10-20 (playtest-zombie-steps-outside): "You nod, then step
+// outside into the cool morning air." named no room, so nothing caught it.
+test('relocation check catches the player stepping outside when they are not moving', () => {
+  const { E, state } = newGame('zombie-holdout');
+  const where = (p, from = 'floor') => E.Engine.findRelocation(state, p, from);
+  assert.equal(where('You nod, then step outside into the cool morning air.').to, 'outside');
+  assert.equal(where('You head out the back door, rifle ready.').to, 'outside');
+  assert.equal(where('You slip out into the lot.').to, 'outside');
+  assert.equal(where('You glance outside through a gap in the plywood.'), null, 'looking is not moving');
+  assert.equal(where('Dex steps outside to check the street.'), null, 'others leaving is fine');
+  state.characters.pike.status.location = 'lot';
+  assert.equal(where('You step outside into the lot, squinting at the light.', 'dock'), null, 'a stated move outdoors is fine');
+});
+
+// Same playtest: the update gave a scene fact to Marlene and Gil, who were in
+// other rooms. People in this turn's events (even hidden ones) may still know.
+test('update facts are known only by the player, the people present and those in this turn\'s events', () => {
+  const { E, state } = newGame('zombie-holdout');
+  const report = E.Engine.applyUpdate(state, { facts: [
+    { about: ['pike'], text: 'Pike and Dex talked about lumber.', known_by: ['ortiz', 'coleman', 'han', 'ferris'], weight: 2 },
+    { about: [], text: 'The radio crackled loud enough for the whole store.', known_by: ['all'], weight: 1 },
+    { about: ['ortiz'], text: 'Marlene heard everything.', known_by: ['ortiz'], weight: 1 },
+  ] }, ['coleman', 'han'], {});
+  E.Engine.applyUpdate(state, { facts: [
+    { about: ['ferris'], text: 'Gil counted the cans in his desk.', known_by: ['ferris'], weight: 2 },
+  ] }, ['coleman', 'han'], { involved: ['ferris'] });
+  const known = (re) => [...state.facts.find((f) => re.test(f.text)).known_by];
+  assert.deepEqual(known(/lumber/), ['coleman', 'han']);
+  assert.deepEqual(known(/cans/), ['ferris'], "Gil's hidden event");
+  assert.deepEqual(known(/radio/), ['all']);
+  assert.deepEqual(known(/heard everything/), ['pike', 'coleman', 'han'], 'nobody left: falls back to the witnesses');
+  assert.ok(report.rejected.some((r) => /dropped ortiz, ferris: not in the scene/.test(r)));
+});
+
 // Playtest 2026-10-19: "you cross the commons" on the way from Hydroponics to
 // the Med Bay triggered a rewrite; the Commons is the only way through.
 test('rooms passed through on the way are not a relocation', () => {

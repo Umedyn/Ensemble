@@ -57,7 +57,7 @@ Budgets scale with `E.memoryContext()`: the smallest context among the backends 
 
 ## Memory
 
-- **Facts** are short sentences with names, an owner list (`known_by`) and a weight. Facts the player could not have seen or heard are recorded as known only by whoever did.
+- **Facts** are short sentences with names, an owner list (`known_by`) and a weight. Facts the player could not have seen or heard are recorded as known only by whoever did. The engine drops anyone the update step names who wasn't there: a fact can be known only by the player, the people present, those in the turn's events (hidden ones included), or `all`.
 - **Chapters** close every N turns (default 5), early on a big moment (after at least 2 turns), when facts outgrow their budget, and after a major-event skip. Minor player-known facts are folded into a 2–4 sentence journal entry; weight-3 facts and private facts are kept individually.
 - **The player's feelings** are a separate tally, changed only by `player_attitude` judged from the player's own words (±10 per turn), with a note of why. Longer time steps tell the narrator to keep the player's routine consistent with those feelings.
 
