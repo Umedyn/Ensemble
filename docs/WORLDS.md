@@ -57,7 +57,7 @@ Static servers can't list directories, so `world.json` lists its starts and char
 | `summary` | string | one or two lines for the world picker |
 | `setting` | string | the always-on world context (keep it broad; regional detail goes in region lore later) |
 | `rules` | string[] | |
-| `tags`, `toneNote` | string[], string | genre and mood tags (a separate task; validated as optional now) |
+| `tags`, `toneNote` | string[], string | genre tags in order of importance (up to 8; known ones: `survival`, `slice-of-life`, `romance`, `intrigue`, `war`, `horror`, `mystery`, `comedy`, `cozy`, `grim`, `adventure`, `political`; others are freeform) and a short tone note (up to 300 characters). See `js/genres.js` |
 | `timeLabel`, `wakeHour` | | as today |
 | `skills`, `needs` | | as today; `needs` may be `[]` |
 | `factions` | | as today; starts may override `stance` |

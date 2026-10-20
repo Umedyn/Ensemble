@@ -21,6 +21,7 @@ No build step and no runtime dependencies. Playwright is a dev dependency for UI
 - `js/llm.js`: backends, per-step routing, transport, tolerant JSON extraction with one retry, token usage
 - `js/recorder.js`: records dice and model calls per action into a replay fixture
 - `js/memory.js`: facts with `known_by`, chapter rollups, prompt budgets
+- `js/genres.js`: genre tag table (tone, what "major" means, danger, default pacing) and the header guidance
 - `js/prompts.js`: every prompt (intent, narrate, update, chapter, downtime intent, downtime narration)
 - `js/engine.js`: game state, resolution, guards, events, time, beats, skip, the turn loop
 - `js/scenario.js`: loading worlds (and legacy scenario folders), composing a world + start into the flat scenario, validation

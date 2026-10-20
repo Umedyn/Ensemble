@@ -36,11 +36,16 @@
     return parts.join('\n');
   };
 
-  P.layouts.header = ['intro', 'setting', 'rules', 'places', 'groups', 'cast', 'chapters', 'facts'];
+  P.layouts.header = ['intro', 'setting', 'genre', 'rules', 'places', 'groups', 'cast', 'chapters', 'facts'];
   P.header = (state) => P.build('header', { state, sc: state.scenario, pc: state.characters[state.player] });
 
   B.intro = () => 'You are the simulation engine and narrator for an interactive, character-driven story.';
   B.setting = ({ sc }) => `\n=== SETTING: ${sc.worldTitle || sc.title} ===\n${sc.setting}`;
+  // Genre tags and tone note (js/genres.js); static for a game.
+  B.genre = ({ sc }) => {
+    const lines = E.Genres.guidance(sc);
+    return lines ? ['\n=== GENRE AND TONE ==='].concat(lines) : null;
+  };
   B.rules = ({ state, sc, pc }) => {
     const rules = [
       'The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. The player commands no faction.',

@@ -245,7 +245,9 @@ test('converted bundled worlds start the same game as their legacy versions', ()
     ['characters', 'locations', 'clocks', 'world', 'facts', 'factions', 'order', 'time', 'recent', 'player'].forEach((k) =>
       assert.deepEqual(plain(now.state[k]), plain(before.state[k]), `${folder}: state.${k}`));
     assert.equal(now.state.scenario.worldId, folder);
-    assert.equal(now.E.Prompts.header(now.state), before.E.Prompts.header(before.state), `${folder}: prompt header`);
+    // Genre tags were added after the conversion (task 1-4); everything else is unchanged.
+    const withoutGenre = (h) => h.replace(/\n\n=== GENRE AND TONE ===\n[\s\S]*?(?=\n\n=== )/, '');
+    assert.equal(withoutGenre(now.E.Prompts.header(now.state)), before.E.Prompts.header(before.state), `${folder}: prompt header`);
   }
 });
 

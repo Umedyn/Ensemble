@@ -210,7 +210,7 @@
   const TIER_COOLDOWN = { regional: 4, world: 24 };
 
   Eng.tiersDue = function (state, hours) {
-    const rates = Object.assign({ regional: 18, world: 96 }, state.scenario.eventRates || {});
+    const rates = E.Genres.pacing(state.scenario).eventRates;
     state.tierLast = state.tierLast || {};
     const now = absHours(state);
     const due = {};
@@ -466,7 +466,7 @@
   Eng.planMajorSkip = function (state) {
     const sc = state.scenario;
     const horizon = (sc.majorHorizonDays ?? 30) * 24;
-    const meanDays = sc.majorEventDays ?? 9;
+    const meanDays = E.Genres.pacing(sc).majorEventDays;
     // first clock to fire, following chains of follow-up clocks
     const clocks = E.clone(state.clocks).filter((c) => !c.fired);
     let clockHit = null;

@@ -3,6 +3,11 @@
   "id": "mars-station",
   "title": "Ares Deep",
   "summary": "A five-person research outpost on the rim of Hellas Planitia, Mars, nine weeks from help. Everyone knows everyone's habits, not their secrets.",
+  "tags": [
+    "survival",
+    "intrigue"
+  ],
+  "toneNote": "Quiet, grounded hard SF; tension comes from secrets and pressure more than action.",
   "setting": "Ares Deep is a five-person research outpost dug into the rim of Hellas Planitia on Mars, 214 sols into a 500-sol rotation. The nearest help is a cargo lander nine weeks out, and Earth is 14 light-minutes away. The station is cramped; everyone knows everyone's habits, but not their secrets. Whether the program gets a second rotation depends on what this crew sends home.",
   "rules": [
     "Grounded near-future technology. No aliens, no magic. Any biological discovery is microbial at most and must stay scientifically plausible.",
