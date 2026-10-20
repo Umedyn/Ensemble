@@ -1,0 +1,22 @@
+{
+  "id": "sunday",
+  "title": "Sunday morning",
+  "summary": "You are Sam. The kitchen is a disaster and the landlord is coming by at noon.",
+  "start": { "day": 1, "hour": 9 },
+  "player": "sam",
+  "castLabel": "Flatmates",
+  "cast": [
+    { "id": "sam", "status": { "location": "kitchen" } },
+    { "id": "jo", "status": { "location": "kitchen" } },
+    { "id": "ana", "status": { "location": "living" }, "knows": ["The broken mug in the bin was Ana's doing."] }
+  ],
+  "locations": [
+    { "id": "kitchen", "name": "Kitchen", "desc": "Two burners, a leaning stack of dishes, a window onto the bakery's chimney.", "connects": ["living"] },
+    { "id": "living", "name": "Living Room", "desc": "A sagging sofa, a plant nobody waters, the front door.", "connects": ["kitchen"] }
+  ],
+  "clocks": [
+    { "id": "inspection", "name": "Landlord visit", "value": 0, "max": 10, "perHour": 3.4, "fireText": "The doorbell rings: Mr. Petrov, right on time, with a clipboard." }
+  ],
+  "facts": ["Mr. Petrov texted that he will drop by at noon to look at the boiler."],
+  "opening": "The kitchen smells of burnt toast and yesterday. Jo is standing at the sink holding a fork like it personally offended them. From the living room, Ana calls out that she definitely did not break anything."
+}

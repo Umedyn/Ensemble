@@ -51,7 +51,7 @@ The format change everything else builds on, plus visible improvements to the ch
 **Genre and mood tags**
 - [x] `tags` on the world (for example `survival`, `slice-of-life`, `romance`, `intrigue`, `war`, `horror`, `comedy`, `cozy`, `grim`) plus a freeform `toneNote`.
 - [x] Engine-owned guidance blocks per tag: narrator tone and pacing, what counts as "major", how lethal danger is, and default event rates. These go in the static header.
-- [ ] Audit survival-specific assumptions: the injury and exhaustion penalties, needs being required, and event seeds that assume danger. A scenario with no needs at all must work.
+- [x] Audit survival-specific assumptions: the injury and exhaustion penalties, needs being required, and event seeds that assume danger. A scenario with no needs at all must work.
 
 **Character presentation**
 - [ ] The card leads with portrait, name, role, a **mood** line and **tags**. Needs bars move into an expandable details section; the raw numbers are also shown in Debug.

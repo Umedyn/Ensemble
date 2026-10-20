@@ -15,7 +15,7 @@
   // Start fields that are not world overrides.
   const START_OWN = ['id', 'title', 'summary', 'start', 'player', 'cast', 'opening', 'castLabel'];
   // World fields a start may override (merge rules below).
-  const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'factions', 'world',
+  const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'factions', 'world',
     'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks'];
   const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'characters', 'starts', ...OVERRIDABLE];
   const WORLD_RESERVED = ['regions', 'map', 'lore', 'timeline', 'portraitSet'];
@@ -282,7 +282,17 @@
     req(sc.characters && sc.characters.includes(sc.player), '"player" must be one of "characters"');
     req(Array.isArray(sc.locations) && sc.locations.length, 'missing "locations"');
     sc.skills = sc.skills || ['physical', 'technical', 'social', 'knowledge', 'stealth'];
-    sc.needs = sc.needs || [{ id: 'hunger', label: 'Hunger', perHour: 0.03 }, { id: 'fatigue', label: 'Fatigue', perHour: 0.04 }];
+    // No needs unless the world lists them (task 1-5: a world without needs plays fine).
+    sc.needs = sc.needs || [];
+    req(Array.isArray(sc.needs) && sc.needs.every((n) => n && n.id), '"needs" must be a list of {id, label, perHour}');
+    const needIds = (Array.isArray(sc.needs) ? sc.needs : []).map((n) => n && n.id);
+    if (sc.skillPenalties != null) {
+      const sp = sc.skillPenalties;
+      req(typeof sp === 'object' && !Array.isArray(sp), '"skillPenalties" must be an object with "health" and/or "needs"');
+      Object.entries((sp && sp.health) || {}).forEach(([k, v]) => req(['ok', 'hurt', 'badly_hurt'].includes(k) && typeof v === 'number', `skillPenalties.health.${k} must be ok/hurt/badly_hurt with a number`));
+      ((sp && sp.needs) || []).forEach((n) => req(n && needIds.includes(n.need) && typeof n.at === 'number' && typeof n.penalty === 'number', `skillPenalties.needs entry for "${n && n.need}" needs a known need, "at" and "penalty"`));
+    }
+    (sc.revealPressure || []).forEach((n) => req(needIds.includes(n), `revealPressure "${n}" is not one of the world's needs`));
     const locIds = new Set((sc.locations || []).map((l) => l.id));
     (sc.locations || []).forEach((l) => (l.connects || []).forEach((c) => req(locIds.has(c), `location "${l.id}" connects to unknown "${c}"`)));
     (sc.characterData || []).forEach((c, i) => {

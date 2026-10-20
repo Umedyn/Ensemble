@@ -27,7 +27,7 @@ No build step and no runtime dependencies. Playwright is a dev dependency for UI
 - `js/scenario.js`: loading worlds (and legacy scenario folders), composing a world + start into the flat scenario, validation
 - `js/ui.js`: the page; the only file that touches the DOM
 - `scenarios/<folder>/`: a world (`world.json` + `starts/<id>.json` + `characters/<id>.json`) or a legacy `scenario.json` + `characters/`, listed in `scenarios/index.json`
-- `tests/`: `helpers.js` loads the engine into a Node VM (`readWorld`, `newGame(folder, startId)`); `engine.test.js`; `worlds.test.js` (compose, world validation, legacy, save migration); `prompts.snapshot.test.js` (every prompt for a fixed state, byte for byte; re-record with `UPDATE_SNAPSHOTS=1` after an intended prompt change); `replay.js` + `replay.test.js` + `fixtures/` (recorded sessions); `ui.smoke.mjs`; `mock-servers.mjs`
+- `tests/`: `helpers.js` loads the engine into a Node VM (`readWorld`, `newGame(folder, startId)`); `engine.test.js`; `worlds.test.js` (compose, world validation, legacy, save migration); `genres.test.js`; `genre-neutral.test.js` (the no-needs `fixtures/slice-of-life/` world); `prompts.snapshot.test.js` (every prompt for a fixed state, byte for byte; re-record with `UPDATE_SNAPSHOTS=1` after an intended prompt change); `replay.js` + `replay.test.js` + `fixtures/` (recorded sessions); `ui.smoke.mjs`; `mock-servers.mjs`
 
 ## Rules that keep the game working
 

@@ -1,0 +1,18 @@
+{
+  "format": 2,
+  "id": "slice-of-life",
+  "title": "Flat 4B",
+  "summary": "Three flatmates, one small kitchen, a landlord who likes surprise visits.",
+  "tags": ["slice-of-life", "comedy"],
+  "toneNote": "Warm and wry; nobody is in danger, everybody is a little embarrassed.",
+  "setting": "Flat 4B is a cramped third-floor rental above a bakery. Three people who met through an ad share it, its radiator that knocks at night, and a fridge with a strict shelf system that nobody follows.",
+  "rules": ["Ordinary modern life. No crime, no violence; conflict is social."],
+  "timeLabel": "Day",
+  "wakeHour": 8,
+  "skills": ["social", "practical", "creative"],
+  "needs": [],
+  "world": { "rent": "due Friday", "kitchen": "a mess" },
+  "factions": [{ "id": "landlord", "name": "Mr. Petrov", "desc": "The landlord. Owns the bakery downstairs.", "stance": "polite, watchful about the deposit" }],
+  "characters": ["sam", "jo", "ana"],
+  "starts": ["sunday"]
+}

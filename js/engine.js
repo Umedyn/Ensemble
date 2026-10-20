@@ -108,18 +108,20 @@
   };
 
   // ---------- resolution ----------
-  function skillPenalty(c) {
-    let p = 0;
-    if (c.status.health === 'hurt') p -= 2;
-    if (c.status.health === 'badly_hurt') p -= 4;
-    if ((c.needs.fatigue || 0) >= 0.85) p -= 2;
+  // Roll penalties from health and needs. A world can set its own
+  // (skillPenalties); a need it doesn't track never applies.
+  Eng.SKILL_PENALTIES = { health: { hurt: -2, badly_hurt: -4 }, needs: [{ need: 'fatigue', at: 0.85, penalty: -2 }] };
+  function skillPenalty(c, sc) {
+    const cfg = (sc && sc.skillPenalties) || Eng.SKILL_PENALTIES;
+    let p = Number((cfg.health || {})[c.status.health]) || 0;
+    (cfg.needs || []).forEach((n) => { if (c.needs[n.need] != null && c.needs[n.need] >= n.at) p += Number(n.penalty) || 0; });
     return p;
   }
 
-  Eng.roll = function (c, skill, difficulty) {
+  Eng.roll = function (c, skill, difficulty, sc) {
     const d = 1 + Math.floor(E.rng() * 20);
     const dc = DC[difficulty] || DC.normal;
-    const total = d + (Number(c.skills[skill]) || 0) * 2 + skillPenalty(c);
+    const total = d + (Number(c.skills[skill]) || 0) * 2 + skillPenalty(c, sc);
     const result = d === 1 ? 'critical failure' : d === 20 ? 'critical success' : total >= dc ? 'success' : 'failure';
     return { d, total, dc, result };
   };
@@ -188,7 +190,8 @@
     const socialSkills = state.scenario.revealSkills || ['social', 'persuasion'];
     const r = playerOutcome && playerOutcome.roll;
     if (r && /success/.test(r.result) && socialSkills.includes(playerOutcome.skill)) return true;
-    const stress = Math.max(c.needs.stress || 0, c.needs.fear || 0);
+    // Pressure comes from the needs a world names (revealPressure); none, none.
+    const stress = Math.max(0, ...(state.scenario.revealPressure || ['stress', 'fear']).map((n) => c.needs[n] || 0));
     if (stress >= g.pressure) return true;
     if ((c.relations[state.player] || 0) >= g.trust) return true;
     const confronted = mentions(actionText, c) && CONFRONT.test(String(actionText || ''));
@@ -415,7 +418,7 @@
           o.says = null;
         }
       }
-      if (it.needsRoll) o.roll = Eng.roll(c, it.skill, it.difficulty);
+      if (it.needsRoll) o.roll = Eng.roll(c, it.skill, it.difficulty, state.scenario);
       const failed = o.roll && /failure/.test(o.roll.result);
       if (it.moveTo && it.moveTo !== c.status.location && !failed) {
         c.status.location = it.moveTo;

@@ -95,6 +95,21 @@
     return { known, free };
   };
 
+  // The leading (first known) tag's table entry, or null.
+  G.lead = function (sc) {
+    const { known } = G.split(sc.tags);
+    return known.length ? G.table[known[0]] : null;
+  };
+
+  // The rule line on what failure and harm cost, by the leading tag's danger.
+  // No known tag keeps the original survival-minded line.
+  const CONSEQUENCES = {
+    lethal: 'Outcomes marked RESOLVED are final. Failures have real consequences. Injuries and deaths are permanent.',
+    serious: 'Outcomes marked RESOLVED are final. Failures have real consequences. Injuries last; death is rare and permanent.',
+    mild: 'Outcomes marked RESOLVED are final. Failures cost something: embarrassment, strain, a setback.',
+  };
+  G.consequences = (sc) => CONSEQUENCES[(G.lead(sc) || { danger: 'lethal' }).danger];
+
   // Effective pacing: the world's own values, else the first tag that sets
   // one, else the engine default. Each eventRates tier is settled separately.
   G.pacing = function (sc) {

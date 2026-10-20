@@ -73,4 +73,5 @@ test('Teo does not confess on the first question', async () => {
 ## Other fixtures
 
 - `legacy-scenario/` and `legacy-zombie-holdout/`: the bundled Ares Deep and Holdout at Harmon's in the old single-file format (`scenario.json` + `characters/`), frozen before they were converted to worlds. Legacy loading stays permanently (players' own scenarios use it); `tests/worlds.test.js` checks they still load, and that each converted world's default start begins the same game.
+- `slice-of-life/`: a small world with no needs and `slice-of-life, comedy` tags (three flatmates, two rooms). `tests/genre-neutral.test.js` plays it to keep survival assumptions out of the engine.
 - `prompt-snapshots.json`: every prompt for a fixed state, byte for byte (`prompts.snapshot.test.js`).

@@ -1,0 +1,1 @@
+{ "id": "sam", "name": "Sam Okoye", "pronouns": "he/him", "role": "night-shift barista", "age": 27, "traits": ["easygoing", "conflict-avoidant"], "want": "a quiet Sunday", "voice": "Mild, jokes to defuse things.", "skills": { "social": 2, "practical": 2, "creative": 1 }, "relations": { "jo": 15, "ana": 10 } }

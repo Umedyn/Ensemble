@@ -50,7 +50,7 @@
     const rules = [
       'The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. The player commands no faction.',
       `The player controls only ${pc.name} (id: ${state.player}). Never decide ${pc.name}'s choices, words or feelings beyond what the player's action states.`,
-      'Outcomes marked RESOLVED are final. Failures have real consequences. Injuries and deaths are permanent.',
+      E.Genres.consequences(sc),
       'Characters act from their own personality, wants, needs, secrets and feelings, not to serve the player.',
     ].concat(sc.rules || []);
     return ['\n=== RULES ==='].concat(rules.map((r) => '- ' + r));
@@ -197,7 +197,7 @@
 2. You MUST give exactly one intent for EACH present character: ${ids}. Decide what each actually tries to do during this time, driven by their personality, wants, needs, secrets and feelings. They may help, argue, refuse, lie, deflect, pursue their own goals, or leave (move_to). Set visible to false if they act covertly so the player would not notice.
 3. "says": the gist of anything they say aloud this turn (or null).
 4. "reveals": almost always null. Only fill it if the character deliberately says their secret or private knowledge out loud this turn, and that matches their "says". Being asked once, or being nervous, is not enough: people deflect, make excuses or lie first.
-5. "events": things that happen during this span outside the player's control, to keep the world moving: offstage characters pursuing their wants and secrets, groups making moves that affect the people here, someone arriving, a call over the intercom, equipment trouble, the pressures above getting closer. How many: ${EVENT_GUIDE[stepId] || EVENT_GUIDE.hour} Each event has:
+5. "events": things that happen during this span outside the player's control, to keep the world moving: offstage characters pursuing their wants and secrets, groups making moves that affect the people here, someone arriving, a call or message, something breaking down, the pressures above getting closer. How many: ${EVENT_GUIDE[stepId] || EVENT_GUIDE.hour} Each event has:
    - "text": one sentence, with names.
    - "who": character ids involved (not the player).
    - "where": location id where it happens.
@@ -365,6 +365,15 @@ Reply with the new beats only.`;
     }).join('\n');
   }
 
+  // What a major event looks like: the leading genre tag's meaning, else the
+  // original survival-minded list.
+  function majorKinds(state) {
+    const lead = E.Genres.lead(state.scenario);
+    return lead
+      ? `In this story a major event means ${lead.major}. It can be local, regional, or world news that changes everything.`
+      : 'It can be local (an accident, equipment failure, illness, a conflict boiling over, a secret coming out), regional, or world news that changes everything.';
+  }
+
   function majorIdeas(state) {
     const s = state.scenario.eventSeeds || {};
     return [].concat(state.scenario.majorSeeds || [], (s.regional || []).slice(0, 3), (s.world || []).slice(0, 3));
@@ -382,7 +391,7 @@ ${worldLines(state)}`;
   B.skipTask = ({ state, pc, plan, res }) => {
     const ends = plan.reason === 'clock'
       ? `The downtime ends because a pressure comes to a head: "${res.events[res.events.length - 1] || plan.clock.name}". Set "major_event" to null; your positions should fit that moment.`
-      : `The downtime ends with a MAJOR EVENT that you choose: something serious and unexpected that demands a response right now. It can be local (an accident, equipment failure, illness, a conflict boiling over, a secret coming out), regional, or world news that changes everything. Ideas: ${majorIdeas(state).join('; ')}.`;
+      : `The downtime ends with a MAJOR EVENT that you choose: something serious and unexpected that demands a response right now. ${majorKinds(state)}${majorIdeas(state).length ? ` Ideas: ${majorIdeas(state).join('; ')}.` : ''}`;
     return `
 === TASK ===
 This covers a long stretch of downtime. ${ends}
@@ -447,21 +456,25 @@ locations: ${Object.keys(state.locations).join(', ')}
 world keys: ${Object.keys(state.world).join(', ') || '(none)'}
 groups: ${(state.factions || []).map((f) => f.id).join(', ') || '(none)'}
 clocks: ${state.clocks.map((c) => c.id).join(', ') || '(none)'}
-needs: ${sc.needs.map((n) => n.id).join(', ')}
-present this turn: ${[state.player].concat(present).join(', ')}`;
+${sc.needs.length ? `needs: ${sc.needs.map((n) => n.id).join(', ')}\n` : ''}present this turn: ${[state.player].concat(present).join(', ')}`;
   B.whatHappened = ({ state, action, res, cut }) => (cut
       ? '\n=== WHAT WAS PLANNED THIS TURN (the player stepped in partway: only what the scene below shows actually happened; moves, events and lines it does not show did NOT happen) ===\n'
       : '\n=== WHAT HAPPENED THIS TURN (full truth, including hidden actions) ===\n') + `Player action: "${action}"\n` + outcomeLines(state, res, false);
   B.sceneNarrated = ({ prose, cut }) => '\n=== SCENE AS NARRATED ===\n' + prose + (cut ? '\n\n[The player stepped in here. Anything planned above that is not in this scene did NOT happen; record only what is in the scene.]' : '');
-  B.updateTask = ({ state }) => `
+  // Needs lines appear only for worlds that track needs (task 1-5).
+  const needsList = (sc) => {
+    const labels = sc.needs.map((n) => (n.label || n.id).toLowerCase());
+    return labels.length > 1 ? `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]} are` : `${labels[0]} is`;
+  };
+  B.updateTask = ({ state, sc }) => `
 === TASK ===
 Record what changed this turn. Reply with JSON only, exactly in this shape:
 {"facts":[{"about":["character_id"],"text":"one short sentence using names, not pronouns","known_by":["character_id"],"weight":2}],
  "state":[{"target":"char:character_id","field":"health","value":"ok|hurt|badly_hurt|dead"},
           {"target":"char:character_id","field":"location","value":"location_id"},
           {"target":"char:character_id","field":"add_condition","value":"short condition"},
-          {"target":"char:character_id","field":"remove_condition","value":"existing condition"},
-          {"target":"char:character_id","field":"need","need":"need_id","delta":-0.5},
+          {"target":"char:character_id","field":"remove_condition","value":"existing condition"},${sc.needs.length ? `
+          {"target":"char:character_id","field":"need","need":"need_id","delta":-0.5},` : ''}
           {"target":"world:key","value":"new short description"},
           {"target":"faction:group_id","value":"new short stance"},
           {"target":"clock:clock_id","delta":-2}],
@@ -470,14 +483,14 @@ Record what changed this turn. Reply with JSON only, exactly in this shape:
  "chapter_worthy":false}
 Guidelines:
 - 1 to 5 facts. Only things that actually happened or were revealed. Skip trivia.
-- known_by lists who witnessed or was told. Use ["all"] only when everyone at the station/location would know. Hidden actions are known only by the actor and anyone who caught them.
+- known_by lists who witnessed or was told. Use ["all"] only when everyone at the location would know. Hidden actions are known only by the actor and anyone who caught them.
 - What ${name(state, state.player)} knows is limited to what they could see or hear in the narrated scene. Other characters' motives, plans and secrets are NOT known by ${name(state, state.player)} unless explicitly revealed; record those as known only by that character.
 - weight: 1 minor detail, 2 notable, 3 major turning point (injury, death, betrayal, discovery, confession).
 - Anything listed under REVEALS should become a fact known by the revealer and whoever was told.
-- state: only real changes. Eating or resting lowers needs (negative delta). Repairs or sabotage can move clocks (negative delta delays, positive hastens). location: only for other characters who were seen leaving or arriving in the scene (where they went or came from). Never for ${name(state, state.player)}.
+- state: only real changes.${sc.needs.length ? ' Eating or resting lowers needs (negative delta).' : ''} Repairs or sabotage can move clocks (negative delta delays, positive hastens). location: only for other characters who were seen leaving or arriving in the scene (where they went or came from). Never for ${name(state, state.player)}.
 - groups: update a group's stance only when this turn's events would realistically change how that group sees things.
 - world values are short factual status (e.g. "degraded, about 70% output"). Only change one when that status actually changed this turn.
-- Conditions are physical or situational (e.g. "sprained ankle", "covered in dust"), not moods; stress and fear are needs.
+- Conditions are physical or situational (e.g. "sprained ankle", "covered in dust"), not moods${sc.needs.length ? `; ${needsList(sc)} tracked as needs` : ''}.
 - relations: how this turn changed how non-player characters feel about others (never ${name(state, state.player)}'s own feelings), delta between -15 and 15. Leave empty if nothing changed.
 - player_attitude: how ${name(state, state.player)}'s own feelings toward someone shifted, judged ONLY from the player action as quoted above (their words and tone), never from how the narrator embellished it. Snapping, mocking or threatening lowers it; thanking, helping, joking warmly or confiding raises it. Delta between -10 and 10. Leave empty if the action was neutral.
 - chapter_worthy: true only for a major turning point.

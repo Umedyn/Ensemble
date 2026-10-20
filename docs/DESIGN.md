@@ -71,7 +71,7 @@ Each secret-keeper has a `guard`:
 | medium | stress ≥ 0.85, trust ≥ 50, or confronted while stress ≥ 0.6 |
 | high | stress ≥ 0.95 or trust ≥ 70 |
 
-A successful social roll works on anyone. A reveal attempt is either the `reveals` field (any truthy value) or a leak: 3+ content words shared with the secret, or a confession verb plus 1+. Unearned attempts become "is pressed about it but keeps the secret".
+"Stress" here is the highest of the needs listed in the world's `revealPressure` (default `stress` and `fear`); a world without those needs cracks secrets only through trust, confrontation (low guard) or a social roll. A successful social roll works on anyone. A reveal attempt is either the `reveals` field (any truthy value) or a leak: 3+ content words shared with the secret, or a confession verb plus 1+. Unearned attempts become "is pressed about it but keeps the secret".
 
 ## Time
 
