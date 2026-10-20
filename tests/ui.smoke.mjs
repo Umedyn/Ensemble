@@ -335,6 +335,62 @@ await check('phone: pick a world and a start, and play a turn', async (page) => 
   assert.equal(await page.locator('.entry.action').count(), 1);
 });
 
+// Settings › Appearance (task 1-9). Sets the controls, then Save or cancel.
+async function setAppearance(page, { theme, textSize, font, spacing, motion }, save = true) {
+  await page.click('#btnSettings');
+  const section = page.locator('#settings details[data-section="appearance"]');
+  if (!(await section.evaluate((d) => d.open))) await section.locator('summary').click();
+  if (theme) await page.selectOption('#aTheme', theme);
+  if (font) await page.selectOption('#aFont', font);
+  if (spacing) await page.selectOption('#aSpacing', spacing);
+  if (motion) await page.selectOption('#aMotion', motion);
+  if (textSize) await page.locator('#aTextSize').evaluate((el, v) => { el.value = String(v); el.dispatchEvent(new Event('input', { bubbles: true })); }, textSize);
+  await page.click(save ? '#settings button[value="save"]' : '#settings button[value="cancel"]');
+}
+const rootAttr = (page, name) => page.evaluate((n) => document.documentElement.getAttribute(n), name);
+const bodyBg = (page) => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+
+await check('appearance: themes, text size and story font apply, survive a reload, and cancel restores', async (page) => {
+  await page.click('#btnNew');
+  await act(page, 'Look around.');
+  assert.equal(await rootAttr(page, 'data-theme'), 'dark', 'dark by default');
+  const darkBg = await bodyBg(page);
+  for (const theme of ['light', 'hv', 'dark']) {
+    await setAppearance(page, { theme });
+    assert.equal(await rootAttr(page, 'data-theme'), theme);
+    await page.screenshot({ path: path.join(shots, `appearance-${theme}.png`) });
+  }
+  await setAppearance(page, { theme: 'light', textSize: 150, font: 'sans', spacing: 'relaxed', motion: 'on' });
+  assert.notEqual(await bodyBg(page), darkBg);
+  assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize), '24px', '150% of 16px');
+  assert.match(await page.evaluate(() => getComputedStyle(document.querySelector('.entry.scene')).fontFamily), /system-ui|sans/);
+  assert.equal(await rootAttr(page, 'data-motion'), 'reduce');
+  await page.screenshot({ path: path.join(shots, 'appearance-light-150.png') });
+  await page.reload();
+  await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
+  assert.equal(await rootAttr(page, 'data-theme'), 'light', 'saved and applied on load');
+  assert.equal(await rootAttr(page, 'data-spacing'), 'relaxed');
+  // previewing then closing without Save puts the saved look back
+  await setAppearance(page, { theme: 'hv' }, false);
+  await page.waitForFunction(() => document.documentElement.getAttribute('data-theme') === 'light', null, { timeout: 2000 });
+});
+
+await check('phone: high visibility at 150% fits the screen', async (page) => {
+  await setAppearance(page, { theme: 'hv', textSize: 150 });
+  await page.click('#btnNew');
+  await act(page, 'Look around.');
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  assert.ok(overflow <= 0, `no sideways scrolling (${overflow}px too wide)`);
+  for (const id of ['#btnSettings', '#btnNew', '#btnAct', '#btnUndo', '#btnSide']) {
+    const b = await page.locator(id).boundingBox();
+    assert.ok(b && b.x >= 0 && b.x + b.width <= 390, `${id} is on screen`);
+  }
+  await page.screenshot({ path: path.join(shots, 'phone-hv-150-story.png') });
+  await page.click('#btnSide');
+  await page.waitForTimeout(350);
+  await page.screenshot({ path: path.join(shots, 'phone-hv-150-side.png') });
+});
+
 await browser.close();
 mocks.close();
 server.close();

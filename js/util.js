@@ -31,6 +31,8 @@
     narrateTokens: 320,
     chapterLength: 5,
     debug: false,
+    // Settings › Appearance; index.html applies it before first paint.
+    appearance: { theme: 'dark', textSize: 100, storyFont: 'serif', lineSpacing: 'normal', motion: 'system' },
   };
   E.settings = JSON.parse(JSON.stringify(E.defaults));
 
@@ -57,6 +59,7 @@
           if (!E.settings.backends[id].context) E.settings.backends[id].context = E.defaults.backends[id].context;
         });
         E.settings.routing = Object.assign({}, E.defaults.routing, E.settings.routing || {});
+        E.settings.appearance = Object.assign({}, E.defaults.appearance, E.settings.appearance || {});
       }
       // Migrate the old scene-length default; newer prompts target 100-200 words.
       if (E.settings.narrateTokens === 420) E.settings.narrateTokens = E.defaults.narrateTokens;

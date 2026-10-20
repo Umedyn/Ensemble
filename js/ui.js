@@ -754,6 +754,7 @@
     $('sNarrate').value = E.settings.narrateTokens;
     $('sTemp').value = E.settings.temperature;
     $('sChapter').value = E.settings.chapterLength;
+    fillAppearance();
     $('sStatus').textContent = '';
   }
   function readSettings() {
@@ -764,7 +765,39 @@
     E.settings.narrateTokens = E.clamp(parseInt($('sNarrate').value, 10) || E.defaults.narrateTokens, 150, 1200);
     E.settings.temperature = E.clamp(parseFloat($('sTemp').value) || E.defaults.temperature, 0, 2);
     E.settings.chapterLength = E.clamp(parseInt($('sChapter').value, 10) || E.defaults.chapterLength, 2, 20);
+    E.settings.appearance = readAppearance();
   }
+
+  // ---------- appearance ----------
+  // The page previews choices as they are made; closing without Save puts the
+  // saved look back.
+  const applyAppearance = (a) => window.EnsembleAppearance && window.EnsembleAppearance(a);
+  function fillAppearance() {
+    const a = E.settings.appearance;
+    $('aTheme').value = a.theme;
+    $('aTextSize').value = a.textSize;
+    $('aTextSizeOut').textContent = a.textSize + '%';
+    $('aFont').value = a.storyFont;
+    $('aSpacing').value = a.lineSpacing;
+    $('aMotion').value = a.motion;
+  }
+  function readAppearance() {
+    return {
+      theme: $('aTheme').value,
+      textSize: E.clamp(parseInt($('aTextSize').value, 10) || 100, 90, 150),
+      storyFont: $('aFont').value,
+      lineSpacing: $('aSpacing').value,
+      motion: $('aMotion').value,
+    };
+  }
+  ['aTheme', 'aTextSize', 'aFont', 'aSpacing', 'aMotion'].forEach((id) => $(id).addEventListener('input', () => {
+    $('aTextSizeOut').textContent = $('aTextSize').value + '%';
+    applyAppearance(readAppearance());
+  }));
+  // "Same as my device" follows the OS while the page is open.
+  ['(prefers-color-scheme: light)', '(prefers-reduced-motion: reduce)'].forEach((q) => {
+    try { window.matchMedia(q).addEventListener('change', () => applyAppearance(E.settings.appearance)); } catch (e) {}
+  });
   $('btnSettings').addEventListener('click', () => { fillSettings(); $('settings').showModal(); });
 
   // ---------- first-run setup ----------
@@ -809,6 +842,7 @@
       checkConnection(false);
       if (state) renderJournal();
     }
+    applyAppearance(E.settings.appearance);
   });
 
   // ---------- mobile side sheet ----------
@@ -827,6 +861,7 @@
   async function boot() {
     const firstRun = store.get('ensemble.settings') === null && store.get('ensemble.setupDone') === null;
     E.loadSettings();
+    applyAppearance(E.settings.appearance);
     initTimeSteps();
     await loadServerList();
     if (firstRun) openSetup();

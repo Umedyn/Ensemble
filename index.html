@@ -6,6 +6,22 @@
 <meta name="theme-color" content="#1a1d22">
 <title>Ensemble</title>
 <link rel="stylesheet" href="css/style.css">
+<script>
+// Appearance (Settings > Appearance), applied before first paint so the page
+// never flashes the wrong theme. ui.js calls it again when settings change.
+window.EnsembleAppearance = function (a) {
+  a = a || {};
+  var el = document.documentElement, mq = function (q) { try { return window.matchMedia(q).matches; } catch (e) { return false; } };
+  var theme = a.theme === 'system' ? (mq('(prefers-color-scheme: light)') ? 'light' : 'dark') : (a.theme || 'dark');
+  var motion = a.motion === 'on' || (a.motion !== 'off' && mq('(prefers-reduced-motion: reduce)')) ? 'reduce' : 'full';
+  el.setAttribute('data-theme', theme);
+  el.setAttribute('data-font', a.storyFont === 'sans' ? 'sans' : 'serif');
+  el.setAttribute('data-spacing', a.lineSpacing === 'relaxed' ? 'relaxed' : 'normal');
+  el.setAttribute('data-motion', motion);
+  el.style.setProperty('--text-scale', String(Math.min(150, Math.max(90, Number(a.textSize) || 100)) / 100));
+};
+try { window.EnsembleAppearance((JSON.parse(localStorage.getItem('ensemble.settings')) || {}).appearance); } catch (e) { window.EnsembleAppearance(); }
+</script>
 </head>
 <body>
 <header class="topbar">
@@ -39,7 +55,7 @@
       <textarea id="actionInput" rows="3" placeholder="What do you do? (Ctrl+Enter to act)"></textarea>
       <div class="action-row">
         <select id="timeStep" title="How much time this action takes"></select>
-        <button type="button" id="btnSide" class="mobile-only" title="Situation, people and journal">👥</button>
+        <button type="button" id="btnSide" class="mobile-only" aria-label="Situation, people and journal" title="Situation, people and journal">👥</button>
         <span id="phase" class="phase"></span>
         <button type="button" id="btnUndo" class="tool" aria-label="Undo last turn" title="Undo the last turn and put your action back in the box. Only one turn can be undone." disabled>↶<span class="lbl"> Undo</span></button>
         <button type="button" id="btnReroll" class="tool" aria-label="Reroll scene" title="Rewrite this scene: same rolls, moves and events, new prose" disabled>⟳<span class="lbl"> Reroll</span></button>
@@ -82,7 +98,7 @@
 
 <dialog id="settings">
   <form method="dialog" class="settings">
-    <div class="row"><h3>Settings</h3><div class="spacer"></div><button type="button" id="btnSetup" class="ghost small">Setup guide</button><button value="cancel" type="submit" class="ghost" title="Close without saving">✕</button></div>
+    <div class="row"><h3>Settings</h3><div class="spacer"></div><button type="button" id="btnSetup" class="ghost small">Setup guide</button><button value="cancel" type="submit" class="ghost" aria-label="Close without saving" title="Close without saving">✕</button></div>
 
     <details class="section" data-section="external" open>
       <summary>External model (API)</summary>
@@ -121,6 +137,23 @@
           <button type="button" data-route="hybrid" title="Characters, events and narration external; bookkeeping local">Hybrid</button>
           <button type="button" data-route="external">All external</button>
         </div>
+      </fieldset>
+    </details>
+
+    <details class="section" data-section="appearance">
+      <summary>Appearance</summary>
+      <fieldset>
+        <label>Theme <select id="aTheme">
+          <option value="system">Same as my device</option>
+          <option value="dark">Dark</option>
+          <option value="light">Light</option>
+          <option value="hv">High visibility</option>
+        </select></label>
+        <label>Text size: <span id="aTextSizeOut">100%</span> <input id="aTextSize" type="range" min="90" max="150" step="10"></label>
+        <label>Story font <select id="aFont"><option value="serif">Serif (book-like)</option><option value="sans">Sans-serif (plain)</option></select></label>
+        <label>Line spacing <select id="aSpacing"><option value="normal">Normal</option><option value="relaxed">Relaxed</option></select></label>
+        <label>Reduce motion <select id="aMotion"><option value="system">Same as my device</option><option value="on">On</option><option value="off">Off</option></select></label>
+        <div class="muted small">Changes show right away; Save keeps them.</div>
       </fieldset>
     </details>
 

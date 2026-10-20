@@ -13,6 +13,8 @@ No Python? Open `index.html` directly and use **Open folder** to pick the `scena
 
 Each backend has its own context size: **Test** reads it from KoboldCpp, or from the provider's model list when it has one (OpenRouter does). Settings also has the memory cap, scene length, temperature and turns per chapter.
 
+**Settings → Appearance** sets the theme (Dark, Light, **High visibility** for low vision, or the same as your device), text size (90–150%), story font (serif or sans), line spacing and reduce motion. Changes show as you pick them and are kept in this browser.
+
 ## Models: local, remote or API
 
 **Settings** has two backends, each with presets:

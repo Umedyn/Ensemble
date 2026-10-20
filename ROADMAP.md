@@ -63,9 +63,10 @@ The format change everything else builds on, plus visible improvements to the ch
 - [ ] **Correct your feelings:** nudge your own attitude when the model misreads your tone.
 
 **Themes and accessibility**
-- [ ] Themes in Settings › Appearance: Dark (today's), Light, **High visibility** (high contrast, no colour-only meaning, strong focus outlines) and System.
-- [ ] Text size, story font (serif or sans), line spacing and reduce motion; applied before first paint.
-- [ ] Contrast check for every theme in tests; `aria-label`s on icon-only buttons.
+- [x] Themes in Settings › Appearance: Dark (today's), Light, **High visibility** (high contrast, no colour-only meaning, strong focus outlines) and System.
+- [x] Text size, story font (serif or sans), line spacing and reduce motion; applied before first paint.
+- [x] Contrast check for every theme in tests; `aria-label`s on icon-only buttons.
+- [ ] Screen readers: announce new beats and scene text through an `aria-live` region, and check the reading order of a turn.
 
 ## Phase 2: Cast tiers
 

@@ -27,7 +27,7 @@ No build step and no runtime dependencies. Playwright is a dev dependency for UI
 - `js/scenario.js`: loading worlds (and legacy scenario folders), composing a world + start into the flat scenario, validation
 - `js/ui.js`: the page; the only file that touches the DOM
 - `scenarios/<folder>/`: a world (`world.json` + `starts/<id>.json` + `characters/<id>.json`) or a legacy `scenario.json` + `characters/`, listed in `scenarios/index.json`
-- `tests/`: `helpers.js` loads the engine into a Node VM (`readWorld`, `newGame(folder, startId)`); `engine.test.js`; `worlds.test.js` (compose, world validation, legacy, save migration); `genres.test.js`; `genre-neutral.test.js` (the no-needs `fixtures/slice-of-life/` world); `prompts.snapshot.test.js` (every prompt for a fixed state, byte for byte; re-record with `UPDATE_SNAPSHOTS=1` after an intended prompt change); `replay.js` + `replay.test.js` + `fixtures/` (recorded sessions); `ui.smoke.mjs`; `mock-servers.mjs`
+- `tests/`: `helpers.js` loads the engine into a Node VM (`readWorld`, `newGame(folder, startId)`); `engine.test.js`; `worlds.test.js` (compose, world validation, legacy, save migration); `genres.test.js`; `themes.test.js` (contrast of every theme); `genre-neutral.test.js` (the no-needs `fixtures/slice-of-life/` world); `prompts.snapshot.test.js` (every prompt for a fixed state, byte for byte; re-record with `UPDATE_SNAPSHOTS=1` after an intended prompt change); `replay.js` + `replay.test.js` + `fixtures/` (recorded sessions); `ui.smoke.mjs`; `mock-servers.mjs`
 
 ## Rules that keep the game working
 
@@ -49,6 +49,7 @@ These came from playtesting a 12B local model. Each has a test; don't loosen one
 - Engine files are classic scripts sharing `window.Ensemble`, not ES modules, so `index.html` works when opened straight from disk. Keep them DOM-free so they run in the Node VM tests.
 - User-facing text is plain language. Player-facing UI never reveals hidden information (covert actions show as "something you didn't see"; the truth is in Debug).
 - New scenario or character fields: update `Scenario.validate`, the README's scenario format section, and add a test.
+- Colours live only in the theme blocks at the top of `css/style.css` (`tests/themes.test.js` fails on a hard-coded colour elsewhere); sizes are `rem` so the text-size setting scales them.
 - `localStorage` can throw or be empty: wrap every access. API keys live in settings only, never in save files.
 - In tests, objects come from another VM realm: compare arrays as `[...arr]`, check errors by `err.name`, not `instanceof`.
 
