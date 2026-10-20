@@ -44,11 +44,17 @@ async function check(name, fn) {
   }
 }
 
+// Act is only enabled at the end of a scene or after choosing "Step in here",
+// so unless a test picked a step-in point, read the scene to the end first.
+const turnDone = (page) => page.waitForFunction(() => !document.getElementById('btnNew').disabled, null, { timeout: 15000 });
 const act = async (page, text, step) => {
+  if (!(await page.locator('button[data-cut].active').count())) {
+    while (await page.locator('button[data-next]').count()) await page.click('button[data-next]');
+  }
   if (step) await page.selectOption('#timeStep', step);
   await page.fill('#actionInput', text);
   await page.click('#btnAct');
-  await page.waitForFunction(() => !document.getElementById('btnAct').disabled, null, { timeout: 15000 });
+  await turnDone(page);
 };
 
 await check('desktop turn with beats and stepping in', async (page) => {
@@ -64,17 +70,27 @@ await check('desktop turn with beats and stepping in', async (page) => {
   assert.match(await page.locator('.entry.action .when').first().textContent(), /07:00 → Sol 214, 07:15/);
 });
 
-await check('next settles a beat; acting early steps in', async (page) => {
+await check('act is greyed out until the scene is read or the player steps in', async (page) => {
   await page.click('#btnNew');
   await act(page, 'I open up the recycler.');
+  assert.ok(await page.locator('#btnAct').isDisabled(), 'unread beats: no acting yet');
+  assert.match(await page.getAttribute('#actionInput', 'placeholder'), /Step in here/);
+  assert.ok(!(await page.locator('#actionInput').isDisabled()), 'typing ahead is fine');
   await page.click('button[data-cut="1"]');
+  assert.ok(!(await page.locator('#btnAct').isDisabled()), 'choosing a step-in point enables Act');
   await page.click('button[data-next]');
   assert.equal(await page.locator('.beat').count(), 2, 'next reveals the second beat');
   assert.equal(await page.locator('button[data-cut="1"]').count(), 0, 'passed step-in point is gone');
   assert.equal(await page.locator('button[data-cut="2"].active').count(), 0, 'next cancels a pending step-in');
+  assert.ok(await page.locator('#btnAct').isDisabled(), 'and Act is greyed out again');
+  await page.fill('#actionInput', 'Wait, what was that?');
+  await page.press('#actionInput', 'Control+Enter');
+  assert.equal(await page.locator('.entry.action').count(), 1, 'Ctrl+Enter does not get around it (only turn 1 so far)');
+  await page.click('button[data-next]');
+  assert.ok(!(await page.locator('#btnAct').isDisabled()), 'end of the scene: Act is back');
   assert.match(await page.getAttribute('#actionInput', 'placeholder'), /^What do you do\?/);
   await act(page, 'Wait, what was that?', 'moment');
-  assert.equal(await page.locator('.beat-note').count(), 1, 'unread third beat never happened');
+  assert.equal(await page.locator('.beat-note').count(), 0, 'read to the end, so nothing was cut');
 });
 
 await check('undo and reroll', async (page) => {
@@ -89,6 +105,7 @@ await check('undo and reroll', async (page) => {
   assert.equal(mocks.log.filter((c) => /Write the next scene/.test(c.user)).length, 1, 'one new narration call');
   assert.equal(mocks.log.filter((c) => /Judge the player/.test(c.user)).length, 0, 'no new intent call');
   assert.equal(await page.locator('.beat').count(), 1, 'the new scene starts again at its first beat');
+  await page.click('button[data-cut="1"]');
   await act(page, 'Hold on, Teo.', 'moment');
   assert.match(await page.textContent('#sceneBar'), /turn 2/);
   await page.click('#btnUndo');
@@ -133,6 +150,7 @@ await check('record a session and export it as a fixture', async (page) => {
   await page.click('#btnDebugClose');
   await act(page, 'I open up the recycler.');
   await page.click('button[data-next]');
+  await page.click('button[data-cut="2"]');
   await act(page, 'Hold on, Teo.', 'moment');
   await page.click('#btnReroll');
   await page.waitForFunction(() => !document.getElementById('btnReroll').disabled, null, { timeout: 15000 });
@@ -147,7 +165,7 @@ await check('record a session and export it as a fixture', async (page) => {
   const f = JSON.parse(text);
   assert.equal(f.format, 'ensemble-recording');
   assert.deepEqual(f.actions.map((a) => a.type), ['turn', 'turn', 'reroll', 'turn', 'undo', 'turn']);
-  assert.equal(f.actions[1].cutAt, 2, 'acting after reading two beats steps in after beat 2');
+  assert.equal(f.actions[1].cutAt, 2, 'stepped in after beat 2');
   assert.ok(f.actions[0].calls.every((c) => c.response && c.request.user));
   if (process.argv.includes('--save-fixture')) {
     f.note = 'Recorded from the mock servers by `npm run fixture:mock`: two turns, a step-in, a reroll, an undo and a redo.';
@@ -205,7 +223,7 @@ await check('major-event skip with an empty plan', async (page) => {
   await page.selectOption('#timeStep', 'major');
   assert.match(await page.getAttribute('#actionInput', 'placeholder'), /downtime/);
   await page.click('#btnAct');
-  await page.waitForFunction(() => !document.getElementById('btnAct').disabled, null, { timeout: 15000 });
+  await turnDone(page);
   assert.match(await page.textContent('#sceneBar'), /Sol 215/, 'time jumped to the storm');
   assert.equal(await page.inputValue('#timeStep'), 'hour', 'step resets after a skip');
 });

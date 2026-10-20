@@ -166,23 +166,20 @@
 
   // ---------- acting ----------
   async function act() {
-    if (busy || !state) return;
+    if (busy || !state || !canAct()) return;
     const skip = $('timeStep').value === 'major';
     const text = $('actionInput').value.trim();
     if (!text && !skip) return;
     setBusy(true);
     try {
-      // Acting before reading the rest of the scene steps in at the newest beat.
-      const live = liveScene();
-      const cut = uiCut || (live && uiShown < live.beats.length ? uiShown : null);
-      const result = await E.Engine.runTurn(state, text, $('timeStep').value, setPhase, cut);
+      const result = await E.Engine.runTurn(state, text, $('timeStep').value, setPhase, uiCut);
       uiCut = null;
       uiShown = 1;
       if ($('timeStep').value === 'major') $('timeStep').value = 'hour';
       $('actionInput').value = '';
-      $('actionInput').placeholder = 'What do you do? (Ctrl+Enter to act)';
       autosave();
       renderAll();
+      $('actionInput').placeholder = actionPlaceholder();
       if (result.report && result.report.warning) showWarning(result.report.warning);
     } catch (e) {
       setPhase('');
@@ -235,14 +232,24 @@
     }
   });
 
+  // Acting is only possible at the end of the scene, or after choosing
+  // "Step in here"; acting never steps in by accident.
+  function canAct() {
+    const live = liveScene();
+    return !live || uiShown >= live.beats.length || uiCut != null;
+  }
+
   function renderControls() {
+    const blocked = !!state && !canAct();
+    $('btnAct').disabled = busy || blocked;
+    $('btnAct').title = blocked ? 'Read to the end of the scene (Next ▸), or press "Step in here" to act now' : '';
+    $('actionInput').placeholder = actionPlaceholder();
     $('btnUndo').disabled = busy || !E.Engine.canUndo(state);
     $('btnReroll').disabled = busy || !E.Engine.canReroll(state);
   }
 
   function setBusy(b) {
     busy = b;
-    $('btnAct').disabled = b;
     $('btnNew').disabled = b;
     $('actionInput').disabled = b;
     renderControls();
@@ -346,6 +353,7 @@
 
   function actionPlaceholder() {
     const entry = liveScene();
+    if (entry && !canAct()) return 'Read on with Next ▸, or press "Step in here" to act now. (You can type ahead.)';
     if (uiCut && entry) return `What do you do at ${beatClock(entry, entry.beats[uiCut - 1])}–${beatClock(entry, entry.beats[uiCut])}? (Ctrl+Enter to act)`;
     return $('timeStep').value === 'major'
       ? 'How do you spend the downtime? (optional, e.g. "Keep the arrays clean and avoid Teo")'
@@ -365,6 +373,7 @@
     }
     const top = $('log').scrollTop;
     renderLog();
+    renderControls();
     $('log').scrollTop = top;
     $('actionInput').placeholder = actionPlaceholder();
     if (nextBtn) {
