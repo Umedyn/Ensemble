@@ -2,7 +2,7 @@
 
 The plan from here to a game that can host any kind of story: a Mars crew, a zombie holdout, a French resistance cell, an anime high school, a family in the suburbs, or a hobbit in a world someone else built.
 
-**How to use this file.** Work top to bottom; phases depend on the ones before them. Check items off as they land (`[x]`) and move finished phases to **Done** with a one-line summary. If a phase changes shape while you build it, edit the plan here first. **Groundwork** lists small changes to make whenever you're editing nearby code anyway, so later phases are easier.
+**How to use this file.** Work top to bottom; phases depend on the ones before them. Check items off as they land (`[x]`) and move finished phases to **Done** with a one-line summary. If a phase changes shape while you build it, edit the plan here first.
 
 ## Principles for every phase
 
@@ -12,6 +12,8 @@ The plan from here to a game that can host any kind of story: a Mars crew, a zom
 - **No AI-generated art from us.** Portraits and maps come from scenario creators. Generated characters use a stand-in portrait set with a license compatible with a paid build (CC0 or similar, credited in `CREDITS.md`).
 - **Shipped scenarios are original.** Players can build whatever world they like (`MODDING.md`).
 - **Nothing old breaks.** Old scenario folders and saves keep loading through a migration step. Every new field gets `Scenario.validate`, a line in the README's scenario format section, and a test.
+- **Ids are opaque and stable.** Never derive behaviour from an id's text, since generated content will have ids like `extra-3`.
+- **Display text stays out of the engine.** Labels like "on edge" come from scenario or default tables, so genres can retheme them.
 
 ## Done
 
@@ -23,6 +25,7 @@ The plan from here to a game that can host any kind of story: a Mars crew, a zom
 - [x] **Backends.** Local and external presets, per-step routing (Hybrid), JSON salvage and retry, first-run setup.
 - [x] **Two scenarios.** Ares Deep (Mars) and the zombie holdout; engine and UI smoke tests.
 - [x] **License setup.** PolyForm Noncommercial, `CONTRIBUTING.md`, `MODDING.md`.
+- [x] **Groundwork** (tasks G-1 to G-3). Cast lists go through `Eng.cast`/`present`/`offstage`; event effects are a handler table (`Eng.EFFECTS`) with rejections reported in Debug; prompts are built from named blocks (`P.blocks`/`P.layouts`) with the live header blocks kept last; cast cards are built from one function per section; `Scenario.validate` ignores fields it doesn't use yet. A prompt snapshot test pins every prompt.
 
 ## Phase 0: Playtest tools
 
@@ -128,18 +131,6 @@ Everything a creator needs to build a world without touching JSON.
 
 - [ ] Two new original scenarios in very different genres, such as a resistance cell in an occupied city and a high-school slice-of-life. At least one uses a map image with regions, and one uses generated starts.
 - [ ] Fix whatever turns out to be survival-specific. Add a test named after each fix.
-
-## Groundwork
-
-Small changes to make whenever you're editing nearby code anyway.
-
-- [x] **Read the cast through helpers.** There are about 70 direct `state.characters` reads across `engine.js`, `prompts.js` and `ui.js`. Add `E.present(state)`, `E.offstage(state)` and `E.cast(state)` in `engine.js` and switch call sites as you touch them, so tiers (phase 2) and standees (phase 3) only change one place.
-- [ ] **Let `Scenario.validate` accept and ignore future fields** (`tags`, `portrait`, `region`, `tier`, `lore`) instead of rejecting them, so new content can be authored before the engine uses it.
-- [x] **Keep prompt sections as named builder functions** (setting block, cast block, facts block, scene block) so lore, regions and genre guidance can be added as new blocks without reordering the header.
-- [x] **Generate card markup from one function per section** (header, mood/tags, needs, details) so phase 1's card redesign is a swap, not a rewrite.
-- [x] **Keep every event effect in `applyEffects`** (`engine.js`), which already handles both normal and skip events. Turn its body into a table of effect handlers so `control`, `addTag` and agenda effects can be added as entries.
-- [ ] **Keep ids opaque and stable.** Never derive behaviour from an id's text, since generated content will have ids like `extra-3`.
-- [ ] **Keep display text out of the engine.** Labels like "on edge" come from scenario or default tables, so genres can retheme them.
 
 ## Later
 

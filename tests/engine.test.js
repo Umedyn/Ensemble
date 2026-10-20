@@ -44,6 +44,18 @@ test('scenario validation reports authoring mistakes', () => {
     /unknown location "nowhere"/.test(err.message) && /guard must be low, medium or high/.test(err.message));
 });
 
+// Content for later phases can be authored before the engine reads it.
+test('scenario validation accepts and ignores fields the engine does not use yet', () => {
+  const E = loadEngine();
+  const sc = readScenario('mars-station');
+  Object.assign(sc, { tags: ['hard-sf'], lore: [{ id: 'ares', title: 'The Ares program' }], regions: [{ id: 'tharsis' }] });
+  sc.locations[0].region = 'tharsis';
+  Object.assign(sc.characterData[1], { tags: ['stubborn'], portrait: 'okafor.png', tier: 'core', region: 'tharsis' });
+  const state = E.Engine.newGame(E.Scenario.validate(sc));
+  assert.equal(state.characters[sc.characterData[1].id].name, sc.characterData[1].name);
+  assert.ok(E.Prompts.header(state).includes(sc.title));
+});
+
 // ---------- movement ----------
 
 test('acting on someone in the room cancels a move elsewhere (log 3/4: Kit walked off to hydroponics)', () => {
