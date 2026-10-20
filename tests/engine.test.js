@@ -59,6 +59,18 @@ test('a move the player states is kept even when the action names someone in the
   assert.deepEqual(asked.guards, ['move cancelled']);
 });
 
+// Playtest 2026-10-20 (friend, DeepSeek): "…then i get up to follow him" was
+// cancelled while Teo himself walked to Hydroponics.
+test('following someone who leaves this turn is a stated move', () => {
+  const { E, state } = newGame();
+  E.Engine.resolve(state, intentOf({ player: { move_to: 'hydro' }, intents: [{ id: 'bauer', action: 'heads back to the recycler', move_to: 'hydro' }] }), PRESENT,
+    'i tell Teo "here, i\'ll help with that and it\'ll take even less time", then i get up to follow him', 'hour');
+  assert.equal(state.characters.navarro.status.location, 'hydro');
+  const g = newGame();
+  g.E.Engine.resolve(g.state, intentOf({ player: { move_to: 'hydro' }, intents: [{ id: 'bauer', action: 'goes to fix the recycler', move_to: 'hydro' }] }), PRESENT, 'Help Teo with the recycler.', 'hour');
+  assert.equal(g.state.characters.navarro.status.location, 'hydro', 'Teo is heading there, so going with him is not leaving him');
+});
+
 test('moving to a person goes to wherever they are', () => {
   const { E, state } = newGame();
   E.Engine.resolve(state, intentOf({ player: { move_to: 'sorensen' }, intents: [] }), PRESENT, 'Go find Lev.', 'hour');
@@ -283,6 +295,28 @@ test('stepping in after beat 1 rewinds later beats: time, moves and memory', asy
   const update = calls.find((c) => c.kind === 'update');
   assert.ok(!update.user.includes('Priya stomps in'), 'memory only sees the kept beat');
   assert.match(update.user, /stepped in here/);
+});
+
+// Playtest 2026-10-20: the player stepped in while Teo was still refitting a
+// panel, but the update step moved him to Ops (his plan for later in the
+// scene), so the confrontation that followed happened with an empty room.
+test('after a step-in, the update step only moves people the kept scene shows leaving', () => {
+  const { E, state } = newGame();
+  const kept = '"Go see Okafor about the incubator draw."\n\n"Yeah — yeah, I\'ll go." Teo is already crouched, fitting the panel back on with exaggerated care.';
+  const r = E.Engine.applyUpdate(state, { state: [{ target: 'char:bauer', field: 'location', value: 'ops' }] }, PRESENT, { startLoc: 'commons', endLoc: 'commons', keptProse: kept });
+  assert.equal(state.characters.bauer.status.location, 'commons');
+  assert.match(r.rejected[0], /stepped in before they left/);
+  assert.ok(E.Engine.seenLeaving('Okafor pockets her tablet. She’s gone toward Ops before you can answer.', state.characters.okafor));
+  assert.ok(E.Engine.seenLeaving('Teo\'s face does something complicated. He\'s backing toward the corridor.', state.characters.bauer));
+  const full = E.Engine.applyUpdate(state, { state: [{ target: 'char:bauer', field: 'location', value: 'ops' }] }, PRESENT, { startLoc: 'commons', endLoc: 'commons' });
+  assert.equal(full.rejected.length, 0, 'without a step-in the old rule applies');
+});
+
+test('after a step-in, the update prompt calls the resolution a plan, not what happened', () => {
+  const { E, state } = newGame();
+  const res = { outcomes: [{ id: 'navarro', action: 'fix it', visible: true }], events: [] };
+  assert.match(E.Prompts.update(state, 'Fix it.', res, 'Teo shrugs.', PRESENT, true), /WHAT WAS PLANNED THIS TURN/);
+  assert.match(E.Prompts.update(state, 'Fix it.', res, 'Teo shrugs.', PRESENT, false), /WHAT HAPPENED THIS TURN/);
 });
 
 // Log: an "about an hour" scene stopped at [+20m] (token cap), but the clock

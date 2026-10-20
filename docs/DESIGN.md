@@ -79,7 +79,7 @@ A successful social roll works on anyone. A reveal attempt is either the `reveal
 | until next morning | to wake hour | 200–300, summary then live morning | 1–3 |
 | until something major happens | to the next clock, random major event, or horizon | 250–350, day-stamped montage then live crisis | up to 2 + the interrupting event |
 
-The longer the step, the more the narrator may fill in for the player, but never big decisions. Scenes are written as beats with time markers (`[+0m]`, `[+40m]`, `[+3d]`); the page reveals them one at a time, offering **Step in here** or **Next ▸** after each; acting early counts as stepping in.
+The longer the step, the more the narrator may fill in for the player, but never big decisions. Scenes are written as beats with time markers (`[+0m]`, `[+40m]`, `[+3d]`); the page reveals them one at a time, offering **Step in here** or **Next ▸** after each.; acting early counts as stepping in.
 
 ## Events
 
@@ -110,3 +110,4 @@ Two backends (local and external), each a preset: KoboldCpp on this computer, Ko
 | 7 | "They" for everyone; ending on the player; departure not reflected in state | Pronouns; trimming player endings; in-scene NPC moves allowed in the update step |
 | 8 | `reveals: true` and a confession in dialogue bypassed the gate; scene hit the token cap | Leak detection; per-step scene length; trim to last sentence; then guard levels (confronting low-guard Teo should work) |
 | 9 | (DeepSeek via OpenRouter, recorded) The stay-with-them guard cancelled 4 moves the player asked for ("…while I head down to the garage"), so Kit never reached the garage; the frame said people left behind "leave for" their own room; passing through the Commons triggered a scene rewrite; reasoning used up a scene's token limit twice | Moves the player states, or toward someone named who is there, are kept; "stays behind in" wording; rooms on the route are allowed; hosted prose calls get +1024 tokens of headroom. Replay fixture `playtest-deepseek-storm` |
+| 10 | (friend, DeepSeek, recorded) "…then i get up to follow him" was cancelled while Teo walked off; after stepping in on Teo mid-scene, the update step moved him to Ops (his plan for later), so the confrontation that followed had no one in the room and the narrator wrote him in anyway | "follow" counts as a stated move, and so does going where someone named is heading this turn; after a step-in, location updates need the kept beats to show the person leaving, and the update prompt calls the resolution a plan. Fixture `playtest-friend-stepin` |

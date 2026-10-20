@@ -51,6 +51,15 @@ test('playtest: walking out to the garage leaves Okafor behind instead of sendin
   assert.match(narrate.user, /Dr\. Imani Okafor stays behind in Commons/);
 });
 
+// Friend's session (DeepSeek, 2026-10-20): stepped in on Teo, then confronted him.
+test('playtest: after stepping in on Teo, he is still there to be confronted', async () => {
+  const r = await replay('playtest-friend-stepin');
+  const intents = r.E.LLM.calls.filter((c) => c.kind === 'intent');
+  assert.match(intents[intents.length - 1].user, /Present with Kit Navarro: Teo Bauer/, 'turn 5 has Teo in the room');
+  const report = r.E.Engine.telemetry[r.E.Engine.telemetry.length - 1];
+  assert.ok(report.guards.some((g) => g.type === 'update rejected' && /stepped in before they left/.test(g.detail) && g.turn === 4));
+});
+
 test('until stops after that many actions', async () => {
   const r = await replay('mock-session', { until: 2 });
   assert.equal(r.steps.length, 2);

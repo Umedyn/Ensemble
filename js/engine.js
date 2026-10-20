@@ -131,7 +131,7 @@
 
   // The player saying they go somewhere: "I head down to…", "then go…", "Go to…".
   // "Ask Teo to go…" is someone else moving, so a subject or sentence start is required.
-  const PLAYER_MOVES = /(^|\b(?:i|we|then|and)\s+|[,;.]\s*)(?:go|head|walk|return|leave|hurry|make (?:my|our) way|move over|come back)\b/i;
+  const PLAYER_MOVES = /(^|\b(?:i|we|then|and)\s+|[,;.]\s*)(?:(?:get up (?:and |to )?)?(?:go|head|walk|return|leave|hurry|follow|make (?:my|our) way|move over|come back|tag along))\b/i;
 
   // Secrets have to be earned: a successful social check this turn, a character
   // at breaking point (critical stress/fear), or one who already trusts the player.
@@ -296,7 +296,9 @@
     const p = list[0];
     if (p.moveTo) {
       const about = present.filter((id) => mentions(actionText, state.characters[id]));
-      const statesMove = PLAYER_MOVES.test(String(actionText || '')) ||
+      // Someone named who is heading the same way this turn counts as being there.
+      const goingThere = (id) => (list.find((it) => it.id === id) || {}).moveTo === p.moveTo;
+      const statesMove = PLAYER_MOVES.test(String(actionText || '')) || about.some(goingThere) ||
         state.order.some((id) => id !== state.player && !present.includes(id) && state.characters[id].status.location === p.moveTo && mentions(actionText, state.characters[id]));
       if (about.length && !statesMove && about.every((id) => state.characters[id].status.location !== p.moveTo)) {
         guard(res, 'resolve', 'move cancelled', `model moved the player to ${p.moveTo}; the action is about ${about.map((id) => state.characters[id].name).join(', ')}, who is here`);
@@ -433,6 +435,8 @@
           if (!dest) return reject(label, 'unknown location');
           const inScene = [ctx.startLoc, ctx.endLoc].includes(c.status.location) || dest === ctx.endLoc;
           if (!inScene) return reject(label, 'nobody in the scene could have seen that move');
+          // After a step-in, a planned exit only happened if the kept scene shows it.
+          if (ctx.keptProse != null && !Eng.seenLeaving(ctx.keptProse, c)) return reject(label, 'the player stepped in before they left');
           c.status.location = dest;
         } else if (s.field === 'add_condition') {
           const v = String(s.value || '').slice(0, 40).trim();
@@ -492,6 +496,12 @@
     if (upd.chapter_worthy === true) state.flags.chapterWorthy = true;
     return report;
   };
+
+  // True when a paragraph naming the character also shows someone leaving
+  // ("She's gone toward Ops", "He's backing toward the corridor").
+  const LEAVING = /\b(?:leaves|left|leaving|exits|disappears|(?:is|'s|was)\s+gone|heads?\s+(?:out|off|for|to|toward|towards|back)|heading\s+(?:out|off|for|to|toward|towards)|goes\s+(?:out|off|to|back)|(?:walks|slips|steps|ducks|hurries)\s+(?:out|off|away)|backing\s+(?:out|away|toward|towards))\b/i;
+  Eng.seenLeaving = (prose, c) =>
+    String(prose || '').split(/\n\s*\n/).some((p) => mentions(p, c) && LEAVING.test(p.replace(/[‘’]/g, "'")));
 
   // Removes repeated paragraphs (a common small-model loop), ignoring quotes and spacing.
   // If generation hit the token cap mid-sentence, cut back to the last full sentence.
@@ -684,7 +694,7 @@
         kind: 'update', system: E.Prompts.header(state), user: E.Prompts.update(state, p.action, p.res, prose, p.present, !!cut),
         maxTokens: 520, temperature: 0.3,
       });
-      report = Eng.applyUpdate(state, upd, p.present, { startLoc: p.frame.startLoc, endLoc });
+      report = Eng.applyUpdate(state, upd, p.present, { startLoc: p.frame.startLoc, endLoc, keptProse: cut ? prose : null });
       report.rejected.forEach((r) => guard(p.res, 'memory', 'update rejected', r));
     } catch (err) {
       E.Memory.addFact(state, { about: [state.player], text: `${state.characters[state.player].name}: ${p.action}`.slice(0, 200), known_by: ['all'], weight: 1 });

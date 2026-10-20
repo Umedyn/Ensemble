@@ -408,7 +408,9 @@ groups: ${(state.factions || []).map((f) => f.id).join(', ') || '(none)'}
 clocks: ${state.clocks.map((c) => c.id).join(', ') || '(none)'}
 needs: ${sc.needs.map((n) => n.id).join(', ')}
 present this turn: ${[state.player].concat(present).join(', ')}`);
-    out.push(`\n=== WHAT HAPPENED THIS TURN (full truth, including hidden actions) ===\nPlayer action: "${action}"\n` + outcomeLines(state, res, false));
+    out.push((cut
+      ? '\n=== WHAT WAS PLANNED THIS TURN (the player stepped in partway: only what the scene below shows actually happened; moves, events and lines it does not show did NOT happen) ===\n'
+      : '\n=== WHAT HAPPENED THIS TURN (full truth, including hidden actions) ===\n') + `Player action: "${action}"\n` + outcomeLines(state, res, false));
     out.push('\n=== SCENE AS NARRATED ===\n' + prose + (cut ? '\n\n[The player stepped in here. Anything planned above that is not in this scene did NOT happen; record only what is in the scene.]' : ''));
     out.push(`
 === TASK ===
