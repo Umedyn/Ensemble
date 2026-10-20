@@ -7,7 +7,7 @@ A local, character-driven story sim in the spirit of Pax Historia, but at person
 1. For a local model, start KoboldCpp with any instruct or roleplay model. 8K context or more is recommended. Set the **chat completions adapter** to match your model's format (for Mistral Nemo-based models such as NemoMix, pick the Mistral/Nemo adapter). If the console says "Chat template heuristics failed… Alpaca will be used", the model is being prompted in the wrong format and quality will suffer. Using a hosted model instead? Skip this step; you only need an API key (see below).
 2. Double-click `start.bat` (Windows) or run `./start.sh`. This serves the folder at http://localhost:8000 (using Node if installed, otherwise Python) and opens your browser. With Node you can also run `npm run serve`.
 3. On your first visit, a short setup asks how you want to run the model (hosted, KoboldCpp, or both), checks whether KoboldCpp is running, and opens Settings where you finish up. **Settings → Setup guide** brings it back.
-4. Pick a scenario, press **New game**, and type what you do.
+4. Pick a world (and, if it has more than one, where you start), press **New game**, and type what you do.
 
 No Python? Open `index.html` directly and use **Open folder** to pick the `scenarios` folder (or a single world folder).
 
@@ -81,7 +81,7 @@ Then add the folder to `scenarios/index.json` (only needed when running with the
 
 **Character files** hold who the person is: `id`, `name`, `pronouns`, `role`, `age`, `traits`, `want`, `secret`, `guard` (`low`, `medium` or `high`: how hard the secret is to crack), `voice`, `skills` (0–4), `relations` (id → −100..100, how they feel about that person). They may also hold `needs` (0–1), `status` `{health, location, conditions}` and `knows` (private starting facts) as defaults for every start.
 
-The full spec, including the merge rules, is [docs/WORLDS.md](docs/WORLDS.md). For now **New game** plays a world's first start; choosing a start comes with the picker update.
+The full spec, including the merge rules, is [docs/WORLDS.md](docs/WORLDS.md). The game lists every start under the world picker; a start with mistakes in it is marked "(has errors)" and shows why.
 
 **Older scenario folders** (one `scenario.json` + `characters/`, no `world.json`) still load, as a world with a single start. `scenario.json` has the world and start fields together, with `characters` as the cast.
 

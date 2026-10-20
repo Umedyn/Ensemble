@@ -11,9 +11,12 @@
 <header class="topbar">
   <div class="brand">Ensemble</div>
   <div class="group">
-    <select id="scenarioSelect" title="Scenario"></select>
+    <div class="pickers">
+      <select id="scenarioSelect" title="World" aria-label="World"></select>
+      <select id="startSelect" class="hidden" title="Where you start" aria-label="Start"></select>
+    </div>
     <button id="btnNew">New game</button>
-    <label class="btn desktop-only" title="Load scenario folders from disk (pick one scenario folder or the whole scenarios folder)">Open folder<input type="file" id="folderInput" webkitdirectory directory multiple hidden></label>
+    <label class="btn desktop-only" title="Load worlds from disk (pick one world folder or the whole scenarios folder)">Open folder<input type="file" id="folderInput" webkitdirectory directory multiple hidden></label>
   </div>
   <div class="spacer"></div>
   <div class="group">
@@ -23,13 +26,14 @@
     <button id="btnDebug">Debug</button>
     <button id="btnSettings">Settings</button>
   </div>
+  <div id="pickInfo" class="pick-info desktop-only"></div>
 </header>
 
 <main class="layout">
   <section class="story">
     <div id="sceneBar" class="scene-bar"></div>
     <div id="log" class="log">
-      <div class="empty">Pick a scenario and press <b>New game</b>.<br>First time? Open <b>Settings</b> and connect a model: KoboldCpp on your computer, or an API key (for example OpenRouter).</div>
+      <div class="empty">Pick a world and press <b>New game</b>.<br>First time? Open <b>Settings</b> and connect a model: KoboldCpp on your computer, or an API key (for example OpenRouter).</div>
     </div>
     <form id="actionForm" class="action">
       <textarea id="actionInput" rows="3" placeholder="What do you do? (Ctrl+Enter to act)"></textarea>

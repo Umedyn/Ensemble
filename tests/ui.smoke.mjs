@@ -44,6 +44,8 @@ async function check(name, fn) {
   }
 }
 
+const sceneReady = (page) => page.waitForFunction(() => document.getElementById('sceneBar').textContent.trim() !== '');
+
 // Act is only enabled at the end of a scene or after choosing "Step in here",
 // so unless a test picked a step-in point, read the scene to the end first.
 const turnDone = (page) => page.waitForFunction(() => !document.getElementById('btnNew').disabled, null, { timeout: 15000 });
@@ -271,6 +273,66 @@ await check('phone layout', async (page) => {
   await page.waitForTimeout(350);
   const side = await page.locator('#side').boundingBox();
   assert.ok(side.y < 844 * 0.5, 'situation sheet slides up');
+});
+
+await check('pick a world, then a start, and play a turn', async (page) => {
+  assert.equal(await page.inputValue('#scenarioSelect'), 'server:mars-station');
+  assert.ok(await page.isVisible('#startSelect'), 'Ares Deep has two starts');
+  assert.equal(await page.inputValue('#startSelect'), 'recycler', 'the default start is selected');
+  assert.match(await page.textContent('#pickInfo'), /Kit Navarro/);
+  await page.selectOption('#startSelect', 'garage');
+  assert.match(await page.textContent('#pickInfo'), /Priya Raman/);
+  await page.click('#btnNew');
+  await sceneReady(page);
+  assert.match(await page.textContent('#sceneBar'), /Ares Deep \(Sol 214: the Mule\).*Rover Garage/);
+  assert.match(await page.textContent('#log'), /battery pack/, "Priya's opening");
+  await act(page, 'Look around.');
+  assert.equal(await page.locator('.entry.action').count(), 1);
+  // remembered after a reload
+  await page.reload();
+  await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
+  assert.equal(await page.inputValue('#startSelect'), 'garage');
+  // a world with one start skips the start step
+  await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+  assert.ok(!(await page.isVisible('#startSelect')), 'one start: no start picker');
+  assert.match(await page.textContent('#pickInfo'), /Jordan Pike/);
+});
+
+await check('a broken start shows its error in the picker instead of starting', async (page) => {
+  await page.route('**/scenarios/mars-station/starts/garage.json', async (route) => {
+    const res = await route.fetch();
+    const st = await res.json();
+    st.cast.find((c) => c.id === 'raman').status.location = 'orbit';
+    await route.fulfill({ response: res, json: st });
+  });
+  await page.reload();
+  await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
+  await page.selectOption('#startSelect', 'garage');
+  assert.match(await page.textContent('#startSelect option[value="garage"]'), /has errors/);
+  assert.match(await page.textContent('#pickInfo'), /can't be played[\s\S]*unknown location "orbit"/);
+  const dialog = page.waitForEvent('dialog');
+  await page.click('#btnNew');
+  const d = await dialog;
+  assert.match(d.message(), /unknown location "orbit"/);
+  await d.accept();
+  assert.equal(await page.locator('.entry').count(), 0, 'no game started');
+  await page.selectOption('#startSelect', 'recycler');
+  await page.click('#btnNew');
+  await sceneReady(page);
+  assert.match(await page.textContent('#sceneBar'), /Commons/, 'the other start still plays');
+});
+
+await check('phone: pick a world and a start, and play a turn', async (page) => {
+  const world = await page.locator('#scenarioSelect').boundingBox();
+  const start = await page.locator('#startSelect').boundingBox();
+  assert.ok(start && start.y > world.y && start.x + start.width <= 390, 'two stacked selects, on screen');
+  assert.ok(!(await page.isVisible('#pickInfo')), 'no summaries on a phone');
+  await page.selectOption('#startSelect', 'garage');
+  await page.click('#btnNew');
+  await sceneReady(page);
+  assert.match(await page.textContent('#sceneBar'), /Rover Garage/);
+  await act(page, 'Look around.');
+  assert.equal(await page.locator('.entry.action').count(), 1);
 });
 
 await browser.close();

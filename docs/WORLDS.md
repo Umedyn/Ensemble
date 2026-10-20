@@ -133,6 +133,8 @@ The bundled `mars-station` and `zombie-holdout` folders were converted in task 1
 
 Phone layout: two stacked selects, nothing more.
 
+As built (task 1-3): two selects in the top bar, the start one hidden when a world has a single start. On desktop a line under them shows the world's title, summary and tags and the picked start's summary; it folds away once a game is running and comes back when either select changes. Server worlds are all loaded when the page opens (so a broken world or start is visible before New game) and the picked one is fetched again at New game, so edited files show up without a reload. A broken world or start is labelled "(has errors)" and the line shows the validation error; New game on it shows the same message and starts nothing. The last world and start are remembered (`ensemble.pick` in `localStorage`). The scene bar shows the world title, with the start title on desktop, and save and recording file names use both titles (`ensemble-ares-deep-sol-214-the-mule-turn3.json`).
+
 ## Reserved fields policy
 
 `S.validateWorld` and `S.validate` **accept and ignore** the reserved fields listed above, so creators can write content before the engine uses it. Unknown fields that aren't reserved are also accepted, but reported as a warning in the console and the Debug panel (a typo like `oppening` shouldn't silently do nothing). Warnings cover `world.json`, start files, cast entries and legacy `scenario.json`; character files aren't checked, since later phases add many character fields. `npm run check` prints them too.

@@ -10,7 +10,7 @@
   let uiShown = 1; // beats of the live scene revealed so far
   const openTurns = new Set(); // folded earlier turns the player has opened
   const notes = []; // undo/reroll history for the Debug panel
-  const loaded = new Map(); // key -> loaded world (from disk) or {folder} (from server, fetched at New game)
+  const loaded = new Map(); // worlds in the picker; see "worlds and starts"
 
   // ---------- storage helpers (never fatal) ----------
   const store = {
@@ -41,7 +41,19 @@
     return { ok, context: ctx };
   }
 
-  // ---------- scenarios ----------
+  // ---------- worlds and starts ----------
+  // loaded: key ("server:<folder>" or "disk:<folder>") -> a loaded world
+  // (Scenario.prepareWorld) or { folder, title, error } when it failed to load.
+  // The last pick is remembered across visits.
+  const PICK_KEY = 'ensemble.pick';
+  function rememberedPick() {
+    try { return JSON.parse(store.get(PICK_KEY)) || {}; } catch (e) { return {}; }
+  }
+  function rememberPick() {
+    store.set(PICK_KEY, JSON.stringify({ world: $('scenarioSelect').value, start: $('startSelect').value }));
+  }
+
+  const worldLabel = (w) => (w.error ? `${w.title} (has errors)` : w.title);
   function addScenarioOption(key, title, select) {
     const sel = $('scenarioSelect');
     let opt = Array.from(sel.options).find((o) => o.value === key);
@@ -50,24 +62,62 @@
     if (select) sel.value = key;
   }
 
+  // Fills the start select for the picked world. With one start (or none
+  // usable) it stays hidden and New game plays the default.
+  function renderStarts(preferred) {
+    const w = loaded.get($('scenarioSelect').value);
+    const sel = $('startSelect');
+    const starts = w && w.starts ? w.starts : [];
+    sel.innerHTML = starts.map((s) => `<option value="${esc(s.id)}">${esc(s.title)}${s.error ? ' (has errors)' : ''}</option>`).join('');
+    sel.value = starts.some((s) => s.id === preferred) ? preferred : (w && w.defaultStart) || '';
+    sel.classList.toggle('hidden', starts.length < 2);
+    renderPickInfo();
+  }
+
+  // Desktop line under the pickers: the world's summary and tags, then who
+  // you are in the picked start, or why it won't load.
+  function renderPickInfo() {
+    const w = loaded.get($('scenarioSelect').value);
+    if (!w) { $('pickInfo').innerHTML = ''; return; }
+    if (w.error) { $('pickInfo').innerHTML = `<span class="fail">${esc(w.error)}</span>`; return; }
+    const st = w.starts.find((s) => s.id === $('startSelect').value);
+    const tags = (w.tags || []).map((t) => `<span class="tag">${esc(t)}</span>`).join('');
+    const start = !st ? '' : st.error
+      ? `<br><span class="fail">This start can't be played: ${esc(st.error)}</span>`
+      : st.summary ? `<br>${w.starts.length > 1 ? `<b>${esc(st.title)}:</b> ` : ''}${esc(st.summary)}` : '';
+    $('pickInfo').innerHTML = `<b>${esc(w.title)}</b>${w.summary ? ' · ' + esc(w.summary) : ''}${tags}${start}`;
+  }
+
+  // The summary line shows while picking and folds away once a game is running.
+  const showPickInfo = (on) => $('pickInfo').classList.toggle('hidden', !on);
+  $('scenarioSelect').addEventListener('change', () => { renderStarts(); rememberPick(); showPickInfo(true); });
+  $('startSelect').addEventListener('change', () => { renderPickInfo(); rememberPick(); showPickInfo(true); });
+
+  // Server worlds load up front so the picker can show their summaries and starts.
   async function loadServerList() {
     if (location.protocol === 'file:') {
       addScenarioOption('', '— use Open folder —', true);
       return;
     }
-    try {
-      const list = await E.Scenario.listServer();
-      list.forEach((s) => { loaded.set('server:' + s.folder, { folder: s.folder }); addScenarioOption('server:' + s.folder, s.title); });
-    } catch (e) {
-      addScenarioOption('', '— no scenarios/index.json —', true);
-    }
+    let list;
+    try { list = await E.Scenario.listServer(); }
+    catch (e) { addScenarioOption('', '— no scenarios/index.json —', true); return; }
+    const worlds = await Promise.all(list.map((s) => E.Scenario.loadWorldServer(s.folder)
+      .catch((e) => ({ folder: s.folder, title: s.title, error: e.message }))));
+    // Options appear once every world is loaded, in index.json order.
+    worlds.forEach((w, i) => { loaded.set('server:' + list[i].folder, w); addScenarioOption('server:' + list[i].folder, worldLabel(w)); });
+    const pick = rememberedPick();
+    if (pick.world && loaded.has(pick.world)) $('scenarioSelect').value = pick.world;
+    renderStarts(pick.world === $('scenarioSelect').value ? pick.start : null);
   }
 
-  // The picked world; New game plays its default start (task 1-3 adds choosing one).
+  // The picked world, fetched again from the server so edited files show up
+  // without a reload. Throws a world's load error.
   async function resolveWorld(key) {
     const item = loaded.get(key);
-    if (!item) throw new Error('Pick a scenario first (or use Open folder).');
-    const world = item.starts ? item : await E.Scenario.loadWorldServer(item.folder);
+    if (!item) throw new Error('Pick a world first (or use Open folder).');
+    if (item.error) throw new Error(item.error);
+    const world = key.startsWith('server:') ? await E.Scenario.loadWorldServer(item.folder) : item;
     if (world.warnings.length) console.warn(`World "${world.title}":\n` + world.warnings.join('\n'));
     return world;
   }
@@ -77,7 +127,9 @@
     try {
       const { worlds, errors } = await E.Scenario.loadFromFiles(ev.target.files);
       worlds.forEach((w, i) => { loaded.set('disk:' + w.folder, w); addScenarioOption('disk:' + w.folder, w.title + ' (disk)', i === 0); });
-      if (errors.length) alert('Some scenarios were skipped:\n\n' + errors.join('\n\n'));
+      renderStarts();
+      rememberPick();
+      if (errors.length) alert('Some worlds were skipped:\n\n' + errors.join('\n\n'));
     } catch (e) {
       alert(e.message);
     }
@@ -90,7 +142,9 @@
     if (state && state.turn > 0 && !confirm('Start a new game? Unsaved progress will be lost.')) return;
     try {
       const world = await resolveWorld($('scenarioSelect').value);
-      state = E.Engine.newGame(E.Scenario.startScenario(world));
+      state = E.Engine.newGame(E.Scenario.startScenario(world, $('startSelect').value || undefined));
+      rememberPick();
+      showPickInfo(false);
       uiCut = null;
       uiShown = 1;
       openTurns.clear();
@@ -107,6 +161,12 @@
     }
   });
 
+  // File names: world and start titles, e.g. "ares-deep-sol-214-the-mule".
+  function gameSlug(sc) {
+    const slug = (t) => String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    return [sc.worldTitle || sc.title, sc.startTitle].map(slug).filter(Boolean).join('-') || slug(sc.folder || sc.id) || 'game';
+  }
+
   function autosave() { if (state) store.set('ensemble.autosave', JSON.stringify(state)); }
 
   function download(name, obj) {
@@ -121,7 +181,7 @@
   $('btnSave').addEventListener('click', () => {
     if (!state) return;
     // The undo snapshot is a second copy of the game; save files leave it out.
-    download(`ensemble-${state.scenario.folder || state.scenario.id}-turn${state.turn}.json`, Object.assign({}, state, { undo: undefined }));
+    download(`ensemble-${gameSlug(state.scenario)}-turn${state.turn}.json`, Object.assign({}, state, { undo: undefined }));
   });
 
   // ---------- recorder (Debug) ----------
@@ -148,7 +208,7 @@
     const f = E.Recorder.fixture();
     if (!f) return;
     const sc = f.start.scenario || {};
-    download(`ensemble-recording-${sc.folder || sc.id || 'game'}-${f.recorded.slice(0, 16).replace(/[:T]/g, '-')}.json`, f);
+    download(`ensemble-recording-${gameSlug(sc)}-${f.recorded.slice(0, 16).replace(/[:T]/g, '-')}.json`, f);
   });
 
   $('loadInput').addEventListener('change', async (ev) => {
@@ -160,6 +220,7 @@
       if (!s.scenario || !s.characters || !s.player) throw new Error('That file is not an Ensemble save.');
       stopRecording();
       state = E.Engine.migrate(s);
+      showPickInfo(false);
       openTurns.clear();
       uiCut = null;
       uiShown = 1;
@@ -441,7 +502,7 @@
     const pc = state.characters[state.player];
     const loc = state.locations[pc.status.location];
     const present = E.Engine.present(state).map(nm);
-    $('sceneBar').innerHTML = `<b>${esc(E.fmtTime(state))}</b> · ${esc(state.scenario.title)} · You are in <b>${esc(loc ? loc.name : '?')}</b>` +
+    $('sceneBar').innerHTML = `<b>${esc(E.fmtTime(state))}</b> · ${esc(state.scenario.worldTitle || state.scenario.title)}${state.scenario.startTitle ? `<span class="desktop-only"> (${esc(state.scenario.startTitle)})</span>` : ''} · You are in <b>${esc(loc ? loc.name : '?')}</b>` +
       (present.length ? ` with ${esc(present.join(', '))}` : ', alone') + ` · Chapter ${state.chapter}, turn ${state.turn}`;
   }
 
@@ -774,6 +835,7 @@
     if (saved) {
       try {
         state = E.Engine.migrate(JSON.parse(saved));
+        showPickInfo(false);
         renderAll();
       } catch (e) { state = null; }
     }

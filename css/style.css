@@ -31,6 +31,12 @@ button:disabled { opacity: .5; cursor: default; }
 .brand { font-family: var(--serif); font-size: 18px; letter-spacing: .5px; color: var(--accent); }
 .group { display: flex; gap: 6px; align-items: center; }
 .conn { font-size: 12px; }
+.pickers { display: flex; gap: 6px; min-width: 0; }
+.pickers select { max-width: 260px; }
+.pick-info { flex-basis: 100%; font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+.pick-info:empty { display: none; }
+.pick-info b { color: var(--text); font-weight: 600; }
+.pick-info .tag { display: inline-block; border: 1px solid var(--line); border-radius: 9px; padding: 0 7px; margin-left: 4px; font-size: 11.5px; }
 .conn.on { color: var(--good); }
 .conn.off { color: var(--bad); }
 
@@ -165,7 +171,8 @@ dialog { max-height: 90dvh; overflow-y: auto; }
   .topbar .spacer, .brand { display: none; }
   .group { gap: 4px; flex: 1 1 100%; min-width: 0; }
   .group button, .group .btn { padding: 4px 9px; font-size: 14px; }
-  #scenarioSelect { flex: 1; min-width: 0; font-size: 14px; }
+  .pickers { flex: 1; min-width: 0; flex-direction: column; gap: 4px; }
+  .pickers select { max-width: none; width: 100%; min-width: 0; font-size: 14px; }
   .conn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; }
   .layout { grid-template-columns: minmax(0, 1fr); }
   .story { border-right: none; }
