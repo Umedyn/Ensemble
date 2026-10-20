@@ -87,7 +87,7 @@ The longer the step, the more the narrator may fill in for the player, but never
 - **Regional**: the surroundings (terrain, weather, nearby places). Default about one per 18 in-game hours on Mars, 4-hour cooldown.
 - **World**: broad shifts far away (money, politics, disasters). Default about one per 96 hours, 24-hour cooldown.
 
-The engine decides when bigger events are due; the model only writes them, guided by `eventSeeds`. Effects can change world status, a group's stance, clock values, or add a new clock (at most 5 active). Visibility is seen (in the player's room), heard (a sound, call or message) or hidden (private knowledge for those involved; changes nothing public).
+The engine decides when bigger events are due; the model only writes them, guided by `eventSeeds`. Effects can change world status, a group's stance, clock values, or add a new clock (at most 5 active). Each effect is one entry in the `EFFECTS` table in `engine.js` (keyed by the payload field: `world`, `groups`, `clocks`, `new_clock`); a handler validates its own item and returns a news line or a rejection. Rejected items and unknown effect fields show in Debug as "effect rejected"; a new effect is a new table entry plus its line in the prompts' effect shape. Visibility is seen (in the player's room), heard (a sound, call or message) or hidden (private knowledge for those involved; changes nothing public).
 
 ## Downtime skip
 

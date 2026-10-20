@@ -137,7 +137,7 @@ Small changes to make whenever you're editing nearby code anyway.
 - [ ] **Let `Scenario.validate` accept and ignore future fields** (`tags`, `portrait`, `region`, `tier`, `lore`) instead of rejecting them, so new content can be authored before the engine uses it.
 - [ ] **Keep prompt sections as named builder functions** (setting block, cast block, facts block, scene block) so lore, regions and genre guidance can be added as new blocks without reordering the header.
 - [ ] **Generate card markup from one function per section** (header, mood/tags, needs, details) so phase 1's card redesign is a swap, not a rewrite.
-- [ ] **Keep every event effect in `applyEffects`** (`engine.js`), which already handles both normal and skip events. Turn its body into a table of effect handlers so `control`, `addTag` and agenda effects can be added as entries.
+- [x] **Keep every event effect in `applyEffects`** (`engine.js`), which already handles both normal and skip events. Turn its body into a table of effect handlers so `control`, `addTag` and agenda effects can be added as entries.
 - [ ] **Keep ids opaque and stable.** Never derive behaviour from an id's text, since generated content will have ids like `extra-3`.
 - [ ] **Keep display text out of the engine.** Labels like "on edge" come from scenario or default tables, so genres can retheme them.
 

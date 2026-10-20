@@ -242,6 +242,25 @@ test('event tiers: regional/world only when due, effects applied, extras dropped
   assert.equal(state.news.length, 1);
 });
 
+test('unknown or invalid event effects are rejected and reported in Debug, valid ones still apply', () => {
+  const { E, state } = newGame();
+  const before = state.clocks.length;
+  const res = E.Engine.resolve(state, intentOf({ player: {}, intents: [], events: [
+    { scope: 'world', text: 'Halvorsen announces layoffs.', visibility: 'heard',
+      effects: { world: [{ key: 'comms', value: 'jammed' }, { key: 'toString', value: 'x' }], morale: [{ value: -2 }],
+        groups: [{ id: 'nobody', stance: 'angry' }], clocks: { id: 'storm', delta: 2 }, new_clock: null } },
+  ] }), PRESENT, 'Ask Teo.', 'hour', { world: true });
+  assert.equal(state.world.comms, 'jammed');
+  assert.equal(state.clocks.length, before);
+  assert.deepEqual([...res.director[0].effects], ['comms: jammed']);
+  const rejected = [...res.guards].filter((g) => g.type === 'effect rejected').map((g) => g.detail);
+  assert.ok(rejected.some((d) => /^morale: unknown effect/.test(d)));
+  assert.ok(rejected.some((d) => /world: unknown world key "toString"/.test(d)));
+  assert.ok(rejected.some((d) => /groups: unknown group "nobody"/.test(d)));
+  assert.ok(rejected.some((d) => /clocks: not a list/.test(d)));
+  assert.equal(rejected.length, 4);
+});
+
 test('hidden events become private knowledge and change nothing public', () => {
   const { E, state } = newGame();
   E.Engine.resolve(state, intentOf({ player: {}, intents: [], events: [

@@ -198,39 +198,89 @@
     return due;
   };
 
-  // Concrete consequences of bigger events: world status, group stance,
-  // pressure clocks, and occasionally a new pressure.
-  function applyEffects(state, eff, scope) {
-    const done = [];
-    if (!eff || typeof eff !== 'object') return done;
-    (Array.isArray(eff.world) ? eff.world : []).slice(0, 3).forEach((w) => {
-      if (w && w.key in state.world && w.value) { state.world[w.key] = String(w.value).slice(0, 120); done.push(`${w.key}: ${state.world[w.key]}`); }
-    });
-    (Array.isArray(eff.groups) ? eff.groups : []).slice(0, 2).forEach((g) => {
-      const f = g && (state.factions || []).find((x) => x.id === g.id);
-      if (f && g.stance) { f.stance = String(g.stance).slice(0, 140); done.push(`${f.name}: ${f.stance}`); }
-    });
-    (Array.isArray(eff.clocks) ? eff.clocks : []).slice(0, 2).forEach((c) => {
-      const cl = c && state.clocks.find((x) => x.id === c.id);
-      if (!cl || cl.fired) return;
-      const d = E.clamp(Number(c.delta) || 0, -cl.max / 2, cl.max / 2);
-      if (!d) return;
-      cl.value = E.clamp(cl.value + d, 0, cl.max);
-      done.push(`${cl.name} ${d > 0 ? '+' : ''}${d}`);
-    });
-    const nc = eff.new_clock;
-    if (nc && nc.name && state.clocks.filter((c) => !c.fired).length < 5) {
-      const id = String(nc.name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24) || 'pressure';
-      if (!state.clocks.find((c) => c.id === id)) {
+  // Concrete consequences of bigger events, as a table keyed by the payload
+  // field the prompts ask for. Each handler checks one item and returns a
+  // display line (shown in the news), { reject: why } (reported in Debug), or
+  // null when there is nothing to do. list: the field holds up to max items;
+  // otherwise it holds one object. Handlers run in table order.
+  const reject = (why) => ({ reject: why });
+  const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+  const EFFECTS = {
+    world: {
+      list: true, max: 3,
+      apply(state, w) {
+        if (!w || !own(state.world, w.key)) return reject(`unknown world key "${w && w.key}"`);
+        if (!w.value) return reject(`no value for ${w.key}`);
+        state.world[w.key] = String(w.value).slice(0, 120);
+        return `${w.key}: ${state.world[w.key]}`;
+      },
+    },
+    groups: {
+      list: true, max: 2,
+      apply(state, g) {
+        const f = g && (state.factions || []).find((x) => x.id === g.id);
+        if (!f) return reject(`unknown group "${g && g.id}"`);
+        if (!g.stance) return reject(`no stance for ${g.id}`);
+        f.stance = String(g.stance).slice(0, 140);
+        return `${f.name}: ${f.stance}`;
+      },
+    },
+    clocks: {
+      list: true, max: 2,
+      apply(state, c) {
+        const cl = c && state.clocks.find((x) => x.id === c.id);
+        if (!cl) return reject(`unknown clock "${c && c.id}"`);
+        if (cl.fired) return reject(`${cl.id} has already fired`);
+        const d = E.clamp(Number(c.delta) || 0, -cl.max / 2, cl.max / 2);
+        if (!d) return null;
+        cl.value = E.clamp(cl.value + d, 0, cl.max);
+        return `${cl.name} ${d > 0 ? '+' : ''}${d}`;
+      },
+    },
+    new_clock: {
+      apply(state, nc, scope) {
+        if (!nc.name) return reject('new pressure has no name');
+        if (state.clocks.filter((c) => !c.fired).length >= 5) return reject(`too many pressures already for "${nc.name}"`);
+        const id = String(nc.name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24) || 'pressure';
+        if (state.clocks.find((c) => c.id === id)) return reject(`pressure "${id}" already exists`);
         state.clocks.push({
           id, name: String(nc.name).slice(0, 40), value: 0,
           max: E.clamp(Math.round(Number(nc.max) || 8), 4, 12),
           perHour: E.clamp(Number(nc.perHour) || 0.2, 0.05, 1),
           fireText: String(nc.fireText || `${nc.name} comes to a head.`).slice(0, 220), fired: false, from: scope,
         });
-        done.push(`new pressure: ${nc.name}`);
+        return `new pressure: ${nc.name}`;
+      },
+    },
+  };
+  Eng.EFFECTS = EFFECTS;
+
+  // Applies an event's effects. Returns the display lines; rejections become
+  // 'effect rejected' guards on res.
+  function applyEffects(state, eff, scope, res) {
+    const done = [];
+    if (!eff || typeof eff !== 'object') return done;
+    const no = (key, why) => guard(res, 'resolve', 'effect rejected', `${key}: ${why}`);
+    Object.keys(EFFECTS).forEach((key) => {
+      const h = EFFECTS[key];
+      const v = eff[key];
+      if (v == null) return;
+      let items;
+      if (h.list) {
+        if (!Array.isArray(v)) return no(key, 'not a list');
+        items = v.slice(0, h.max);
+        if (v.length > h.max) no(key, `only ${h.max} allowed, dropped ${v.length - h.max}`);
+      } else {
+        if (typeof v !== 'object' || Array.isArray(v)) return no(key, 'not an object');
+        items = [v];
       }
-    }
+      items.forEach((it) => {
+        const out = h.apply(state, it, scope);
+        if (out && out.reject) no(key, out.reject);
+        else if (out) done.push(out);
+      });
+    });
+    Object.keys(eff).filter((k) => !own(EFFECTS, k)).forEach((k) => no(k, 'unknown effect'));
     return done;
   }
 
@@ -263,7 +313,7 @@
         moved.push(`${state.characters[m.id].name} → ${state.locations[to].name}`);
       });
       // Hidden big events stay hidden: no public status changes, only private knowledge.
-      const effects = scope !== 'local' && vis !== 'hidden' ? applyEffects(state, ev.effects, scope) : [];
+      const effects = scope !== 'local' && vis !== 'hidden' ? applyEffects(state, ev.effects, scope, res) : [];
       if (scope !== 'local') state.tierLast[scope] = absHours(state);
       const tag = scope === 'local' ? '' : `[${scope}] `;
       if (vis === 'hidden') {
@@ -761,7 +811,7 @@
       const m = obj.major_event && typeof obj.major_event.text === 'string' ? obj.major_event : { text: 'Something goes badly wrong, and the routine ends.' };
       const text = m.text.trim().slice(0, 240);
       const scope = ['regional', 'world'].includes(m.scope) ? m.scope : 'local';
-      const effects = applyEffects(state, m.effects, scope);
+      const effects = applyEffects(state, m.effects, scope, res);
       res.events.push(`[major] ${text}`);
       E.Memory.addFact(state, { about: (m.who || []).filter((id) => state.characters[id]), text, known_by: ['all'], weight: 3 });
       if (scope !== 'local') { state.news.push({ scope, text, time: E.fmtTime(state), effects }); state.tierLast[scope] = absHours(state); }
