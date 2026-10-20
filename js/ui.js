@@ -465,7 +465,7 @@
   function renderCast() {
     $('castTitle').textContent = state.scenario.castLabel || 'People';
     const here = state.characters[state.player].status.location;
-    $('cast').innerHTML = state.order.map((id) => {
+    $('cast').innerHTML = E.Engine.cast(state).map((id) => {
       const c = state.characters[id];
       const isPlayer = id === state.player;
       const dead = c.status.health === 'dead';

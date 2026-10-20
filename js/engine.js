@@ -64,10 +64,23 @@
     (res.guards = res.guards || []).push({ stage, type, detail: String(detail || '').replace(/\s+/g, ' ').trim().slice(0, 200) });
   };
 
+  // Cast lists. Everything that lists characters goes through these (ids in
+  // state.order), so cast tiers and standees only change them here. Lookups by
+  // id stay state.characters[id].
   Eng.alive = (state, id) => state.characters[id] && state.characters[id].status.health !== 'dead';
-  Eng.present = (state) => {
-    const here = state.characters[state.player].status.location;
-    return state.order.filter((id) => id !== state.player && Eng.alive(state, id) && state.characters[id].status.location === here);
+  Eng.cast = (state, opts) => {
+    const { alive = false, includePlayer = true } = opts || {};
+    return state.order.filter((id) => (includePlayer || id !== state.player) && (!alive || Eng.alive(state, id)));
+  };
+  // Living non-player characters at a location (default: where the player is).
+  Eng.present = (state, loc) => {
+    const here = loc || state.characters[state.player].status.location;
+    return Eng.cast(state, { alive: true, includePlayer: false }).filter((id) => state.characters[id].status.location === here);
+  };
+  // Living non-player characters not in the scene (default: not with the player).
+  Eng.offstage = (state, present) => {
+    present = present || Eng.present(state);
+    return Eng.cast(state, { alive: true, includePlayer: false }).filter((id) => !present.includes(id));
   };
 
   // ---------- resolution ----------
@@ -299,7 +312,7 @@
       // Someone named who is heading the same way this turn counts as being there.
       const goingThere = (id) => (list.find((it) => it.id === id) || {}).moveTo === p.moveTo;
       const statesMove = PLAYER_MOVES.test(String(actionText || '')) || about.some(goingThere) ||
-        state.order.some((id) => id !== state.player && !present.includes(id) && state.characters[id].status.location === p.moveTo && mentions(actionText, state.characters[id]));
+        Eng.cast(state, { includePlayer: false }).some((id) => !present.includes(id) && state.characters[id].status.location === p.moveTo && mentions(actionText, state.characters[id]));
       if (about.length && !statesMove && about.every((id) => state.characters[id].status.location !== p.moveTo)) {
         guard(res, 'resolve', 'move cancelled', `model moved the player to ${p.moveTo}; the action is about ${about.map((id) => state.characters[id].name).join(', ')}, who is here`);
         p.moveTo = null;
@@ -344,9 +357,8 @@
     state.time.hour += hours;
     while (state.time.hour >= 24) { state.time.hour -= 24; state.time.day += 1; }
     state.scenario.needs.forEach((n) => {
-      state.order.forEach((id) => {
+      Eng.cast(state, { alive: true }).forEach((id) => {
         const c = state.characters[id];
-        if (c.status.health === 'dead') return;
         const v = c.needs[n.id] || 0;
         c.needs[n.id] = routine
           ? E.clamp(0.35 + (v - 0.35) * Math.exp(-hours / 24), 0, 1)
@@ -401,7 +413,7 @@
   Eng.applyUpdate = function (state, upd, present, ctx) {
     ctx = ctx || {};
     const report = { applied: [], rejected: [] };
-    const ids = new Set(state.order);
+    const ids = new Set(Eng.cast(state));
     const reject = (what, why) => report.rejected.push(`${what} — ${why}`);
     const witnesses = [state.player].concat(present);
 
@@ -632,7 +644,7 @@
 
   const timeSnapshot = (state) => ({
     time: E.clone(state.time),
-    needs: E.clone(state.order.map((id) => state.characters[id].needs)),
+    needs: E.clone(Eng.cast(state).map((id) => state.characters[id].needs)),
     clocks: state.clocks.map((c) => ({ value: c.value, fired: c.fired })),
   });
 
@@ -641,7 +653,7 @@
   // (the scene is built around it). Returns true when time changed.
   const restoreTime = (state, snap) => {
     state.time = E.clone(snap.time);
-    state.order.forEach((id, i) => { state.characters[id].needs = E.clone(snap.needs[i]); });
+    Eng.cast(state).forEach((id, i) => { state.characters[id].needs = E.clone(snap.needs[i]); });
     state.clocks.forEach((c, i) => { if (snap.clocks[i]) c.value = snap.clocks[i].value; });
   };
 
@@ -778,7 +790,7 @@
     state.log.push({ turn: state.turn, type: 'scene', text, beats, startDay: pre.time.day, startMinutes: Math.round(pre.time.hour * 60) });
     state.recent = [{ turn: state.turn, action, text }];
     const here = state.characters[state.player].status.location;
-    const witnesses = state.order.filter((id) => id !== state.player && Eng.alive(state, id) && state.characters[id].status.location === here);
+    const witnesses = Eng.present(state);
     frame.startLoc = here;
     state.pending = { turn: state.turn, action: action || 'Keeps to routine through the downtime.', res, frame, present: witnesses, beats, pre, routine: true, narration };
     phase('');

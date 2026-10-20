@@ -7,6 +7,7 @@
   const E = root.Ensemble;
   const P = (E.Prompts = {});
   const Mem = () => E.Memory;
+  const Eng = () => E.Engine;
 
   const name = (state, id) => (state.characters[id] ? state.characters[id].name : id);
 
@@ -34,7 +35,7 @@
       sc.factions.forEach((f) => out.push(`- ${f.id}: ${f.name} — ${f.desc}`));
     }
     out.push('\n=== CAST ===');
-    state.order.forEach((id) => {
+    Eng().cast(state).forEach((id) => {
       const c = state.characters[id];
       const tag = id === state.player ? ' (PLAYER)' : '';
       const bits = [`${c.name}${c.pronouns ? ` (${c.pronouns})` : ''}, ${c.role}${c.age ? ', ' + c.age : ''}.`];
@@ -103,8 +104,7 @@
   function nowBlock(state, present, forNarrator) {
     const pc = state.characters[state.player];
     const loc = state.locations[pc.status.location];
-    const elsewhere = state.order
-      .filter((id) => id !== state.player && !present.includes(id) && state.characters[id].status.health !== 'dead')
+    const elsewhere = Eng().offstage(state, present)
       .map((id) => `${name(state, id)} (${state.locations[state.characters[id].status.location]?.name || '?'})`);
     const lines = [
       `=== NOW: ${E.fmtTime(state)} ===`,
@@ -135,7 +135,7 @@
     due = due || {};
     const sc = state.scenario;
     const out = [nowBlock(state, present, false)];
-    const offstage = state.order.filter((id) => id !== state.player && !present.includes(id) && state.characters[id].status.health !== 'dead');
+    const offstage = Eng().offstage(state, present);
     const priv = [];
     present.forEach((id) => {
       const c = state.characters[id];
@@ -240,7 +240,7 @@ ${intentExample(state, present)}`);
     const endLocId = pc.status.location;
     const endLoc = state.locations[endLocId];
     const moved = endLocId !== frame.startLoc;
-    const nowHere = state.order.filter((id) => id !== state.player && state.characters[id].status.health !== 'dead' && state.characters[id].status.location === endLocId);
+    const nowHere = Eng().present(state, endLocId);
     const left = presentStart.filter((id) => !nowHere.includes(id));
     const arrived = nowHere.filter((id) => !presentStart.includes(id));
     const out = [];
@@ -318,7 +318,7 @@ Reply with the new beats only.`);
 
   // ---------- downtime skip ----------
   function crewBrief(state, withSecrets) {
-    return state.order.filter((id) => id !== state.player && state.characters[id].status.health !== 'dead').map((id) => {
+    return Eng().cast(state, { alive: true, includePlayer: false }).map((id) => {
       const c = state.characters[id];
       const loc = state.locations[c.status.location];
       const rel = c.relations[state.player] || 0;
@@ -357,7 +357,7 @@ Reply with JSON only:
 Guidelines:
 - montage: 2 to 4 moments in order, spread across the downtime ("after" = time since it began, like "3d" or "10h"). How people pass the time, relationships shifting, small incidents, secrets being worked on. ${pc.name} follows their plan and their feelings.
 - events: 0 to 2 newsworthy things during the downtime, with concrete effects for regional/world ones (use only existing ids/keys: world ${Object.keys(state.world).join(', ')}; groups ${(state.factions || []).map((f) => f.id).join(', ') || 'none'}; clocks ${state.clocks.filter((c) => !c.fired).map((c) => c.id).join(', ') || 'none'}).
-- positions: one entry for EVERY other character: ${state.order.filter((id) => id !== state.player && state.characters[id].status.health !== 'dead').join(', ')}. Locations: ${Object.keys(state.locations).join(', ')}.
+- positions: one entry for EVERY other character: ${Eng().cast(state, { alive: true, includePlayer: false }).join(', ')}. Locations: ${Object.keys(state.locations).join(', ')}.
 - player_where: where ${pc.name} is when it hits, consistent with their plan.`);
     return out.join('\n');
   };
@@ -366,7 +366,7 @@ Guidelines:
     const pc = state.characters[state.player];
     const here = pc.status.location;
     const loc = state.locations[here];
-    const present = state.order.filter((id) => id !== state.player && state.characters[id].status.health !== 'dead' && state.characters[id].status.location === here);
+    const present = Eng().present(state, here);
     const useDays = frame.days >= 2;
     const endMark = useDays ? `[+${frame.days}d]` : `[+${Math.round(frame.days * 24)}h]`;
     const out = [];
@@ -401,7 +401,7 @@ Reply with the beats only.`);
     const sc = state.scenario;
     const out = [];
     out.push(`=== VALID IDS ===
-characters: ${state.order.join(', ')}
+characters: ${Eng().cast(state).join(', ')}
 locations: ${Object.keys(state.locations).join(', ')}
 world keys: ${Object.keys(state.world).join(', ') || '(none)'}
 groups: ${(state.factions || []).map((f) => f.id).join(', ') || '(none)'}

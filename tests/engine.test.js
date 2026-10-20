@@ -20,6 +20,21 @@ test('every bundled scenario validates and starts', () => {
   }
 });
 
+test('cast helpers list ids in cast order: everyone, the living, present and offstage', () => {
+  const { E, state } = newGame();
+  state.characters.sorensen.status.location = 'ops';
+  state.characters.bauer.status.health = 'dead';
+  const Eng = E.Engine;
+  assert.deepEqual([...Eng.cast(state)], [...state.order]);
+  assert.ok(Eng.cast(state, { alive: true }).includes('navarro'));
+  assert.ok(!Eng.cast(state, { alive: true }).includes('bauer'));
+  assert.ok(!Eng.cast(state, { includePlayer: false }).includes('navarro'));
+  assert.deepEqual([...Eng.present(state)], ['okafor']);
+  assert.deepEqual([...Eng.present(state, 'ops')], ['sorensen']);
+  assert.deepEqual([...Eng.offstage(state)], ['sorensen', 'raman'], 'the dead are neither present nor offstage');
+  assert.deepEqual([...Eng.offstage(state, [])], ['okafor', 'sorensen', 'raman']);
+});
+
 test('scenario validation reports authoring mistakes', () => {
   const E = loadEngine();
   const sc = readScenario('mars-station');
