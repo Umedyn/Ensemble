@@ -135,8 +135,8 @@ Small changes to make whenever you're editing nearby code anyway.
 
 - [x] **Read the cast through helpers.** There are about 70 direct `state.characters` reads across `engine.js`, `prompts.js` and `ui.js`. Add `E.present(state)`, `E.offstage(state)` and `E.cast(state)` in `engine.js` and switch call sites as you touch them, so tiers (phase 2) and standees (phase 3) only change one place.
 - [ ] **Let `Scenario.validate` accept and ignore future fields** (`tags`, `portrait`, `region`, `tier`, `lore`) instead of rejecting them, so new content can be authored before the engine uses it.
-- [ ] **Keep prompt sections as named builder functions** (setting block, cast block, facts block, scene block) so lore, regions and genre guidance can be added as new blocks without reordering the header.
-- [ ] **Generate card markup from one function per section** (header, mood/tags, needs, details) so phase 1's card redesign is a swap, not a rewrite.
+- [x] **Keep prompt sections as named builder functions** (setting block, cast block, facts block, scene block) so lore, regions and genre guidance can be added as new blocks without reordering the header.
+- [x] **Generate card markup from one function per section** (header, mood/tags, needs, details) so phase 1's card redesign is a swap, not a rewrite.
 - [x] **Keep every event effect in `applyEffects`** (`engine.js`), which already handles both normal and skip events. Turn its body into a table of effect handlers so `control`, `addTag` and agenda effects can be added as entries.
 - [ ] **Keep ids opaque and stable.** Never derive behaviour from an id's text, since generated content will have ids like `extra-3`.
 - [ ] **Keep display text out of the engine.** Labels like "on edge" come from scenario or default tables, so genres can retheme them.

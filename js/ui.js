@@ -462,6 +462,8 @@
     ).join('');
   }
 
+  // A cast card is composed from one function per section, in renderCast. Each
+  // section returns its markup, or '' to leave it out.
   function renderCast() {
     $('castTitle').textContent = state.scenario.castLabel || 'People';
     const here = state.characters[state.player].status.location;
@@ -469,28 +471,44 @@
       const c = state.characters[id];
       const isPlayer = id === state.player;
       const dead = c.status.health === 'dead';
-      const loc = state.locations[c.status.location];
+      const sections = [cardHeader(id, c, isPlayer), cardStatus(c), cardNeeds(c, dead), cardDetails(id, c)].filter(Boolean);
+      return `<div class="card ${!isPlayer && c.status.location === here ? 'here' : ''} ${dead ? 'dead' : ''}">${sections.join('')}</div>`;
+    }).join('');
+  }
+
+  // Name, role, how they and you feel about each other, and where they are.
+  function cardHeader(id, c, isPlayer) {
+    const loc = state.locations[c.status.location];
+    let rels = '';
+    if (!isPlayer) {
       const rel = c.relations[state.player] || 0;
       const relW = E.relWord(rel);
-      const needs = state.scenario.needs.map((n) => {
-        const v = c.needs[n.id] || 0;
-        return `<span>${esc(n.label || n.id)}</span><div class="bar ${v >= 0.85 ? 'danger' : ''}"><i style="width:${Math.round(v * 100)}%"></i></div>`;
-      }).join('');
-      const tags = [E.healthWord(c.status.health)].concat(c.status.conditions).map((t) => `<span class="tag">${esc(t)}</span>`).join('');
-      return `<div class="card ${!isPlayer && c.status.location === here ? 'here' : ''} ${dead ? 'dead' : ''}">
-        <div class="top"><div><div class="nm">${esc(c.name)}${isPlayer ? ' (you)' : ''}</div><div class="role">${esc(c.role)}</div></div>
-        ${isPlayer ? '' : (() => {
-          const mine = state.characters[state.player].relations[id] || 0;
-          const myW = E.relWord(mine);
-          const why = (state.characters[state.player].attitudeNotes || {})[id];
-          return `<div class="rels"><div class="rel-${relW}" title="How they feel about you">them: ${relW} ${rel > 0 ? '+' : ''}${rel}</div>` +
-            `<div class="rel-${myW}" title="${esc(why ? 'How you feel about them: ' + why : 'How you feel about them')}">you: ${myW} ${mine > 0 ? '+' : ''}${mine}</div></div>`;
-        })()}</div>
-        <div class="meta">${esc(loc ? loc.name : '?')}</div>
-        <div>${tags}</div>
-        ${dead ? '' : `<div class="needs">${needs}</div>`}
-      </div>`;
-    }).join('');
+      const mine = state.characters[state.player].relations[id] || 0;
+      const myW = E.relWord(mine);
+      const why = (state.characters[state.player].attitudeNotes || {})[id];
+      rels = `<div class="rels"><div class="rel-${relW}" title="How they feel about you">them: ${relW} ${rel > 0 ? '+' : ''}${rel}</div>` +
+        `<div class="rel-${myW}" title="${esc(why ? 'How you feel about them: ' + why : 'How you feel about them')}">you: ${myW} ${mine > 0 ? '+' : ''}${mine}</div></div>`;
+    }
+    return `<div class="top"><div><div class="nm">${esc(c.name)}${isPlayer ? ' (you)' : ''}</div><div class="role">${esc(c.role)}</div></div>${rels}</div>` +
+      `<div class="meta">${esc(loc ? loc.name : '?')}</div>`;
+  }
+
+  // Health and conditions.
+  function cardStatus(c) {
+    return `<div>${[E.healthWord(c.status.health)].concat(c.status.conditions).map((t) => `<span class="tag">${esc(t)}</span>`).join('')}</div>`;
+  }
+
+  function cardNeeds(c, dead) {
+    if (dead) return '';
+    return `<div class="needs">${state.scenario.needs.map((n) => {
+      const v = c.needs[n.id] || 0;
+      return `<span>${esc(n.label || n.id)}</span><div class="bar ${v >= 0.85 ? 'danger' : ''}"><i style="width:${Math.round(v * 100)}%"></i></div>`;
+    }).join('')}</div>`;
+  }
+
+  // Empty for now; the card redesign (task 1-7) fills it.
+  function cardDetails() {
+    return '';
   }
 
   function renderJournal() {

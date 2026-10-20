@@ -52,6 +52,19 @@ function promptsFor(folder) {
   return out;
 }
 
+// Rule 7: the header only grows at its end during play, so blocks that change
+// (chapters, facts) come last, and every layout names real blocks.
+test('prompt layouts use known blocks, and the header keeps its live blocks at the end', () => {
+  const { E } = newGame();
+  const P = E.Prompts;
+  for (const [name, layout] of Object.entries(P.layouts)) {
+    for (const id of layout) assert.equal(typeof P.blocks[id], 'function', `${name} uses unknown block "${id}"`);
+  }
+  const header = [...P.layouts.header];
+  assert.deepEqual(header.slice(-P.LIVE_HEADER.length), [...P.LIVE_HEADER]);
+  assert.ok(header.filter((id) => P.LIVE_HEADER.includes(id)).length === P.LIVE_HEADER.length);
+});
+
 test('prompts are unchanged for a fixed state in every bundled scenario', () => {
   const now = {};
   for (const folder of scenarioFolders()) now[folder] = promptsFor(folder);

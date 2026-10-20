@@ -11,44 +11,69 @@
 
   const name = (state, id) => (state.characters[id] ? state.characters[id].name : id);
 
-  P.header = function (state) {
-    const sc = state.scenario;
-    const pc = state.characters[state.player];
-    const out = [];
-    out.push('You are the simulation engine and narrator for an interactive, character-driven story.');
-    out.push(`\n=== SETTING: ${sc.title} ===\n${sc.setting}`);
-    out.push('\n=== RULES ===');
+  // ---------- blocks ----------
+  // Every prompt is an ordered list of named blocks (P.layouts), each built by
+  // one function in P.blocks from the prompt's context object. A block returns
+  // its text (or a list of lines), or null to leave it out; '' still adds an
+  // empty line. The parts are joined with newlines. Adding a block is one
+  // function here plus one position in a layout.
+  //
+  // Cache rule (CLAUDE.md rule 7): the header is identical for every call in a
+  // turn and only grows at its end between turns. Blocks whose content changes
+  // during play may only come at the end of the header (P.LIVE_HEADER, in that
+  // order) or go in a user message. Static content (setting, places, cast,
+  // later genre, lore titles, geography) goes before them.
+  const B = (P.blocks = {});
+  P.layouts = {};
+  P.LIVE_HEADER = ['chapters', 'facts'];
+  P.build = function (layout, ctx) {
+    const parts = [];
+    P.layouts[layout].forEach((id) => {
+      const out = B[id](ctx);
+      if (out == null) return;
+      if (Array.isArray(out)) parts.push(...out); else parts.push(out);
+    });
+    return parts.join('\n');
+  };
+
+  P.layouts.header = ['intro', 'setting', 'rules', 'places', 'groups', 'cast', 'chapters', 'facts'];
+  P.header = (state) => P.build('header', { state, sc: state.scenario, pc: state.characters[state.player] });
+
+  B.intro = () => 'You are the simulation engine and narrator for an interactive, character-driven story.';
+  B.setting = ({ sc }) => `\n=== SETTING: ${sc.title} ===\n${sc.setting}`;
+  B.rules = ({ state, sc, pc }) => {
     const rules = [
       'The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. The player commands no faction.',
       `The player controls only ${pc.name} (id: ${state.player}). Never decide ${pc.name}'s choices, words or feelings beyond what the player's action states.`,
       'Outcomes marked RESOLVED are final. Failures have real consequences. Injuries and deaths are permanent.',
       'Characters act from their own personality, wants, needs, secrets and feelings, not to serve the player.',
     ].concat(sc.rules || []);
-    rules.forEach((r) => out.push('- ' + r));
-    out.push('\n=== LOCATIONS ===');
-    Object.values(state.locations).forEach((l) => {
-      const c = l.connects && l.connects.length ? ` (connects: ${l.connects.join(', ')})` : '';
-      out.push(`- ${l.id}: ${l.name} — ${l.desc}${c}`);
-    });
-    if (sc.factions && sc.factions.length) {
-      out.push('\n=== GROUPS ===');
-      sc.factions.forEach((f) => out.push(`- ${f.id}: ${f.name} — ${f.desc}`));
-    }
-    out.push('\n=== CAST ===');
-    Eng().cast(state).forEach((id) => {
-      const c = state.characters[id];
-      const tag = id === state.player ? ' (PLAYER)' : '';
-      const bits = [`${c.name}${c.pronouns ? ` (${c.pronouns})` : ''}, ${c.role}${c.age ? ', ' + c.age : ''}.`];
-      if (c.traits && c.traits.length) bits.push(`Traits: ${c.traits.join(', ')}.`);
-      if (c.want && id !== state.player) bits.push(`Wants: ${c.want}.`);
-      if (c.voice) bits.push(`Voice: ${c.voice}`);
-      out.push(`- ${id}${tag}: ${bits.join(' ')}`);
-    });
+    return ['\n=== RULES ==='].concat(rules.map((r) => '- ' + r));
+  };
+  B.places = ({ state }) => ['\n=== LOCATIONS ==='].concat(Object.values(state.locations).map((l) => {
+    const c = l.connects && l.connects.length ? ` (connects: ${l.connects.join(', ')})` : '';
+    return `- ${l.id}: ${l.name} — ${l.desc}${c}`;
+  }));
+  B.groups = ({ sc }) => (sc.factions && sc.factions.length
+    ? ['\n=== GROUPS ==='].concat(sc.factions.map((f) => `- ${f.id}: ${f.name} — ${f.desc}`))
+    : null);
+  B.cast = ({ state }) => ['\n=== CAST ==='].concat(Eng().cast(state).map((id) => {
+    const c = state.characters[id];
+    const tag = id === state.player ? ' (PLAYER)' : '';
+    const bits = [`${c.name}${c.pronouns ? ` (${c.pronouns})` : ''}, ${c.role}${c.age ? ', ' + c.age : ''}.`];
+    if (c.traits && c.traits.length) bits.push(`Traits: ${c.traits.join(', ')}.`);
+    if (c.want && id !== state.player) bits.push(`Wants: ${c.want}.`);
+    if (c.voice) bits.push(`Voice: ${c.voice}`);
+    return `- ${id}${tag}: ${bits.join(' ')}`;
+  }));
+  // Live: grows at the end of the header between turns.
+  B.chapters = ({ state }) => {
     const story = Mem().storyBlock(state);
-    if (story) out.push('\n=== STORY SO FAR ===\n' + story);
+    return story ? '\n=== STORY SO FAR ===\n' + story : null;
+  };
+  B.facts = ({ state }) => {
     const facts = Mem().factsBlock(state);
-    if (facts) out.push('\n=== ESTABLISHED FACTS (known to the player) ===\n' + facts);
-    return out.join('\n');
+    return facts ? '\n=== ESTABLISHED FACTS (known to the player) ===\n' + facts : null;
   };
 
   function worldLines(state) {
@@ -101,7 +126,9 @@
     return `- ${c.name}${c.pronouns ? ` (${c.pronouns})` : ''} [${id}]: ${parts.join('; ')}`;
   }
 
-  function nowBlock(state, present, forNarrator) {
+  // ---------- user-message blocks shared by several prompts ----------
+  // Where the player is, the world, who is present and their status.
+  B.now = ({ state, present, forNarrator }) => {
     const pc = state.characters[state.player];
     const loc = state.locations[pc.status.location];
     const elsewhere = Eng().offstage(state, present)
@@ -116,13 +143,14 @@
     lines.push('\n=== STATUS ===');
     lines.push(statusLine(state, state.player, forNarrator, present));
     present.forEach((id) => lines.push(statusLine(state, id, forNarrator)));
-    return lines.join('\n');
-  }
+    return lines;
+  };
 
-  function lastScene(state) {
+  // '' when there is none (an empty line, as the prompts have always had).
+  B.lastScene = ({ state }) => {
     const r = state.recent[state.recent.length - 1];
     return r ? `\n=== LAST SCENE ===\n${r.text}` : '';
-  }
+  };
 
   const EVENT_GUIDE = {
     moment: 'Usually none for a few minutes; at most 1, only if something is already about to happen.',
@@ -131,29 +159,34 @@
     morning: '1 to 3, spread over the day and night.',
   };
 
-  P.intent = function (state, present, action, stepLabel, stepId, due) {
-    due = due || {};
-    const sc = state.scenario;
-    const out = [nowBlock(state, present, false)];
-    const offstage = Eng().offstage(state, present);
+  // ---------- intent ----------
+  P.layouts.intent = ['now', 'private', 'offstage', 'lastScene', 'intentAction', 'intentTask'];
+  P.intent = (state, present, action, stepLabel, stepId, due) =>
+    P.build('intent', { state, sc: state.scenario, present, forNarrator: false, action, stepLabel, stepId, due: due || {} });
+
+  // Secrets and private facts of the people present: only ever in the intent call.
+  B.private = ({ state, present }) => {
     const priv = [];
     present.forEach((id) => {
       const c = state.characters[id];
       if (c.secret) priv.push(`- ${c.name}'s secret: ${c.secret} (guard: ${c.guard || 'medium'}; ${({ low: 'cracks easily when confronted', medium: 'holds up unless stressed or trusting', high: 'very hard to crack' })[c.guard || 'medium']})`);
       Mem().privateFacts(state, id).slice(-6).forEach((f) => priv.push(`- ${c.name} knows: ${f.text}`));
     });
-    if (priv.length) out.push('\n=== PRIVATE (each item is known ONLY to the character named) ===\n' + priv.join('\n'));
-    if (offstage.length) {
-      out.push('\n=== OFFSTAGE (not with the player; for events only) ===\n' + offstage.map((id) => {
-        const c = state.characters[id];
-        const loc = state.locations[c.status.location];
-        return `- ${id} (${c.name}), in ${loc ? loc.name : c.status.location}: wants ${c.want || '?'}${c.secret ? '; secret: ' + c.secret : ''}`;
-      }).join('\n'));
-    }
-    out.push(lastScene(state));
-    out.push(`\n=== PLAYER ACTION (time passing: ${stepLabel}) ===\n"${action}"\nThe player's action takes up this whole span. Others act during the same span.`);
+    return priv.length ? '\n=== PRIVATE (each item is known ONLY to the character named) ===\n' + priv.join('\n') : null;
+  };
+  B.offstage = ({ state, present }) => {
+    const offstage = Eng().offstage(state, present);
+    if (!offstage.length) return null;
+    return '\n=== OFFSTAGE (not with the player; for events only) ===\n' + offstage.map((id) => {
+      const c = state.characters[id];
+      const loc = state.locations[c.status.location];
+      return `- ${id} (${c.name}), in ${loc ? loc.name : c.status.location}: wants ${c.want || '?'}${c.secret ? '; secret: ' + c.secret : ''}`;
+    }).join('\n');
+  };
+  B.intentAction = ({ action, stepLabel }) => `\n=== PLAYER ACTION (time passing: ${stepLabel}) ===\n"${action}"\nThe player's action takes up this whole span. Others act during the same span.`;
+  B.intentTask = ({ state, sc, present, stepId, due }) => {
     const ids = present.join(', ') || '(none)';
-    out.push(`
+    return `
 === TASK ===
 1. Judge the player's action. If it is risky, contested or depends on skill, set needs_roll to true and choose a skill (one of: ${sc.skills.join(', ')}) and a difficulty (easy, normal, hard). Talking, looking around and simple tasks need no roll. Everyone listed as present is in the same room as ${name(state, state.player)} right now, so an action about them needs no move. Only if the action clearly takes ${name(state, state.player)} somewhere else, set move_to to that location id (or to a character id to go where that character is).
 2. You MUST give exactly one intent for EACH present character: ${ids}. Decide what each actually tries to do during this time, driven by their personality, wants, needs, secrets and feelings. They may help, argue, refuse, lie, deflect, pursue their own goals, or leave (move_to). Set visible to false if they act covertly so the player would not notice.
@@ -168,8 +201,7 @@
    - "scope": "local" for these.
 ${tierTask(state, due)}
 Reply with JSON only, exactly in this shape:
-${intentExample(state, present)}`);
-    return out.join('\n');
+${intentExample(state, present)}`;
   };
 
   function tierTask(state, due) {
@@ -232,8 +264,18 @@ ${intentExample(state, present)}`);
     morning: '3 or 4 beats: the rest of the day, the evening, the night, then the morning.',
   };
 
-  // Frame, status, last scene, player action and resolved outcomes: shared by
-  // the scene and its continuation.
+  // ---------- scene and its continuation ----------
+  // Frame, status, last scene, player action and resolved outcomes are shared
+  // by the scene and its continuation.
+  const SCENE_CONTEXT = ['sceneFrame', 'status', 'lastScene', 'sceneAction', 'resolved'];
+  P.layouts.narrate = SCENE_CONTEXT.concat(['narrateTask']);
+  P.layouts.narrateMore = SCENE_CONTEXT.concat(['sceneSoFar', 'narrateMoreTask']);
+  P.narrate = (state, presentStart, action, frame, res) =>
+    P.build('narrate', sceneContext(state, presentStart, action, frame, res));
+  // sceneSoFar carries its time markers; fromMinutes is the last one.
+  P.narrateMore = (state, presentStart, action, frame, res, sceneSoFar, fromMinutes) =>
+    P.build('narrateMore', Object.assign(sceneContext(state, presentStart, action, frame, res), { sceneSoFar, fromMinutes }));
+
   function sceneContext(state, presentStart, action, frame, res) {
     const pc = state.characters[state.player];
     const startLoc = state.locations[frame.startLoc];
@@ -243,8 +285,10 @@ ${intentExample(state, present)}`);
     const nowHere = Eng().present(state, endLocId);
     const left = presentStart.filter((id) => !nowHere.includes(id));
     const arrived = nowHere.filter((id) => !presentStart.includes(id));
-    const out = [];
-    out.push(`=== SCENE FRAME ===
+    return { state, presentStart, action, frame, res, pc, startLoc, endLoc, moved, left, arrived, statusIds: presentStart.concat(arrived), span: frame.spanMinutes || 60 };
+  }
+
+  B.sceneFrame = ({ state, presentStart, frame, pc, startLoc, endLoc, moved, left, arrived }) => `=== SCENE FRAME ===
 Starts: ${frame.startTime}, in ${startLoc ? startLoc.name : frame.startLoc}, with ${presentStart.length ? presentStart.map((id) => name(state, id)).join(', ') : 'no one'}.
 Ends: ${E.fmtTime(state)}, ${pc.name} ${moved ? `now in ${endLoc.name}` : `still in ${startLoc ? startLoc.name : frame.startLoc}`}.` +
       // When the player moves, people who stay put are left behind, not leaving.
@@ -252,24 +296,19 @@ Ends: ${E.fmtTime(state)}, ${pc.name} ${moved ? `now in ${endLoc.name}` : `still
         ? `${name(state, id)} stays behind in ${startLoc ? startLoc.name : frame.startLoc}`
         : `${name(state, id)} leaves for ${state.locations[state.characters[id].status.location].name}`).join('; ')}.` : '') +
       (arrived.length ? `\n${arrived.map((id) => name(state, id)).join(', ')} ${arrived.length > 1 ? 'are' : 'is'} there at the end.` : '') +
-      `\n${worldLines(state)}`);
-    out.push('\n=== STATUS ===');
-    out.push(statusLine(state, state.player, true, presentStart.concat(arrived)));
-    presentStart.concat(arrived).forEach((id) => out.push(statusLine(state, id, true)));
-    out.push(lastScene(state));
-    out.push(`\n=== PLAYER ACTION (time span: ${frame.stepLabel}) ===\n"${action}"`);
-    out.push('\n=== RESOLVED (final — narrate these faithfully) ===\n' + outcomeLines(state, res, true));
-    return { out, pc, startLoc, endLoc, moved };
-  }
+      `\n${worldLines(state)}`;
+  // Narrator-side status (no secrets, notable needs only) for the player and statusIds.
+  B.status = ({ state, statusIds }) => ['\n=== STATUS ===', statusLine(state, state.player, true, statusIds)]
+    .concat(statusIds.map((id) => statusLine(state, id, true)));
+  B.sceneAction = ({ frame, action }) => `\n=== PLAYER ACTION (time span: ${frame.stepLabel}) ===\n"${action}"`;
+  B.resolved = ({ state, res }) => '\n=== RESOLVED (final — narrate these faithfully) ===\n' + outcomeLines(state, res, true);
 
   // Steps with a loose length, where the beats should spread across the span.
   const SPREAD_STEPS = ['hour', 'hours'];
 
-  P.narrate = function (state, presentStart, action, frame, res) {
-    const { out, pc, startLoc, endLoc, moved } = sceneContext(state, presentStart, action, frame, res);
-    const span = frame.spanMinutes || 60;
+  B.narrateTask = ({ frame, pc, startLoc, endLoc, moved, span }) => {
     const spread = SPREAD_STEPS.includes(frame.stepId) ? ` Spread the beats across the whole span: the last one starts around [+${Math.round(span * 0.75)}m].` : '';
-    out.push(`
+    return `
 === TASK ===
 Write the next scene in second person, present tense ("you" is ${pc.name}), ${frame.words || '100–200'} words. Bring the characters to life through dialogue and small actions in their own voices.
 Time: ${STEP_GUIDE[frame.stepId] || STEP_GUIDE.hour}
@@ -291,17 +330,12 @@ Hard rules:
 - Do not invent new events, confessions or discoveries.
 - Stop at the end of these outcomes, on a moment that invites the player's response. Do not continue past it.` +
       (frame.correction ? `\n\nCORRECTION: ${frame.correction}` : '') +
-      `\nReply with the scene text only.`);
-    return out.join('\n');
+      `\nReply with the scene text only.`;
   };
 
   // The scene stopped well short of the time step: ask for the rest of it.
-  // sceneSoFar carries its time markers; fromMinutes is the last one.
-  P.narrateMore = function (state, presentStart, action, frame, res, sceneSoFar, fromMinutes) {
-    const { out, pc, startLoc, endLoc, moved } = sceneContext(state, presentStart, action, frame, res);
-    const span = frame.spanMinutes || 60;
-    out.push(`\n=== SCENE SO FAR ===\n${sceneSoFar}`);
-    out.push(`
+  B.sceneSoFar = ({ sceneSoFar }) => `\n=== SCENE SO FAR ===\n${sceneSoFar}`;
+  B.narrateMoreTask = ({ frame, pc, startLoc, endLoc, moved, span, fromMinutes }) => `
 === TASK ===
 Continue the scene above. It stops at [+${fromMinutes}m], but this turn covers ${frame.stepLabel} (${span} minutes). Write 1 or 2 more beats, 40–100 words in total, in second person, present tense ("you" is ${pc.name}). Start each beat on its own line with a time marker counted from the start of the scene, later than [+${fromMinutes}m]; the last one around [+${Math.round(span * 0.85)}m] and at most [+${span}m].
 Time: ${STEP_GUIDE[frame.stepId] || STEP_GUIDE.hour} Compress the routine part ("For the next half hour…").
@@ -312,9 +346,7 @@ Hard rules:
 - Use each character's pronouns exactly as given in STATUS.
 - No new events, confessions, reveals or discoveries beyond what the scene already shows.
 - End on the others' latest move. The final paragraph must NEVER be ${pc.name}'s own line or action.
-Reply with the new beats only.`);
-    return out.join('\n');
-  };
+Reply with the new beats only.`;
 
   // ---------- downtime skip ----------
   function crewBrief(state, withSecrets) {
@@ -333,19 +365,20 @@ Reply with the new beats only.`);
     return [].concat(state.scenario.majorSeeds || [], (s.regional || []).slice(0, 3), (s.world || []).slice(0, 3));
   }
 
-  P.skipIntent = function (state, action, plan, frame, res) {
-    const pc = state.characters[state.player];
-    const out = [];
-    out.push(`=== DOWNTIME: ${frame.startTime} → ${frame.endTime} (about ${frame.days} days) ===
+  P.layouts.skipIntent = ['skipFrame', 'people', 'lastScene', 'skipTask'];
+  P.skipIntent = (state, action, plan, frame, res) =>
+    P.build('skipIntent', { state, pc: state.characters[state.player], action, plan, frame, res });
+
+  B.skipFrame = ({ state, pc, action, frame }) => `=== DOWNTIME: ${frame.startTime} → ${frame.endTime} (about ${frame.days} days) ===
 ${pc.name} was in ${state.locations[frame.startLoc] ? state.locations[frame.startLoc].name : frame.startLoc} when it began.
 ${pc.name}'s plan for the downtime: "${action || 'keep to routine'}"
-${worldLines(state)}`);
-    out.push('\n=== PEOPLE (everyone, including private secrets; the player sees none of these secrets) ===\n' + crewBrief(state, true));
-    out.push(lastScene(state));
+${worldLines(state)}`;
+  B.people = ({ state }) => '\n=== PEOPLE (everyone, including private secrets; the player sees none of these secrets) ===\n' + crewBrief(state, true);
+  B.skipTask = ({ state, pc, plan, res }) => {
     const ends = plan.reason === 'clock'
       ? `The downtime ends because a pressure comes to a head: "${res.events[res.events.length - 1] || plan.clock.name}". Set "major_event" to null; your positions should fit that moment.`
       : `The downtime ends with a MAJOR EVENT that you choose: something serious and unexpected that demands a response right now. It can be local (an accident, equipment failure, illness, a conflict boiling over, a secret coming out), regional, or world news that changes everything. Ideas: ${majorIdeas(state).join('; ')}.`;
-    out.push(`
+    return `
 === TASK ===
 This covers a long stretch of downtime. ${ends}
 Reply with JSON only:
@@ -358,33 +391,35 @@ Guidelines:
 - montage: 2 to 4 moments in order, spread across the downtime ("after" = time since it began, like "3d" or "10h"). How people pass the time, relationships shifting, small incidents, secrets being worked on. ${pc.name} follows their plan and their feelings.
 - events: 0 to 2 newsworthy things during the downtime, with concrete effects for regional/world ones (use only existing ids/keys: world ${Object.keys(state.world).join(', ')}; groups ${(state.factions || []).map((f) => f.id).join(', ') || 'none'}; clocks ${state.clocks.filter((c) => !c.fired).map((c) => c.id).join(', ') || 'none'}).
 - positions: one entry for EVERY other character: ${Eng().cast(state, { alive: true, includePlayer: false }).join(', ')}. Locations: ${Object.keys(state.locations).join(', ')}.
-- player_where: where ${pc.name} is when it hits, consistent with their plan.`);
-    return out.join('\n');
+- player_where: where ${pc.name} is when it hits, consistent with their plan.`;
   };
 
+  P.layouts.narrateSkip = ['downtimeFrame', 'status', 'lastScene', 'montage', 'alsoDuring', 'endsIt', 'whereEveryone', 'narrateSkipTask'];
   P.narrateSkip = function (state, action, frame, montage, doings, res, presentStart) {
     const pc = state.characters[state.player];
     const here = pc.status.location;
-    const loc = state.locations[here];
     const present = Eng().present(state, here);
-    const useDays = frame.days >= 2;
-    const endMark = useDays ? `[+${frame.days}d]` : `[+${Math.round(frame.days * 24)}h]`;
-    const out = [];
-    out.push(`=== DOWNTIME FRAME ===
+    return P.build('narrateSkip', { state, pc, here, loc: state.locations[here], present, statusIds: present, action, frame, montage, doings, res });
+  };
+
+  B.downtimeFrame = ({ state, pc, here, loc, present, action, frame }) => `=== DOWNTIME FRAME ===
 From ${frame.startTime} to ${frame.endTime} (about ${frame.days} days).
 ${pc.name}'s plan for the downtime: "${action || 'keep to routine'}"
 When it ends, ${pc.name} is in ${loc ? loc.name : here} with ${present.length ? present.map((id) => name(state, id)).join(', ') : 'no one'}.
-${worldLines(state)}`);
-    out.push('\n=== STATUS ===');
-    out.push(statusLine(state, state.player, true, present));
-    present.forEach((id) => out.push(statusLine(state, id, true)));
-    out.push(lastScene(state));
-    if (montage.length) out.push('\n=== DURING THE DOWNTIME ===\n' + montage.map((m) => `- after ${m.after || '?'}: ${m.text}`).join('\n'));
+${worldLines(state)}`;
+  B.montage = ({ montage }) => (montage.length ? '\n=== DURING THE DOWNTIME ===\n' + montage.map((m) => `- after ${m.after || '?'}: ${m.text}`).join('\n') : null);
+  B.alsoDuring = ({ res }) => {
     const others = res.events.filter((e) => !/^\[major\]/.test(e));
-    if (others.length) out.push('\n=== ALSO DURING THE DOWNTIME ===\n' + others.map((e) => '- ' + e).join('\n'));
-    out.push(`\n=== WHAT ENDS IT ===\n${res.major ? res.major.text.replace(/^\[major\]\s*/, '') : '?'}`);
-    if (doings.length) out.push('\n=== WHERE EVERYONE IS WHEN IT HITS ===\n' + doings.map((p) => `- ${name(state, p.id)}: in ${state.locations[state.characters[p.id].status.location].name}, ${p.doing}`).join('\n'));
-    out.push(`
+    return others.length ? '\n=== ALSO DURING THE DOWNTIME ===\n' + others.map((e) => '- ' + e).join('\n') : null;
+  };
+  B.endsIt = ({ res }) => `\n=== WHAT ENDS IT ===\n${res.major ? res.major.text.replace(/^\[major\]\s*/, '') : '?'}`;
+  B.whereEveryone = ({ state, doings }) => (doings.length
+    ? '\n=== WHERE EVERYONE IS WHEN IT HITS ===\n' + doings.map((p) => `- ${name(state, p.id)}: in ${state.locations[state.characters[p.id].status.location].name}, ${p.doing}`).join('\n')
+    : null);
+  B.narrateSkipTask = ({ pc, loc, frame }) => {
+    const useDays = frame.days >= 2;
+    const endMark = useDays ? `[+${frame.days}d]` : `[+${Math.round(frame.days * 24)}h]`;
+    return `
 === TASK ===
 Write 3 or 4 beats in second person ("you" is ${pc.name}), 250–350 words in total. Start each beat on its own line with a time marker since the downtime began: ${useDays ? '[+0d], [+3d], [+8d]' : '[+0h], [+6h], [+15h]'} and so on.
 1. The first beats are a brief montage of the downtime, a few sentences each: how the days pass, how people get along, the small things. ${pc.name} follows their plan and treats people according to the feelings in STATUS.
@@ -393,26 +428,27 @@ Hard rules:
 - Use each character's pronouns exactly as given in STATUS.
 - Do not reveal anyone's secrets unless the montage above says it came out.
 - No big decisions for ${pc.name}. End the final beat on a moment that demands the player's response; the last paragraph is never ${pc.name}'s own line or action.
-Reply with the beats only.`);
-    return out.join('\n');
+Reply with the beats only.`;
   };
 
-  P.update = function (state, action, res, prose, present, cut) {
-    const sc = state.scenario;
-    const out = [];
-    out.push(`=== VALID IDS ===
+  // ---------- update ----------
+  P.layouts.update = ['validIds', 'whatHappened', 'sceneNarrated', 'updateTask'];
+  P.update = (state, action, res, prose, present, cut) =>
+    P.build('update', { state, sc: state.scenario, action, res, prose, present, cut });
+
+  B.validIds = ({ state, sc, present }) => `=== VALID IDS ===
 characters: ${Eng().cast(state).join(', ')}
 locations: ${Object.keys(state.locations).join(', ')}
 world keys: ${Object.keys(state.world).join(', ') || '(none)'}
 groups: ${(state.factions || []).map((f) => f.id).join(', ') || '(none)'}
 clocks: ${state.clocks.map((c) => c.id).join(', ') || '(none)'}
 needs: ${sc.needs.map((n) => n.id).join(', ')}
-present this turn: ${[state.player].concat(present).join(', ')}`);
-    out.push((cut
+present this turn: ${[state.player].concat(present).join(', ')}`;
+  B.whatHappened = ({ state, action, res, cut }) => (cut
       ? '\n=== WHAT WAS PLANNED THIS TURN (the player stepped in partway: only what the scene below shows actually happened; moves, events and lines it does not show did NOT happen) ===\n'
-      : '\n=== WHAT HAPPENED THIS TURN (full truth, including hidden actions) ===\n') + `Player action: "${action}"\n` + outcomeLines(state, res, false));
-    out.push('\n=== SCENE AS NARRATED ===\n' + prose + (cut ? '\n\n[The player stepped in here. Anything planned above that is not in this scene did NOT happen; record only what is in the scene.]' : ''));
-    out.push(`
+      : '\n=== WHAT HAPPENED THIS TURN (full truth, including hidden actions) ===\n') + `Player action: "${action}"\n` + outcomeLines(state, res, false);
+  B.sceneNarrated = ({ prose, cut }) => '\n=== SCENE AS NARRATED ===\n' + prose + (cut ? '\n\n[The player stepped in here. Anything planned above that is not in this scene did NOT happen; record only what is in the scene.]' : '');
+  B.updateTask = ({ state }) => `
 === TASK ===
 Record what changed this turn. Reply with JSON only, exactly in this shape:
 {"facts":[{"about":["character_id"],"text":"one short sentence using names, not pronouns","known_by":["character_id"],"weight":2}],
@@ -440,18 +476,19 @@ Guidelines:
 - relations: how this turn changed how non-player characters feel about others (never ${name(state, state.player)}'s own feelings), delta between -15 and 15. Leave empty if nothing changed.
 - player_attitude: how ${name(state, state.player)}'s own feelings toward someone shifted, judged ONLY from the player action as quoted above (their words and tone), never from how the narrator embellished it. Snapping, mocking or threatening lowers it; thanking, helping, joking warmly or confiding raises it. Delta between -10 and 10. Leave empty if the action was neutral.
 - chapter_worthy: true only for a major turning point.
-Use [] for any list with nothing to record.`);
-    return out.join('\n');
-  };
+Use [] for any list with nothing to record.`;
 
-  P.chapter = function (state) {
+  // ---------- chapter ----------
+  P.layouts.chapter = ['chapterEvents', 'chapterTask'];
+  P.chapter = (state) => P.build('chapter', { state, pc: state.characters[state.player] });
+
+  B.chapterEvents = ({ state }) => {
     const facts = E.Memory.chapterFacts(state).map((f) => `- [T${f.turn}] ${f.text}`).join('\n') || '- (quiet stretch, little of note)';
-    const pc = state.characters[state.player];
     return `=== CHAPTER ${state.chapter} (turns ${state.chapterStartTurn}–${state.turn}) — EVENTS ===
-${facts}
-
+${facts}`;
+  };
+  B.chapterTask = ({ pc }) => `
 === TASK ===
 Write a short journal entry summarizing this chapter for ${pc.name}'s story. Use only the events listed. Third person, past tense, 2 to 4 sentences, keep names and the most important consequences. Also give the chapter a short evocative title.
 Reply with JSON only: {"title":"...","summary":"..."}`;
-  };
 })(typeof window !== 'undefined' ? window : globalThis);
