@@ -22,23 +22,10 @@
     "medicine": 0,
     "persuasion": 1
   },
-  "needs": {
-    "hunger": 0.4,
-    "fatigue": 0.3,
-    "fear": 0.3
-  },
-  "status": {
-    "health": "ok",
-    "location": "floor",
-    "conditions": []
-  },
   "relations": {
     "pike": 10,
     "ortiz": 5,
     "coleman": 20,
     "ferris": -10
-  },
-  "knows": [
-    "The convoy broadcast said it would pass the highway junction in about two days."
-  ]
+  }
 }

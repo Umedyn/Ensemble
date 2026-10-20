@@ -36,7 +36,7 @@ async function replay(fixture, opts = {}) {
   const E = loadEngine();
   applySettings(E, fixture.settings);
   E.LLM.perf = async () => null;
-  const state = JSON.parse(JSON.stringify(fixture.start));
+  const state = E.Engine.migrate(JSON.parse(JSON.stringify(fixture.start)));
   const actions = fixture.actions || [];
   const until = Math.min(opts.until ?? actions.length, actions.length);
   const steps = [];

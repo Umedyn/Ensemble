@@ -20,23 +20,10 @@
     "social": 2,
     "stealth": 1
   },
-  "needs": {
-    "hunger": 0.2,
-    "fatigue": 0.2,
-    "stress": 0.3
-  },
-  "status": {
-    "health": "ok",
-    "location": "commons",
-    "conditions": []
-  },
   "relations": {
     "okafor": 10,
     "sorensen": 15,
     "raman": 25,
     "bauer": 20
-  },
-  "knows": [
-    "The recycler's rattle started six nights ago, the same night Teo had the late hydroponics shift."
-  ]
+  }
 }

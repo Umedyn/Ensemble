@@ -9,8 +9,10 @@
   // ---------- setup ----------
   Eng.newGame = function (scenario) {
     const sc = E.clone(scenario);
+    if (sc.worldId == null) sc.worldId = sc.folder || sc.id;
+    if (sc.startId == null) sc.startId = 'default';
     const state = {
-      version: 1,
+      version: Eng.STATE_VERSION,
       scenario: sc,
       player: sc.player,
       order: sc.characters.slice(),
@@ -53,6 +55,28 @@
       state.recent = [{ turn: 0, action: null, text: sc.opening }];
       state.log.push({ turn: 0, type: 'scene', text: sc.opening });
     }
+    return state;
+  };
+
+  // Saves and autosaves from older versions are upgraded one step at a time
+  // when loaded. Each step takes a state at version n and returns n + 1.
+  Eng.STATE_VERSION = 2;
+  Eng.migrations = {
+    // Worlds and starts (docs/WORLDS.md): the scenario records where it came from.
+    1: (state) => {
+      const sc = state.scenario;
+      if (sc.worldId == null) sc.worldId = sc.folder || sc.id;
+      if (sc.startId == null) sc.startId = 'default';
+      state.version = 2;
+      return state;
+    },
+  };
+  Eng.migrate = function (state) {
+    if (state.version == null) state.version = 1;
+    if (state.version > Eng.STATE_VERSION) throw new Error('This save was made by a newer version of Ensemble.');
+    while (state.version < Eng.STATE_VERSION) state = Eng.migrations[state.version](state);
+    // An autosave keeps the turn it can undo back to, which is a whole state too.
+    if (state.undo && state.undo.state) state.undo.state = Eng.migrate(state.undo.state);
     return state;
   };
 

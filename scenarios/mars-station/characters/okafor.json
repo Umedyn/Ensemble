@@ -22,23 +22,10 @@
     "athletics": 1,
     "stealth": 2
   },
-  "needs": {
-    "hunger": 0.2,
-    "fatigue": 0.4,
-    "stress": 0.5
-  },
-  "status": {
-    "health": "ok",
-    "location": "commons",
-    "conditions": []
-  },
   "relations": {
     "navarro": 10,
     "sorensen": -10,
     "raman": 5,
     "bauer": 0
-  },
-  "knows": [
-    "Lev has been booking lab time far beyond his approved schedule."
-  ]
+  }
 }

@@ -20,23 +20,10 @@
     "stealth": 2,
     "persuasion": 2
   },
-  "needs": {
-    "hunger": 0.4,
-    "fatigue": 0.3,
-    "fear": 0.4
-  },
-  "status": {
-    "health": "ok",
-    "location": "floor",
-    "conditions": []
-  },
   "relations": {
     "ortiz": 20,
     "coleman": 5,
     "han": 10,
     "ferris": -5
-  },
-  "knows": [
-    "Gil Ferris keeps the office locked even at night and gets defensive when anyone goes near it."
-  ]
+  }
 }

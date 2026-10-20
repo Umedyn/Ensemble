@@ -2,7 +2,7 @@
 // real 12B model; the comment says what went wrong before the rule existed.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { newGame, mockLLM, fixedRng, readScenario, scenarioFolders, loadEngine } = require('./helpers');
+const { newGame, mockLLM, fixedRng, readScenario, loadEngine } = require('./helpers');
 
 const intentOf = (o) => JSON.parse(JSON.stringify(o));
 const PRESENT = ['okafor', 'bauer'];
@@ -10,15 +10,7 @@ const guardTypes = (res) => [...(res.guards || [])].map((g) => g.type);
 
 // ---------- scenarios ----------
 
-test('every bundled scenario validates and starts', () => {
-  for (const folder of scenarioFolders()) {
-    const E = loadEngine();
-    const sc = E.Scenario.validate(readScenario(folder));
-    const state = E.Engine.newGame(sc);
-    assert.ok(state.characters[state.player], `${folder}: player exists`);
-    assert.ok(E.Prompts.header(state).includes(sc.title), `${folder}: header builds`);
-  }
-});
+// Every bundled world and start: tests/worlds.test.js.
 
 test('cast helpers list ids in cast order: everyone, the living, present and offstage', () => {
   const { E, state } = newGame();
@@ -53,7 +45,7 @@ test('scenario validation accepts and ignores fields the engine does not use yet
   Object.assign(sc.characterData[1], { tags: ['stubborn'], portrait: 'okafor.png', tier: 'core', region: 'tharsis' });
   const state = E.Engine.newGame(E.Scenario.validate(sc));
   assert.equal(state.characters[sc.characterData[1].id].name, sc.characterData[1].name);
-  assert.ok(E.Prompts.header(state).includes(sc.title));
+  assert.ok(E.Prompts.header(state).includes(sc.worldTitle));
 });
 
 // ---------- movement ----------

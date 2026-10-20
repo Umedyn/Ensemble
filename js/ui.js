@@ -10,7 +10,7 @@
   let uiShown = 1; // beats of the live scene revealed so far
   const openTurns = new Set(); // folded earlier turns the player has opened
   const notes = []; // undo/reroll history for the Debug panel
-  const loaded = new Map(); // key -> scenario object (from disk) or {folder} (from server)
+  const loaded = new Map(); // key -> loaded world (from disk) or {folder} (from server, fetched at New game)
 
   // ---------- storage helpers (never fatal) ----------
   const store = {
@@ -63,18 +63,20 @@
     }
   }
 
-  async function resolveScenario(key) {
+  // The picked world; New game plays its default start (task 1-3 adds choosing one).
+  async function resolveWorld(key) {
     const item = loaded.get(key);
     if (!item) throw new Error('Pick a scenario first (or use Open folder).');
-    if (item.characterData) return item;
-    return E.Scenario.loadServer(item.folder);
+    const world = item.starts ? item : await E.Scenario.loadWorldServer(item.folder);
+    if (world.warnings.length) console.warn(`World "${world.title}":\n` + world.warnings.join('\n'));
+    return world;
   }
 
   $('folderInput').addEventListener('change', async (ev) => {
     if (!ev.target.files.length) return;
     try {
-      const { scenarios, errors } = await E.Scenario.loadFromFiles(ev.target.files);
-      scenarios.forEach((sc, i) => { loaded.set('disk:' + sc.folder, sc); addScenarioOption('disk:' + sc.folder, sc.title + ' (disk)', i === 0); });
+      const { worlds, errors } = await E.Scenario.loadFromFiles(ev.target.files);
+      worlds.forEach((w, i) => { loaded.set('disk:' + w.folder, w); addScenarioOption('disk:' + w.folder, w.title + ' (disk)', i === 0); });
       if (errors.length) alert('Some scenarios were skipped:\n\n' + errors.join('\n\n'));
     } catch (e) {
       alert(e.message);
@@ -87,8 +89,8 @@
     if (busy) return;
     if (state && state.turn > 0 && !confirm('Start a new game? Unsaved progress will be lost.')) return;
     try {
-      const sc = await resolveScenario($('scenarioSelect').value);
-      state = E.Engine.newGame(sc);
+      const world = await resolveWorld($('scenarioSelect').value);
+      state = E.Engine.newGame(E.Scenario.startScenario(world));
       uiCut = null;
       uiShown = 1;
       openTurns.clear();
@@ -96,6 +98,7 @@
       E.Engine.telemetry.length = 0;
       stopRecording();
       notes.length = 0;
+      if (world.warnings.length) notes.push({ kind: 'world', summary: `${world.warnings.length} unknown field${world.warnings.length === 1 ? '' : 's'} ignored in "${world.title}"`, detail: world.warnings.join('\n') });
       autosave();
       renderAll();
       $('actionInput').focus();
@@ -156,7 +159,7 @@
       const s = JSON.parse(await f.text());
       if (!s.scenario || !s.characters || !s.player) throw new Error('That file is not an Ensemble save.');
       stopRecording();
-      state = s;
+      state = E.Engine.migrate(s);
       openTurns.clear();
       uiCut = null;
       uiShown = 1;
@@ -770,7 +773,7 @@
     const saved = store.get('ensemble.autosave');
     if (saved) {
       try {
-        state = JSON.parse(saved);
+        state = E.Engine.migrate(JSON.parse(saved));
         renderAll();
       } catch (e) { state = null; }
     }

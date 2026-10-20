@@ -1,0 +1,189 @@
+{
+  "format": 2,
+  "id": "mars-station",
+  "title": "Ares Deep",
+  "summary": "A five-person research outpost on the rim of Hellas Planitia, Mars, nine weeks from help. Everyone knows everyone's habits, not their secrets.",
+  "setting": "Ares Deep is a five-person research outpost dug into the rim of Hellas Planitia on Mars, 214 sols into a 500-sol rotation. The nearest help is a cargo lander nine weeks out, and Earth is 14 light-minutes away. The station is cramped; everyone knows everyone's habits, but not their secrets. Whether the program gets a second rotation depends on what this crew sends home.",
+  "rules": [
+    "Grounded near-future technology. No aliens, no magic. Any biological discovery is microbial at most and must stay scientifically plausible.",
+    "Mars is lethal: suit breaches, CO2 buildup, cold, radiation and dust are real dangers. Going outside requires a suit.",
+    "Messages to Earth take 14 minutes each way. There is no real-time help.",
+    "The crew are capable professionals under strain. Conflict comes from personality, pressure and secrets, not villainy."
+  ],
+  "timeLabel": "Sol",
+  "wakeHour": 7,
+  "skills": [
+    "tech",
+    "science",
+    "medicine",
+    "piloting",
+    "athletics",
+    "social",
+    "stealth"
+  ],
+  "needs": [
+    {
+      "id": "hunger",
+      "label": "Hunger",
+      "perHour": 0.03
+    },
+    {
+      "id": "fatigue",
+      "label": "Fatigue",
+      "perHour": 0.04
+    },
+    {
+      "id": "stress",
+      "label": "Stress",
+      "perHour": 0.01
+    }
+  ],
+  "locations": [
+    {
+      "id": "commons",
+      "name": "Commons",
+      "desc": "Hub module with the galley table and the station's only real window.",
+      "connects": [
+        "ops",
+        "med",
+        "lab",
+        "hydro",
+        "quarters",
+        "suitroom"
+      ]
+    },
+    {
+      "id": "ops",
+      "name": "Ops & Comms",
+      "desc": "Status boards, the long-delay comm link and the station logs.",
+      "connects": [
+        "commons"
+      ]
+    },
+    {
+      "id": "med",
+      "name": "Med Bay",
+      "desc": "Two cots, a scanner and a locked drug cabinet.",
+      "connects": [
+        "commons"
+      ]
+    },
+    {
+      "id": "lab",
+      "name": "Lab",
+      "desc": "Core sample racks, a glovebox and incubators for ice cultures.",
+      "connects": [
+        "commons"
+      ]
+    },
+    {
+      "id": "hydro",
+      "name": "Hydroponics",
+      "desc": "Grow racks under purple light and the water recycler, rattling.",
+      "connects": [
+        "commons"
+      ]
+    },
+    {
+      "id": "quarters",
+      "name": "Crew Quarters",
+      "desc": "Five curtained bunks. The only privacy on the station.",
+      "connects": [
+        "commons"
+      ]
+    },
+    {
+      "id": "suitroom",
+      "name": "Suit Room & Airlock",
+      "desc": "Five EVA suits on racks, the airlock and the dust-scrub bay.",
+      "connects": [
+        "commons",
+        "garage",
+        "surface"
+      ]
+    },
+    {
+      "id": "garage",
+      "name": "Rover Garage",
+      "desc": "Pressurized bay holding the rover, nicknamed the Mule.",
+      "connects": [
+        "suitroom",
+        "surface"
+      ]
+    },
+    {
+      "id": "surface",
+      "name": "Surface",
+      "desc": "Rust-colored regolith, the solar field and the drill site. Suits required.",
+      "connects": [
+        "suitroom",
+        "garage"
+      ]
+    }
+  ],
+  "world": {
+    "power": "solar arrays nominal",
+    "comms": "online, 14-minute delay",
+    "recycler": "degraded, about 70% output",
+    "rover": "the Mule, operational"
+  },
+  "factions": [
+    {
+      "id": "mission",
+      "name": "Mission Control",
+      "desc": "The Ares program's ground team on Earth, 14 light-minutes away. Reviews everything the crew sends and decides on the second rotation.",
+      "stance": "supportive but anxious; reviewing this rotation's data for the renewal decision"
+    },
+    {
+      "id": "sponsor",
+      "name": "Halvorsen Aerospace",
+      "desc": "The corporate sponsor funding most of Ares Deep. Wants headlines and results it can sell.",
+      "stance": "publicly upbeat; privately watching costs and crew performance"
+    }
+  ],
+  "eventRates": {
+    "regional": 18,
+    "world": 96
+  },
+  "eventSeeds": {
+    "regional": [
+      "dust devils crossing the solar field",
+      "an ice shelf collapsing near the drill site",
+      "a micrometeorite strike",
+      "a quake in the crater rim",
+      "the neighboring outpost going quiet on the regional relay",
+      "a supply drop landing off target",
+      "a rover track washed out by a slope failure"
+    ],
+    "world": [
+      "the sponsor in financial trouble",
+      "Mission Control knocked offline by a disaster on Earth",
+      "a political crisis threatening space budgets",
+      "a launch failure delaying the resupply",
+      "a rival mission announcing a discovery",
+      "a public scandal about the program",
+      "a solar storm warning from Earth"
+    ]
+  },
+  "majorEventDays": 9,
+  "majorHorizonDays": 30,
+  "majorSeeds": [
+    "a blocked CO2 scrubber filter starts life support failing",
+    "a meteorite punches into the rover garage",
+    "a crew member collapses with a medical emergency",
+    "a hull seal starts leaking in the habitat",
+    "an electrical fire",
+    "an argument between crew members turns physical"
+  ],
+  "characters": [
+    "navarro",
+    "okafor",
+    "sorensen",
+    "raman",
+    "bauer"
+  ],
+  "starts": [
+    "recycler",
+    "garage"
+  ]
+}

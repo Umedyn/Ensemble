@@ -1,0 +1,44 @@
+{
+  "id": "ferris",
+  "name": "Gil Ferris",
+  "pronouns": "he/him",
+  "role": "store owner",
+  "age": 61,
+  "traits": [
+    "territorial",
+    "paranoid",
+    "shrewd"
+  ],
+  "want": "keep control of his store and come out of this with something left",
+  "secret": "He has a hidden stash of canned food and the keys to the pickup in the lot, locked in his office desk.",
+  "guard": "high",
+  "voice": "Gruff, folksy, reminds everyone whose store this is.",
+  "skills": {
+    "shooting": 2,
+    "mechanics": 2,
+    "persuasion": 2,
+    "scavenging": 1,
+    "fighting": 1,
+    "medicine": 0,
+    "stealth": 2
+  },
+  "needs": {
+    "hunger": 0.1,
+    "fatigue": 0.3,
+    "fear": 0.6
+  },
+  "status": {
+    "health": "ok",
+    "location": "office",
+    "conditions": []
+  },
+  "relations": {
+    "pike": -5,
+    "ortiz": 0,
+    "coleman": -20,
+    "han": -10
+  },
+  "knows": [
+    "He saw Dex flinch and hide his arm when Marlene offered to change the bandage."
+  ]
+}

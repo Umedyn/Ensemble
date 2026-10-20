@@ -22,23 +22,10 @@
     "medicine": 0,
     "stealth": 2
   },
-  "needs": {
-    "hunger": 0.1,
-    "fatigue": 0.3,
-    "fear": 0.6
-  },
-  "status": {
-    "health": "ok",
-    "location": "office",
-    "conditions": []
-  },
   "relations": {
     "pike": -5,
     "ortiz": 0,
     "coleman": -20,
     "han": -10
-  },
-  "knows": [
-    "He saw Dex flinch and hide his arm when Marlene offered to change the bandage."
-  ]
+  }
 }

@@ -14,10 +14,15 @@ Today a scenario is one fixed situation: a setting, a player character, a cast a
 The loader **composes** a world and a start into one flat **scenario object**, with the same shape `Engine.newGame` takes today. The engine, prompts and saves keep reading `state.scenario.*` as they do now. Only `js/scenario.js`, the picker UI and the scenario folders change in phase 1.
 
 ```
-world.json + starts/<id>.json + characters/*.json
-        │ S.loadWorld()  →  { world, starts[], characters{} }
-        │ S.compose(world, start)  →  scenario (today's flat shape + worldId/startId)
-        │ S.validate(scenario)     ←  today's validator, unchanged in spirit
+world.json + starts/<id>.json + characters/*.json   (or a legacy scenario.json)
+        │ S.loadWorldServer(folder) / S.loadFromFiles(fileList) / tests: readWorld(folder)
+        │   all gather { relative path: JSON } and call S.prepareWorld(folder, files):
+        │     S.fromLegacy(sc)           (legacy only) → { world, starts{}, characters{} }
+        │     S.validateWorld(bundle)    → throws on problems, returns warnings
+        │     for each start: S.validate(S.compose(world, start, characters, folder))
+        │   → loaded world { folder, title, summary, tags, defaultStart, warnings,
+        │                    starts: [{ id, title, summary, scenario | error }] }
+        │ S.startScenario(loaded, startId?)  → a copy of that start's scenario
         ▼
 Engine.newGame(scenario)
 ```
@@ -98,27 +103,27 @@ Overridable per start: `status`, `needs`, `relations`, `knows`, `want`, `secret`
 ## Merge rules (`S.compose`)
 
 1. Start with a deep clone of the world.
-2. **Scalars and strings** (`setting`, `timeLabel`, `majorEventDays`, …): the start's value replaces the world's.
+2. **Scalars, strings and every other field** (`setting`, `timeLabel`, `majorEventDays`, and lists not named below such as `skills`, `needs`, `majorSeeds`, `revealSkills`): the start's value replaces the world's.
 3. **Lists of objects with `id`** (`locations`, `clocks`, `factions`): merge by id, with start entries replacing world entries field by field. New ids are appended.
 4. **Lists of strings** (`rules`, `facts`, `tags`): world first, then the start's, without duplicates.
 5. **Plain objects** (`world`, `eventRates`, `eventSeeds`): shallow merge, with the start winning.
-6. `characters` = the start's cast ids in order; `characterData` = each pool file deep-merged with its cast entry (cast entry wins; `status` merged field by field).
-7. The composed scenario gets `worldId`, `startId`, `folder` (the world folder) and `title` (`"<world title>: <start title>"` for display, plus `worldTitle` and `startTitle` separately).
-8. Then `S.validate(composed)`: today's checks, unchanged.
+6. `characters` = the start's cast ids in order; `characterData` = each pool file deep-merged with its cast entry (cast entry wins; plain objects such as `status`, `needs` and `relations` merge field by field, lists such as `knows` are replaced). Relations to pool characters who aren't in this start's cast are dropped (they're checked against the pool by `validateWorld` instead).
+7. The composed scenario gets `worldId`, `startId`, `folder` (the world folder) and `title` (`"<world title>: <start title>"` for display, or just the world title when the start has none, plus `worldTitle` and `startTitle` separately). `format` and `starts` are dropped. The prompt header's `SETTING:` line uses `worldTitle`, so start titles stay out of prompts.
+8. Then `S.validate(composed)`: today's checks, unchanged. `S.compose` itself doesn't validate; `S.prepareWorld` does both.
 
-A **world validation** (`S.validateWorld`) runs first and catches mistakes that composing would hide: missing start or character files, duplicate ids, cast ids not in the pool, and a `player` not in the cast. Each start is composed and validated when the world loads, so a broken start shows its error in the picker instead of failing at "New game".
+A **world validation** (`S.validateWorld(bundle)`, where `bundle` is `{ world, starts: {id: start}, characters: {id: data}, legacy }` with missing files left out) runs first and catches mistakes that composing would hide: missing start or character files, duplicate ids, cast ids not in the pool, a `player` not in the cast, a missing `format: 2`, and relations to ids outside the pool. Each start is composed and validated when the world loads, so a broken start shows its error in the picker instead of failing at "New game".
 
 ## Legacy folders
 
-A folder with `scenario.json` and no `world.json` loads through `S.fromLegacy(sc)`. That produces a world (everything except the start-only fields) with one start, id `default`, built from `start`, `player`, `characters`, `locations`, `clocks`, `opening` and `castLabel`. Character files are used as they are. Legacy loading stays permanently, since players' own scenarios use it; a test keeps a legacy fixture loading.
+A folder with `scenario.json` and no `world.json` loads through `S.fromLegacy(sc)`. That produces a world (everything except the start-only fields) with one start, id `default` and no title, built from `start`, `player`, `characters` (as `cast`), `locations`, `clocks`, `opening` and `castLabel`. The composed scenario is the one the old loader produced plus `worldId`, `startId`, `worldTitle` and `startTitle`. Character files are used as they are. Legacy loading stays permanently, since players' own scenarios use it; a test keeps the legacy fixture `tests/fixtures/legacy-scenario/` loading.
 
-The bundled `mars-station` and `zombie-holdout` folders are converted to the new format in their own task.
+The bundled `mars-station` and `zombie-holdout` folders were converted in task 1-2. Their old versions are frozen as `tests/fixtures/legacy-scenario/` (Ares Deep) and `tests/fixtures/legacy-zombie-holdout/`, and a test checks each converted default start begins the same game. Ares Deep has a second start, `garage` (Priya Raman), as the worked example of one world with several starts.
 
 ## Saves
 
 - Bump the state `version` to `2`. New states store `scenario.worldId` and `scenario.startId`.
-- `Engine.migrate(state)` runs when a game is loaded (from browser storage or a file). For version 1 it sets `worldId = scenario.folder || scenario.id`, `startId = 'default'`, and `version = 2`. Nothing else changes, because the composed scenario has the same shape.
-- Migration is a chain (`1→2`, later `2→3` …), each step tested.
+- `Engine.migrate(state)` runs when a game is loaded (from browser storage or a file). For version 1 it sets `worldId = scenario.folder || scenario.id`, `startId = 'default'`, and `version = 2`. Nothing else changes, because the composed scenario has the same shape. A state with no `version` counts as 1.
+- Migration is a chain (`Engine.migrations[n]` takes version n to n + 1; `Engine.STATE_VERSION` is the current one), each step tested. The undo copy inside a state is migrated too. A save from a newer version is refused with a message. Replay fixtures are migrated before they play.
 
 ## The picker
 
@@ -130,14 +135,18 @@ Phone layout: two stacked selects, nothing more.
 
 ## Reserved fields policy
 
-`S.validateWorld` and `S.validate` **accept and ignore** the reserved fields listed above, so creators can write content before the engine uses it. Unknown fields that aren't reserved are also accepted, but reported as a warning in the console and the Debug panel (a typo like `oppening` shouldn't silently do nothing).
+`S.validateWorld` and `S.validate` **accept and ignore** the reserved fields listed above, so creators can write content before the engine uses it. Unknown fields that aren't reserved are also accepted, but reported as a warning in the console and the Debug panel (a typo like `oppening` shouldn't silently do nothing). Warnings cover `world.json`, start files, cast entries and legacy `scenario.json`; character files aren't checked, since later phases add many character fields. `npm run check` prints them too.
 
-## Tests to add
+## Tests
+
+In `tests/worlds.test.js` (task 1-1), except the picker smoke test (task 1-3):
+
 
 - Composing: the scalar, id-list, string-list and object merge rules, each with a small inline world.
 - A cast entry overrides location, relations and knows; a plain id uses the file.
 - `validateWorld`: missing start file, cast id not in pool, player not in cast, duplicate ids.
 - A legacy folder composes to the same scenario it produced before (snapshot of the `newGame` state's characters, locations and clocks).
-- Every bundled world validates, and every start in it starts a game (extends the existing "every bundled scenario" test).
+- Every bundled world validates with no warnings, and every start in it starts a game and plays a turn.
+- Each converted bundled world's default start begins the same game as its legacy version.
 - Save migration v1→v2.
 - UI smoke: pick world, pick start, play a turn against the mock server.

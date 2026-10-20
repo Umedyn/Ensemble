@@ -16,22 +16,55 @@ function loadEngine(extraGlobals = {}) {
   return ctx.Ensemble;
 }
 
-function readScenario(folder) {
-  const dir = path.join(ROOT, 'scenarios', folder);
-  const sc = JSON.parse(fs.readFileSync(path.join(dir, 'scenario.json'), 'utf8'));
-  sc.characterData = sc.characters.map((id) => JSON.parse(fs.readFileSync(path.join(dir, 'characters', id + '.json'), 'utf8')));
-  sc.folder = folder;
-  return sc;
+// A folder name under scenarios/, or an absolute path (test fixtures).
+const folderDir = (folder) => (path.isAbsolute(folder) ? folder : path.join(ROOT, 'scenarios', folder));
+
+// Every JSON file a world folder needs, as { relative path: parsed JSON }
+// (what Scenario.prepareWorld takes). Missing files are left out.
+function worldFiles(folder) {
+  const dir = folderDir(folder);
+  const read = (rel) => JSON.parse(fs.readFileSync(path.join(dir, rel), 'utf8'));
+  const legacy = !fs.existsSync(path.join(dir, 'world.json'));
+  const rootName = legacy ? 'scenario.json' : 'world.json';
+  const files = { [rootName]: read(rootName) };
+  const needed = legacy
+    ? (files[rootName].characters || []).map((id) => `characters/${id}.json`)
+    : [...(files[rootName].starts || []).map((id) => `starts/${id}.json`), ...(files[rootName].characters || []).map((id) => `characters/${id}.json`)];
+  needed.forEach((rel) => { if (fs.existsSync(path.join(dir, rel))) files[rel] = read(rel); });
+  return files;
+}
+
+// A loaded world (Scenario.prepareWorld): every start composed and validated.
+function readWorld(folder, E = loadEngine()) {
+  return E.Scenario.prepareWorld(path.basename(folder), worldFiles(folder));
+}
+
+// The flat scenario, not yet validated: a legacy folder's scenario.json as it
+// is, or a world's start (default: the first) composed.
+function readScenario(folder, startId) {
+  const files = worldFiles(folder);
+  const name = path.basename(folder);
+  if (files['scenario.json']) {
+    const sc = files['scenario.json'];
+    sc.characterData = sc.characters.map((id) => files[`characters/${id}.json`]);
+    sc.folder = name;
+    return sc;
+  }
+  const w = files['world.json'];
+  const id = startId || w.starts[0];
+  const characters = {};
+  w.characters.forEach((c) => (characters[c] = files[`characters/${c}.json`]));
+  return loadEngine().Scenario.compose(w, files[`starts/${id}.json`], characters, name);
 }
 
 function scenarioFolders() {
   return fs.readdirSync(path.join(ROOT, 'scenarios'), { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
 }
 
-// Fresh engine + new game. Returns { E, state }.
-function newGame(folder = 'mars-station') {
+// Fresh engine + new game from a world's start (default: its first). Returns { E, state }.
+function newGame(folder = 'mars-station', startId) {
   const E = loadEngine();
-  const sc = E.Scenario.validate(readScenario(folder));
+  const sc = E.Scenario.startScenario(readWorld(folder, E), startId);
   return { E, state: E.Engine.newGame(sc) };
 }
 
@@ -54,4 +87,4 @@ function fixedRng(E, values) {
   E.rng = () => values[Math.min(i++, values.length - 1)];
 }
 
-module.exports = { ROOT, loadEngine, readScenario, scenarioFolders, newGame, mockLLM, fixedRng };
+module.exports = { ROOT, loadEngine, worldFiles, readWorld, readScenario, scenarioFolders, newGame, mockLLM, fixedRng };

@@ -22,23 +22,10 @@
     "stealth": 1,
     "mechanics": 0
   },
-  "needs": {
-    "hunger": 0.4,
-    "fatigue": 0.5,
-    "fear": 0.3
-  },
-  "status": {
-    "health": "ok",
-    "location": "stockroom",
-    "conditions": []
-  },
   "relations": {
     "pike": 20,
     "coleman": 10,
     "han": 15,
     "ferris": 0
-  },
-  "knows": [
-    "The food count on the wall assumes Gil isn't eating from somewhere else, and she's starting to doubt that."
-  ]
+  }
 }

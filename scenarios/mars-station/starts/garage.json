@@ -1,0 +1,154 @@
+{
+  "id": "garage",
+  "title": "Sol 214: the Mule",
+  "summary": "You are Priya Raman, the station's pilot, halfway through the rover's battery swap. The storm is coming, the recycler is rattling, and the sponsor expects your private report on the crew in tonight's uplink.",
+  "start": {
+    "day": 214,
+    "hour": 7
+  },
+  "player": "raman",
+  "castLabel": "Crew",
+  "cast": [
+    {
+      "id": "navarro",
+      "status": {
+        "location": "commons"
+      },
+      "needs": {
+        "hunger": 0.2,
+        "fatigue": 0.2,
+        "stress": 0.3
+      },
+      "knows": [
+        "The recycler's rattle started six nights ago, the same night Teo had the late hydroponics shift."
+      ]
+    },
+    {
+      "id": "okafor",
+      "status": {
+        "location": "commons"
+      },
+      "needs": {
+        "hunger": 0.2,
+        "fatigue": 0.4,
+        "stress": 0.5
+      },
+      "knows": [
+        "Lev has been booking lab time far beyond his approved schedule."
+      ]
+    },
+    {
+      "id": "sorensen",
+      "status": {
+        "location": "lab"
+      },
+      "needs": {
+        "hunger": 0.4,
+        "fatigue": 0.6,
+        "stress": 0.4
+      },
+      "knows": [
+        "Okafor's published ice-purity figures don't match the raw readings he saw on the shared drive."
+      ]
+    },
+    {
+      "id": "raman",
+      "status": {
+        "location": "garage"
+      },
+      "needs": {
+        "hunger": 0.3,
+        "fatigue": 0.4,
+        "stress": 0.5
+      },
+      "knows": [
+        "Her latest private report to the sponsor described Okafor as increasingly erratic.",
+        "Halvorsen wants her next crew report in tonight's uplink, and asked specifically about Okafor's judgment."
+      ]
+    },
+    {
+      "id": "bauer",
+      "status": {
+        "location": "commons"
+      },
+      "needs": {
+        "hunger": 0.2,
+        "fatigue": 0.5,
+        "stress": 0.7
+      },
+      "knows": [
+        "Hydroponics lost three racks of soy last week; he told the crew it was a lighting fault."
+      ]
+    }
+  ],
+  "clocks": [
+    {
+      "id": "storm",
+      "name": "Dust storm arrival",
+      "value": 0,
+      "max": 10,
+      "perHour": 0.5,
+      "fireText": "The dust storm arrives. The sky turns the color of rust, solar output collapses and anyone outside has minutes to get in.",
+      "fireWorld": {
+        "power": "solar output collapsed, running on battery reserve"
+      },
+      "then": [
+        {
+          "id": "storm-clear",
+          "name": "Storm clears",
+          "max": 10,
+          "perHour": 0.035,
+          "fireText": "The storm finally breaks. Weak sunlight returns, and the solar field sits under a thick blanket of dust.",
+          "fireWorld": {
+            "power": "solar arrays recovering; panels caked with dust"
+          }
+        },
+        {
+          "id": "battery",
+          "name": "Battery reserve depleted",
+          "max": 10,
+          "perHour": 0.04,
+          "fireText": "The battery reserve hits critical. Non-essential systems shut down, and life support switches to rationing.",
+          "fireWorld": {
+            "power": "critical: battery nearly drained, life support only"
+          }
+        }
+      ]
+    },
+    {
+      "id": "recycler",
+      "name": "Water recycler failure",
+      "value": 3,
+      "max": 10,
+      "perHour": 0.2,
+      "fireText": "The water recycler grinds to a halt. Until it is repaired, the station is on stored water only.",
+      "fireWorld": {
+        "recycler": "failed"
+      },
+      "then": [
+        {
+          "id": "water",
+          "name": "Stored water runs low",
+          "max": 10,
+          "perHour": 0.03,
+          "fireText": "Stored water drops below the safety margin. Every liter now has to be argued over.",
+          "fireWorld": {
+            "recycler": "failed; stored water below safety margin"
+          }
+        }
+      ]
+    },
+    {
+      "id": "uplink",
+      "name": "Evening uplink window",
+      "value": 0,
+      "max": 10,
+      "perHour": 0.8,
+      "fireText": "The evening uplink window to Earth closes. Whatever the crew queued is on its way; anything else waits until tomorrow."
+    }
+  ],
+  "facts": [
+    "An orbital weather relay shows a regional dust storm building east of Hellas and tracking toward Ares Deep, roughly twenty hours out."
+  ],
+  "opening": "The Mule's old battery pack hangs from the garage hoist, swaying a little every time the station's pumps cycle. Its replacement waits on the cart beside you, still in its foil, and the swap log on your tablet says AWAITING SIGN-OFF in cheerful orange.\n\nThrough the hatch to the suit room you can hear the water recycler: a dry rattle that wasn't there a week ago. Your coffee went cold an hour ago.\n\nYour private inbox shows one unread message from the Halvorsen address that never signs its name. *Evening uplink as usual. Particular interest in the station lead's judgment this week.* The draft folder is empty.\n\nThe intercom by the garage door is open to the commons, and you can hear Okafor saying something about a dust storm and the Mule being inside by tonight. Somebody has to sign off on this swap first, and you are not doing it twice."
+}

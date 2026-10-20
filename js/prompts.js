@@ -40,7 +40,7 @@
   P.header = (state) => P.build('header', { state, sc: state.scenario, pc: state.characters[state.player] });
 
   B.intro = () => 'You are the simulation engine and narrator for an interactive, character-driven story.';
-  B.setting = ({ sc }) => `\n=== SETTING: ${sc.title} ===\n${sc.setting}`;
+  B.setting = ({ sc }) => `\n=== SETTING: ${sc.worldTitle || sc.title} ===\n${sc.setting}`;
   B.rules = ({ state, sc, pc }) => {
     const rules = [
       'The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. The player commands no faction.',

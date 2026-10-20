@@ -1,0 +1,42 @@
+{
+  "id": "pike",
+  "name": "Jordan Pike",
+  "pronouns": "they/them",
+  "role": "former delivery driver",
+  "age": 33,
+  "traits": [
+    "steady",
+    "observant",
+    "dry"
+  ],
+  "want": "keep this group alive long enough to find somewhere safer",
+  "voice": "Few words, dry humor, calm under pressure.",
+  "skills": {
+    "fighting": 2,
+    "shooting": 1,
+    "medicine": 1,
+    "mechanics": 2,
+    "scavenging": 3,
+    "stealth": 2,
+    "persuasion": 2
+  },
+  "needs": {
+    "hunger": 0.4,
+    "fatigue": 0.3,
+    "fear": 0.4
+  },
+  "status": {
+    "health": "ok",
+    "location": "floor",
+    "conditions": []
+  },
+  "relations": {
+    "ortiz": 20,
+    "coleman": 5,
+    "han": 10,
+    "ferris": -5
+  },
+  "knows": [
+    "Gil Ferris keeps the office locked even at night and gets defensive when anyone goes near it."
+  ]
+}

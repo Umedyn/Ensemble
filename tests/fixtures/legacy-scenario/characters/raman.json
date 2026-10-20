@@ -1,0 +1,44 @@
+{
+  "id": "raman",
+  "name": "Priya Raman",
+  "pronouns": "she/her",
+  "role": "pilot and rover technician",
+  "age": 31,
+  "traits": [
+    "warm",
+    "impatient",
+    "fiercely loyal"
+  ],
+  "want": "get home on schedule for her daughter's sixth birthday",
+  "secret": "The mission's corporate sponsor quietly pays her a bonus for private reports on crew performance, and she has been sending them.",
+  "guard": "medium",
+  "voice": "Fast and teasing; swears in Tamil when stressed.",
+  "skills": {
+    "piloting": 4,
+    "tech": 3,
+    "athletics": 3,
+    "social": 3,
+    "science": 1,
+    "medicine": 1,
+    "stealth": 1
+  },
+  "needs": {
+    "hunger": 0.3,
+    "fatigue": 0.3,
+    "stress": 0.4
+  },
+  "status": {
+    "health": "ok",
+    "location": "garage",
+    "conditions": []
+  },
+  "relations": {
+    "navarro": 25,
+    "okafor": 5,
+    "sorensen": 10,
+    "bauer": 15
+  },
+  "knows": [
+    "Her latest private report to the sponsor described Okafor as increasingly erratic."
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "format": 2,
+  "id": "zombie-holdout",
+  "title": "Holdout at Harmon's",
+  "summary": "Five strangers barricaded inside a rural hardware store, 23 days into the outbreak. The dead are slow but endless; the living are the real danger.",
+  "setting": "Day 23 of the outbreak. Five strangers have barricaded themselves inside Harmon's Hardware, a rural store off a two-lane highway. The town is quiet in the worst way. Radio and phones are mostly dead, gas is scarce, and the dead are slow but endless. Nobody here chose each other.",
+  "rules": [
+    "The dead are slow, relentless and drawn by noise and light. A bite is fatal within a day or two; there is no cure.",
+    "Realistic tone: injuries matter, supplies run out, guns are loud and ammunition is scarce.",
+    "The living are the real danger: fear, grudges and secrets drive conflict inside the group."
+  ],
+  "timeLabel": "Day",
+  "wakeHour": 7,
+  "skills": [
+    "fighting",
+    "shooting",
+    "medicine",
+    "mechanics",
+    "scavenging",
+    "stealth",
+    "persuasion"
+  ],
+  "needs": [
+    {
+      "id": "hunger",
+      "label": "Hunger",
+      "perHour": 0.035
+    },
+    {
+      "id": "fatigue",
+      "label": "Fatigue",
+      "perHour": 0.04
+    },
+    {
+      "id": "fear",
+      "label": "Fear",
+      "perHour": 0.01
+    }
+  ],
+  "world": {
+    "barricades": "holding, front windows weak",
+    "food": "about four days for five people",
+    "vehicles": "a pickup in the lot, no keys found"
+  },
+  "factions": [
+    {
+      "id": "convoy",
+      "name": "Coastal rescue convoy",
+      "desc": "An armed convoy evacuating survivors to a coastal safe zone, broadcasting on handheld radio bands.",
+      "stance": "heading for the highway junction; says it can take only three more people"
+    },
+    {
+      "id": "ridge",
+      "name": "The Ridge",
+      "desc": "Armed survivors holed up in the next town over. Nobody here knows much about them.",
+      "stance": "unknown; their trucks were seen scavenging along the highway"
+    }
+  ],
+  "eventRates": {
+    "regional": 14,
+    "world": 72
+  },
+  "eventSeeds": {
+    "regional": [
+      "a fire spreading through the town",
+      "a thunderstorm drowning out sound",
+      "another group of survivors passing on the highway",
+      "a power substation failing",
+      "a dog pack roaming the streets",
+      "the dead breaking through somewhere nearby"
+    ],
+    "world": [
+      "a government broadcast about evacuation zones",
+      "the military bombing a nearby city",
+      "the radio going silent across the bands",
+      "rumors of a cure",
+      "the convoy changing its route",
+      "a refugee camp falling"
+    ]
+  },
+  "majorEventDays": 6,
+  "majorHorizonDays": 21,
+  "majorSeeds": [
+    "the dead break through a window",
+    "someone in the group gets bitten",
+    "the generator catches fire",
+    "strangers arrive asking for shelter",
+    "part of the food stash is found missing",
+    "a gunshot nearby draws the dead"
+  ],
+  "characters": [
+    "pike",
+    "ortiz",
+    "coleman",
+    "han",
+    "ferris"
+  ],
+  "starts": [
+    "herd"
+  ]
+}

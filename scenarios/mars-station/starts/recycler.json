@@ -1,0 +1,145 @@
+{
+  "id": "recycler",
+  "title": "Sol 214: the recycler",
+  "summary": "You are Kit Navarro, the station's systems engineer. The water recycler has started to rattle, a dust storm is twenty hours out, and somebody on this crew is hiding why.",
+  "start": {
+    "day": 214,
+    "hour": 7
+  },
+  "player": "navarro",
+  "castLabel": "Crew",
+  "cast": [
+    {
+      "id": "navarro",
+      "status": {
+        "location": "commons"
+      },
+      "needs": {
+        "hunger": 0.2,
+        "fatigue": 0.2,
+        "stress": 0.3
+      },
+      "knows": [
+        "The recycler's rattle started six nights ago, the same night Teo had the late hydroponics shift."
+      ]
+    },
+    {
+      "id": "okafor",
+      "status": {
+        "location": "commons"
+      },
+      "needs": {
+        "hunger": 0.2,
+        "fatigue": 0.4,
+        "stress": 0.5
+      },
+      "knows": [
+        "Lev has been booking lab time far beyond his approved schedule."
+      ]
+    },
+    {
+      "id": "sorensen",
+      "status": {
+        "location": "lab"
+      },
+      "needs": {
+        "hunger": 0.4,
+        "fatigue": 0.6,
+        "stress": 0.4
+      },
+      "knows": [
+        "Okafor's published ice-purity figures don't match the raw readings he saw on the shared drive."
+      ]
+    },
+    {
+      "id": "raman",
+      "status": {
+        "location": "garage"
+      },
+      "needs": {
+        "hunger": 0.3,
+        "fatigue": 0.3,
+        "stress": 0.4
+      },
+      "knows": [
+        "Her latest private report to the sponsor described Okafor as increasingly erratic."
+      ]
+    },
+    {
+      "id": "bauer",
+      "status": {
+        "location": "commons"
+      },
+      "needs": {
+        "hunger": 0.2,
+        "fatigue": 0.5,
+        "stress": 0.7
+      },
+      "knows": [
+        "Hydroponics lost three racks of soy last week; he told the crew it was a lighting fault."
+      ]
+    }
+  ],
+  "clocks": [
+    {
+      "id": "storm",
+      "name": "Dust storm arrival",
+      "value": 0,
+      "max": 10,
+      "perHour": 0.5,
+      "fireText": "The dust storm arrives. The sky turns the color of rust, solar output collapses and anyone outside has minutes to get in.",
+      "fireWorld": {
+        "power": "solar output collapsed, running on battery reserve"
+      },
+      "then": [
+        {
+          "id": "storm-clear",
+          "name": "Storm clears",
+          "max": 10,
+          "perHour": 0.035,
+          "fireText": "The storm finally breaks. Weak sunlight returns, and the solar field sits under a thick blanket of dust.",
+          "fireWorld": {
+            "power": "solar arrays recovering; panels caked with dust"
+          }
+        },
+        {
+          "id": "battery",
+          "name": "Battery reserve depleted",
+          "max": 10,
+          "perHour": 0.04,
+          "fireText": "The battery reserve hits critical. Non-essential systems shut down, and life support switches to rationing.",
+          "fireWorld": {
+            "power": "critical: battery nearly drained, life support only"
+          }
+        }
+      ]
+    },
+    {
+      "id": "recycler",
+      "name": "Water recycler failure",
+      "value": 3,
+      "max": 10,
+      "perHour": 0.2,
+      "fireText": "The water recycler grinds to a halt. Until it is repaired, the station is on stored water only.",
+      "fireWorld": {
+        "recycler": "failed"
+      },
+      "then": [
+        {
+          "id": "water",
+          "name": "Stored water runs low",
+          "max": 10,
+          "perHour": 0.03,
+          "fireText": "Stored water drops below the safety margin. Every liter now has to be argued over.",
+          "fireWorld": {
+            "recycler": "failed; stored water below safety margin"
+          }
+        }
+      ]
+    }
+  ],
+  "facts": [
+    "An orbital weather relay shows a regional dust storm building east of Hellas and tracking toward Ares Deep, roughly twenty hours out."
+  ],
+  "opening": "The coffee substitute tastes like hot cardboard, same as every morning. What isn't the same is the sound: the water recycler in hydroponics has picked up a dry, unhealthy rattle that carries all the way into the commons.\n\nOkafor sits at the galley table with her tablet, reading the overnight weather relay. \"Dust storm building east of us,\" she says without looking up. \"Twenty hours, maybe less. I want the arrays secured and the Mule inside by tonight.\"\n\nTeo hovers by the galley counter, eyes on the recycler readout, unusually quiet. Somewhere down the corridor the lab door has been sealed since before you woke; that's Lev. Then the intercom crackles: Priya, from the garage, asking whether anyone has signed off on the Mule's battery swap yet, because she is not doing it twice.\n\nIt's going to be a long sol."
+}

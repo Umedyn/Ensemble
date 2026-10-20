@@ -22,25 +22,10 @@
     "stealth": 1,
     "persuasion": 1
   },
-  "needs": {
-    "hunger": 0.5,
-    "fatigue": 0.4,
-    "fear": 0.5
-  },
-  "status": {
-    "health": "ok",
-    "location": "floor",
-    "conditions": [
-      "bandaged left forearm"
-    ]
-  },
   "relations": {
     "pike": 5,
     "ortiz": 10,
     "han": 20,
     "ferris": -20
-  },
-  "knows": [
-    "The wound under his bandage is hot to the touch this morning."
-  ]
+  }
 }

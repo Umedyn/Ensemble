@@ -45,8 +45,8 @@ The format change everything else builds on, plus visible improvements to the ch
 - [ ] A **world** holds the setting, rules, genre tags, groups, map (once phase 3 lands), lore, timeline, the skill and needs definitions, and event rates.
 - [ ] A **start** is one way into that world: where the player begins (region and location), the player character or a slot to fill in, the local cast, the local rooms, the start date and opening situation, and optional allowed roles or peoples for the character creator.
 - [ ] Folder layout: `scenarios/<world>/world.json`, `starts/<id>.json`, `characters/<id>.json`, plus later `maps/`, `lore/`, `portraits/`. The scenario picker becomes a world picker, then a start picker.
-- [ ] A `format` field on world files, and a migration that loads today's `scenario.json` as one world with one start. Bump the save `version` and migrate old saves.
-- [ ] Write `docs/WORLDS.md` (spec for the split) before coding.
+- [x] A `format` field on world files, and a migration that loads today's `scenario.json` as one world with one start. Bump the save `version` and migrate old saves.
+- [x] Write `docs/WORLDS.md` (spec for the split) before coding.
 
 **Genre and mood tags**
 - [ ] `tags` on the world (for example `survival`, `slice-of-life`, `romance`, `intrigue`, `war`, `horror`, `comedy`, `cozy`, `grim`) plus a freeform `toneNote`.

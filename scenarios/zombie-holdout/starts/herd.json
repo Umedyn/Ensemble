@@ -1,0 +1,202 @@
+{
+  "id": "herd",
+  "title": "Day 23: the herd",
+  "summary": "You are Jordan Pike, a former delivery driver. Food is down to four days, a herd is drifting toward the store, and a rescue convoy on the radio says it can take only three more people.",
+  "start": {
+    "day": 23,
+    "hour": 9
+  },
+  "player": "pike",
+  "castLabel": "Group",
+  "cast": [
+    {
+      "id": "pike",
+      "status": {
+        "location": "floor"
+      },
+      "needs": {
+        "hunger": 0.4,
+        "fatigue": 0.3,
+        "fear": 0.4
+      },
+      "knows": [
+        "Gil Ferris keeps the office locked even at night and gets defensive when anyone goes near it."
+      ]
+    },
+    {
+      "id": "ortiz",
+      "status": {
+        "location": "stockroom"
+      },
+      "needs": {
+        "hunger": 0.4,
+        "fatigue": 0.5,
+        "fear": 0.3
+      },
+      "knows": [
+        "The food count on the wall assumes Gil isn't eating from somewhere else, and she's starting to doubt that."
+      ]
+    },
+    {
+      "id": "coleman",
+      "status": {
+        "health": "ok",
+        "location": "floor",
+        "conditions": [
+          "bandaged left forearm"
+        ]
+      },
+      "needs": {
+        "hunger": 0.5,
+        "fatigue": 0.4,
+        "fear": 0.5
+      },
+      "knows": [
+        "The wound under his bandage is hot to the touch this morning."
+      ]
+    },
+    {
+      "id": "han",
+      "status": {
+        "location": "floor"
+      },
+      "needs": {
+        "hunger": 0.4,
+        "fatigue": 0.3,
+        "fear": 0.3
+      },
+      "knows": [
+        "The convoy broadcast said it would pass the highway junction in about two days."
+      ]
+    },
+    {
+      "id": "ferris",
+      "status": {
+        "location": "office"
+      },
+      "needs": {
+        "hunger": 0.1,
+        "fatigue": 0.3,
+        "fear": 0.6
+      },
+      "knows": [
+        "He saw Dex flinch and hide his arm when Marlene offered to change the bandage."
+      ]
+    }
+  ],
+  "locations": [
+    {
+      "id": "floor",
+      "name": "Sales Floor",
+      "desc": "Aisles of tools and paint, front windows boarded with plywood.",
+      "connects": [
+        "stockroom",
+        "office",
+        "dock"
+      ]
+    },
+    {
+      "id": "stockroom",
+      "name": "Stockroom",
+      "desc": "Shelving, bedrolls on cardboard and the group's food pile.",
+      "connects": [
+        "floor",
+        "dock"
+      ]
+    },
+    {
+      "id": "office",
+      "name": "Manager's Office",
+      "desc": "A locked desk, a dead landline and a ladder to the roof hatch.",
+      "connects": [
+        "floor",
+        "roof"
+      ]
+    },
+    {
+      "id": "roof",
+      "name": "Roof",
+      "desc": "Flat tar roof with a view of the highway and the town.",
+      "connects": [
+        "office"
+      ]
+    },
+    {
+      "id": "dock",
+      "name": "Loading Dock",
+      "desc": "Rolling steel door, a forklift and the only vehicle exit.",
+      "connects": [
+        "floor",
+        "stockroom",
+        "lot"
+      ]
+    },
+    {
+      "id": "lot",
+      "name": "Parking Lot",
+      "desc": "Open asphalt, abandoned cars, a pickup with no keys. Exposed.",
+      "connects": [
+        "dock"
+      ]
+    }
+  ],
+  "clocks": [
+    {
+      "id": "horde",
+      "name": "Horde drifting toward the store",
+      "value": 0,
+      "max": 12,
+      "perHour": 0.3,
+      "fireText": "The horde reaches Harmon's. Dozens of the dead press against the front windows, and the plywood starts to groan.",
+      "fireWorld": {
+        "barricades": "under siege, front windows failing"
+      },
+      "then": [
+        {
+          "id": "breach",
+          "name": "Barricade gives way",
+          "max": 8,
+          "perHour": 0.25,
+          "fireText": "The front barricade gives way and the dead pour into the sales floor.",
+          "fireWorld": {
+            "barricades": "breached at the front"
+          }
+        },
+        {
+          "id": "horde-moves",
+          "name": "Horde moves on",
+          "max": 10,
+          "perHour": 0.06,
+          "fireText": "The horde slowly drifts away south, leaving the street littered and quiet.",
+          "fireWorld": {
+            "barricades": "battered but holding; the street is clear for now"
+          }
+        }
+      ]
+    },
+    {
+      "id": "food",
+      "name": "Food runs out",
+      "value": 4,
+      "max": 12,
+      "perHour": 0.15,
+      "fireText": "The last of the canned food is gone. Whatever happens next, someone has to go out for supplies.",
+      "fireWorld": {
+        "food": "gone"
+      },
+      "then": [
+        {
+          "id": "starving",
+          "name": "Hunger weakens the group",
+          "max": 10,
+          "perHour": 0.1,
+          "fireText": "Days without real food take their toll: hands shake, tempers fray, and someone is going to make a desperate choice."
+        }
+      ]
+    }
+  ],
+  "facts": [
+    "A large crowd of the dead was seen two miles up the highway yesterday, drifting slowly south toward the store."
+  ],
+  "opening": "Morning light comes through the gaps in the plywood in thin gold stripes. Marlene is already up, counting cans in the stockroom for the third time this week and writing the number on the wall in marker. Four days, the number says.\n\nDex paces the sales floor with the shotgun, checking the windows that don't need checking. Ruth sits cross-legged on the floor beside a disassembled generator, sleeves pushed up, not talking to anyone. Gil Ferris, who owns this place and won't let anyone forget it, has the office door shut again.\n\n\"Herd's still coming,\" Dex says to no one in particular. \"Saw it from the roof at dawn. Maybe a day out.\"\n\nMarlene looks up from her cans and meets your eyes, like she's waiting to hear what you think."
+}

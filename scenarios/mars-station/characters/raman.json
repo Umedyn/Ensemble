@@ -22,23 +22,10 @@
     "medicine": 1,
     "stealth": 1
   },
-  "needs": {
-    "hunger": 0.3,
-    "fatigue": 0.3,
-    "stress": 0.4
-  },
-  "status": {
-    "health": "ok",
-    "location": "garage",
-    "conditions": []
-  },
   "relations": {
     "navarro": 25,
     "okafor": 5,
     "sorensen": 10,
     "bauer": 15
-  },
-  "knows": [
-    "Her latest private report to the sponsor described Okafor as increasingly erratic."
-  ]
+  }
 }

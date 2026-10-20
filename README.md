@@ -9,7 +9,7 @@ A local, character-driven story sim in the spirit of Pax Historia, but at person
 3. On your first visit, a short setup asks how you want to run the model (hosted, KoboldCpp, or both), checks whether KoboldCpp is running, and opens Settings where you finish up. **Settings → Setup guide** brings it back.
 4. Pick a scenario, press **New game**, and type what you do.
 
-No Python? Open `index.html` directly and use **Open folder** to pick the `scenarios` folder (or a single scenario folder).
+No Python? Open `index.html` directly and use **Open folder** to pick the `scenarios` folder (or a single world folder).
 
 Each backend has its own context size: **Test** reads it from KoboldCpp, or from the provider's model list when it has one (OpenRouter does). Settings also has the memory cap, scene length, temperature and turns per chapter.
 
@@ -58,21 +58,32 @@ Prompts are ordered for KoboldCpp's prompt cache: a fixed header (rules, setting
 
 Every fact records who knows it (`known_by`). The narrator only gets facts the player knows; each character's intent only gets their own private knowledge.
 
-## Making a scenario
+## Making a world
+
+A **world** is everything that's true wherever you start: the setting, rules, skills, groups, event pacing and a pool of characters. A **start** is one way into it: when, where, who you play, who's around you, the local pressures and the opening scene. One world can have several starts; Ares Deep has two (Kit in the commons, Priya in the garage).
 
 Copy a folder in `scenarios/` and edit it:
 
 ```
-scenarios/my-scenario/
-  scenario.json
-  characters/<id>.json   one file per id listed in scenario.json "characters"
+scenarios/my-world/
+  world.json
+  starts/<id>.json       one file per id listed in world.json "starts" (the first is the default)
+  characters/<id>.json   one file per id listed in world.json "characters"
 ```
 
-Then add the folder to `scenarios/index.json` (only needed when running with the server; **Open folder** finds scenarios on its own). Scenarios are validated on load, with readable errors for unknown locations, skills, relations and so on.
+Then add the folder to `scenarios/index.json` (only needed when running with the server; **Open folder** finds worlds on its own). Worlds are validated on load, with readable errors for unknown locations, skills, relations, cast members and so on. With Node installed, `npm run check` validates every world and every start, and warns about field names it doesn't know (a typo like `oppening`).
 
-**scenario.json** fields: `title`, `setting`, `rules` (list), `timeLabel` ("Sol", "Day"), `start` `{day, hour}`, `wakeHour`, `player` (character id), `characters` (ids), `skills` (list), `needs` (`{id, label, perHour}`), `locations` (`{id, name, desc, connects}`), `world` (key → short description), `factions` (groups such as an organization, gang or government: `{id, name, desc, stance}`; their stance can shift as events ripple out), `clocks` (`{id, name, value, max, perHour, fireText, fireWorld}`), `eventRates` (`{regional, world}`: average in-game hours between regional and world events; 0 turns a tier off), `eventSeeds` (`{regional: [...], world: [...]}`: idea lists that steer what those events are about), `majorEventDays`, `majorHorizonDays` and `majorSeeds` (for the major-event skip), clock `then` (follow-up clocks started when a clock fires), `facts` (public starting facts), `opening` (first scene), `castLabel` (sidebar heading).
+**world.json** fields: `format` (always `2`), `id`, `title`, `summary` (one or two lines for the picker), `setting`, `rules` (list), `timeLabel` ("Sol", "Day"), `wakeHour`, `skills` (list), `needs` (`{id, label, perHour}`), `world` (key → short description), `factions` (groups such as an organization, gang or government: `{id, name, desc, stance}`; their stance can shift as events ripple out), `eventRates` (`{regional, world}`: average in-game hours between regional and world events; 0 turns a tier off), `eventSeeds` (`{regional: [...], world: [...]}`: idea lists that steer what those events are about), `majorEventDays`, `majorHorizonDays` and `majorSeeds` (for the major-event skip), `facts` (public facts true everywhere), `characters` (the pool: ids), `starts` (ids). `locations` can go here too when every start shares the same rooms, as in Ares Deep.
 
-**Character files**: `id`, `name`, `pronouns`, `role`, `age`, `traits`, `want`, `secret`, `guard` (`low`, `medium` or `high`: how hard the secret is to crack), `voice`, `skills` (0–4), `needs` (0–1), `status` `{health, location, conditions}`, `relations` (id → −100..100, how they feel about that person), `knows` (private starting facts).
+**starts/&lt;id&gt;.json** fields: `id`, `title`, `summary` (who you are and what's going on), `start` `{day, hour}`, `player` (a cast id), `cast` (who's in this start), `castLabel` (sidebar heading), `locations` (`{id, name, desc, connects}`), `clocks` (`{id, name, value, max, perHour, fireText, fireWorld}`, with `then` for follow-up clocks started when a clock fires), `facts` (public starting facts), `opening` (first scene). A start can also override world fields: a different `world` status, a group's `stance`, extra `rules`, and so on. Lists of rules and facts add to the world's; rooms, clocks and groups with the same `id` change the world's version field by field.
+
+**cast** entries are a character id, or an object that sets where that person is and how they feel in this start: `{ "id": "bauer", "status": { "location": "hydro" }, "needs": { "stress": 0.7 }, "knows": ["..."] }`. An entry can override `status`, `needs`, `relations`, `knows`, `want`, `secret` and `guard`.
+
+**Character files** hold who the person is: `id`, `name`, `pronouns`, `role`, `age`, `traits`, `want`, `secret`, `guard` (`low`, `medium` or `high`: how hard the secret is to crack), `voice`, `skills` (0–4), `relations` (id → −100..100, how they feel about that person). They may also hold `needs` (0–1), `status` `{health, location, conditions}` and `knows` (private starting facts) as defaults for every start.
+
+The full spec, including the merge rules, is [docs/WORLDS.md](docs/WORLDS.md). For now **New game** plays a world's first start; choosing a start comes with the picker update.
+
+**Older scenario folders** (one `scenario.json` + `characters/`, no `world.json`) still load, as a world with a single start. `scenario.json` has the world and start fields together, with `characters` as the cast.
 
 Health is one of `ok`, `hurt`, `badly_hurt`, `dead`. Death is permanent; if the player dies, the story ends.
 

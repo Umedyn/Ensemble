@@ -22,23 +22,10 @@
     "athletics": 1,
     "stealth": 2
   },
-  "needs": {
-    "hunger": 0.4,
-    "fatigue": 0.6,
-    "stress": 0.4
-  },
-  "status": {
-    "health": "ok",
-    "location": "lab",
-    "conditions": []
-  },
   "relations": {
     "navarro": 15,
     "okafor": -10,
     "raman": 10,
     "bauer": 20
-  },
-  "knows": [
-    "Okafor's published ice-purity figures don't match the raw readings he saw on the shared drive."
-  ]
+  }
 }

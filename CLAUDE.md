@@ -23,10 +23,10 @@ No build step and no runtime dependencies. Playwright is a dev dependency for UI
 - `js/memory.js`: facts with `known_by`, chapter rollups, prompt budgets
 - `js/prompts.js`: every prompt (intent, narrate, update, chapter, downtime intent, downtime narration)
 - `js/engine.js`: game state, resolution, guards, events, time, beats, skip, the turn loop
-- `js/scenario.js`: loading and validating scenario folders
+- `js/scenario.js`: loading worlds (and legacy scenario folders), composing a world + start into the flat scenario, validation
 - `js/ui.js`: the page; the only file that touches the DOM
-- `scenarios/<folder>/`: `scenario.json` + `characters/<id>.json`, listed in `scenarios/index.json`
-- `tests/`: `helpers.js` loads the engine into a Node VM; `engine.test.js`; `prompts.snapshot.test.js` (every prompt for a fixed state, byte for byte; re-record with `UPDATE_SNAPSHOTS=1` after an intended prompt change); `replay.js` + `replay.test.js` + `fixtures/` (recorded sessions); `ui.smoke.mjs`; `mock-servers.mjs`
+- `scenarios/<folder>/`: a world (`world.json` + `starts/<id>.json` + `characters/<id>.json`) or a legacy `scenario.json` + `characters/`, listed in `scenarios/index.json`
+- `tests/`: `helpers.js` loads the engine into a Node VM (`readWorld`, `newGame(folder, startId)`); `engine.test.js`; `worlds.test.js` (compose, world validation, legacy, save migration); `prompts.snapshot.test.js` (every prompt for a fixed state, byte for byte; re-record with `UPDATE_SNAPSHOTS=1` after an intended prompt change); `replay.js` + `replay.test.js` + `fixtures/` (recorded sessions); `ui.smoke.mjs`; `mock-servers.mjs`
 
 ## Rules that keep the game working
 
