@@ -59,6 +59,11 @@ The format change everything else builds on, plus visible improvements to the ch
 - [ ] **Character details:** description, appearance, pronouns, and what the player knows about them (player-known facts that name them).
 - [ ] **Correct your feelings:** nudge your own attitude when the model misreads your tone.
 
+**Themes and accessibility**
+- [ ] Themes in Settings › Appearance: Dark (today's), Light, **High visibility** (high contrast, no colour-only meaning, strong focus outlines) and System.
+- [ ] Text size, story font (serif or sans), line spacing and reduce motion; applied before first paint.
+- [ ] Contrast check for every theme in tests; `aria-label`s on icon-only buttons.
+
 ## Phase 2: Cast tiers
 
 Lets big casts fit in 8K and makes the world move without the player.
