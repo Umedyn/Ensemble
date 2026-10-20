@@ -8,6 +8,7 @@
   let busy = false;
   let uiCut = null; // beat number the player wants to step in after
   let uiShown = 1; // beats of the live scene revealed so far
+  const openTurns = new Set(); // folded earlier turns the player has opened
   const notes = []; // undo/reroll history for the Debug panel
   const loaded = new Map(); // key -> scenario object (from disk) or {folder} (from server)
 
@@ -90,6 +91,7 @@
       state = E.Engine.newGame(sc);
       uiCut = null;
       uiShown = 1;
+      openTurns.clear();
       E.LLM.calls.length = 0;
       E.Engine.telemetry.length = 0;
       stopRecording();
@@ -155,6 +157,7 @@
       if (!s.scenario || !s.characters || !s.player) throw new Error('That file is not an Ensemble save.');
       stopRecording();
       state = s;
+      openTurns.clear();
       uiCut = null;
       uiShown = 1;
       autosave();
@@ -175,6 +178,7 @@
       const result = await E.Engine.runTurn(state, text, $('timeStep').value, setPhase, uiCut);
       uiCut = null;
       uiShown = 1;
+      openTurns.clear();
       if ($('timeStep').value === 'major') $('timeStep').value = 'hour';
       $('actionInput').value = '';
       autosave();
@@ -282,48 +286,91 @@
 
   function nm(id) { return state.characters[id] ? state.characters[id].name : id; }
 
+  // Earlier turns fold into a closed "Turn N" row; only the latest turn is
+  // shown in full. Rows the player opens stay open until the next turn starts.
   function renderLog() {
     const log = $('log');
     if (!state) return;
-    const html = state.log.map((e) => {
-      if (e.type === 'scene') return renderScene(e);
-      if (e.type === 'action') return `<div class="entry action">${e.skip ? '⏭ ' : ''}${esc(e.text)}<span class="when">${esc(e.time || '')}${e.until ? ' → ' + esc(e.until) : ''}</span></div>`;
-      if (e.type === 'chapter') return `<div class="entry chapter">Chapter ${e.chapter.n} ends<b>${esc(e.chapter.title)}</b></div>`;
-      if (e.type === 'resolve') {
-        const items = e.outcomes.map((o) => {
-          const hidden = !o.visible && o.id !== state.player;
-          // Covert actions stay secret from the player; the Debug panel shows the truth.
-          if (hidden) return `<li class="hid">🔒 <b>${esc(nm(o.id))}</b>: something you didn't see</li>`;
-          const res = o.roll
-            ? ` — <span class="${/success/.test(o.roll.result) ? 'ok' : 'fail'}">${o.roll.result}</span> <span class="muted">(${esc(o.skill)}: d20 ${o.roll.d} → ${o.roll.total} vs ${o.roll.dc})</span>`
-            : '';
-          const extra = (o.reveals ? `<br><span class="ok">reveals:</span> ${esc(o.reveals)}` : '') +
-            (o.missing ? ' <span class="muted">(model gave no intent)</span>' : '') +
-            (o.id === state.player && o.note ? ` <span class="muted">(${esc(o.note)})</span>` : '');
-          return `<li><b>${esc(nm(o.id))}</b>: ${esc(o.action)}${res}${extra}</li>`;
-        }).concat(e.events.map((t) => {
-          const heard = /^\(heard from elsewhere[^)]*\)\s*/.test(t);
-          let body = t.replace(/^\(heard from elsewhere[^)]*\)\s*/, '');
-          const tier = (body.match(/^\[(regional|world)\]\s*/) || [])[1];
-          body = body.replace(/^\[(regional|world)\]\s*/, '');
-          const icon = tier === 'world' ? '🌍' : tier === 'regional' ? '🗺️' : heard ? '🔊' : '⚡';
-          return `<li class="${heard && !tier ? 'muted' : 'fail'}">${icon} ${esc(body)}</li>`;
-        }));
-        return `<details class="entry rolls"><summary>What everyone tried (turn ${e.turn})</summary><ul>${items.join('')}</ul></details>`;
-      }
-      return '';
+    const groups = [];
+    state.log.forEach((e) => {
+      const last = groups[groups.length - 1];
+      if (e.type === 'chapter') groups.push({ chapter: e });
+      else if (last && !last.chapter && last.turn === e.turn) last.entries.push(e);
+      else groups.push({ turn: e.turn, entries: [e] });
+    });
+    const html = groups.map((g) => {
+      if (g.chapter) return renderEntry(g.chapter);
+      const body = g.entries.map(renderEntry).join('');
+      if (g.turn === state.turn) return `<div class="turn-current" data-turn="${g.turn}">${body}</div>`;
+      return `<details class="turn-group" data-turn="${g.turn}"${openTurns.has(g.turn) ? ' open' : ''}><summary>${turnSummary(g)}</summary>${body}</details>`;
     }).join('');
     log.innerHTML = html || '<div class="empty">Write your first action below.</div>';
     if (state.flags.gameOver) log.insertAdjacentHTML('beforeend', '<div class="entry chapter"><b>Your story ends here.</b>Load a save or start a new game.</div>');
-    log.scrollTop = log.scrollHeight;
+    // Land at the start of the latest turn, or at the bottom if it's short.
+    const cur = log.querySelector('.turn-current');
+    log.scrollTop = cur ? Math.min(offsetIn(log, cur) - 8, log.scrollHeight) : log.scrollHeight;
   }
 
-  function beatClock(e, b) {
-    const total = (e.startMinutes || 0) + b.at;
-    const day = (e.startDay || 0) + Math.floor(total / 1440);
-    const m = total % 1440;
-    const hhmm = `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
-    return day !== e.startDay ? `${state.scenario.timeLabel || 'Day'} ${day}, ${hhmm}` : hhmm;
+  // An element's position inside the scrolling story panel.
+  const offsetIn = (log, el) => el.getBoundingClientRect().top - log.getBoundingClientRect().top + log.scrollTop;
+
+  function turnSummary(g) {
+    const action = g.entries.find((e) => e.type === 'action');
+    const scene = g.entries.find((e) => e.type === 'scene');
+    const label = g.turn === 0 ? 'Opening' : `Turn ${g.turn}`;
+    const what = action ? `${action.skip ? '⏭ ' : ''}${E.shorten(action.text, 90)}` : '';
+    const when = action ? action.time : '';
+    return `<span class="turn-n">${label}</span>${esc(what)}<span class="when">${esc(when || '')}${scene && scene.cutAt ? ' · stepped in' : ''}</span>`;
+  }
+
+  function renderEntry(e) {
+    if (e.type === 'scene') return renderScene(e);
+    if (e.type === 'action') return `<div class="entry action">${e.skip ? '⏭ ' : ''}${esc(e.text)}<span class="when">${esc(e.time || '')}${e.until ? ' → ' + esc(e.until) : ''}</span></div>`;
+    if (e.type === 'chapter') return `<div class="entry chapter">Chapter ${e.chapter.n} ends<b>${esc(e.chapter.title)}</b></div>`;
+    if (e.type === 'resolve') {
+      const items = e.outcomes.map((o) => {
+        const hidden = !o.visible && o.id !== state.player;
+        // Covert actions stay secret from the player; the Debug panel shows the truth.
+        if (hidden) return `<li class="hid">🔒 <b>${esc(nm(o.id))}</b>: something you didn't see</li>`;
+        const res = o.roll
+          ? ` — <span class="${/success/.test(o.roll.result) ? 'ok' : 'fail'}">${o.roll.result}</span> <span class="muted">(${esc(o.skill)}: d20 ${o.roll.d} → ${o.roll.total} vs ${o.roll.dc})</span>`
+          : '';
+        const extra = (o.reveals ? `<br><span class="ok">reveals:</span> ${esc(o.reveals)}` : '') +
+          (o.missing ? ' <span class="muted">(model gave no intent)</span>' : '') +
+          (o.id === state.player && o.note ? ` <span class="muted">(${esc(o.note)})</span>` : '');
+        return `<li><b>${esc(nm(o.id))}</b>: ${esc(o.action)}${res}${extra}</li>`;
+      }).concat(e.events.map((t) => {
+        const heard = /^\(heard from elsewhere[^)]*\)\s*/.test(t);
+        let body = t.replace(/^\(heard from elsewhere[^)]*\)\s*/, '');
+        const tier = (body.match(/^\[(regional|world)\]\s*/) || [])[1];
+        body = body.replace(/^\[(regional|world)\]\s*/, '');
+        const icon = tier === 'world' ? '🌍' : tier === 'regional' ? '🗺️' : heard ? '🔊' : '⚡';
+        return `<li class="${heard && !tier ? 'muted' : 'fail'}">${icon} ${esc(body)}</li>`;
+      }));
+      return `<details class="entry rolls"><summary>What everyone tried (turn ${e.turn})</summary><ul>${items.join('')}</ul></details>`;
+    }
+    return '';
+  }
+
+  // Which folded turns the player has opened; cleared when a new turn starts.
+  $('log').addEventListener('toggle', (ev) => {
+    const d = ev.target;
+    if (!d.classList || !d.classList.contains('turn-group')) return;
+    const n = Number(d.dataset.turn);
+    if (d.open) openTurns.add(n); else openTurns.delete(n);
+  }, true);
+
+  // A beat's game date and time, like a log line: "Sol 214, 07:30".
+  // With sameDayAs (another beat), the date is left out when it matches.
+  function beatClock(e, b, sameDayAs) {
+    const at = (x) => {
+      const total = (e.startMinutes || 0) + x.at;
+      const m = total % 1440;
+      return { day: (e.startDay || 0) + Math.floor(total / 1440), hhmm: `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}` };
+    };
+    const t = at(b);
+    if (sameDayAs && at(sameDayAs).day === t.day) return t.hhmm;
+    return `${state.scenario.timeLabel || 'Day'} ${t.day}, ${t.hhmm}`;
   }
 
   function liveScene() {
@@ -354,7 +401,7 @@
   function actionPlaceholder() {
     const entry = liveScene();
     if (entry && !canAct()) return 'Read on with Next ▸, or press "Step in here" to act now. (You can type ahead.)';
-    if (uiCut && entry) return `What do you do at ${beatClock(entry, entry.beats[uiCut - 1])}–${beatClock(entry, entry.beats[uiCut])}? (Ctrl+Enter to act)`;
+    if (uiCut && entry) return `What do you do at ${beatClock(entry, entry.beats[uiCut - 1])}–${beatClock(entry, entry.beats[uiCut], entry.beats[uiCut - 1])}? (Ctrl+Enter to act)`;
     return $('timeStep').value === 'major'
       ? 'How do you spend the downtime? (optional, e.g. "Keep the arrays clean and avoid Teo")'
       : 'What do you do? (Ctrl+Enter to act)';
@@ -371,16 +418,17 @@
       uiCut = null;
       uiShown++;
     }
-    const top = $('log').scrollTop;
+    const log = $('log');
+    const top = log.scrollTop;
     renderLog();
     renderControls();
-    $('log').scrollTop = top;
-    $('actionInput').placeholder = actionPlaceholder();
+    log.scrollTop = top;
     if (nextBtn) {
-      const beat = $('log').querySelector(`.beat[data-beat="${uiShown - 1}"]`);
-      if (beat) beat.scrollIntoView({ block: 'nearest' });
-      const more = $('log').querySelector('.interject');
-      if (more) more.scrollIntoView({ block: 'nearest' });
+      // Bring the new beat into view from its top, scrolling only the story
+      // panel and only downward. (Earlier turns have beats with the same
+      // numbers, so look only inside the current turn.)
+      const beat = log.querySelector(`.turn-current .beat[data-beat="${uiShown - 1}"]`);
+      if (beat) log.scrollTop = Math.max(top, Math.min(offsetIn(log, beat) - 8, log.scrollHeight - log.clientHeight));
     } else {
       $('actionInput').focus();
     }

@@ -64,7 +64,8 @@ await check('desktop turn with beats and stepping in', async (page) => {
   assert.equal(await page.locator('button[data-cut]').count(), 1, 'one step-in point, under the newest beat');
   assert.equal(await page.locator('button[data-next]').count(), 1);
   await page.click('button[data-cut="1"]');
-  assert.match(await page.getAttribute('#actionInput', 'placeholder'), /What do you do at 07:00–07:30/);
+  assert.match(await page.getAttribute('#actionInput', 'placeholder'), /What do you do at Sol 214, 07:00–07:30\?/);
+  assert.equal(await page.locator('.turn-current .beat-time').first().textContent(), 'Sol 214, 07:00', 'beat headings carry the game date, like a log');
   await act(page, 'Hold on, Teo. Show me the log.', 'moment');
   assert.equal(await page.locator('.beat-note').count(), 1, 'beats after the step-in are not shown');
   assert.match(await page.locator('.entry.action .when').first().textContent(), /07:00 → Sol 214, 07:15/);
@@ -91,6 +92,30 @@ await check('act is greyed out until the scene is read or the player steps in', 
   assert.match(await page.getAttribute('#actionInput', 'placeholder'), /^What do you do\?/);
   await act(page, 'Wait, what was that?', 'moment');
   assert.equal(await page.locator('.beat-note').count(), 0, 'read to the end, so nothing was cut');
+});
+
+await check('earlier turns fold away; Next never scrolls up to an old turn', async (page) => {
+  await page.click('#btnNew');
+  await act(page, 'I open up the recycler.');
+  await act(page, 'Ask Teo about the log.');
+  assert.deepEqual(await page.locator('#log details.turn-group').evaluateAll((ds) => ds.map((d) => [d.dataset.turn, d.open])), [['0', false], ['1', false]], 'opening and turn 1 are folded');
+  assert.match(await page.locator('details.turn-group[data-turn="1"] > summary').textContent(), /Turn 1\s*I open up the recycler\./);
+  assert.equal(await page.locator('.turn-current[data-turn="2"]').count(), 1, 'the latest turn is shown in full');
+  await page.click('details.turn-group[data-turn="1"] > summary');
+  const log = page.locator('#log');
+  const before = await log.evaluate((el) => el.scrollTop);
+  await page.click('button[data-next]');
+  const after = await log.evaluate((el) => el.scrollTop);
+  assert.ok(after >= before, `Next scrolled up (${before} → ${after})`);
+  const inView = await page.evaluate(() => {
+    const log = document.getElementById('log'), b = document.querySelector('.turn-current .beat[data-beat="1"]');
+    const l = log.getBoundingClientRect(), r = b.getBoundingClientRect();
+    return r.top >= l.top - 1 && r.top < l.bottom;
+  });
+  assert.ok(inView, 'the new beat of the current turn is in view');
+  assert.ok(await page.locator('details.turn-group[data-turn="1"]').evaluate((d) => d.open), 'an opened turn stays open while reading');
+  await act(page, 'Nod.', 'moment');
+  assert.ok(!(await page.locator('details.turn-group[data-turn="1"]').evaluate((d) => d.open)), 'and closes when a new turn starts');
 });
 
 await check('undo and reroll', async (page) => {
