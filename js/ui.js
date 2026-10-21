@@ -247,6 +247,7 @@
       $('actionInput').value = '';
       autosave();
       renderAll();
+      announceBeat(0);
       $('actionInput').placeholder = actionPlaceholder();
       if (result.report && result.report.warning) showWarning(result.report.warning);
     } catch (e) {
@@ -291,6 +292,7 @@
       notes.push({ kind: 'reroll', summary: `turn ${out.turn} rewritten (same rolls, moves and events)`, detail: `Old scene:\n${out.oldText}\n\nNew scene:\n${out.prose}` });
       autosave();
       renderAll();
+      announceBeat(0);
     } catch (e) {
       setPhase('');
       showWarning(e.message);
@@ -327,8 +329,27 @@
     el.textContent = text;
     el.classList.toggle('busy', !!text);
   }
+  // ---------- screen readers ----------
+  // The log is redrawn as a whole, so it can't be a live region itself; instead
+  // each newly shown beat (and every note) is read out from #srAnnounce.
+  function announce(text) {
+    const el = $('srAnnounce');
+    el.textContent = '';
+    setTimeout(() => { el.textContent = text; }, 30);
+  }
+  // The newest scene's beat n (0-based), with what to do next.
+  function announceBeat(n) {
+    const e = state && [...state.log].reverse().find((x) => x.type === 'scene');
+    if (!e) return;
+    const beats = e.beats && e.beats.length ? e.beats : [{ text: e.text }];
+    const b = beats[Math.min(n, beats.length - 1)];
+    const more = n < beats.length - 1 && liveScene();
+    announce(`${b.text}${more ? ' (Next for more, or Step in here.)' : ' (Your turn.)'}`);
+  }
+
   function showWarning(msg) { showNote('⚠ ' + msg, 'warn'); }
   function showNote(msg, cls) {
+    announce(msg);
     const div = document.createElement('div');
     div.className = 'entry ' + (cls || 'note');
     div.textContent = msg;
@@ -488,6 +509,7 @@
     renderControls();
     log.scrollTop = top;
     if (nextBtn) {
+      announceBeat(uiShown - 1);
       // Bring the new beat into view from its top, scrolling only the story
       // panel and only downward. (Earlier turns have beats with the same
       // numbers, so look only inside the current turn.)

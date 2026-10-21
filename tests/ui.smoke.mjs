@@ -427,6 +427,21 @@ await check('correct your feelings from a card', async (page) => {
   assert.match(await page.textContent('#debugBody'), /you corrected your feelings toward Teo Bauer: now 25/);
 });
 
+// Screen readers hear each new beat from a polite live region.
+await check('screen readers hear each new beat', async (page) => {
+  assert.equal(await page.getAttribute('#srAnnounce', 'aria-live'), 'polite');
+  await page.click('#btnNew');
+  await page.fill('#actionInput', 'Look around.');
+  await page.click('#btnAct');
+  await turnDone(page);
+  const said = () => page.waitForFunction(() => document.getElementById('srAnnounce').textContent.trim() !== '').then(() => page.textContent('#srAnnounce'));
+  assert.match(await said(), /^You pry the access panel off the recycler\.[\s\S]*Next for more/);
+  await page.click('button[data-next]');
+  await page.waitForFunction(() => /Okafor gathers her tablet/.test(document.getElementById('srAnnounce').textContent));
+  while (await page.locator('button[data-next]').count()) await page.click('button[data-next]');
+  await page.waitForFunction(() => /Your turn\.\)$/.test(document.getElementById('srAnnounce').textContent));
+});
+
 // Settings › Appearance (task 1-9). Sets the controls, then Save or cancel.
 async function setAppearance(page, { theme, textSize, font, spacing, motion }, save = true) {
   await page.click('#btnSettings');

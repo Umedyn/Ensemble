@@ -44,8 +44,8 @@ Every later phase needs fast testing against a real model, and turns take 30–6
 The format change everything else builds on, plus visible improvements to the character cards.
 
 **World and Start split**
-- [ ] A **world** holds the setting, rules, genre tags, groups, map (once phase 3 lands), lore, timeline, the skill and needs definitions, and event rates.
-- [ ] A **start** is one way into that world: where the player begins (region and location), the player character or a slot to fill in, the local cast, the local rooms, the start date and opening situation, and optional allowed roles or peoples for the character creator.
+- [x] A **world** holds the setting, rules, genre tags, groups, the skill and needs definitions, and event rates. (Its map comes with phase 3, its lore and timeline with phase 5; the fields are reserved in `docs/WORLDS.md`.)
+- [x] A **start** is one way into that world: where the player begins, the player character, the local cast, the local rooms, the start date and opening situation. (The region comes with phase 3; a slot to fill in and allowed roles or peoples with the character creator in phase 4.)
 - [x] Folder layout: `scenarios/<world>/world.json`, `starts/<id>.json`, `characters/<id>.json`, plus later `maps/`, `lore/`, `portraits/`. The scenario picker becomes a world picker, then a start picker.
 - [x] A `format` field on world files, and a migration that loads today's `scenario.json` as one world with one start. Bump the save `version` and migrate old saves.
 - [x] Write `docs/WORLDS.md` (spec for the split) before coding.
@@ -69,7 +69,7 @@ The format change everything else builds on, plus visible improvements to the ch
 - [x] Themes in Settings › Appearance: Dark (today's), Light, **High visibility** (high contrast, no colour-only meaning, strong focus outlines) and System.
 - [x] Text size, story font (serif or sans), line spacing and reduce motion; applied before first paint.
 - [x] Contrast check for every theme in tests; `aria-label`s on icon-only buttons.
-- [ ] Screen readers: announce new beats and scene text through an `aria-live` region, and check the reading order of a turn.
+- [x] Screen readers: announce new beats and scene text through an `aria-live` region, and check the reading order of a turn.
 
 ## Phase 2: Cast tiers
 
