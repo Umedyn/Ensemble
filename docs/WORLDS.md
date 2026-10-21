@@ -60,6 +60,7 @@ Static servers can't list directories, so `world.json` lists its starts and char
 | `tags`, `toneNote` | string[], string | genre tags in order of importance (up to 8; known ones: `survival`, `slice-of-life`, `romance`, `intrigue`, `war`, `horror`, `mystery`, `comedy`, `cozy`, `grim`, `adventure`, `political`; others are freeform) and a short tone note (up to 300 characters). See `js/genres.js` |
 | `timeLabel`, `wakeHour` | | as today |
 | `skills`, `needs` | | as today; no `needs` (or `[]`) means none: no bars, no need penalties (task 1-5) |
+| `tagThresholds` | object | optional; need id → `{at, tag}` for the derived card tags (task 1-6). Starts may override |
 | `skillPenalties`, `revealPressure` | object, string[] | optional; roll penalties from health and needs, and which needs count as pressure on secrets. Defaults are today's values. Starts may override |
 | `factions` | | as today; starts may override `stance` |
 | `world` | object | world-status defaults; starts may add or override keys |
@@ -99,7 +100,7 @@ A character file is the person's **identity**: name, pronouns, role, age, traits
 ]
 ```
 
-Overridable per start: `status`, `needs`, `relations`, `knows`, `want`, `secret`, `guard`. A plain id uses the file as it is. Character files may still contain `status`, `needs`, `relations` and `knows` as defaults; existing files therefore stay valid.
+Overridable per start: `status`, `needs`, `relations`, `knows`, `want`, `secret`, `guard`, `tags`. A plain id uses the file as it is. Character files may still contain `status`, `needs`, `relations` and `knows` as defaults; existing files therefore stay valid.
 
 ## Merge rules (`S.compose`)
 

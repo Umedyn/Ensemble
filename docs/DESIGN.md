@@ -18,7 +18,7 @@ The model is used for judgment and prose. Everything that must stay true (where 
 
 `Engine.newGame(scenario)` builds:
 
-- `characters[id]`: sheet (name, pronouns, role, traits, want, secret, guard, voice, skills), `needs` (0–1), `status` (health, location, conditions), `relations[otherId]` (−100..100: how this person feels about the other), and for the player `attitudeNotes` (latest reason per person)
+- `characters[id]`: sheet (name, pronouns, role, traits, want, secret, guard, voice, skills), `needs` (0–1), `status` (health, location), `tags` ([{text, set, until, reason}]), `mood` ({text, turn, reason}; non-player only), `relations[otherId]` (−100..100: how this person feels about the other), and for the player `attitudeNotes` (latest reason per person)
 - `locations`, `world` (key → short status), `factions` (name, desc, stance), `clocks` (pressures with `value/max/perHour`, `fireText`, `fireWorld`, follow-up `then` clocks)
 - `facts[]`: `{ text, about[], known_by[] | ['all'], weight 1–3, turn, chapter }`
 - `chapters[]`, `recent` (last scene), `log` (display only), `news`, `pending` (the last turn awaiting memory), `undo` (the whole state from before the last action), `tierLast` (when regional/world events last happened)
@@ -59,6 +59,7 @@ Budgets scale with `E.memoryContext()`: the smallest context among the backends 
 
 - **Facts** are short sentences with names, an owner list (`known_by`) and a weight. Facts the player could not have seen or heard are recorded as known only by whoever did. The engine drops anyone the update step names who wasn't there: a fact can be known only by the player, the people present, those in the turn's events (hidden ones included), or `all`.
 - **Chapters** close every N turns (default 5), early on a big moment (after at least 2 turns), when facts outgrow their budget, and after a major-event skip. Minor player-known facts are folded into a 2–4 sentence journal entry; weight-3 facts and private facts are kept individually.
+- **Mood and tags** (task 1-6). The update step may set a non-player character's `mood` (how they come across, ≤ 60 characters) and add or remove `tags` (short visible states, ≤ 32 characters and 5 words, lasting `turns`, default 6). The engine rejects moods for the player, moods that overlap the character's secret (the card shows them), and feelings or need names as tags; merges a tag that shares a content word with an existing one (names excluded); keeps at most 4, dropping the oldest expiring one; and removes expired tags when the next turn commits. Changes and expiries show in Debug as `tags & mood`. Authored tags (and old `conditions`) last. Derived tags ("on edge", "hurt") are computed from needs and health for the card and never stored. Moods and tags go in the user message's status lines, never the header.
 - **The player's feelings** are a separate tally, changed only by `player_attitude` judged from the player's own words (±10 per turn), with a note of why. Longer time steps tell the narrator to keep the player's routine consistent with those feelings.
 
 ## Secrets

@@ -262,10 +262,10 @@ test('save migration v1→v2 records the world and start, and changes nothing el
   v1.undo = { state: plain(v1), turn: 1 };
   const before = plain(v1);
   const v2 = E.Engine.migrate(v1);
-  assert.equal(v2.version, 2);
+  assert.equal(v2.version, E.Engine.STATE_VERSION, 'and on through later steps');
   assert.equal(v2.scenario.worldId, 'mars-station');
   assert.equal(v2.scenario.startId, 'default');
-  assert.equal(v2.undo.state.version, 2, 'the undo copy is migrated too');
+  assert.equal(v2.undo.state.version, E.Engine.STATE_VERSION, 'the undo copy is migrated too');
   const strip = (s) => { const o = plain(s); delete o.version; delete o.scenario.worldId; delete o.scenario.startId; if (o.undo) o.undo.state = strip(o.undo.state); return o; };
   assert.deepEqual(strip(v2), strip(before));
 });

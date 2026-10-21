@@ -39,7 +39,10 @@
       const c = E.clone(raw);
       c.needs = c.needs || {};
       sc.needs.forEach((n) => { if (c.needs[n.id] == null) c.needs[n.id] = 0.2; });
-      c.status = Object.assign({ health: 'ok', conditions: [] }, c.status || {});
+      c.status = Object.assign({ health: 'ok' }, c.status || {});
+      // Authored conditions and tags last until the story removes them.
+      c.tags = [...new Set([].concat(c.status.conditions || [], raw.tags || []).map(String))].map((text) => ({ text, set: 0, until: null }));
+      delete c.status.conditions;
       c.relations = c.relations || {};
       c.skills = c.skills || {};
       state.characters[c.id] = c;
@@ -60,7 +63,7 @@
 
   // Saves and autosaves from older versions are upgraded one step at a time
   // when loaded. Each step takes a state at version n and returns n + 1.
-  Eng.STATE_VERSION = 2;
+  Eng.STATE_VERSION = 3;
   Eng.migrations = {
     // Worlds and starts (docs/WORLDS.md): the scenario records where it came from.
     1: (state) => {
@@ -68,6 +71,18 @@
       if (sc.worldId == null) sc.worldId = sc.folder || sc.id;
       if (sc.startId == null) sc.startId = 'default';
       state.version = 2;
+      return state;
+    },
+    // Tags and mood (task 1-6): conditions become lasting tags.
+    2: (state) => {
+      const move = (chars, turn) => Object.values(chars || {}).forEach((c) => {
+        if (c.tags) return;
+        c.tags = ((c.status && c.status.conditions) || []).map((text) => ({ text, set: turn, until: null }));
+        if (c.status) delete c.status.conditions;
+      });
+      move(state.characters, state.turn);
+      if (state.pending && state.pending.pre) move(state.pending.pre.characters, state.turn);
+      state.version = 3;
       return state;
     },
   };
@@ -488,10 +503,108 @@
     return { hours: horizon, reason: 'horizon' };
   };
 
+  // ---------- tags and mood (task 1-6) ----------
+  // Tags are short visible states ("limping", "covered in dust"), each with an
+  // expiry turn (until; null = lasting). Mood is how a non-player character
+  // comes across right now. The model proposes both; these guards decide.
+  Eng.TAG_CAP = 4;
+  Eng.TAG_TURNS = 6;
+  Eng.MOOD_STALE = 6;
+  const cleanPhrase = (v) => String(v || '').replace(/[\r\n]+/g, ' ').replace(/["“”[\]{}<>*_`#]/g, '').replace(/\s+/g, ' ').trim();
+  // Content words of a tag, without people's names, for spotting near-duplicates.
+  function tagWords(state, text) {
+    const names = new Set();
+    Object.values(state.characters).forEach((ch) => String(ch.name || '').toLowerCase().split(/[^a-z]+/).forEach((w) => names.add(w)));
+    return [...contentWords(text)].filter((w) => !names.has(w));
+  }
+
+  Eng.addTag = function (state, c, value, turns, reason, turn) {
+    const text = cleanPhrase(value);
+    if (!text) return { error: 'empty tag' };
+    if (text.length > 32 || text.split(' ').length > 5) return { error: 'tag too long (32 characters, 5 words at most)' };
+    const low = text.toLowerCase();
+    if (MOODS.test(low) || state.scenario.needs.some((n) => low.includes(n.id) || low.includes((n.label || '').toLowerCase()))) {
+      return { error: 'a feeling, not a tag (moods and needs are tracked separately)' };
+    }
+    const n = E.clamp(Math.round(Number(turns)) || Eng.TAG_TURNS, 1, 30);
+    const why = cleanPhrase(reason).slice(0, 100);
+    c.tags = c.tags || [];
+    const same = c.tags.find((t) => t.text.toLowerCase() === low);
+    if (same) {
+      if (same.until != null) same.until = turn + n;
+      if (why) same.reason = why;
+      return { note: `kept "${same.text}"${same.until != null ? ` until turn ${same.until}` : ''}` };
+    }
+    const tag = { text, set: turn, until: turn + n, reason: why };
+    const words = tagWords(state, text);
+    const near = c.tags.findIndex((t) => tagWords(state, t.text).some((w) => words.includes(w)));
+    if (near >= 0) {
+      const old = c.tags[near].text;
+      c.tags[near] = tag;
+      return { note: `"${text}" replaces "${old}"${why ? ` (${why})` : ''}` };
+    }
+    c.tags.push(tag);
+    let dropped = '';
+    if (c.tags.length > Eng.TAG_CAP) {
+      // Drop the oldest tag that expires, else the oldest.
+      const pool = c.tags.filter((t) => t !== tag);
+      const victim = pool.filter((t) => t.until != null).sort((a, b) => a.set - b.set)[0] || pool.sort((a, b) => a.set - b.set)[0];
+      c.tags = c.tags.filter((t) => t !== victim);
+      dropped = `; dropped "${victim.text}" (at most ${Eng.TAG_CAP})`;
+    }
+    return { note: `+"${text}" for ${n} turns${why ? ` (${why})` : ''}${dropped}` };
+  };
+
+  Eng.removeTag = function (c, value) {
+    const low = cleanPhrase(value).toLowerCase();
+    const before = (c.tags || []).length;
+    c.tags = (c.tags || []).filter((t) => t.text.toLowerCase() !== low);
+    return c.tags.length < before;
+  };
+
+  // Tags past their turn go; returns Debug lines.
+  Eng.expireTags = function (state, turn) {
+    const gone = [];
+    Eng.cast(state).forEach((id) => {
+      const c = state.characters[id];
+      (c.tags || []).filter((t) => t.until != null && t.until < turn).forEach((t) => gone.push(`${c.name}: "${t.text}" expired`));
+      c.tags = (c.tags || []).filter((t) => t.until == null || t.until >= turn);
+    });
+    return gone;
+  };
+
+  Eng.setMood = function (state, c, value, reason, turn) {
+    let text = cleanPhrase(value);
+    if (!text) return { error: 'empty mood' };
+    if (text.length > 60) text = E.shorten(text, 60);
+    if (leaksSecret(state, c.id, text)) return { error: 'the mood gives away their secret' };
+    c.mood = { text, turn, reason: cleanPhrase(reason).slice(0, 100) };
+    return {};
+  };
+
+  // Tags from engine numbers, computed when shown and never stored. A world can
+  // change or add need thresholds with tagThresholds: { need: { at, tag } }.
+  Eng.DERIVED_TAGS = {
+    needs: { stress: { at: 0.8, tag: 'on edge' }, fatigue: { at: 0.8, tag: 'exhausted' }, hunger: { at: 0.8, tag: 'starving' }, fear: { at: 0.8, tag: 'terrified' } },
+    health: { hurt: 'hurt', badly_hurt: 'badly hurt', dead: 'dead' },
+  };
+  Eng.derivedTags = function (state, c) {
+    const out = [];
+    const h = Eng.DERIVED_TAGS.health[c.status.health];
+    if (h) out.push(h);
+    if (c.status.health === 'dead') return out;
+    const table = Object.assign({}, Eng.DERIVED_TAGS.needs, state.scenario.tagThresholds || {});
+    state.scenario.needs.forEach((n) => {
+      const t = table[n.id];
+      if (t && t.tag && c.needs[n.id] != null && c.needs[n.id] >= t.at) out.push(t.tag);
+    });
+    return out;
+  };
+
   // ---------- applying the model's update ----------
   Eng.applyUpdate = function (state, upd, present, ctx) {
     ctx = ctx || {};
-    const report = { applied: [], rejected: [] };
+    const report = { applied: [], rejected: [], tags: [] };
     const ids = new Set(Eng.cast(state));
     const reject = (what, why) => report.rejected.push(`${what} — ${why}`);
     const witnesses = [state.player].concat(present);
@@ -539,19 +652,19 @@
           // After a step-in, a planned exit only happened if the kept scene shows it.
           if (ctx.keptProse != null && !Eng.seenLeaving(ctx.keptProse, c)) return reject(label, 'the player stepped in before they left');
           c.status.location = dest;
-        } else if (s.field === 'add_condition') {
-          const v = String(s.value || '').slice(0, 40).trim();
-          if (!v) return reject(label, 'empty condition');
-          // Moods are already tracked as needs; keep conditions physical/situational.
-          const low = v.toLowerCase();
-          if (state.scenario.needs.some((n) => low.includes(n.id) || low.includes((n.label || '').toLowerCase())) || MOODS.test(low)) {
-            return reject(label, 'mood, not a condition (tracked as a need)');
-          }
-          if (!c.status.conditions.includes(v)) c.status.conditions.push(v);
-        } else if (s.field === 'remove_condition') {
-          const before = c.status.conditions.length;
-          c.status.conditions = c.status.conditions.filter((x) => x.toLowerCase() !== String(s.value).toLowerCase());
-          if (before === c.status.conditions.length) return reject(label, 'condition not present');
+        } else if (s.field === 'add_tag' || s.field === 'add_condition') {
+          // add_condition: the name before tags (task 1-6); recordings still use it.
+          const out = Eng.addTag(state, c, s.value, s.turns, s.reason, ctx.turn ?? state.turn);
+          if (out.error) return reject(label, out.error);
+          report.tags.push(`${c.name}: ${out.note}`);
+        } else if (s.field === 'remove_tag' || s.field === 'remove_condition') {
+          if (!Eng.removeTag(c, s.value)) return reject(label, 'tag not present');
+          report.tags.push(`${c.name}: removed "${String(s.value)}"`);
+        } else if (s.field === 'mood') {
+          if (key === state.player) return reject(label, "the player's mood comes from the player, not the model");
+          const out = Eng.setMood(state, c, s.value, s.reason, ctx.turn ?? state.turn);
+          if (out.error) return reject(label, out.error);
+          report.tags.push(`${c.name}: mood "${c.mood.text}"${c.mood.reason ? ` (${c.mood.reason})` : ''}`);
         } else if (s.field === 'need') {
           if (c.needs[s.need] == null) return reject(label, 'unknown need');
           c.needs[s.need] = E.clamp(c.needs[s.need] + E.clamp(Number(s.delta) || 0, -1, 1), 0, 1);
@@ -801,8 +914,10 @@
         kind: 'update', system: E.Prompts.header(state), user: E.Prompts.update(state, p.action, p.res, prose, p.present, !!cut),
         maxTokens: 520, temperature: 0.3,
       });
-      report = Eng.applyUpdate(state, upd, p.present, { startLoc: p.frame.startLoc, endLoc, keptProse: cut ? prose : null, involved: p.res.involved });
+      const expired = Eng.expireTags(state, p.turn);
+      report = Eng.applyUpdate(state, upd, p.present, { startLoc: p.frame.startLoc, endLoc, keptProse: cut ? prose : null, involved: p.res.involved, turn: p.turn });
       report.rejected.forEach((r) => guard(p.res, 'memory', 'update rejected', r));
+      expired.concat(report.tags).forEach((t) => guard(p.res, 'memory', 'tags & mood', t));
     } catch (err) {
       E.Memory.addFact(state, { about: [state.player], text: `${state.characters[state.player].name}: ${p.action}`.slice(0, 200), known_by: ['all'], weight: 1 });
       report = { applied: [], rejected: [], warning: 'Update step failed: ' + err.message };

@@ -173,6 +173,12 @@ details.rolls li { margin: 2px 0; }
 .needs { display: grid; grid-template-columns: 54px 1fr; gap: 2px 8px; align-items: center; font-size: 0.7188rem; color: var(--muted); margin-top: 6px; }
 .needs .bar { margin: 0; height: 5px; }
 .tag { display: inline-block; font-size: 0.6875rem; padding: 0 6px; border-radius: 9px; background: var(--tag-bg); margin: 3px 4px 0 0; }
+.mood { font-style: italic; font-size: 0.8125rem; margin-top: 4px; }
+.mood.stale { color: var(--muted); }
+.tag.derived { background: transparent; border: 1px solid var(--line-strong); }
+.card-details { margin-top: 4px; }
+.card-details > summary { cursor: pointer; font-size: 0.7188rem; color: var(--muted); }
+.card-details[open] > summary { margin-bottom: 2px; }
 .rels { text-align: right; font-size: 0.75rem; line-height: 1.35; }
 .rel-trusts, .rel-friendly { color: var(--good); }
 .rel-wary, .rel-hostile { color: var(--bad); }

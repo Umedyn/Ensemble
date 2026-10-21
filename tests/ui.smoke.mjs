@@ -158,7 +158,7 @@ await check('debug shows a turn report with tokens, prompt time and guards', asy
   assert.deepEqual(await report.locator('tbody td:first-child').allTextContents(), ['update', 'intent', 'narrate']);
   assert.equal(await report.locator('th', { hasText: 'prompt' }).count(), 1, 'KoboldCpp perf column shown');
   assert.equal(await report.locator('th', { hasText: 'cached' }).count(), 0, 'no cache column when nobody reports it');
-  assert.match(await report.textContent(), /update rejected|No guards fired/);
+  assert.match(await report.textContent(), /update rejected|tags & mood|No guards fired/);
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   await report.locator('button[data-copy-report]').click();
   await page.waitForFunction(() => /Copied|failed/.test(document.querySelector('#debugBody details.telemetry[open] button[data-copy-report]').textContent));
@@ -333,6 +333,24 @@ await check('phone: pick a world and a start, and play a turn', async (page) => 
   assert.match(await page.textContent('#sceneBar'), /Rover Garage/);
   await act(page, 'Look around.');
   assert.equal(await page.locator('.entry.action').count(), 1);
+});
+
+// Task 1-6: the card leads with mood and tags; needs sit in a collapsed Details.
+await check('cards show mood and tags, with needs tucked into Details that stay open', async (page) => {
+  await page.click('#btnNew');
+  await act(page, 'Look around.');
+  await act(page, 'Ask Teo about the rattle.'); // the first turn's memory (mood, tag) is recorded now
+  const teo = page.locator('#cast .card', { hasText: 'Teo Bauer' });
+  assert.equal(await teo.locator('.mood').textContent(), 'jumpy, talking too fast');
+  assert.ok(await teo.locator('.tag', { hasText: 'grease on his sleeves' }).count());
+  assert.ok(!(await page.locator('#cast .card .tag', { hasText: 'unhurt' }).count()), 'no "unhurt" chip');
+  const details = teo.locator('details.card-details');
+  assert.ok(!(await teo.locator('.needs').isVisible()), 'needs start collapsed');
+  await details.locator('summary').click();
+  assert.ok(await teo.locator('.needs').isVisible());
+  await act(page, 'Wait.');
+  assert.ok(await page.locator('#cast .card', { hasText: 'Teo Bauer' }).locator('.needs').isVisible(), 'still open after the cast re-renders');
+  await page.screenshot({ path: path.join(shots, 'cards-mood-tags.png') });
 });
 
 // Settings › Appearance (task 1-9). Sets the controls, then Save or cancel.

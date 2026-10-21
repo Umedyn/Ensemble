@@ -36,6 +36,8 @@ Every later phase needs fast testing against a real model, and turns take 30–6
 - [x] **Turn telemetry in Debug.** Tokens in and out per call, cache reuse (cached tokens where the provider reports them; KoboldCpp's prompt processing time from its perf endpoint), seconds per step, and which guards fired.
 - [x] **Turn recorder and replay tests.** Export a session's raw model responses as a fixture, and add a fake backend that replays them so a real bad log becomes a regression test. Fixtures live in `tests/fixtures/`.
 - [ ] **Validation pass (carried over).** Play every time step on the reference setup; run several major-event skips in a row; compare Hybrid with all-local; tune reveal thresholds, event rates and scene lengths; play the zombie holdout end to end.
+- [ ] **Reveals must carry the secret.** Playtest 2026-10-21 (DeepSeek, Ares Deep): Teo's intent put his deflection ("probably just a bubble in the line") in `reveals`; the guard allowed it on stress alone, so prompts listed a non-secret under REVEALS. A reveal that shares no content words with the secret or private facts should become null (guard + test from the recording).
+- [ ] **Mood repeats.** The update step re-sets a near-identical mood ("clipped and businesslike, eyes fixed on the weather relay" → "clipped and fixed on the weather relay") despite "only when it changed"; consider skipping a mood that shares most words with the current one, so the turn it was set stays meaningful.
 
 ## Phase 1: Foundations
 
@@ -54,9 +56,9 @@ The format change everything else builds on, plus visible improvements to the ch
 - [x] Audit survival-specific assumptions: the injury and exhaustion penalties, needs being required, and event seeds that assume danger. A scenario with no needs at all must work.
 
 **Character presentation**
-- [ ] The card leads with portrait, name, role, a **mood** line and **tags**. Needs bars move into an expandable details section; the raw numbers are also shown in Debug.
-- [ ] **Derived tags** come from engine numbers (stress ≥ 0.8 shows as "on edge", fatigue ≥ 0.8 as "exhausted", plus health). Thresholds are per scenario and have defaults.
-- [ ] **Freeform tags and mood** are proposed by the update step and validated: at most 4 per character, a short phrase each, an expiry in turns, and a reason logged in Debug.
+- [ ] The card leads with portrait, name, role, a **mood** line and **tags**. Needs bars move into an expandable details section; the raw numbers are also shown in Debug. (Done except the portrait, which is task 1-7.)
+- [x] **Derived tags** come from engine numbers (stress ≥ 0.8 shows as "on edge", fatigue ≥ 0.8 as "exhausted", plus health). Thresholds are per scenario and have defaults.
+- [x] **Freeform tags and mood** are proposed by the update step and validated: at most 4 per character, a short phrase each, an expiry in turns, and a reason logged in Debug.
 - [ ] Optional `portrait` on characters (a path inside the world folder). Characters without one get a stand-in from the generic set, chosen deterministically by id so it never changes.
 - [ ] Cards can be minimized (to a portrait, name and mood row), remembered per character in `localStorage` with the usual try/catch.
 - [ ] **Character details:** description, appearance, pronouns, and what the player knows about them (player-known facts that name them).

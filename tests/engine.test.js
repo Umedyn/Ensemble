@@ -229,13 +229,14 @@ test("player's feelings only change through player_attitude, capped at ±10", ()
   assert.equal(r.rejected.length, 1);
 });
 
-test('moods are rejected as conditions (stress is a need)', () => {
+// add_condition is the update step's name from before tags (task 1-6); recordings still use it.
+test('moods are rejected as tags (stress is a need), and the old add_condition name still adds a tag', () => {
   const { E, state } = newGame();
   E.Engine.applyUpdate(state, { state: [
     { target: 'char:bauer', field: 'add_condition', value: 'stressed' },
     { target: 'char:bauer', field: 'add_condition', value: 'grease-stained hands' },
-  ] }, PRESENT);
-  assert.deepEqual([...state.characters.bauer.status.conditions], ['grease-stained hands']);
+  ] }, PRESENT, { turn: 1 });
+  assert.deepEqual([...state.characters.bauer.tags.map((t) => t.text)], ['grease-stained hands']);
 });
 
 // ---------- narration cleanup ----------

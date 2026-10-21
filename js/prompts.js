@@ -113,7 +113,8 @@
   function statusLine(state, id, forNarrator, around) {
     const c = state.characters[id];
     const parts = [`health ${E.healthWord(c.status.health)}`];
-    if (c.status.conditions.length) parts.push(`conditions: ${c.status.conditions.join(', ')}`);
+    if (c.mood && id !== state.player) parts.push(`mood: ${c.mood.text}`);
+    if ((c.tags || []).length) parts.push(`tags: ${c.tags.map((t) => t.text).join(', ')}`);
     const needs = needsText(state, c, forNarrator);
     if (needs) parts.push(needs);
     if (id === state.player && around && around.length) {
@@ -472,8 +473,9 @@ Record what changed this turn. Reply with JSON only, exactly in this shape:
 {"facts":[{"about":["character_id"],"text":"one short sentence using names, not pronouns","known_by":["character_id"],"weight":2}],
  "state":[{"target":"char:character_id","field":"health","value":"ok|hurt|badly_hurt|dead"},
           {"target":"char:character_id","field":"location","value":"location_id"},
-          {"target":"char:character_id","field":"add_condition","value":"short condition"},
-          {"target":"char:character_id","field":"remove_condition","value":"existing condition"},${sc.needs.length ? `
+          {"target":"char:character_id","field":"add_tag","value":"short visible state","turns":6,"reason":"why"},
+          {"target":"char:character_id","field":"remove_tag","value":"existing tag"},
+          {"target":"char:character_id","field":"mood","value":"how they come across now","reason":"why"},${sc.needs.length ? `
           {"target":"char:character_id","field":"need","need":"need_id","delta":-0.5},` : ''}
           {"target":"world:key","value":"new short description"},
           {"target":"faction:group_id","value":"new short stance"},
@@ -490,7 +492,8 @@ Guidelines:
 - state: only real changes.${sc.needs.length ? ' Eating or resting lowers needs (negative delta).' : ''} Repairs or sabotage can move clocks (negative delta delays, positive hastens). location: only for other characters who were seen leaving or arriving in the scene (where they went or came from). Never for ${name(state, state.player)}.
 - groups: update a group's stance only when this turn's events would realistically change how that group sees things.
 - world values are short factual status (e.g. "degraded, about 70% output"). Only change one when that status actually changed this turn.
-- Conditions are physical or situational (e.g. "sprained ankle", "covered in dust"), not moods${sc.needs.length ? `; ${needsList(sc)} tracked as needs` : ''}.
+- tags: short visible states or situations (e.g. "sprained ankle", "covered in dust", "on night shift"), at most 5 words, with "turns" for how long they last (default 6). Remove tags that no longer fit. Not feelings${sc.needs.length ? `; ${needsList(sc)} tracked as needs` : ''}.
+- mood: for each non-player character present, at most one short line on how they come across right now, as others could read it (e.g. "short with everyone, avoiding Okafor"). Only when it changed. Never for ${name(state, state.player)}, and never hint at anyone's secret.
 - relations: how this turn changed how non-player characters feel about others (never ${name(state, state.player)}'s own feelings), delta between -15 and 15. Leave empty if nothing changed.
 - player_attitude: how ${name(state, state.player)}'s own feelings toward someone shifted, judged ONLY from the player action as quoted above (their words and tone), never from how the narrator embellished it. Snapping, mocking or threatening lowers it; thanking, helping, joking warmly or confiding raises it. Delta between -10 and 10. Leave empty if the action was neutral.
 - chapter_worthy: true only for a major turning point.

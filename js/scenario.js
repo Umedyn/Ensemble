@@ -15,12 +15,12 @@
   // Start fields that are not world overrides.
   const START_OWN = ['id', 'title', 'summary', 'start', 'player', 'cast', 'opening', 'castLabel'];
   // World fields a start may override (merge rules below).
-  const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'factions', 'world',
+  const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'tagThresholds', 'factions', 'world',
     'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks'];
   const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'characters', 'starts', ...OVERRIDABLE];
   const WORLD_RESERVED = ['regions', 'map', 'lore', 'timeline', 'portraitSet'];
   const START_RESERVED = ['region', 'playerSlot', 'extras', 'standees'];
-  const CAST_FIELDS = ['id', 'status', 'needs', 'relations', 'knows', 'want', 'secret', 'guard'];
+  const CAST_FIELDS = ['id', 'status', 'needs', 'relations', 'knows', 'want', 'secret', 'guard', 'tags'];
   // Merge rules: lists of {id} objects merge by id, lists of strings are
   // unioned, plain objects merge shallowly; anything else is replaced.
   const ID_LISTS = ['locations', 'clocks', 'factions'];
@@ -292,6 +292,8 @@
       Object.entries((sp && sp.health) || {}).forEach(([k, v]) => req(['ok', 'hurt', 'badly_hurt'].includes(k) && typeof v === 'number', `skillPenalties.health.${k} must be ok/hurt/badly_hurt with a number`));
       ((sp && sp.needs) || []).forEach((n) => req(n && needIds.includes(n.need) && typeof n.at === 'number' && typeof n.penalty === 'number', `skillPenalties.needs entry for "${n && n.need}" needs a known need, "at" and "penalty"`));
     }
+    Object.entries(sc.tagThresholds || {}).forEach(([k, t]) => req(needIds.includes(k) && t && typeof t.at === 'number' && t.at > 0 && t.at <= 1 && typeof t.tag === 'string' && t.tag.trim(),
+      `tagThresholds.${k} needs a known need, "at" between 0 and 1 and a "tag"`));
     (sc.revealPressure || []).forEach((n) => req(needIds.includes(n), `revealPressure "${n}" is not one of the world's needs`));
     const locIds = new Set((sc.locations || []).map((l) => l.id));
     (sc.locations || []).forEach((l) => (l.connects || []).forEach((c) => req(locIds.has(c), `location "${l.id}" connects to unknown "${c}"`)));
@@ -300,6 +302,9 @@
       req(c.id === expected, `characters/${expected}.json has id "${c.id}"`);
       req(c.name, `character "${c.id}" missing "name"`);
       req(!c.guard || ['low', 'medium', 'high'].includes(c.guard), `character "${c.id}" guard must be low, medium or high`);
+      // Tags (and the older status.conditions) start the game as lasting tags.
+      [['tags', c.tags], ['status.conditions', c.status && c.status.conditions]].forEach(([k, v]) =>
+        req(v == null || (Array.isArray(v) && v.every((t) => typeof t === 'string' && t.trim() && t.length <= 32)), `character "${c.id}" ${k} must be a list of short phrases (32 characters each)`));
       req(c.status && locIds.has(c.status.location), `character "${c.id}" starts at unknown location "${c.status && c.status.location}"`);
       Object.keys(c.skills || {}).forEach((k) => req(sc.skills.includes(k), `character "${c.id}" has skill "${k}" not in scenario skills`));
       Object.keys(c.relations || {}).forEach((k) => req(sc.characters.includes(k), `character "${c.id}" has relation to unknown "${k}"`));

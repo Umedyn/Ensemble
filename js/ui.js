@@ -535,7 +535,7 @@
       const c = state.characters[id];
       const isPlayer = id === state.player;
       const dead = c.status.health === 'dead';
-      const sections = [cardHeader(id, c, isPlayer), cardStatus(c), cardNeeds(c, dead), cardDetails(id, c)].filter(Boolean);
+      const sections = [cardHeader(id, c, isPlayer), cardStatus(c, isPlayer), cardDetails(id, c, dead)].filter(Boolean);
       return `<div class="card ${!isPlayer && c.status.location === here ? 'here' : ''} ${dead ? 'dead' : ''}">${sections.join('')}</div>`;
     }).join('');
   }
@@ -557,9 +557,19 @@
       `<div class="meta">${esc(loc ? loc.name : '?')}</div>`;
   }
 
-  // Health and conditions.
-  function cardStatus(c) {
-    return `<div>${[E.healthWord(c.status.health)].concat(c.status.conditions).map((t) => `<span class="tag">${esc(t)}</span>`).join('')}</div>`;
+  // Who they are right now: the mood line (others only; it fades when it hasn't
+  // been updated for a while), then tags from the numbers and from the story.
+  function cardStatus(c, isPlayer) {
+    const mood = !isPlayer && c.mood
+      ? `<div class="mood${state.turn - c.mood.turn > E.Engine.MOOD_STALE ? ' stale' : ''}" title="${esc(c.mood.reason ? 'Why: ' + c.mood.reason : '')}">${esc(c.mood.text)}</div>`
+      : '';
+    const derived = E.Engine.derivedTags(state, c).map((t) => `<span class="tag derived">${esc(t)}</span>`);
+    const story = (c.tags || []).map((t) => {
+      const tip = [t.reason, t.until != null ? `until turn ${t.until}` : ''].filter(Boolean).join(' · ');
+      return `<span class="tag" title="${esc(tip)}">${esc(t.text)}</span>`;
+    });
+    const tags = derived.concat(story);
+    return mood + (tags.length ? `<div class="tags">${tags.join('')}</div>` : '');
   }
 
   function cardNeeds(c, dead) {
@@ -570,10 +580,20 @@
     }).join('')}</div>`;
   }
 
-  // Empty for now; the card redesign (task 1-7) fills it.
-  function cardDetails() {
-    return '';
+  // Collapsed details: needs bars for now (task 1-7 adds description and what
+  // you know about them). Open ones stay open across re-renders.
+  const openCards = new Set();
+  function cardDetails(id, c, dead) {
+    const body = cardNeeds(c, dead);
+    if (!body) return '';
+    return `<details class="card-details" data-card="${esc(id)}"${openCards.has(id) ? ' open' : ''}><summary>Details</summary>${body}</details>`;
   }
+  // toggle doesn't bubble, so listen in the capture phase.
+  $('cast').addEventListener('toggle', (ev) => {
+    const d = ev.target;
+    if (!d.matches || !d.matches('details.card-details')) return;
+    if (d.open) openCards.add(d.dataset.card); else openCards.delete(d.dataset.card);
+  }, true);
 
   function renderJournal() {
     if (!state.chapters.length) {
@@ -595,6 +615,7 @@
     $('debugBody').innerHTML =
       renderTelemetry() +
       (state ? `<details><summary>Fact store (${state.facts.length})</summary><pre>${esc(facts)}</pre></details>` : '') +
+      (state ? `<details><summary>Characters: needs, mood and tags</summary><pre>${esc(characterDebug())}</pre></details>` : '') +
       notes.slice().reverse().map((n) => `<details class="note"><summary><b>${esc(n.kind)}</b> · ${esc(n.summary)}</summary><pre>${esc(n.detail)}</pre></details>`).join('') +
       calls.map((c) => `<details><summary><b>${esc(c.kind)}</b> · ${esc(c.backend || '')} · ${c.ms} ms · ~${c.estTokens} tokens${c.overBudget ? ' <span class="fail">over context!</span>' : ''}${c.finish === 'length' ? ' <span class="fail">cut off at the token limit</span>' : ''}${c.salvaged ? ' <span class="fail">salvaged: kept the complete part</span>' : ''}${c.error ? ' <span class="fail">' + esc(c.error) + '</span>' : ''}</summary>
         <div class="muted">System (shared prefix)</div><pre>${esc(c.system)}</pre>
@@ -602,6 +623,17 @@
         <div class="muted">Raw output</div><pre>${esc(c.raw)}</pre></details>`).join('') ||
       '<div class="muted">No model calls yet.</div>';
   }
+  // The raw numbers behind the cards (needs as 0–1, tag expiry, mood reasons).
+  function characterDebug() {
+    return E.Engine.cast(state).map((id) => {
+      const c = state.characters[id];
+      const needs = Object.entries(c.needs || {}).map(([k, v]) => `${k} ${v.toFixed(2)}`).join(', ') || 'no needs';
+      const mood = c.mood ? `mood (turn ${c.mood.turn}): ${c.mood.text}${c.mood.reason ? ' — ' + c.mood.reason : ''}` : 'mood: none';
+      const tags = (c.tags || []).map((t) => `${t.text} [${t.until == null ? 'lasting' : 'until turn ' + t.until}]${t.reason ? ' — ' + t.reason : ''}`);
+      return [`${c.name} (${id}): ${E.healthWord(c.status.health)}; ${needs}`, '  ' + mood].concat(tags.map((t) => '  tag: ' + t)).join('\n');
+    }).join('\n');
+  }
+
   // Where each turn's time and tokens went, and which guards fired. The newest
   // turn is open; "~" marks estimates (the backend didn't report usage).
   function renderTelemetry() {

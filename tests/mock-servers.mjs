@@ -37,7 +37,9 @@ function answer(user) {
   }
   if (user.includes('Record what changed')) {
     return JSON.stringify({ facts: [{ about: ['bauer'], text: 'Teo blamed the rattle on a sensor issue.', known_by: ['navarro', 'bauer'], weight: 1 }],
-      state: [], relations: [{ from: 'bauer', to: 'navarro', delta: -2, reason: 'nervous' }], player_attitude: [] });
+      state: [{ target: 'char:bauer', field: 'mood', value: 'jumpy, talking too fast', reason: 'the rattle questions' },
+        { target: 'char:bauer', field: 'add_tag', value: 'grease on his sleeves', turns: 6, reason: 'handled the spanner' }],
+      relations: [{ from: 'bauer', to: 'navarro', delta: -2, reason: 'nervous' }], player_attitude: [] });
   }
   return JSON.stringify({ title: 'The Rattle', summary: 'Kit looked into the failing recycler while Teo hovered nervously.' });
 }

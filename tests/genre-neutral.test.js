@@ -52,7 +52,7 @@ test('prompts for a world without needs or danger carry no survival assumptions'
   assert.match(all, /Danger is low\./);
   assert.doesNotMatch(all, /Injuries and deaths are permanent|intercom|station|"field":"need"|\nneeds:|tracked as needs|Eating or resting/);
   const update = calls.find((c) => c.kind === 'update').user;
-  assert.match(update, /not moods\.\n/);
+  assert.match(update, /Not feelings\.\n/);
   const skip = E.Prompts.skipIntent(state, '', { reason: 'random', hours: 30 }, { stepLabel: 'until something major happens', spanMinutes: 1800 }, { events: [] });
   assert.match(skip, /In this story a major event means a change in someone's life/);
   assert.doesNotMatch(skip, /equipment failure|Ideas: \./);
