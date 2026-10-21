@@ -54,6 +54,12 @@ These came from playtesting a 12B local model. Each has a test; don't loosen one
 - `localStorage` can throw or be empty: wrap every access. API keys live in settings only, never in save files.
 - In tests, objects come from another VM realm: compare arrays as `[...arr]`, check errors by `err.name`, not `instanceof`.
 
+## Content
+
+- **Content rules are engine rules.** The minors safeguard (ROADMAP › Content settings) applies in every mode and backend and must not be weakened or made optional; it has a test. Everything else about mature content follows the world's rating and the player's settings.
+- **Generated content goes through the same validation as authored content**, one stage at a time (ROADMAP Phase 4).
+- **Lore never contains secrets or future events**; those belong in character secrets and the canon timeline.
+
 ## License
 
 PolyForm Noncommercial 1.0.0 (`LICENSE`). Keep the `Required Notice` line. Contributions come in under the broader grant in `CONTRIBUTING.md` so the owner can include them in paid builds. Player-made scenarios belong to their creators (`MODDING.md`). Don't add dependencies whose licenses conflict with possible paid distribution (e.g. GPL code bundled into the app).

@@ -22,7 +22,21 @@ What you can't do is use the engine commercially: sell it, sell a modified versi
 
 Mods made and shared by the community are the responsibility of their creators. Ensemble's maintainers don't review, host or endorse mods unless they are published on an official Ensemble site, in which case that site's rules apply.
 
-Please don't make mods that use other people's copyrighted characters or settings without permission, or that are designed to produce content that's illegal.
+**Fan worlds** based on other people's settings are fine for your own play and noncommercial sharing, at your own responsibility. Ensemble never bundles, sells or features them, and they're removed from official Ensemble spaces on a rights holder's request. Don't make mods designed to produce content that's illegal.
+
+## Content
+
+Adults choose their own stories. Mature content is opt-in and rated per world, and the player sets their own maximum. There is one hard line: **no sexual content involving minors**. The engine enforces it in every mode, whatever model or service you use.
+
+## Voices
+
+On your own text-to-speech setup, which voices you use is your choice and your responsibility. Voice packs shared in official Ensemble spaces must not imitate real people's voices without permission. Hosted narration only uses voices from the approved catalog.
+
+## Your own setup vs official services
+
+What you run on your own models and keys is up to you. Content and voices that run through an official Ensemble service follow that service's rules.
+
+If an official hub for sharing worlds ever exists, uploads to it will follow user-upload rules: allowed, the uploader's responsibility, taken down on request, and never sold or featured by us. A scenario being free doesn't make it fair use there, since the service itself would be paid.
 
 ## Making a world
 

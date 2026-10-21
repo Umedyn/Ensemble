@@ -14,6 +14,12 @@ It is local-first: KoboldCpp on your own GPU by default, with OpenAI-compatible 
 
 The model is used for judgment and prose. Everything that must stay true (where people are, who knows what, health, needs, relationships, time, clocks) lives in a JSON state that only the engine changes, after validating what the model proposed. This is what keeps a long story consistent with a small model, and it's why most fixes in the decision log are engine-side guards rather than prompt wording.
 
+## Content principles
+
+Ensemble doesn't police content beyond what the law requires or what a service it depends on requires. Adults choose their own stories, and tasteful 18+ roleplay is a supported use. Mature content is opt-in: a world declares a rating, the player sets a maximum, and the lower of the two selects the narrator's guidance.
+
+One hard line holds in every mode: no sexual content involving minors. When mature content is on and anyone in the scene is under 18 or has no age set, the engine forces fade-to-black guidance and drops romantic or sexual intents involving them. This belongs in the engine, not the prompt or the provider: inference engines like KoboldCpp and llama.cpp don't filter anything and don't know who is in a scene. Ensemble does, because it owns the cast and the scene. (Planned: ROADMAP › Content settings.)
+
 ## State
 
 `Engine.newGame(scenario)` builds:

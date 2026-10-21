@@ -114,6 +114,14 @@ Make your own character and start, and have the engine fill in the world around 
 
 - [ ] **Character creator**: a form producing the same character JSON: name, pronouns, description, appearance, role, people or origin (from the start's allowed list, or freeform), traits, voice, skills (point-buy within the world's skill list), want, an optional secret, and a portrait from the world's set or the stand-in set.
 - [ ] **Generated starts**: the player picks a world, a region and a role. Generation runs as small calls, each validated before the next: local rooms, then the cast one character at a time, then relationships and tensions, then extras and standees, then the opening situation.
+  - **Plan first, then fill in.** Call 1 writes a skeleton: setting summary, tone tags, groups, skill list, and a cast plan with one line per slot ("the station lead with something to hide"). Each later call fills one slot, which keeps characters distinct.
+  - **Carry a compact summary forward**, not full JSON: premise, skeleton, and one line per item already made (id, role, key trait, secret hint).
+  - **Relationships and secrets get their own pass** after all characters exist.
+  - **Validate and retry per stage**, not the whole run; one bad character is regenerated alone.
+  - **Checkpoint after each stage**, so a failure or a closed tab resumes where it stopped, and show progress ("Places ✓, Characters 3 of 5…"). A full world is roughly 10–15 calls on the reference 12B setup.
+  - **Call size depends on the backend**: a large API model can do the whole cast in one call; a local 12B gets one character per call. One pipeline, with a granularity setting.
+  - Stage order: skeleton → places → characters (one per call) → relationships and secrets → clocks, follow-ups and event seeds → opening scene → engine validation → review screen. Each stage only depends on earlier ones, so any piece can be rerolled from the review screen.
+  - The same pattern applies to lore research (phase 5): one source page per call.
 - [ ] **Review screen**: edit or reroll any generated room or character before starting. The result can be saved as a reusable start.
 - [ ] **Generated sites**: on-the-fly local maps for places the story goes (a gang base, a corporate floor, a ruined farmhouse), with rooms, named characters, standees and loot. They're attached to a region and either kept or discarded after the visit. Triggered by the player's intent (`move_to` an unknown place) or by an event.
 - [ ] Generation is a routable pipeline step ("world building") so it can go to an API model when one is set up.
@@ -124,6 +132,18 @@ Make your own character and start, and have the engine fill in the world around 
 - [ ] **Canon timeline.** Past events seed facts and a "chapter zero" summary. Future events are dated, with **preconditions** the engine checks (a character alive, a group controls a region, a clock above a value, a fact known). They fire on their date as a regional or world event, outside the normal rationing. When a precondition breaks, the creator chooses per event: `drop`, or `diverge` (the model writes the altered version).
 - [ ] The downtime skip treats the next canon event as a stopping point, like a clock.
 - [ ] Creator tabs: lore editor and timeline editor.
+
+**Lore from wikis and other sources**
+- [ ] **Lore sources**: optional `sources` on each entry (title + URL). Shown in the creator, never sent to the model.
+- [ ] **Lore packet import**: a `lore/` folder of entries that outside tools can produce, validated like everything else and reviewed in the lore editor before use.
+- [ ] **Research helper** (outside the game, e.g. a Claude Code skill or a `tools/` script, using the biggest model available since it's a one-time authoring step). For each source page it:
+  - writes entries **as of the start date**; anything later goes to the canon timeline as dated future events, never into lore (otherwise the narrator "knows the future");
+  - splits **secrets** out of public lore into character `secret` fields or private facts, since lore can reach the narrator and the narrator must never see secrets;
+  - writes **small entries**: 40–80 words, one topic each (a person, place, group or custom); a long page becomes several entries;
+  - lists **keywords including aliases** (names, nicknames, titles, spellings), since matching runs on the player's own words;
+  - tags each entry's **level** (world, region, location, character) and keeps the page URL in `sources`;
+  - summarizes **in its own words**, with no copied text (Wikipedia and most fan wikis are CC BY-SA, which would attach share-alike terms to copied text).
+- Franchise worlds built this way are fine for players' own play and mods; they are never shipped, bundled or featured (see "Shipped scenarios are original").
 
 ## Phase 6: Creator suite
 
@@ -139,6 +159,31 @@ Everything a creator needs to build a world without touching JSON.
 - [ ] Two new original scenarios in very different genres, such as a resistance cell in an occupied city and a high-school slice-of-life. At least one uses a map image with regions, and one uses generated starts.
 - [ ] Fix whatever turns out to be survival-specific. Add a test named after each fix.
 
+## Content settings
+
+No phase dependency (it builds on the genre guidance blocks from phase 1); must be done before publishing.
+
+**Principle (owner's position):** Ensemble doesn't police content beyond what the law requires or what a service we depend on requires. Adults choose their own stories. Tasteful 18+ roleplay is a supported use.
+
+- [ ] **Content rating**: `contentRating` on worlds (next to genre tags) and a player maximum in settings; the effective level is the lower of the two. It selects a narrator guidance block (e.g. fade to black vs explicit allowed), like genre tags do.
+- [ ] **Mature content is opt-in**, off by default.
+- [ ] **Character age**: an `age` (or `adult: true`) on characters, required by validation once a world allows mature content.
+- [ ] **Hard rule in every mode, including bring-your-own API and local models**: when mature content is on and any character in the scene is under 18 or has no age set, the engine forces fade-to-black guidance and drops romantic or sexual intents involving them. A test pins it. Local roleplay models often have no guardrails, and the engine is the only layer that knows who's in the scene, so this lives in the engine.
+- **Hosted service only (Side B, later):** moderation on both input and output; only route to model providers whose terms allow adult fiction; real age assurance where required (UK and several US states); a payment processor that allows adult content.
+
+## Voiced narration
+
+No phase dependency beyond mood tags (phase 1, done). Reuses StreamTTS pieces.
+
+- [ ] **TTS backends**, like LLM backends: off, Piper locally (the hobbyist default), a hosted TTS provider (bring-your-own key), and later the paid side's bundled catalog.
+- [ ] **No separate transcript.** The narrated scene is the script; split it into narrator lines and dialogue.
+- [ ] **Speaker attribution**: heuristics first (`"…," Teo says`, using present characters' names and pronouns), then one small JSON call per scene for unresolved lines, validated against the present cast. It can run on the local model even when narration is external. **Don't ask the narrator to tag speakers in the prose**: models leak tags (see the "id tags in prose" playtest fix).
+- [ ] **Per-beat audio**: synthesize the beat being read and prefetch the next; step-in points keep working.
+- [ ] **Voice per character**: a `ttsVoice` id with a provider prefix (`piper:<model>`, `elevenlabs:<id>`, `ensemble:<catalog-id>`), separate from the existing `voice` text field (speaking style), plus a narrator voice per world. Characters without one get a voice picked deterministically from a pool by id (like stand-in portraits).
+- [ ] **Mood to delivery**: mood tags (e.g. "on edge") map to speaking style on providers that support it.
+- [ ] **Cache audio per beat** in the save, so scrolling back or replaying doesn't synthesize again.
+- [ ] **Hosted enforcement**: when the TTS backend is our hosted service, only `ensemble:` catalog voices are accepted; anything else falls back to the deterministic pick. Bring-your-own keys accept any voice the player sets up.
+
 ## Later
 
 - **Director**: tension tracking that nudges events up or down to keep pacing interesting.
@@ -148,7 +193,6 @@ Everything a creator needs to build a world without touching JSON.
 - **Endings**: optional win/loss/epilogue conditions on clocks, regions and timeline events, with a closing "what became of everyone" scene.
 - **Inventory and resources**, owned by the engine.
 - **Promises ledger**: the engine tracks what the player committed to, with deadlines.
-- **Voices**: per-character Piper voices (reuse StreamTTS pieces).
 - **Stream mode**: Twitch chat votes on the player's action.
 - **Installable app (PWA)** and optional save sync to the player's own cloud drive.
 - **Native port** (e.g. Godot) if it outgrows the browser; the JSON state and prompt chain port as-is.
@@ -161,6 +205,8 @@ Everything a creator needs to build a world without touching JSON.
 - Canon `diverge`: how much freedom does the model get when rewriting a broken canon event?
 - Stand-in portraits: which CC0 set, how many, and how to cover a range of genres (modern, historical, sci-fi, fantasy)?
 - Recommended API models for narration quality vs cost.
+- Hosted TTS: cost per turn and how to budget it (priced by characters, like tokens).
+- Which TTS providers' voices are licensed for commercial bundling?
 
 ## Before publishing
 
@@ -173,4 +219,10 @@ Everything a creator needs to build a world without touching JSON.
 
 ## Revenue (low-key, optional)
 
-Code stays public and the game stays free. Possible income, in order: a Ko-fi or itch.io pay-what-you-want page once people are playing; supporters get builds or scenarios early (everything goes public later); a paid one-click desktop build (KoboldCpp and a model bundled) if there's demand. A hosted token service is deliberately out of scope for now: inference costs, accounts, billing and content moderation make it a separate business.
+A long-term possibility, not a plan of record.
+
+- **Side A (now):** the public GitHub project. Free, open (PolyForm Noncommercial), set it up however you like. Ko-fi or donations; possibly a paid one-click desktop build (KoboldCpp and a model bundled) later.
+- **Side B (much later, only if Side A shows real demand):** a separate site focused on convenience. A subscription for an out-of-the-box setup, a community hub for user-made maps, worlds and characters, a curated voice catalog for narration, and hosted tokens with a small free daily allowance as a loss leader (free tier on a cheaper model; paid tiers get the stronger narrator).
+- Side B is a different kind of project: inference and TTS costs, accounts, billing, moderation, age assurance, privacy (GDPR), and hosting user uploads with a takedown process and a registered DMCA agent. Form an LLC and get a legal review of the terms before launching it.
+- **Order:** Side A with real players → community on existing platforms (Discord, itch.io/GitHub) → paid desktop build → Side B.
+- **A lighter Side B to consider:** a subscription for the polished app, the hub, cloud saves and premium content, with play on the user's own GPU or key and hosted tokens as an optional add-on.
