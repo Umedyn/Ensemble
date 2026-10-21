@@ -48,6 +48,13 @@ const sceneReady = (page) => page.waitForFunction(() => document.getElementById(
 
 // Act is only enabled at the end of a scene or after choosing "Step in here",
 // so unless a test picked a step-in point, read the scene to the end first.
+// New game loads the world before it starts, so wait for turn 0 on the scene
+// bar before acting (acting too early was silently ignored: the flaky
+// portraits check, 2026-10-20).
+const newGame = async (page) => {
+  await page.click('#btnNew');
+  await page.waitForFunction(() => /turn 0$/.test(document.getElementById('sceneBar').textContent.trim()));
+};
 const turnDone = (page) => page.waitForFunction(() => !document.getElementById('btnNew').disabled, null, { timeout: 15000 });
 const act = async (page, text, step) => {
   if (!(await page.locator('button[data-cut].active').count())) {
@@ -60,7 +67,7 @@ const act = async (page, text, step) => {
 };
 
 await check('desktop turn with beats and stepping in', async (page) => {
-  await page.click('#btnNew');
+  await newGame(page);
   await act(page, 'I open up the recycler.');
   assert.equal(await page.locator('.beat').count(), 1, 'scene opens on its first beat only');
   assert.equal(await page.locator('button[data-cut]').count(), 1, 'one step-in point, under the newest beat');
@@ -74,7 +81,7 @@ await check('desktop turn with beats and stepping in', async (page) => {
 });
 
 await check('act is greyed out until the scene is read or the player steps in', async (page) => {
-  await page.click('#btnNew');
+  await newGame(page);
   await act(page, 'I open up the recycler.');
   assert.ok(await page.locator('#btnAct').isDisabled(), 'unread beats: no acting yet');
   assert.match(await page.getAttribute('#actionInput', 'placeholder'), /Step in here/);
@@ -97,7 +104,7 @@ await check('act is greyed out until the scene is read or the player steps in', 
 });
 
 await check('earlier turns fold away; Next never scrolls up to an old turn', async (page) => {
-  await page.click('#btnNew');
+  await newGame(page);
   await act(page, 'I open up the recycler.');
   await act(page, 'Ask Teo about the log.');
   assert.deepEqual(await page.locator('#log details.turn-group').evaluateAll((ds) => ds.map((d) => [d.dataset.turn, d.open])), [['0', false], ['1', false]], 'opening and turn 1 are folded');
@@ -121,7 +128,7 @@ await check('earlier turns fold away; Next never scrolls up to an old turn', asy
 });
 
 await check('undo and reroll', async (page) => {
-  await page.click('#btnNew');
+  await newGame(page);
   assert.ok(await page.locator('#btnUndo').isDisabled(), 'nothing to undo yet');
   assert.ok(await page.locator('#btnReroll').isDisabled(), 'nothing to reroll yet');
   await act(page, 'I open up the recycler.');
@@ -148,7 +155,7 @@ await check('undo and reroll', async (page) => {
 });
 
 await check('debug shows a turn report with tokens, prompt time and guards', async (page) => {
-  await page.click('#btnNew');
+  await newGame(page);
   await act(page, 'I open up the recycler.');
   await act(page, 'Hold on, Teo.', 'moment');
   await page.click('#btnDebug');
@@ -170,7 +177,7 @@ await check('debug shows a turn report with tokens, prompt time and guards', asy
 await check('record a session and export it as a fixture', async (page) => {
   // A key and a private URL that must never reach the recording.
   await page.evaluate(() => Object.assign(window.Ensemble.settings.backends.external, { key: 'sk-secret-test', url: 'https://private-tunnel.example/v1' }));
-  await page.click('#btnNew');
+  await newGame(page);
   await page.click('#btnDebug');
   assert.ok(await page.locator('#btnExportRec').isDisabled(), 'nothing to export yet');
   await page.click('#btnRecord');
@@ -233,7 +240,7 @@ await check('settings: API key errors and hybrid routing', async (page) => {
   await page.waitForFunction((s) => /✓/.test(document.querySelector(s).textContent), `${ext} .bStatus`);
   await page.click('button[data-route="hybrid"]');
   await page.click('button[value="save"]');
-  await page.click('#btnNew');
+  await newGame(page);
   await act(page, 'Ask Teo about the rattle.');
   await act(page, 'Nod.', 'moment');
   const where = (kind) => mocks.log.filter((c) => kind.test(c.user)).map((c) => c.port);
@@ -246,7 +253,7 @@ await check('settings: API key errors and hybrid routing', async (page) => {
 
 await check('major-event skip with an empty plan', async (page) => {
   await page.evaluate(() => { window.Ensemble.rng = () => 0.995; });
-  await page.click('#btnNew');
+  await newGame(page);
   await page.selectOption('#timeStep', 'major');
   assert.match(await page.getAttribute('#actionInput', 'placeholder'), /downtime/);
   await page.click('#btnAct');
@@ -258,7 +265,7 @@ await check('major-event skip with an empty plan', async (page) => {
 await check('phone layout', async (page) => {
   const box = await page.locator('#btnSettings').boundingBox();
   assert.ok(box && box.x + box.width <= 390, 'Settings button is on screen');
-  await page.click('#btnNew');
+  await newGame(page);
   await act(page, 'Look around.');
   for (const id of ['#btnUndo', '#btnReroll', '#btnAct']) {
     const b = await page.locator(id).boundingBox();
@@ -282,7 +289,7 @@ await check('pick a world, then a start, and play a turn', async (page) => {
   assert.match(await page.textContent('#pickInfo'), /Kit Navarro/);
   await page.selectOption('#startSelect', 'garage');
   assert.match(await page.textContent('#pickInfo'), /Priya Raman/);
-  await page.click('#btnNew');
+  await newGame(page);
   await sceneReady(page);
   assert.match(await page.textContent('#sceneBar'), /Ares Deep \(Sol 214: the Mule\).*Rover Garage/);
   assert.match(await page.textContent('#log'), /battery pack/, "Priya's opening");
@@ -317,7 +324,7 @@ await check('a broken start shows its error in the picker instead of starting', 
   await d.accept();
   assert.equal(await page.locator('.entry').count(), 0, 'no game started');
   await page.selectOption('#startSelect', 'recycler');
-  await page.click('#btnNew');
+  await newGame(page);
   await sceneReady(page);
   assert.match(await page.textContent('#sceneBar'), /Commons/, 'the other start still plays');
 });
@@ -328,7 +335,7 @@ await check('phone: pick a world and a start, and play a turn', async (page) => 
   assert.ok(start && start.y > world.y && start.x + start.width <= 390, 'two stacked selects, on screen');
   assert.ok(!(await page.isVisible('#pickInfo')), 'no summaries on a phone');
   await page.selectOption('#startSelect', 'garage');
-  await page.click('#btnNew');
+  await newGame(page);
   await sceneReady(page);
   assert.match(await page.textContent('#sceneBar'), /Rover Garage/);
   await act(page, 'Look around.');
@@ -337,7 +344,7 @@ await check('phone: pick a world and a start, and play a turn', async (page) => 
 
 // Task 1-6: the card leads with mood and tags; needs sit in a collapsed Details.
 await check('cards show mood and tags, with needs tucked into Details that stay open', async (page) => {
-  await page.click('#btnNew');
+  await newGame(page);
   await act(page, 'Look around.');
   await act(page, 'Ask Teo about the rattle.'); // the first turn's memory (mood, tag) is recorded now
   const teo = page.locator('#cast .card', { hasText: 'Teo Bauer' });
@@ -373,7 +380,7 @@ const card = (page, name) => page.locator('#cast .card', { hasText: name });
 for (const phone of [false, true]) {
   await check(`${phone ? 'phone: ' : ''}portraits, minimized cards and the details view`, async (page) => {
     await withPortraits(page);
-    await page.click('#btnNew');
+    await newGame(page);
     await act(page, 'Look around.');
     await act(page, 'Ask Teo about the rattle.');
     if (phone) { await page.click('#btnSide'); await page.waitForTimeout(350); }
@@ -413,7 +420,7 @@ for (const phone of [false, true]) {
 
 // Task 2-1: background (secondary) people sit in a collapsed Elsewhere list.
 await check('background people are under a collapsed Elsewhere list that remembers being opened', async (page) => {
-  await page.click('#btnNew');
+  await newGame(page);
   await page.waitForFunction(() => document.querySelectorAll('#cast .card').length > 0);
   const front = await page.locator('#cast > .card .nm').allTextContents();
   assert.match(front[0], /Kit Navarro/, 'you first');
@@ -432,7 +439,7 @@ await check('background people are under a collapsed Elsewhere list that remembe
 
 // Suggested actions fill the box; the player still presses Act.
 await check('suggestions fill the action box without acting', async (page) => {
-  await page.click('#btnNew');
+  await newGame(page);
   await act(page, 'Look around.');
   assert.ok(await page.locator('#btnSuggest').isDisabled(), 'greyed out until the scene is read, like Act');
   while (await page.locator('button[data-next]').count()) await page.click('button[data-next]');
@@ -450,7 +457,7 @@ await check('suggestions fill the action box without acting', async (page) => {
 
 // Task 1-8: fix your own feelings toward someone from their details.
 await check('correct your feelings from a card', async (page) => {
-  await page.click('#btnNew');
+  await newGame(page);
   await act(page, 'Look around.');
   const teo = card(page, 'Teo Bauer');
   await teo.locator('details.card-details summary').click();
@@ -467,7 +474,7 @@ await check('correct your feelings from a card', async (page) => {
 // Screen readers hear each new beat from a polite live region.
 await check('screen readers hear each new beat', async (page) => {
   assert.equal(await page.getAttribute('#srAnnounce', 'aria-live'), 'polite');
-  await page.click('#btnNew');
+  await newGame(page);
   await page.fill('#actionInput', 'Look around.');
   await page.click('#btnAct');
   await turnDone(page);
@@ -495,7 +502,7 @@ const rootAttr = (page, name) => page.evaluate((n) => document.documentElement.g
 const bodyBg = (page) => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
 
 await check('appearance: themes, text size and story font apply, survive a reload, and cancel restores', async (page) => {
-  await page.click('#btnNew');
+  await newGame(page);
   await act(page, 'Look around.');
   assert.equal(await rootAttr(page, 'data-theme'), 'dark', 'dark by default');
   const darkBg = await bodyBg(page);
@@ -521,7 +528,7 @@ await check('appearance: themes, text size and story font apply, survive a reloa
 
 await check('phone: high visibility at 150% fits the screen', async (page) => {
   await setAppearance(page, { theme: 'hv', textSize: 150 });
-  await page.click('#btnNew');
+  await newGame(page);
   await act(page, 'Look around.');
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   assert.ok(overflow <= 0, `no sideways scrolling (${overflow}px too wide)`);

@@ -141,6 +141,8 @@
   $('btnNew').addEventListener('click', async () => {
     if (busy) return;
     if (state && state.turn > 0 && !confirm('Start a new game? Unsaved progress will be lost.')) return;
+    // Busy while the world loads, so Act can't fire into the old (or no) game.
+    setBusy(true);
     try {
       const world = await resolveWorld($('scenarioSelect').value);
       state = E.Engine.newGame(E.Scenario.startScenario(world, $('startSelect').value || undefined));
@@ -155,11 +157,13 @@
       notes.length = 0;
       if (world.warnings.length) notes.push({ kind: 'world', summary: `${world.warnings.length} unknown field${world.warnings.length === 1 ? '' : 's'} ignored in "${world.title}"`, detail: world.warnings.join('\n') });
       autosave();
-      renderAll();
-      $('actionInput').focus();
     } catch (e) {
       alert(e.message);
+    } finally {
+      setBusy(false);
     }
+    if (state) renderAll();
+    $('actionInput').focus();
   });
 
   // File names: world and start titles, e.g. "ares-deep-sol-214-the-mule".
