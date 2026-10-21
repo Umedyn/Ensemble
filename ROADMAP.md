@@ -97,7 +97,18 @@ Pax Historia's map at personal scale: World → Regional → Local.
 **Local map: tokens on nodes**
 - [ ] Every character is a **token** on a location node, named characters and **standees** alike.
 - [ ] **Standees** are unnamed groups such as gang members, guards or a mob: label, count, location, state (calm, alert, hostile, fled, down). The engine tracks them; the model can propose moves, count changes and state changes, and the engine validates and clamps them. A standee can be promoted to an extra or a named character when the player singles one out.
-- [ ] Later, possibly: positions inside a room (doorway, cover, back wall) for a more hands-on feel. Decide after playing with tokens.
+- [ ] **Guard posts and patrols**: standees can hold a post or follow a patrol route through the room graph; whether the player is seen depends on who is in or next to their room.
+- [ ] Later, possibly: positions inside a room (doorway, cover, back wall) for a more hands-on feel. The site layout below gives every room coordinates, so this becomes possible; decide after playing with tokens.
+
+**Site layouts: the model describes, the engine draws**
+- [ ] **Site data**: rooms (size, purpose, features), links with a kind (`open`, `door`, `locked door`, `vent`, `hatch`, `window`, `stairs`), entrances from outside (watched or not), and stateful features the engine tracks (a door locked or open, a camera on or off). The model never draws: grids and ASCII from a 12B are unreliable, and a drawing can't be validated.
+- [ ] **Layout styles** per site type (`warehouse`, `apartment floor`, `office floor`, `club`, `compound`, `sewer`, …) in a DOM-free `js/layouts.js`: deterministic placement from sizes and links, so the same site always lays out the same way and survives saves.
+- [ ] **SVG floor plan**: walls, door gaps, locked-door, vent and hatch symbols, labels and tokens, in theme colours (high visibility included), never generated art.
+- [ ] **What the player has seen**: unseen rooms stay dark until entered, seen or revealed (a floor plan bought from a fixer is a real advantage).
+- [ ] **Movement follows links**: you can only step into a room linked to the one you're in. Naming a farther room walks the route (`Eng.route`) through the rooms in between, and each one counts for time and for being seen; a locked link blocks the route until it's opened.
+- [ ] **Authored features are the truth**: doors, windows, vents and objects a map maker placed are what exists, and the game goes off them.
+- [ ] **Inferred features**: where the map is silent, the model may propose a plausible feature when the player tries to use one ("I climb out the window"). The engine accepts it only if it doesn't contradict the map: windows only on exterior walls (the layout knows which those are), never into a secure room, and never over a feature the author placed. Once accepted it's recorded on the site, so it's there next time and for everyone.
+- [ ] **Secure rooms** (`secure: true`, defaulted for types like vault, armory, cell, server room): exactly one way in and out, through a guard post, security point or hallway. Layout styles place them as dead ends, generation is rejected if it gives them a second link, and inference can never add one.
 
 **Views**
 - [ ] **World view**: the map image with creator-drawn region polygons coloured by controller, and tag badges. Without an image, a node map laid out automatically.
@@ -124,6 +135,13 @@ Make your own character and start, and have the engine fill in the world around 
   - The same pattern applies to lore research (phase 5): one source page per call.
 - [ ] **Review screen**: edit or reroll any generated room or character before starting. The result can be saved as a reusable start.
 - [ ] **Generated sites**: on-the-fly local maps for places the story goes (a gang base, a corporate floor, a ruined farmhouse), with rooms, named characters, standees and loot. They're attached to a region and either kept or discarded after the visit. Triggered by the player's intent (`move_to` an unknown place) or by an event.
+  - **Library first**: look for a matching authored site map (below) by type, tags and size. If one fits, use its layout and have the model fill in only the people, names and details. Otherwise generate the site data and let the layout styles draw it.
+  - Generation produces the site data described in phase 3 (rooms, links with kinds, entrances, features, people with posts or patrols), validated before use; a bad piece is regenerated alone.
+- [ ] **Site map library**: authored maps (battlemaps, floor plans) that creators and modders draw and tag once, for reuse by any story that needs that kind of place.
+  - A site map is an image plus data: room shapes drawn on it, doors and their kinds, entrances, spots (guard post, cover, hiding place, loot), and an optional grid scale for battlemaps. **Grids are for measurement only** (room sizes and distances the narrator can use: "the guard is thirty feet away"), never for movement: play stays free-form, not a tactics simulator.
+  - Tags for matching: `type` (warehouse, tavern, starship deck…), genre and setting tags (cyberpunk, fantasy, modern), size and room count.
+  - Sources, in order: the world's own `sites/`, then a shared library folder (bundled maps plus ones the player adds with Open folder). The pick among matches is deterministic, so a reload picks the same map.
+  - Every map carries `credit` and `license`. Bundled maps are original or CC0; shared maps are their creators' responsibility (`MODDING.md`).
 - [ ] Generation is a routable pipeline step ("world building") so it can go to an API model when one is set up.
 
 ## Phase 5: Lore and canon
@@ -149,7 +167,8 @@ Make your own character and start, and have the engine fill in the world around 
 
 Everything a creator needs to build a world without touching JSON.
 
-- [ ] Tabs: World (setting, rules, tags, skills, needs, event rates), Groups, Map (from phase 3), Lore, Timeline, Characters, Starts, Portraits.
+- [ ] Tabs: World (setting, rules, tags, skills, needs, event rates), Groups, Map (from phase 3), Sites, Lore, Timeline, Characters, Starts, Portraits.
+- [ ] **Site map editor** (Sites tab): load a battlemap or floor-plan image, draw room shapes, mark doors and their kinds, entrances and spots, set the grid scale, tag it, and save it to the world's `sites/` or export it for the shared library. Also: open a generated site and save it as an authored map.
 - [ ] **Character editor**, including **character card import** (SillyTavern/Tavern PNG or JSON): one conversion call, a review step, then add to the cast. It keeps the card's personality and drops the card's original scenario framing.
 - [ ] Export as a folder (or a zip); import an existing world to edit it; validation errors shown inline.
 - [ ] Test play: start the edited world straight from the creator.

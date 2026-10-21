@@ -24,6 +24,10 @@ Mods made and shared by the community are the responsibility of their creators. 
 
 **Fan worlds** based on other people's settings are fine for your own play and noncommercial sharing, at your own responsibility. Ensemble never bundles, sells or features them, and they're removed from official Ensemble spaces on a rights holder's request. Don't make mods designed to produce content that's illegal.
 
+## Site maps
+
+Battlemaps and floor plans can be turned into site maps (planned: the Sites tab of the world maker): draw the rooms, doors and entrances on the image and tag it ("warehouse", "cyberpunk"), and any story that needs that kind of place can use it. Fill in `credit` and `license` for every map you share. Many battlemaps sold online don't allow redistribution, so only share maps you made or have the right to share.
+
 ## Content
 
 Adults choose their own stories. Mature content is opt-in and rated per world, and the player sets their own maximum. There is one hard line: **no sexual content involving minors**. The engine enforces it in every mode, whatever model or service you use.
