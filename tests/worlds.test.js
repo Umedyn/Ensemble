@@ -167,8 +167,8 @@ test('a broken start reports its error without hiding the others', () => {
 
 test('reserved fields are accepted silently; unknown fields are ignored with a warning', () => {
   const w = load((f) => {
-    Object.assign(f['world.json'], { regions: [{ id: 'coast' }], lore: [], map: {}, timeline: [], colour: 'grey' });
-    Object.assign(f['starts/morning.json'], { region: 'coast', playerSlot: {}, extras: [], standees: [], oppening: 'typo' });
+    Object.assign(f['world.json'], { lore: [], map: {}, timeline: [], colour: 'grey' });
+    Object.assign(f['starts/morning.json'], { playerSlot: {}, extras: [], standees: [], oppening: 'typo' });
     f['starts/storm.json'].cast[1].mood = 'grim';
   });
   assert.deepEqual([...w.warnings], [
@@ -246,11 +246,13 @@ test('converted bundled worlds start the same game as their legacy versions', ()
     Object.values(now.state.characters).forEach((c) => { delete c.description; delete c.appearance; });
     // Cast tiers (task 2-1) and agendas (task 2-2) were added after the conversion too: zombie-holdout's Ortiz starts local.
     [now, before].forEach((g) => Object.values(g.state.characters).forEach((c) => { delete c.tier; delete c.agenda; }));
+    // Regions (task 3-1) too: every location got a region, and the header a REGIONS block.
+    Object.values(now.state.locations).forEach((l) => { delete l.region; });
     ['characters', 'locations', 'clocks', 'world', 'facts', 'factions', 'order', 'time', 'recent', 'player'].forEach((k) =>
       assert.deepEqual(plain(now.state[k]), plain(before.state[k]), `${folder}: state.${k}`));
     assert.equal(now.state.scenario.worldId, folder);
     // Genre tags were added after the conversion (task 1-4); everything else is unchanged.
-    const withoutGenre = (h) => h.replace(/\n\n=== GENRE AND TONE ===\n[\s\S]*?(?=\n\n=== )/, '');
+    const withoutGenre = (h) => h.replace(/\n\n=== (GENRE AND TONE|REGIONS) ===\n[\s\S]*?(?=\n\n=== )/g, '').replace(/ \[region: [a-z0-9_-]+\]/g, '');
     assert.equal(withoutGenre(now.E.Prompts.header(now.state)), before.E.Prompts.header(before.state), `${folder}: prompt header`);
   }
 });

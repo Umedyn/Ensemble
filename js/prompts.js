@@ -36,7 +36,7 @@
     return parts.join('\n');
   };
 
-  P.layouts.header = ['intro', 'setting', 'genre', 'rules', 'places', 'groups', 'cast', 'newcomers', 'chapters', 'facts'];
+  P.layouts.header = ['intro', 'setting', 'genre', 'rules', 'places', 'regions', 'groups', 'cast', 'newcomers', 'chapters', 'facts'];
   P.header = (state) => P.build('header', { state, sc: state.scenario, pc: state.characters[state.player] });
 
   B.intro = () => 'You are the simulation engine and narrator for an interactive, character-driven story.';
@@ -55,10 +55,21 @@
     ].concat(sc.rules || []);
     return ['\n=== RULES ==='].concat(rules.map((r) => '- ' + r));
   };
-  B.places = ({ state }) => ['\n=== LOCATIONS ==='].concat(Object.values(state.locations).map((l) => {
-    const c = l.connects && l.connects.length ? ` (connects: ${l.connects.join(', ')})` : '';
-    return `- ${l.id}: ${l.name} — ${l.desc}${c}`;
-  }));
+  // A room's region is shown only when the rooms are in more than one.
+  B.places = ({ state }) => {
+    const many = new Set(Object.values(state.locations).map((l) => l.region)).size > 1;
+    return ['\n=== LOCATIONS ==='].concat(Object.values(state.locations).map((l) => {
+      const c = l.connects && l.connects.length ? ` (connects: ${l.connects.join(', ')})` : '';
+      return `- ${l.id}: ${l.name} — ${l.desc}${c}${many && l.region ? ` [region: ${l.region}]` : ''}`;
+    }));
+  };
+  // Static geography (task 3-1): names, neighbours and lore. Who holds a
+  // region, its tags and status change in play, so they go in the user
+  // message (regionLines), never here.
+  B.regions = ({ sc }) => ((sc.regions || []).length
+    ? ['\n=== REGIONS ==='].concat(sc.regions.map((r) =>
+      `- ${r.id}: ${r.name}${r.lore ? ` — ${r.lore}` : ''}${r.neighbours && r.neighbours.length ? ` (neighbours: ${r.neighbours.join(', ')})` : ''}`))
+    : null);
   B.groups = ({ sc }) => (sc.factions && sc.factions.length
     ? ['\n=== GROUPS ==='].concat(sc.factions.map((f) => `- ${f.id}: ${f.name} — ${f.desc}`))
     : null);
@@ -95,7 +106,47 @@
       .map((c) => `${c.name} ${c.fired ? '(HAPPENED)' : Math.floor(c.value) + '/' + c.max}`)
       .join('; ');
     const groups = (state.factions || []).map((f) => `${f.name}: ${f.stance}`).join('; ');
-    return `World: ${w || 'nothing notable'}\nPressures: ${clocks || 'none'}` + (groups ? `\nGroups: ${groups}` : '');
+    return `World: ${w || 'nothing notable'}\nPressures: ${clocks || 'none'}` + (groups ? `\nGroups: ${groups}` : '') + regionLines(state);
+  }
+  // The current state of the player's region and its neighbours only.
+  function regionLines(state) {
+    const near = Eng().nearbyRegions(state);
+    if (!near.length) return '';
+    const desc = (id) => {
+      const def = Eng().regionDef(state, id);
+      const r = state.regions[id];
+      const f = r.controller && (state.factions || []).find((x) => x.id === r.controller);
+      const bits = [`held by ${f ? f.name : 'no one'}`];
+      if (r.tags.length) bits.push(`tags: ${r.tags.join(', ')}`);
+      if (r.status) bits.push(r.status);
+      return `${def.name} (${id}): ${bits.join('; ')}`;
+    };
+    return `\nRegion: ${desc(near[0])}` + (near.length > 1 ? `\nNearby: ${near.slice(1).map(desc).join(' | ')}` : '');
+  }
+  // Event ideas (eventSeeds) are text or {text, region}. Regional ideas for
+  // regions far from the player are left out; the rest say where they are.
+  function seedTexts(state, scope) {
+    const near = Eng().nearbyRegions(state);
+    return ((state.scenario.eventSeeds || {})[scope] || []).map((s) => {
+      if (typeof s === 'string') return s;
+      if (!s.region) return s.text;
+      if (scope === 'regional' && !near.includes(s.region)) return null;
+      const def = Eng().regionDef(state, s.region);
+      return `${s.text} (${def ? def.name : s.region})`;
+    }).filter(Boolean);
+  }
+  // The JSON shape of an event's effects; region effects only when the world has regions.
+  function effectShape(state) {
+    const region = Object.keys(state.regions || {}).length
+      ? ',"control":[{"region":"region_id","to":"group_id or null"}],"add_tag":[{"region":"region_id","tag":"short tag"}],"remove_tag":[{"region":"region_id","tag":"existing tag"}],"region_status":[{"region":"region_id","status":"new status"}]'
+      : '';
+    return `{"world":[{"key":"world_key","value":"new status"}],"groups":[{"id":"group_id","stance":"new stance"}],"clocks":[{"id":"clock_id","delta":2}],"new_clock":null${region}}`;
+  }
+  // Valid ids for effects. Every region, not just nearby ones: the world can
+  // shift far from the player (their current state stays nearby-only).
+  function effectIds(state) {
+    const regions = Object.keys(state.regions || {});
+    return `world keys: ${Object.keys(state.world).join(', ')}; groups: ${(state.factions || []).map((f) => f.id).join(', ') || 'none'}; clocks: ${state.clocks.filter((c) => !c.fired).map((c) => c.id).join(', ') || 'none'}${regions.length ? `; regions: ${regions.join(', ')}` : ''}`;
   }
 
   function needsText(state, c, onlyNotable) {
@@ -270,17 +321,18 @@ ${intentExample(state, present)}`;
   };
 
   function tierTask(state, due) {
-    const seeds = state.scenario.eventSeeds || {};
+    const seeds = { regional: seedTexts(state, 'regional'), world: seedTexts(state, 'world') };
     const lines = [];
-    const effectShape = `"effects":{"world":[{"key":"world_key","value":"new status"}],"groups":[{"id":"group_id","stance":"new stance"}],"clocks":[{"id":"clock_id","delta":2}],"new_clock":null}`;
     if (due.regional) {
-      lines.push(`6. A REGIONAL event is due: add exactly one event with "scope":"regional" — something in the surroundings (terrain, weather, nearby places, infrastructure) that affects the people here.${seeds.regional ? ' Ideas: ' + seeds.regional.join('; ') + '.' : ''}`);
+      lines.push(`6. A REGIONAL event is due: add exactly one event with "scope":"regional" — something in the surroundings (terrain, weather, nearby places, infrastructure) that affects the people here.${seeds.regional.length ? ' Ideas: ' + seeds.regional.join('; ') + '.' : ''}`);
     }
     if (due.world) {
-      lines.push(`${due.regional ? 7 : 6}. A WORLD event is due: add exactly one event with "scope":"world" — a broad shift far away (organizations, money, politics, disasters) whose effects reach the people here.${seeds.world ? ' Ideas: ' + seeds.world.join('; ') + '.' : ''}`);
+      lines.push(`${due.regional ? 7 : 6}. A WORLD event is due: add exactly one event with "scope":"world" — a broad shift far away (organizations, money, politics, disasters) whose effects reach the people here.${seeds.world.length ? ' Ideas: ' + seeds.world.join('; ') + '.' : ''}`);
     }
     if (!lines.length) return '   No regional or world events this turn; keep events local.';
-    lines.push(`   Give regional/world events concrete consequences in ${effectShape}. Use only existing keys/ids (world keys: ${Object.keys(state.world).join(', ')}; groups: ${(state.factions || []).map((f) => f.id).join(', ') || 'none'}; clocks: ${state.clocks.filter((c) => !c.fired).map((c) => c.id).join(', ') || 'none'}). Use new_clock {"name":"short name","max":8,"perHour":0.2,"fireText":"what happens when it runs out"} only for a genuinely new looming problem. Usually "visibility":"heard" (news, a message, an alarm).`);
+    const near = Eng().nearbyRegions(state);
+    if (near.length) lines.push(`   Give regional/world events a "region": the region id where it happens (regional events: ${near.join(', ')}; world events: any region, or null).`);
+    lines.push(`   Give regional/world events concrete consequences in "effects":${effectShape(state)}. Use only existing keys/ids (${effectIds(state)}). Use new_clock {"name":"short name","max":8,"perHour":0.2,"fireText":"what happens when it runs out"} only for a genuinely new looming problem. Usually "visibility":"heard" (news, a message, an alarm).`);
     return lines.join('\n');
   }
 
@@ -442,8 +494,7 @@ Reply with the new beats only.`;
   }
 
   function majorIdeas(state) {
-    const s = state.scenario.eventSeeds || {};
-    return [].concat(state.scenario.majorSeeds || [], (s.regional || []).slice(0, 3), (s.world || []).slice(0, 3));
+    return [].concat(state.scenario.majorSeeds || [], seedTexts(state, 'regional').slice(0, 3), seedTexts(state, 'world').slice(0, 3));
   }
 
   P.layouts.skipIntent = ['skipFrame', 'people', 'agendaDuring', 'lastScene', 'skipTask'];
@@ -466,18 +517,19 @@ ${worldLines(state)}`;
       : plan.reason === 'clock'
       ? `The downtime ends because a pressure comes to a head: "${res.events[res.events.length - 1] || plan.clock.name}". Set "major_event" to null; your positions should fit that moment.`
       : `The downtime ends with a MAJOR EVENT that you choose: something serious and unexpected that demands a response right now. ${majorKinds(state)}${majorIdeas(state).length ? ` Ideas: ${majorIdeas(state).join('; ')}.` : ''}`;
+    const reg = Eng().nearbyRegions(state).length ? '"region":"region_id",' : '';
     return `
 === TASK ===
 This covers a long stretch of downtime. ${ends}
 Reply with JSON only:
 {"montage":[{"after":"2d","text":"one or two sentences"}],
- "events":[{"text":"one sentence","scope":"local|regional|world","who":["character_id"],"where":"location_id","visibility":"heard","moves":[],"effects":null}],
- "major_event":{"text":"one or two sentences","scope":"local|regional|world","who":["character_id"],"where":"location_id","effects":{"world":[{"key":"world_key","value":"new status"}],"groups":[{"id":"group_id","stance":"new stance"}],"clocks":[{"id":"clock_id","delta":2}],"new_clock":null}},
+ "events":[{"text":"one sentence","scope":"local|regional|world","who":["character_id"],"where":"location_id",${reg}"visibility":"heard","moves":[],"effects":null}],
+ "major_event":{"text":"one or two sentences","scope":"local|regional|world","who":["character_id"],"where":"location_id",${reg}"effects":${effectShape(state)}},
  "positions":[{"id":"character_id","where":"location_id","doing":"what they are doing when it hits"}],
  "player_where":"location_id"}
 Guidelines:
 - montage: 2 to 4 moments in order, spread across the downtime ("after" = time since it began, like "3d" or "10h"), all after the last scene (never retell it). How people pass the time, relationships shifting, small incidents, secrets being worked on. ${pc.name} follows their plan and their feelings.
-- events: 0 to 2 newsworthy things during the downtime, with concrete effects for regional/world ones (use only existing ids/keys: world ${Object.keys(state.world).join(', ')}; groups ${(state.factions || []).map((f) => f.id).join(', ') || 'none'}; clocks ${state.clocks.filter((c) => !c.fired).map((c) => c.id).join(', ') || 'none'}).
+- events: 0 to 2 newsworthy things during the downtime, with concrete effects for regional/world ones (use only existing ids/keys: ${effectIds(state)}).
 - positions: one entry for EVERY other character: ${Eng().cast(state, { alive: true, includePlayer: false }).join(', ')}. Locations: ${Object.keys(state.locations).join(', ')}.
 - player_where: where ${pc.name} is when it hits, consistent with their plan.`;
   };

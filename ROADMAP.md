@@ -89,10 +89,10 @@ Lets big casts fit in 8K and makes the world move without the player.
 Pax Historia's map at personal scale: World → Regional → Local.
 
 **Data**
-- [ ] **Regions**: id, name, a controlling group, tags ("occupied", "famine", "battle", "quarantine"), a status line, neighbours, and a `lore` entry. In the lore hierarchy, regions carry the most detail and the world only the broad context (the Shire doesn't need Mordor's politics).
-- [ ] Every location gets a `region`. Locations are the local level.
-- [ ] Event effects gain `control` (a region changes hands), `addTag`/`removeTag` on regions, and `regionStatus`, all rationed by `tiersDue` like the existing effects.
-- [ ] Prompts get static geography in the header, and the control and tags of the current region and its neighbours in the user message only.
+- [x] **Regions**: id, name, a controlling group, tags ("occupied", "famine", "battle", "quarantine"), a status line, neighbours, and a `lore` entry. In the lore hierarchy, regions carry the most detail and the world only the broad context (the Shire doesn't need Mordor's politics).
+- [x] Every location gets a `region`. Locations are the local level.
+- [x] Event effects gain `control` (a region changes hands), `add_tag`/`remove_tag` on regions, and `region_status`, all rationed by `tiersDue` like the existing effects.
+- [x] Prompts get static geography in the header, and the control and tags of the current region and its neighbours in the user message only.
 
 **Local map: tokens on nodes**
 - [ ] Every character is a **token** on a location node, named characters and **standees** alike.

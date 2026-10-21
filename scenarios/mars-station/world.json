@@ -123,7 +123,60 @@
       "connects": [
         "suitroom",
         "garage"
-      ]
+      ],
+      "region": "crater-rim"
+    }
+  ],
+  "regions": [
+    {
+      "id": "station",
+      "name": "Ares Deep",
+      "controller": "mission",
+      "tags": [],
+      "status": "five crew, 214 sols into a 500-sol rotation",
+      "neighbours": [
+        "crater-rim"
+      ],
+      "lore": "The outpost itself: pressurized modules dug into the rim, run day to day by the crew and on paper by Mission Control."
+    },
+    {
+      "id": "crater-rim",
+      "name": "Hellas crater rim",
+      "controller": "mission",
+      "tags": [
+        "dust season"
+      ],
+      "status": "solar field and drill site working",
+      "neighbours": [
+        "station",
+        "basin-floor",
+        "relay-mast"
+      ],
+      "lore": "Broken slopes around the outpost: the solar field, the ice drill site and the rover tracks. Suits required; dust devils and slope failures are common."
+    },
+    {
+      "id": "basin-floor",
+      "name": "Hellas basin floor",
+      "controller": null,
+      "tags": [
+        "unexplored"
+      ],
+      "status": "mapped from orbit only",
+      "neighbours": [
+        "crater-rim"
+      ],
+      "lore": "The deepest plain on Mars, kilometres below the rim. Thicker air, colder nights, and supply drops land there when they miss."
+    },
+    {
+      "id": "relay-mast",
+      "name": "Relay mast",
+      "controller": "sponsor",
+      "tags": [],
+      "status": "automated, checking in on the regional relay",
+      "neighbours": [
+        "crater-rim"
+      ],
+      "lore": "An automated Halvorsen relay and weather station a day's drive along the rim, the nearest other built thing on the planet."
     }
   ],
   "world": {
@@ -152,12 +205,27 @@
   },
   "eventSeeds": {
     "regional": [
-      "dust devils crossing the solar field",
-      "an ice shelf collapsing near the drill site",
+      {
+        "text": "dust devils crossing the solar field",
+        "region": "crater-rim"
+      },
+      {
+        "text": "an ice shelf collapsing near the drill site",
+        "region": "crater-rim"
+      },
       "a micrometeorite strike",
-      "a quake in the crater rim",
-      "the neighboring outpost going quiet on the regional relay",
-      "a supply drop landing off target",
+      {
+        "text": "a quake in the crater rim",
+        "region": "crater-rim"
+      },
+      {
+        "text": "the neighboring outpost going quiet on the regional relay",
+        "region": "relay-mast"
+      },
+      {
+        "text": "a supply drop landing off target",
+        "region": "basin-floor"
+      },
       "a rover track washed out by a slope failure"
     ],
     "world": [

@@ -64,16 +64,17 @@ Static servers can't list directories, so `world.json` lists its starts and char
 | `skillPenalties`, `revealPressure` | object, string[] | optional; roll penalties from health and needs, and which needs count as pressure on secrets. Defaults are today's values. Starts may override |
 | `factions` | | as today; starts may override `stance` |
 | `world` | object | world-status defaults; starts may add or override keys |
-| `eventRates`, `eventSeeds`, `majorEventDays`, `majorHorizonDays`, `majorSeeds`, `revealSkills` | | as today; starts may override |
+| `eventRates`, `eventSeeds`, `majorEventDays`, `majorHorizonDays`, `majorSeeds`, `revealSkills` | | as today; starts may override. An `eventSeeds` idea is text or `{text, region}` (a known region id); regional ideas for regions away from the player are left out of prompts |
 | `tiers` | object | optional `{demoteAfter, maxLocal}` (whole numbers ≥ 1; defaults 4 and 6) for cast tiers (task 2-1). Starts may override field by field |
 | `extras` | object[] | minor people (task 2-3): `{id, name, role, location, note, pronouns, group, count}`. `location` may be `null` (nowhere in particular); `group: true` makes one entity of a crowd, patrol or horde, with an optional `count` ("hundreds"). Ids must not clash with characters or locations. Starts add to or change them by `id` |
 | `inventExtras` | boolean | default false; true lets the model add minor people during play (one a turn, 30 in all). Leave it off for closed settings |
 | `facts` | string[] | public facts true everywhere |
 | `characters` | string[] | the character pool (ids in `characters/`) |
 | `starts` | string[] | start ids in `starts/`; the first is the default |
-| `locations`, `clocks` | | optional world-wide ones (rare); usually per start |
+| `locations`, `clocks` | | optional world-wide ones (rare); usually per start. A location may set `region` (default: the start's `region`) |
+| `regions` | object[] | the map above the rooms (task 3-1): `{id, name, controller, tags, status, neighbours, lore}`. `controller` is a group id or `null`; `tags` up to 6 (30 characters each); `status` up to 120 characters; `lore` a summary up to 400 (no secrets or future events; full lore entries come in phase 5). Neighbour links are made two-way when validated. Starts change them by `id`. Once a world has regions, every start needs `region` and every location a known region |
 | `portraitSet` | string[] | optional; image paths in the world folder used as stand-ins for characters without a `portrait`, picked by a hash of the id (task 1-7). Without it, a monogram |
-| reserved | | `regions`, `map`, `lore`, `timeline`: accepted and ignored until their phase |
+| reserved | | `map`, `lore`, `timeline`: accepted and ignored until their phase |
 
 ## starts/&lt;id&gt;.json
 
@@ -90,7 +91,8 @@ Static servers can't list directories, so `world.json` lists its starts and char
 | `facts` | string[] | public facts specific to this start |
 | `opening` | string | first scene |
 | `castLabel` | string | sidebar heading ("Crew", "Survivors") |
-| reserved | | `region` (phase 3), `playerSlot` (phase 4: lets the player make their own character), `standees` (phase 3) |
+| `region` | id | where the player starts; required when the world has `regions`, and the default region of the start's locations |
+| reserved | | `playerSlot` (phase 4: lets the player make their own character), `standees` (phase 3) |
 
 ### cast entries
 
@@ -110,12 +112,13 @@ Overridable per start: `status`, `needs`, `relations`, `knows`, `want`, `secret`
 
 1. Start with a deep clone of the world.
 2. **Scalars, strings and every other field** (`setting`, `timeLabel`, `majorEventDays`, and lists not named below such as `skills`, `needs`, `majorSeeds`, `revealSkills`): the start's value replaces the world's.
-3. **Lists of objects with `id`** (`locations`, `clocks`, `factions`, `extras`): merge by id, with start entries replacing world entries field by field. New ids are appended.
+3. **Lists of objects with `id`** (`locations`, `clocks`, `factions`, `extras`, `regions`): merge by id, with start entries replacing world entries field by field. New ids are appended.
 4. **Lists of strings** (`rules`, `facts`, `tags`): world first, then the start's, without duplicates.
 5. **Plain objects** (`world`, `eventRates`, `eventSeeds`, `tiers`): shallow merge, with the start winning.
 6. `characters` = the start's cast ids in order; `characterData` = each pool file deep-merged with its cast entry (cast entry wins; plain objects such as `status`, `needs` and `relations` merge field by field, lists such as `knows` are replaced). Relations to pool characters who aren't in this start's cast are dropped (they're checked against the pool by `validateWorld` instead).
-7. The composed scenario gets `worldId`, `startId`, `folder` (the world folder) and `title` (`"<world title>: <start title>"` for display, or just the world title when the start has none, plus `worldTitle` and `startTitle` separately). `format` and `starts` are dropped. The prompt header's `SETTING:` line uses `worldTitle`, so start titles stay out of prompts.
-8. Then `S.validate(composed)`: today's checks, unchanged. `S.compose` itself doesn't validate; `S.prepareWorld` does both.
+7. When the result has `regions`, each location without a `region` gets the start's `region`.
+8. The composed scenario gets `worldId`, `startId`, `folder` (the world folder) and `title` (`"<world title>: <start title>"` for display, or just the world title when the start has none, plus `worldTitle` and `startTitle` separately). `format` and `starts` are dropped. The prompt header's `SETTING:` line uses `worldTitle`, so start titles stay out of prompts.
+9. Then `S.validate(composed)`: today's checks, unchanged. `S.compose` itself doesn't validate; `S.prepareWorld` does both.
 
 A **world validation** (`S.validateWorld(bundle)`, where `bundle` is `{ world, starts: {id: start}, characters: {id: data}, legacy }` with missing files left out) runs first and catches mistakes that composing would hide: missing start or character files, duplicate ids, cast ids not in the pool, a `player` not in the cast, a missing `format: 2`, and relations to ids outside the pool. Each start is composed and validated when the world loads, so a broken start shows its error in the picker instead of failing at "New game".
 

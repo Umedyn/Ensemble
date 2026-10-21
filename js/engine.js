@@ -33,7 +33,10 @@
       flags: { chapterWorthy: false, gameOver: false },
       tierLast: {},
       news: [],
+      regions: {},
     };
+    // Regions (task 3-1): what changes in play; the definition stays in the scenario.
+    (sc.regions || []).forEach((r) => { state.regions[r.id] = { controller: r.controller ?? null, tags: (r.tags || []).slice(), status: r.status || '' }; });
     (sc.locations || []).forEach((l) => (state.locations[l.id] = Object.assign({ connects: [] }, l)));
     sc.characterData.forEach((raw) => {
       const c = E.clone(raw);
@@ -68,7 +71,7 @@
 
   // Saves and autosaves from older versions are upgraded one step at a time
   // when loaded. Each step takes a state at version n and returns n + 1.
-  Eng.STATE_VERSION = 6;
+  Eng.STATE_VERSION = 7;
   Eng.migrations = {
     // Worlds and starts (docs/WORLDS.md): the scenario records where it came from.
     1: (state) => {
@@ -114,6 +117,13 @@
       state.version = 6;
       return state;
     },
+    // Regions (task 3-1): older saves have none.
+    6: (state) => {
+      if (!state.regions) state.regions = {};
+      if (state.pending && state.pending.pre && !state.pending.pre.regions) state.pending.pre.regions = {};
+      state.version = 7;
+      return state;
+    },
   };
   Eng.migrate = function (state) {
     if (state.version == null) state.version = 1;
@@ -123,6 +133,31 @@
     if (state.undo && state.undo.state) state.undo.state = Eng.migrate(state.undo.state);
     return state;
   };
+
+  // Regions (task 3-1). The player's region is the region of the room they're
+  // in; "nearby" is that region and its neighbours, the only ones whose
+  // current state goes in prompts.
+  Eng.regionDef = (state, id) => (state.scenario.regions || []).find((r) => r.id === id) || null;
+  Eng.regionOf = (state, loc) => (state.locations[loc] && state.locations[loc].region) || null;
+  Eng.playerRegion = (state) => Eng.regionOf(state, state.characters[state.player].status.location);
+  Eng.nearbyRegions = (state) => {
+    const id = Eng.playerRegion(state);
+    const def = id && Eng.regionDef(state, id);
+    if (!def || !state.regions || !state.regions[id]) return [];
+    return [id].concat((def.neighbours || []).filter((n) => state.regions[n]));
+  };
+  // Where a bigger event happens: a known region id, or the player's region
+  // for a regional event that names none (or an unknown one). World events
+  // may be nowhere in particular.
+  function eventRegion(state, ev, scope, res) {
+    if (scope === 'local' || !state.regions || !Object.keys(state.regions).length) return null;
+    let r = ev && ev.region;
+    if (r != null && r !== '' && !state.regions[r]) {
+      guard(res, 'resolve', 'event region', `unknown region "${r}" for: ${ev.text}`);
+      r = null;
+    }
+    return r || (scope === 'regional' ? Eng.playerRegion(state) : null);
+  }
 
   // Every time the engine overrules or cleans up the model, it records it in
   // the turn's res.guards, so Debug can list what fired. stage: resolve |
@@ -614,7 +649,63 @@
         return `new pressure: ${nc.name}`;
       },
     },
+    // Regions (task 3-1).
+    control: {
+      list: true, max: 1,
+      apply(state, c) {
+        const r = region(state, c);
+        if (r.reject) return r;
+        const to = c.to == null || c.to === '' || c.to === 'none' ? null : c.to;
+        const f = to && (state.factions || []).find((x) => x.id === to);
+        if (to && !f) return reject(`unknown group "${to}" for ${c.region}`);
+        if (r.now.controller === to) return reject(`${c.region} is already held by ${f ? f.id : 'no one'}`);
+        r.now.controller = to;
+        return `${r.def.name}: now held by ${f ? f.name : 'no one'}`;
+      },
+    },
+    add_tag: {
+      list: true, max: 2,
+      apply(state, t) {
+        const r = region(state, t);
+        if (r.reject) return r;
+        const tag = String(t.tag || '').replace(/\s+/g, ' ').trim().toLowerCase().slice(0, 30);
+        if (!tag) return reject(`no tag for ${t.region}`);
+        if (r.now.tags.some((x) => x.toLowerCase() === tag)) return null;
+        if (r.now.tags.length >= E.Scenario.REGION_TAGS) return reject(`${t.region} already has ${E.Scenario.REGION_TAGS} tags; not adding "${tag}"`);
+        r.now.tags.push(tag);
+        return `${r.def.name}: ${tag}`;
+      },
+    },
+    remove_tag: {
+      list: true, max: 2,
+      apply(state, t) {
+        const r = region(state, t);
+        if (r.reject) return r;
+        const tag = String(t.tag || '').trim().toLowerCase();
+        const i = r.now.tags.findIndex((x) => x.toLowerCase() === tag);
+        if (i < 0) return reject(`${t.region} has no tag "${t.tag}"`);
+        const [gone] = r.now.tags.splice(i, 1);
+        return `${r.def.name}: no longer ${gone}`;
+      },
+    },
+    region_status: {
+      list: true, max: 2,
+      apply(state, s) {
+        const r = region(state, s);
+        if (r.reject) return r;
+        if (!s.status) return reject(`no status for ${s.region}`);
+        r.now.status = String(s.status).slice(0, 120);
+        return `${r.def.name}: ${r.now.status}`;
+      },
+    },
   };
+  // The region an effect item names: { def, now } or a rejection.
+  function region(state, item) {
+    const id = item && item.region;
+    const now = id != null && state.regions && own(state.regions, id) ? state.regions[id] : null;
+    const def = now && Eng.regionDef(state, id);
+    return def ? { def, now } : reject(`unknown region "${id}"`);
+  }
   Eng.EFFECTS = EFFECTS;
 
   // Applies an event's effects. Returns the display lines; rejections become
@@ -688,6 +779,7 @@
       });
       // Hidden big events stay hidden: no public status changes, only private knowledge.
       const effects = scope !== 'local' && vis !== 'hidden' ? applyEffects(state, ev.effects, scope, res) : [];
+      const region = eventRegion(state, ev, scope, res);
       if (scope !== 'local') state.tierLast[scope] = absHours(state);
       const tag = scope === 'local' ? '' : `[${scope}] `;
       if (vis === 'hidden') {
@@ -696,11 +788,11 @@
         res.events.push((vis === 'heard' ? '(heard from elsewhere; only a sound, call or message reaches the player) ' : '') + tag + text);
         if (scope !== 'local') {
           E.Memory.addFact(state, { about: who, text, known_by: ['all'], weight: scope === 'world' ? 3 : 2 });
-          state.news.push({ scope, text, time: E.fmtTime(state), effects });
+          state.news.push({ scope, text, time: E.fmtTime(state), effects, region });
           if (state.news.length > 12) state.news.shift();
         }
       }
-      res.director.push({ scope, text, visibility: vis, who, where, moved, effects });
+      res.director.push({ scope, text, visibility: vis, who, where, region, moved, effects });
     });
     res.due = due;
   }
@@ -1610,10 +1702,11 @@
       const text = m.text.trim().slice(0, 240);
       const scope = ['regional', 'world'].includes(m.scope) ? m.scope : 'local';
       const effects = applyEffects(state, m.effects, scope, res);
+      const region = eventRegion(state, m, scope, res);
       res.events.push(`[major] ${text}`);
       E.Memory.addFact(state, { about: (m.who || []).filter((id) => state.characters[id]), text, known_by: ['all'], weight: 3 });
-      if (scope !== 'local') { state.news.push({ scope, text, time: E.fmtTime(state), effects }); state.tierLast[scope] = absHours(state); }
-      res.major = { text, scope, effects };
+      if (scope !== 'local') { state.news.push({ scope, text, time: E.fmtTime(state), effects, region }); state.tierLast[scope] = absHours(state); }
+      res.major = { text, scope, effects, region };
     } else {
       // The planned clock's own text: model events were applied after it (playtest-agenda-skips).
       const cl = state.clocks.find((c) => c.id === plan.clock.id);

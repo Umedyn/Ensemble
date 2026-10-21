@@ -62,16 +62,97 @@
       "stance": "unknown; their trucks were seen scavenging along the highway"
     }
   ],
+  "regions": [
+    {
+      "id": "highway-strip",
+      "name": "The highway strip",
+      "controller": null,
+      "tags": [
+        "dead nearby"
+      ],
+      "status": "quiet except for stragglers",
+      "neighbours": [
+        "main-street",
+        "residential",
+        "junction"
+      ],
+      "lore": "The edge of town along the two-lane highway: Harmon's Hardware, a gas station with dry pumps, a diner and a feed store."
+    },
+    {
+      "id": "main-street",
+      "name": "Main Street",
+      "controller": null,
+      "tags": [
+        "overrun"
+      ],
+      "status": "the dead fill the streets around the courthouse",
+      "neighbours": [
+        "highway-strip",
+        "residential"
+      ],
+      "lore": "The old town centre: courthouse, pharmacy, church and the clinic where the first evacuation was organised and went wrong."
+    },
+    {
+      "id": "residential",
+      "name": "The houses",
+      "controller": null,
+      "tags": [
+        "picked over"
+      ],
+      "status": "mostly looted, some doors still locked",
+      "neighbours": [
+        "highway-strip",
+        "main-street"
+      ],
+      "lore": "Streets of small houses and trailers behind Main Street. Some families left in a hurry; some never left."
+    },
+    {
+      "id": "junction",
+      "name": "Highway junction",
+      "controller": null,
+      "tags": [
+        "blocked"
+      ],
+      "status": "abandoned cars across two lanes",
+      "neighbours": [
+        "highway-strip",
+        "ridge-town"
+      ],
+      "lore": "Where the two-lane highway meets the interstate, a few miles out. Anyone heading for the coast passes through here."
+    },
+    {
+      "id": "ridge-town",
+      "name": "Ridge",
+      "controller": "ridge",
+      "tags": [
+        "fortified"
+      ],
+      "status": "trucks seen coming and going",
+      "neighbours": [
+        "junction"
+      ],
+      "lore": "The next town over, up the ridge road. Its survivors walled off the school and the grain elevator early."
+    }
+  ],
   "eventRates": {
     "regional": 14,
     "world": 72
   },
   "eventSeeds": {
     "regional": [
-      "a fire spreading through the town",
+      {
+        "text": "a fire spreading through the town",
+        "region": "main-street"
+      },
       "a thunderstorm drowning out sound",
-      "another group of survivors passing on the highway",
-      "a power substation failing",
+      {
+        "text": "another group of survivors passing on the highway",
+        "region": "junction"
+      },
+      {
+        "text": "a power substation failing",
+        "region": "residential"
+      },
       "a dog pack roaming the streets",
       "the dead breaking through somewhere nearby"
     ],

@@ -581,14 +581,26 @@
     }).join('');
     const world = Object.entries(state.world).map(([k, v]) => `<div><b>${esc(k)}</b>: ${esc(v)}</div>`).join('');
     const groups = (state.factions || []).map((f) => `<div title="${esc(f.desc)}"><b>${esc(f.name)}</b>: ${esc(f.stance)}</div>`).join('');
-    $('situation').innerHTML = clocks + `<div class="world">${world}</div>` + (groups ? `<div class="world groups">${groups}</div>` : '');
+    $('situation').innerHTML = clocks + `<div class="world">${world}</div>` + regionHtml() + (groups ? `<div class="world groups">${groups}</div>` : '');
   }
 
+  // The player's region (task 3-1): who holds it, its tags and status. The map views come later.
+  function regionHtml() {
+    const id = E.Engine.playerRegion(state);
+    const def = id && E.Engine.regionDef(state, id);
+    const r = def && state.regions && state.regions[id];
+    if (!r) return '';
+    const f = r.controller && (state.factions || []).find((x) => x.id === r.controller);
+    const bits = [`held by ${f ? f.name : 'no one'}`].concat(r.tags.length ? [r.tags.join(', ')] : [], r.status ? [r.status] : []);
+    return `<div class="world groups" title="${esc(def.lore || '')}"><b>${esc(def.name)}</b>: ${esc(bits.join('; '))}</div>`;
+  }
+
+  const regionName = (id) => { const d = id && E.Engine.regionDef(state, id); return d ? ` · ${esc(d.name)}` : ''; };
   function renderNews() {
     const news = (state.news || []).slice().reverse().slice(0, 6);
     $('newsPanel').classList.toggle('hidden', !news.length);
     $('news').innerHTML = news.map((n) =>
-      `<div class="news-item"><span class="muted">${n.scope === 'world' ? '🌍' : '🗺️'} ${esc(n.time)}</span><div>${esc(n.text)}</div>` +
+      `<div class="news-item"><span class="muted">${n.scope === 'world' ? '🌍' : '🗺️'} ${esc(n.time)}${regionName(n.region)}</span><div>${esc(n.text)}</div>` +
       (n.effects && n.effects.length ? `<div class="muted small">${n.effects.map(esc).join(' · ')}</div>` : '') + '</div>'
     ).join('');
   }

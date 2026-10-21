@@ -13,17 +13,17 @@
 
   // ---------- field lists ----------
   // Start fields that are not world overrides.
-  const START_OWN = ['id', 'title', 'summary', 'start', 'player', 'cast', 'opening', 'castLabel'];
+  const START_OWN = ['id', 'title', 'summary', 'start', 'player', 'cast', 'opening', 'castLabel', 'region'];
   // World fields a start may override (merge rules below).
   const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'tagThresholds', 'portraitSet', 'factions', 'world',
-    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras'];
+    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions'];
   const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'characters', 'starts', ...OVERRIDABLE];
-  const WORLD_RESERVED = ['regions', 'map', 'lore', 'timeline'];
-  const START_RESERVED = ['region', 'playerSlot', 'standees'];
+  const WORLD_RESERVED = ['map', 'lore', 'timeline'];
+  const START_RESERVED = ['playerSlot', 'standees'];
   const CAST_FIELDS = ['id', 'status', 'needs', 'relations', 'knows', 'want', 'secret', 'guard', 'tags', 'tier', 'pinned', 'agenda'];
   // Merge rules: lists of {id} objects merge by id, lists of strings are
   // unioned, plain objects merge shallowly; anything else is replaced.
-  const ID_LISTS = ['locations', 'clocks', 'factions', 'extras'];
+  const ID_LISTS = ['locations', 'clocks', 'factions', 'extras', 'regions'];
   const STRING_LISTS = ['rules', 'facts', 'tags'];
   const OBJECTS = ['world', 'eventRates', 'eventSeeds', 'tiers'];
 
@@ -64,6 +64,10 @@
       else if (OBJECTS.includes(k)) sc[k] = Object.assign({}, sc[k], E.clone(v));
       else sc[k] = E.clone(v);
     });
+    // Regions (task 3-1): a location without one is in the start's region.
+    if (Array.isArray(sc.regions) && sc.regions.length && sc.region != null) {
+      (sc.locations || []).forEach((l) => { if (l && l.region == null) l.region = sc.region; });
+    }
     const cast = start.cast || [];
     sc.characters = cast.map(castId);
     sc.characterData = cast.map((entry) => {
@@ -94,7 +98,7 @@
     Object.entries(legacy).forEach(([k, v]) => {
       if (k === 'characterData' || k === 'folder') return;
       if (k === 'characters') world.characters = v.slice();
-      else if (['start', 'player', 'locations', 'clocks', 'opening', 'castLabel'].includes(k)) start[k] = E.clone(v);
+      else if (['start', 'player', 'locations', 'clocks', 'opening', 'castLabel', 'region'].includes(k)) start[k] = E.clone(v);
       else world[k] = E.clone(v);
     });
     world.starts = ['default'];
@@ -126,8 +130,8 @@
     req(Array.isArray(startIds) && startIds.length, 'missing "starts" list');
     dupes(pool).forEach((id) => problems.push(`character "${id}" is listed twice`));
     dupes(startIds).forEach((id) => problems.push(`start "${id}" is listed twice`));
-    ['locations', 'clocks', 'factions'].forEach((k) =>
-      dupes((world[k] || []).map((x) => x.id)).forEach((id) => problems.push(`world ${k} has "${id}" twice`)));
+    ['locations', 'clocks', 'factions', 'regions'].forEach((k) =>
+      dupes((Array.isArray(world[k]) ? world[k] : []).map((x) => x && x.id)).forEach((id) => problems.push(`world ${k} has "${id}" twice`)));
     pool.forEach((id) => {
       const c = characters[id];
       if (!c) { problems.push(`missing characters/${id}.json`); return; }
@@ -145,8 +149,8 @@
       dupes(cast).forEach((id) => problems.push(`${where}: "${id}" is in the cast twice`));
       cast.forEach((id) => req(pool.includes(id), `${where}: cast member "${id}" is not in the world's characters`));
       req(cast.includes(st.player), `${where}: "player" must be in the cast`);
-      ['locations', 'clocks', 'factions'].forEach((k) =>
-        dupes((st[k] || []).map((x) => x.id)).forEach((id) => problems.push(`${where}: ${k} has "${id}" twice`)));
+      ['locations', 'clocks', 'factions', 'regions'].forEach((k) =>
+        dupes((Array.isArray(st[k]) ? st[k] : []).map((x) => x && x.id)).forEach((id) => problems.push(`${where}: ${k} has "${id}" twice`)));
       (st.cast || []).forEach((entry) => {
         if (typeof entry !== 'string') warnings.push(...unknownFields(entry, CAST_FIELDS, `${where} cast "${entry.id}"`));
       });
@@ -300,6 +304,53 @@
     return problems;
   };
 
+  // Regions (task 3-1): who holds each part of the map, its tags and status.
+  // Neighbour links work both ways, so listing one side is enough; this fills
+  // in the other. Locations need a known region once a world has regions.
+  S.REGION_TAGS = 6;
+  function regionProblems(sc) {
+    const problems = [];
+    const req = (cond, msg) => { if (!cond) problems.push(msg); };
+    const groupIds = new Set((sc.factions || []).map((f) => f.id));
+    const list = sc.regions == null ? [] : Array.isArray(sc.regions) ? sc.regions : [null];
+    const ids = new Set(list.filter(isObj).map((r) => r.id));
+    const seen = new Set();
+    list.forEach((r) => {
+      const where = `region "${(r && r.id) || '?'}"`;
+      if (!isObj(r)) return problems.push('"regions" must be a list of {id, name, controller, tags, status, neighbours, lore}');
+      req(typeof r.id === 'string' && /^[a-z0-9][a-z0-9_-]*$/.test(r.id), `${where}: "id" must be lowercase letters, digits, - or _`);
+      req(!seen.has(r.id), `${where} is listed twice`);
+      seen.add(r.id);
+      req(typeof r.name === 'string' && r.name.trim() && r.name.length <= 40, `${where}: "name" must be text of at most 40 characters`);
+      req(r.controller == null || groupIds.has(r.controller), `${where}: controller "${r.controller}" is not one of the groups (use null for no one)`);
+      req(r.tags == null || (Array.isArray(r.tags) && r.tags.length <= S.REGION_TAGS && r.tags.every((t) => typeof t === 'string' && t.trim() && t.length <= 30)),
+        `${where}: "tags" must be a list of at most ${S.REGION_TAGS} short words or phrases (30 characters each)`);
+      req(r.status == null || (typeof r.status === 'string' && r.status.length <= 120), `${where}: "status" must be text of at most 120 characters`);
+      req(r.lore == null || (typeof r.lore === 'string' && r.lore.length <= 400), `${where}: "lore" must be text of at most 400 characters`);
+      if (r.neighbours != null && !Array.isArray(r.neighbours)) return problems.push(`${where}: "neighbours" must be a list of region ids`);
+      (r.neighbours || []).forEach((n) => req(ids.has(n) && n !== r.id, `${where}: unknown neighbour "${n}"`));
+    });
+    if (!problems.length) {
+      const byId = {};
+      list.forEach((r) => { r.neighbours = (r.neighbours || []).slice(); byId[r.id] = r; });
+      list.forEach((r) => r.neighbours.forEach((n) => { if (!byId[n].neighbours.includes(r.id)) byId[n].neighbours.push(r.id); }));
+    }
+    if (ids.size) {
+      req(ids.has(sc.region), sc.region == null ? 'the start needs a "region" (where the player starts)' : `start region "${sc.region}" is not one of the regions`);
+      (sc.locations || []).forEach((l) => req(ids.has(l.region), `location "${l.id}" is in unknown region "${l.region}"`));
+    } else {
+      req(sc.region == null, `start region "${sc.region}" given, but the world has no "regions"`);
+      (sc.locations || []).forEach((l) => req(l.region == null, `location "${l.id}" has a region, but the world has no "regions"`));
+    }
+    // Event seeds: plain text, or {text, region} for something that happens there.
+    Object.entries(sc.eventSeeds || {}).forEach(([k, seeds]) => (Array.isArray(seeds) ? seeds : []).forEach((s) => {
+      if (typeof s === 'string') return;
+      req(isObj(s) && typeof s.text === 'string' && s.text.trim(), `eventSeeds.${k}: each idea is text or {text, region}`);
+      if (isObj(s) && s.region != null) req(ids.has(s.region), `eventSeeds.${k}: "${s.text}" is in unknown region "${s.region}"`);
+    }));
+    return problems;
+  }
+
   // Catches authoring mistakes early with readable messages.
   S.validate = function (sc) {
     const problems = [];
@@ -358,6 +409,7 @@
     req(sc.toneNote == null || (typeof sc.toneNote === 'string' && sc.toneNote.length <= 300), '"toneNote" must be text of at most 300 characters');
     Object.entries(sc.eventRates || {}).forEach(([k, v]) => req(['regional', 'world'].includes(k) && typeof v === 'number' && v >= 0, `eventRates.${k} must be regional/world with hours >= 0 (0 turns it off)`));
     (sc.factions || []).forEach((f) => req(f.id && f.name && f.desc && f.stance, `group "${f.id || '?'}" needs id, name, desc and stance`));
+    problems.push(...regionProblems(sc));
     (sc.clocks || []).forEach((c) => {
       req(c.id && c.name && c.max > 0, `clock "${c.id || '?'}" needs id, name and max`);
       Object.keys(c.fireWorld || {}).forEach((k) => req(sc.world && k in sc.world, `clock "${c.id}" fireWorld key "${k}" not in world`));
