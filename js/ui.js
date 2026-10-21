@@ -7,6 +7,7 @@
   let state = null;
   let busy = false;
   let uiCut = null; // beat number the player wants to step in after
+  let suggested = null; // suggested actions: { state, key, list } (see renderSuggestions)
   let uiShown = 1; // beats of the live scene revealed so far
   const openTurns = new Set(); // folded earlier turns the player has opened
   const notes = []; // undo/reroll history for the Debug panel
@@ -316,7 +317,45 @@
     $('actionInput').placeholder = actionPlaceholder();
     $('btnUndo').disabled = busy || !E.Engine.canUndo(state);
     $('btnReroll').disabled = busy || !E.Engine.canReroll(state);
+    $('btnSuggest').disabled = busy || !state || blocked || state.flags.gameOver;
+    renderSuggestions();
   }
+
+  // ---------- suggested actions ----------
+  // A few ideas from the model; clicking one fills the action box (the player
+  // still presses Act). They belong to the moment they were asked for: a new
+  // turn, step-in point or game hides them.
+  const suggestKey = () => `${state.turn}:${uiCut || ''}`;
+  function renderSuggestions() {
+    const el = $('suggestions');
+    const list = suggested && suggested.state === state && suggested.key === suggestKey() ? suggested.list : [];
+    el.innerHTML = list.map((t, i) => `<button type="button" class="suggestion" data-suggest="${i}">${esc(t)}</button>`).join('');
+    el.classList.toggle('hidden', !list.length);
+  }
+  $('btnSuggest').addEventListener('click', async () => {
+    if (busy || !state || !canAct()) return;
+    const live = liveScene();
+    // Only what the player has read: up to the step-in point if one is chosen.
+    const sceneText = live && uiCut ? live.beats.slice(0, uiCut).map((b) => b.text).join('\n\n') + `\n\n[${state.characters[state.player].name} steps in here.]` : undefined;
+    setBusy(true);
+    setPhase('Thinking of ideas…');
+    try {
+      suggested = { state, key: suggestKey(), list: await E.Engine.suggestActions(state, sceneText) };
+      announce(`${suggested.list.length} suggestions.`);
+    } catch (e) {
+      showWarning(e.message);
+    } finally {
+      setPhase('');
+      setBusy(false);
+      renderDebug();
+    }
+  });
+  $('suggestions').addEventListener('click', (ev) => {
+    const btn = ev.target.closest('button[data-suggest]');
+    if (!btn || busy) return;
+    $('actionInput').value = btn.textContent;
+    $('actionInput').focus();
+  });
 
   function setBusy(b) {
     busy = b;

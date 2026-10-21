@@ -37,6 +37,7 @@ function promptsFor(folder) {
     narrateMore: P.narrateMore(state, present, 'Ask what happened.', frame, res, '[+0m] You ask.', 10),
     update: P.update(state, 'Ask what happened.', res, 'You ask. They shrug.', present, false),
     updateCut: P.update(state, 'Ask what happened.', res, 'You ask.', present, true),
+    suggest: P.suggest(state),
   };
 
   // The player walks to where the moved NPC is: the frame shows who stayed and who's there.

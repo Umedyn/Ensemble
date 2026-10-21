@@ -48,6 +48,8 @@ Note: a page hosted on `https://` usually can't reach `http://localhost`, so on 
 
 If a call fails, the turn is rolled back. If only the update step fails, the scene is kept and a basic fact is recorded instead.
 
+**💡 Suggest** (optional, 1 call) asks for three or four ideas for your next action. Clicking one puts it in the action box, where you can edit it; nothing happens until you press **Act**. The model sees only what you know and the scene as far as you've read it (up to your step-in point), and the call goes to the backend routed for characters & events.
+
 ## Skipping to the next major event
 
 **⏭ Until something major happens** fast-forwards through downtime (days or weeks) and stops at whichever comes first: a pressure clock running out, a random major event (on average every `majorEventDays`), or the horizon (`majorHorizonDays`, default 30). During downtime people eat and sleep, so hunger and fatigue settle instead of climbing. The scene comes back as a short montage of day-stamped beats followed by the interrupting event as a live scene, with everyone wherever they were when it hit. You can type a plan for the downtime ("keep the arrays clean and avoid Teo") or leave it empty, and you can still step in after any montage beat.

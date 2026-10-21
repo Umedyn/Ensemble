@@ -1363,6 +1363,38 @@
     if (c.why) pc.attitudeNotes[c.id] = E.shorten(c.why, 80);
   }
 
+  // ---------- suggested actions ----------
+  // Ideas for the player's next action, for the page to offer as buttons that
+  // fill the action box. Changes nothing: the player still edits and acts.
+  // sceneText: the scene as far as the player has read it (default: all of it).
+  Eng.SUGGEST_MAX = 4;
+  Eng.suggestActions = async function (state, sceneText) {
+    if (state.flags.gameOver) throw new Error('This story has ended.');
+    const obj = await E.LLM.chatJSON({
+      kind: 'suggest', system: E.Prompts.header(state), user: E.Prompts.suggest(state, sceneText),
+      maxTokens: 180, temperature: 0.9,
+    });
+    const list = Eng.cleanSuggestions(obj);
+    if (!list.length) throw new Error('The model gave no usable suggestions. Try again.');
+    return list;
+  };
+  // Strings (or {text}) only, without list marks or quotes, short, no repeats.
+  Eng.cleanSuggestions = function (obj) {
+    const raw = Array.isArray(obj) ? obj : obj && Array.isArray(obj.suggestions) ? obj.suggestions : [];
+    const seen = new Set();
+    const out = [];
+    raw.forEach((s) => {
+      let t = typeof s === 'string' ? s : s && typeof s.text === 'string' ? s.text : '';
+      t = t.replace(/[\r\n]+/g, ' ').replace(/^\s*(?:[-*•]|\d+[.)])\s*/, '').replace(/^["“'‘]+|["”'’]+$/g, '').replace(/\s+/g, ' ').trim();
+      if (!t || /^\.{2,}$|^…$/.test(t) || t.length > 160) return;
+      const k = t.toLowerCase().replace(/[^a-z0-9 ]/g, '');
+      if (!k || seen.has(k) || out.length >= Eng.SUGGEST_MAX) return;
+      seen.add(k);
+      out.push(t);
+    });
+    return out;
+  };
+
   // ---------- undo and reroll ----------
   Eng.canUndo = (state) => !!(state && state.undo && state.undo.state);
 

@@ -514,6 +514,24 @@ Guidelines:
 - chapter_worthy: true only for a major turning point.
 Use [] for any list with nothing to record.`;
 
+  // ---------- suggested actions ----------
+  // Ideas for the player's next action. Only what the player knows: the
+  // header, the narrator-side status (no secrets, no one else's feelings) and
+  // the scene as far as the player has read it.
+  P.layouts.suggest = ['now', 'suggestScene', 'suggestTask'];
+  P.suggest = (state, sceneText) =>
+    P.build('suggest', { state, pc: state.characters[state.player], present: Eng().present(state), forNarrator: true, sceneText });
+  B.suggestScene = ({ state, sceneText }) => {
+    if (sceneText != null) return `\n=== LAST SCENE ===\n${sceneText}`;
+    return B.lastScene({ state });
+  };
+  B.suggestTask = ({ pc }) => `
+=== TASK ===
+Suggest 4 different things ${pc.name} could do next, written the way the player would type them (like "Ask Teo where he was last night."), one short sentence each, under 15 words.${pc.want ? ` ${pc.name}'s own goal: ${pc.want}.` : ''}
+Make them different: one that talks to someone here, one practical task, one that pursues ${pc.name}'s goal or a pressure above, and one bolder or riskier.
+Use only people, places and things from the scene and the lists above. Say what ${pc.name} tries, never how it turns out.
+Reply with JSON only: {"suggestions":["...","...","...","..."]}`;
+
   // ---------- chapter ----------
   P.layouts.chapter = ['chapterEvents', 'chapterTask'];
   P.chapter = (state) => P.build('chapter', { state, pc: state.characters[state.player] });

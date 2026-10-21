@@ -17,7 +17,12 @@
     if (preset.kobold && url && !/\/v\d+$/.test(url)) url += '/v1';
     return { id, preset: b.preset, kobold: !!preset.kobold, url, key: String(b.key || '').trim(), model: String(b.model || preset.model || '').trim(), label: preset.label || b.preset, context: b.context || 0 };
   };
-  LLM.backendFor = (kind) => LLM.backend(E.settings.routing[LLM.stepOf(kind)] || 'local');
+  // Steps without their own routing setting go with another step's backend.
+  LLM.ROUTE_AS = { suggest: 'intent' };
+  LLM.backendFor = (kind) => {
+    const step = LLM.stepOf(kind);
+    return LLM.backend(E.settings.routing[step] || E.settings.routing[LLM.ROUTE_AS[step]] || 'local');
+  };
   LLM.usesExternal = () => Object.values(E.settings.routing).includes('external');
   const host = (url) => { try { return new URL(url).host; } catch (e) { return url || '(no URL)'; } };
 

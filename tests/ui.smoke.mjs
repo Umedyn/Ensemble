@@ -423,9 +423,29 @@ await check('background people are under a collapsed Elsewhere list that remembe
   assert.ok(!(await card(page, 'Lev Sorensen').isVisible()), 'collapsed at first');
   await away.locator(':scope > summary').click();
   assert.ok(await card(page, 'Lev Sorensen').isVisible());
+  // toggle fires after the click returns; wait until it is saved.
+  await page.waitForFunction(() => /true/.test(localStorage.getItem('ensemble.cards.elsewhere') || ''));
   await page.reload();
   await page.waitForFunction(() => document.querySelectorAll('#cast .card').length > 0);
   assert.ok(await card(page, 'Lev Sorensen').isVisible(), 'still open after a reload');
+});
+
+// Suggested actions fill the box; the player still presses Act.
+await check('suggestions fill the action box without acting', async (page) => {
+  await page.click('#btnNew');
+  await act(page, 'Look around.');
+  assert.ok(await page.locator('#btnSuggest').isDisabled(), 'greyed out until the scene is read, like Act');
+  while (await page.locator('button[data-next]').count()) await page.click('button[data-next]');
+  await page.click('#btnSuggest');
+  await page.waitForSelector('#suggestions .suggestion');
+  assert.deepEqual(await page.locator('#suggestions .suggestion').allTextContents(),
+    ['Ask Teo when the rattle started.', 'Check the recycler logs myself.', 'Tell Okafor about the storm plan.'], 'cleaned: no list marks or repeats');
+  await page.locator('#suggestions .suggestion').nth(1).click();
+  assert.equal(await page.inputValue('#actionInput'), 'Check the recycler logs myself.');
+  assert.equal(await page.locator('#log .entry.action').count(), 1, 'nothing was played');
+  await page.click('#btnAct');
+  await turnDone(page);
+  assert.ok(await page.locator('#suggestions').isHidden(), 'gone after the turn');
 });
 
 // Task 1-8: fix your own feelings toward someone from their details.

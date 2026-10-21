@@ -38,6 +38,8 @@ The model is used for judgment and prose. Everything that must stay true (where 
 
 A normal turn is three model calls (intent, narrate, update), plus an occasional chapter summary or narration retry.
 
+**Suggested actions** (`Eng.suggestActions`, outside the turn): one call with the shared header and a user message of the narrator-side `now` block (no secrets, no one else's feelings), the scene up to the player's step-in point, and the player character's own `want`. The engine keeps at most 4 short distinct strings (`cleanSuggestions`) and changes no state; the page shows them as buttons that fill the action box. It routes with the intent step (`LLM.ROUTE_AS`), and isn't recorded, since it never changes the game.
+
 **Undo and reroll** (playtest tools). `runTurn` clones the whole state before step 1; when the turn succeeds the clone (minus its own `undo`) becomes `state.undo`, so there is one level of undo. Undo swaps it back in: facts, time, clocks, rolls, any chapter the commit closed, and the previous scene pending again with all its beats (a step-in is undone too; the page re-selects it). Reroll works only on the pending turn: it puts `recent` and time/needs/clock values back to just after step 5 and re-runs steps 6–7b with the stored system prompt, so rolls, moves, events and clocks stay and only the prose, beats and settled time change. Save files leave `undo` out; the autosave keeps it.
 
 ## Prompts and the cache

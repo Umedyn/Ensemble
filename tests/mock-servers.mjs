@@ -35,6 +35,9 @@ function answer(user) {
   if (user.includes('Write the next scene')) {
     return '[+0m] You pry the access panel off the recycler. Teo hovers at your shoulder.\n\n[+30m] Okafor gathers her tablet and heads for Ops.\n\n[+55m] Teo hands you a spanner. "Probably just a sensor issue," he says, a little too fast.';
   }
+  if (user.includes('things Kit Navarro could do next')) {
+    return JSON.stringify({ suggestions: ['Ask Teo when the rattle started.', '1. Check the recycler logs myself.', 'Ask Teo when the rattle started.', 'Tell Okafor about the storm plan.'] });
+  }
   if (user.includes('Record what changed')) {
     return JSON.stringify({ facts: [{ about: ['bauer'], text: 'Teo blamed the rattle on a sensor issue.', known_by: ['navarro', 'bauer'], weight: 1 }],
       state: [{ target: 'char:bauer', field: 'mood', value: 'jumpy, talking too fast', reason: 'the rattle questions' },
