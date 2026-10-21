@@ -600,7 +600,7 @@
     if (!text) return { error: 'empty tag' };
     if (text.length > 32 || text.split(' ').length > 5) return { error: 'tag too long (32 characters, 5 words at most)' };
     const low = text.toLowerCase();
-    if (MOODS.test(low) || state.scenario.needs.some((n) => low.includes(n.id) || low.includes((n.label || '').toLowerCase()))) {
+    if (MOODS.test(low) || low.split(' ').some((w) => MOODS.test(w)) || /on edge/.test(low) || state.scenario.needs.some((n) => low.includes(n.id) || low.includes((n.label || '').toLowerCase()))) {
       return { error: 'a feeling, not a tag (moods and needs are tracked separately)' };
     }
     const n = E.clamp(Math.round(Number(turns)) || Eng.TAG_TURNS, 1, 30);
@@ -825,7 +825,36 @@
     const t = String(text || '').trim();
     if (!t || /[.!?…]["'”’)*]*$/.test(t)) return t;
     const m = t.match(/^[\s\S]*[.!?…]["'”’)*]*/);
-    return m ? m[0].trim() : t;
+    if (!m) return t;
+    // Cut inside a line of dialogue ("Y-yes, Imani. Just trying to…"): close it.
+    const out = m[0].trim();
+    const last = out.split(/\n\s*\n/).pop();
+    if ((last.match(/"/g) || []).length % 2) return out + '"';
+    if ((last.match(/“/g) || []).length > (last.match(/”/g) || []).length) return out + '”';
+    return out;
+  };
+
+  // The narrator sometimes copies the "[okafor]" id tags it has seen in
+  // prompts into the prose (playtest-id-tags-in-prose). Ids and names in
+  // brackets become the name people use: the surname after a title
+  // ("Dr. Imani Okafor" → "Okafor"), else the first name.
+  Eng.shortName = (c) => {
+    const m = /^(?:dr|mr|mrs|ms|mx|capt|sgt|prof)\.?\s+(.+)$/i.exec(c.name || '');
+    const words = (m ? m[1] : String(c.name || c.id)).split(/\s+/);
+    return m ? words[words.length - 1] : words[0];
+  };
+  Eng.replaceIdTags = function (state, text, res) {
+    const seen = {};
+    const out = String(text || '').replace(/\[([A-Za-z][\w .'-]{0,40})\]/g, (all, inner) => {
+      const key = inner.trim().toLowerCase();
+      const c = Object.values(state.characters).find((ch) => ch.id.toLowerCase() === key || String(ch.name || '').toLowerCase() === key);
+      if (!c) return all;
+      const name = Eng.shortName(c);
+      seen[`${all} → ${name}`] = (seen[`${all} → ${name}`] || 0) + 1;
+      return name;
+    });
+    Object.entries(seen).forEach(([k, n]) => guard(res, 'scene', 'id tag replaced', `${k}${n > 1 ? ` (×${n})` : ''}`));
+    return out;
   };
 
   Eng.cleanProse = function (text) {
@@ -905,10 +934,11 @@
   };
 
   // The full cleanup for a model-written scene, recording what it changed.
-  Eng.cleanScene = function (text, res) {
-    const raw = String(text || '').trim();
+  // With state, character id tags in brackets become names first.
+  Eng.cleanScene = function (text, res, state) {
+    const raw = state ? Eng.replaceIdTags(state, String(text || '').trim(), res) : String(text || '').trim();
     const whole = Eng.trimIncomplete(raw);
-    if (whole !== raw) guard(res, 'scene', 'cut to last sentence', '…' + raw.slice(whole.length));
+    if (whole !== raw) guard(res, 'scene', 'cut to last sentence', '…' + raw.slice(raw.startsWith(whole) ? whole.length : whole.length - 1));
     const paras = (t) => t.split(/\n\s*\n/).filter((p) => p.trim()).length;
     const clean = Eng.cleanProse(whole);
     if (paras(clean) < paras(whole)) guard(res, 'scene', 'repeated paragraph removed', `${paras(whole) - paras(clean)} of ${paras(whole)}`);
@@ -1122,7 +1152,7 @@
     const prose = Eng.cleanScene(await E.LLM.chat({
       kind: 'narrate', system: n.system, user: E.Prompts.narrateSkip(state, n.action, p.frame, n.montage, n.doings, p.res, n.presentStart),
       maxTokens: Math.round(E.settings.narrateTokens * 2.2),
-    }), p.res);
+    }), p.res, state);
     if (!prose) throw new Error('The model returned an empty scene.');
     return Eng.parseBeats(prose, p.frame.spanMinutes);
   }
@@ -1138,7 +1168,7 @@
     const narrateOnce = async () => Eng.cleanScene(await E.LLM.chat({
       kind: frame.correction ? 'narrate (retry)' : 'narrate', system, user: E.Prompts.narrate(state, present, action, frame, res),
       maxTokens: Math.round(E.settings.narrateTokens * (step.lengthMult || 1)),
-    }), res);
+    }), res, state);
     let prose = await narrateOnce();
     const strayed = Eng.findRelocation(state, prose, frame.startLoc);
     if (strayed) {
@@ -1161,7 +1191,7 @@
         const more = Eng.cleanScene(await E.LLM.chat({
           kind: 'narrate (continue)', system, user: E.Prompts.narrateMore(state, present, action, frame, res, markedBeats(beats), lastAt),
           maxTokens: Math.round(E.settings.narrateTokens * 0.8),
-        }), res);
+        }), res, state);
         const away = more && Eng.findRelocation(state, more, frame.startLoc);
         if (away) guard(res, 'scene', 'continuation dropped', `it took the player ${away.to || `to ${away.name}`}`);
         else if (more) {

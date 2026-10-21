@@ -57,9 +57,11 @@ test('feelings, need names and long phrases are rejected as tags, and reported',
   const r = update(E, state, [
     tag('bauer', 'anxious'), tag('bauer', 'high stress'),
     tag('bauer', 'covered in recycler grease from elbow to wrist'), tag('bauer', '"[on edge]"'),
+    // playtest-id-tags-in-prose: a feeling with a subject is still a feeling
+    tag('bauer', 'anxious about recycler'), tag('bauer', 'worried for Priya'),
   ]);
   assert.deepEqual(texts(state.characters.bauer), []);
-  assert.equal(r.rejected.length, 4);
+  assert.equal(r.rejected.length, 6);
   assert.ok(r.rejected.some((x) => /too long/.test(x)) && r.rejected.some((x) => /a feeling, not a tag/.test(x)));
 });
 
@@ -114,8 +116,8 @@ test('moods and tags appear in the status lines of the user message, never the h
   const calls = mockLLM(E, ({ kind }) => (kind === 'intent' ? { player: { summary: 'x' }, intents: [], events: [] } : '[+0m] Teo fidgets.'));
   await E.Engine.runTurn(state, 'Look at Teo.', 'moment');
   for (const c of calls) {
-    // (the narrator's line also has "looks:", task 1-7)
-    assert.match(c.user, /Teo Bauer \(he\/him\) \[bauer\]: health unhurt;( looks: [^;]+;)? mood: jumpy, talking too fast; tags: grease on his sleeves/, c.kind);
+    // (the narrator's line also has "looks:", task 1-7, and no id)
+    assert.match(c.user, /Teo Bauer \(he\/him\)( \[bauer\])?: health unhurt;( looks: [^;]+;)? mood: jumpy, talking too fast; tags: grease on his sleeves/, c.kind);
     assert.doesNotMatch(c.system, /jumpy|grease on his sleeves/);
   }
 });

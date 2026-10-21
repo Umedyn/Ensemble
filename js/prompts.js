@@ -132,7 +132,8 @@
         .map(([o, v]) => `${name(state, o)} ${E.relWord(v)}`);
       if (others.length) parts.push(`toward others here: ${others.join(', ')}`);
     }
-    return `- ${c.name}${c.pronouns ? ` (${c.pronouns})` : ''} [${id}]: ${parts.join('; ')}`;
+    // The narrator gets no ids: it copied "[okafor]" into the prose (playtest-id-tags-in-prose).
+    return `- ${c.name}${c.pronouns ? ` (${c.pronouns})` : ''}${forNarrator ? '' : ` [${id}]`}: ${parts.join('; ')}`;
   }
 
   // ---------- user-message blocks shared by several prompts ----------
@@ -201,7 +202,7 @@
     return ['\n=== BACKGROUND (not with the player; one line each; for events only) ==='].concat(ids.map((id) => {
       const c = state.characters[id];
       const loc = state.locations[c.status.location];
-      return `- ${id} (${c.name}, ${E.shorten(c.role || '?', 40)}), in ${loc ? loc.name : c.status.location}${c.want ? ': wants ' + E.shorten(c.want, 60) : ''}`;
+      return `- ${id} (${c.name}, ${E.shorten(c.role || '?', 40)}), in ${loc ? loc.name : c.status.location}${c.want ? '; wants: ' + E.shorten(c.want, 60) : ''}`;
     }));
   };
   B.intentAction = ({ action, stepLabel }) => `\n=== PLAYER ACTION (time passing: ${stepLabel}) ===\n"${action}"\nThe player's action takes up this whole span. Others act during the same span.`;

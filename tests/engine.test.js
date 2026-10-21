@@ -254,6 +254,16 @@ test('prose cleanup: repeated paragraphs, cut-off sentences, endings on the play
   assert.deepEqual(guardTypes(quiet), [], 'clean prose fires nothing');
 });
 
+test('prose cleanup: id tags become names, time markers stay, a cut line of dialogue is closed (playtest-id-tags-in-prose)', () => {
+  const { E, state } = newGame();
+  const res = {};
+  const out = E.Engine.cleanScene('[+0m] [okafor] looks up.\n\n[Teo Bauer] nods. [Bauer] waits. [+5m] [Priya Raman] radios. "Kit, the swap is done. Are you', res, state);
+  assert.equal(out, '[+0m] Okafor looks up.\n\nTeo nods. Teo waits. [+5m] Priya radios. "Kit, the swap is done."');
+  assert.deepEqual(guardTypes(res), ['id tag replaced', 'id tag replaced', 'id tag replaced', 'id tag replaced', 'cut to last sentence']);
+  assert.equal(E.Engine.trimIncomplete('He nods. “Fine. I just'), 'He nods. “Fine.”');
+  assert.equal(E.Engine.cleanScene('[unknown] stays.', {}, state), '[unknown] stays.');
+});
+
 test('beats parse minutes, hours and days and stay in order', () => {
   const { E } = newGame();
   const b = E.Engine.parseBeats('[+0m] A.\n\n[+40m] B.\n\n[+2h] C.', 180);

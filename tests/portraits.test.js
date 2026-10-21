@@ -89,9 +89,9 @@ test('the narrator sees how the people in the scene look, and no one else', asyn
   const calls = mockLLM(E, ({ kind }) => (kind === 'intent' ? { player: { summary: 'x' }, intents: [], events: [] } : '[+0m] Teo fidgets.'));
   await E.Engine.runTurn(state, 'Look at Teo.', 'moment');
   const narrate = calls.find((c) => c.kind === 'narrate');
-  assert.match(narrate.user, /\[bauer\]: health unhurt; looks: Gangly and freckled;/);
+  assert.match(narrate.user, /Teo Bauer \(he\/him\): health unhurt; looks: Gangly and freckled;/);
   assert.doesNotMatch(narrate.user, /Second sentence/);
-  assert.match(narrate.user, /\[okafor\]: health unhurt; looks: Tall and straight-backed/, 'Okafor is in the room');
+  assert.match(narrate.user, /Dr\. Imani Okafor \(she\/her\): health unhurt; looks: Tall and straight-backed/, 'Okafor is in the room');
   assert.doesNotMatch(narrate.user, /Lanky and stooped/, 'Lev is in the lab');
   for (const c of calls) assert.doesNotMatch(c.system, /looks:|Gangly/, `${c.kind}: not in the header`);
   assert.doesNotMatch(calls.find((c) => c.kind === 'intent').user, /looks:/, 'the intent call does not need it');

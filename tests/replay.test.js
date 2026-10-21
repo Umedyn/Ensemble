@@ -79,6 +79,31 @@ test('playtest: a scene fact is known only by the people who were there (Marlene
   assert.ok(report.guards.some((g) => g.type === 'update rejected' && /dropped ortiz, ferris: not in the scene/.test(g.detail)));
 });
 
+// Ares Deep on NemoMix 12B, 2026-10-21 (playtest-id-tags-in-prose): the
+// narrator copied the "[okafor]" id tags from its STATUS lines into the
+// prose, the update step tagged Teo "anxious about recycler" (a feeling),
+// and a scene cut at the token limit ended inside a line of dialogue.
+test('playtest: character id tags in the prose become names, and the narrator no longer sees them', async () => {
+  const r = await replay('playtest-id-tags-in-prose');
+  const scenes = r.state.log.filter((e) => e.type === 'scene' && e.turn > 0);
+  scenes.forEach((s) => assert.doesNotMatch(s.text, /\[okafor\]/i));
+  assert.match(scenes[0].text, /\n\nOkafor looks up from her tablet/);
+  assert.ok([...r.steps[0].state.pending.res.guards].some((g) => g.type === 'id tag replaced' && /\[okafor\] → Okafor/.test(g.detail)));
+  r.E.LLM.calls.filter((c) => c.kind === 'narrate').forEach((c) => assert.doesNotMatch(c.user, /\[(okafor|bauer|navarro)\]/));
+});
+
+test('playtest: "anxious about recycler" is a feeling, so it is not a tag', async () => {
+  const r = await replay('playtest-id-tags-in-prose');
+  assert.deepEqual([...r.state.characters.bauer.tags], []);
+  const report = r.E.Engine.telemetry[r.E.Engine.telemetry.length - 1];
+  assert.ok(report.guards.some((g) => g.type === 'update rejected' && /anxious about recycler/.test(g.detail) && /a feeling/.test(g.detail)));
+});
+
+test('playtest: a scene cut off at the token limit closes the line of dialogue it stops in', async () => {
+  const r = await replay('playtest-id-tags-in-prose');
+  assert.match(r.state.recent[0].text, /he nods quickly\. "Y-yes, Imani\."$/);
+});
+
 test('until stops after that many actions', async () => {
   const r = await replay('mock-session', { until: 2 });
   assert.equal(r.steps.length, 2);

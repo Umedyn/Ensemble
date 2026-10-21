@@ -164,7 +164,7 @@ test('the header is unchanged when tiers change (cache rule)', () => {
 test('secondary characters get one line in the intent call, without secrets', () => {
   const { E, state } = newGame();
   const user = intentUser(E, state);
-  assert.match(user, /=== BACKGROUND[^\n]*\n- sorensen \(Dr. Lev Sorensen, [^)]+\), in [^:]+: wants /);
+  assert.match(user, /=== BACKGROUND[^\n]*\n- sorensen \(Dr. Lev Sorensen, [^)]+\), in [^;]+; wants: /);
   assert.ok(!user.includes(state.characters.sorensen.secret));
   assert.ok(!/=== OFFSTAGE/.test(user), 'no offstage locals at the start');
 });
