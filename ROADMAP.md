@@ -63,7 +63,7 @@ The format change everything else builds on, plus visible improvements to the ch
 - [ ] **Bundled stand-in portrait set**: pick a CC0 (or similarly permissive) set with the owner, credit it in `CREDITS.md`, and use it when a world has no `portraitSet` (monograms until then; see the open question below).
 - [x] Cards can be minimized (to a portrait, name and mood row), remembered per character in `localStorage` with the usual try/catch.
 - [x] **Character details:** description, appearance, pronouns, and what the player knows about them (player-known facts that name them).
-- [ ] **Correct your feelings:** nudge your own attitude when the model misreads your tone.
+- [x] **Correct your feelings:** nudge your own attitude when the model misreads your tone.
 
 **Themes and accessibility**
 - [x] Themes in Settings › Appearance: Dark (today's), Light, **High visibility** (high contrast, no colour-only meaning, strong focus outlines) and System.

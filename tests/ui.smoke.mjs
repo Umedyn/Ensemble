@@ -411,6 +411,22 @@ for (const phone of [false, true]) {
   });
 }
 
+// Task 1-8: fix your own feelings toward someone from their details.
+await check('correct your feelings from a card', async (page) => {
+  await page.click('#btnNew');
+  await act(page, 'Look around.');
+  const teo = card(page, 'Teo Bauer');
+  await teo.locator('details.card-details summary').click();
+  await teo.locator('.feel-why').fill('he was joking, I overreacted');
+  await teo.locator('button[data-feel-step="5"]').click();
+  const now = card(page, 'Teo Bauer');
+  assert.match(await now.locator('.rels').textContent(), /you: friendly \+25/);
+  assert.match(await now.locator('.feel').textContent(), /friendly \+25[\s\S]*he was joking, I overreacted/);
+  assert.ok(await now.locator('details.card-details').evaluate((d) => d.open), 'details stay open');
+  await page.click('#btnDebug');
+  assert.match(await page.textContent('#debugBody'), /you corrected your feelings toward Teo Bauer: now 25/);
+});
+
 // Settings › Appearance (task 1-9). Sets the controls, then Save or cancel.
 async function setAppearance(page, { theme, textSize, font, spacing, motion }, save = true) {
   await page.click('#btnSettings');

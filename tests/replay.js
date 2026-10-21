@@ -72,6 +72,7 @@ async function replay(fixture, opts = {}) {
       if (a.type === 'turn') result = await E.Engine.runTurn(state, a.action, a.stepId, null, a.cutAt);
       else if (a.type === 'reroll') result = await E.Engine.rerollNarration(state);
       else if (a.type === 'undo') result = E.Engine.undo(state);
+      else if (a.type === 'correct') result = E.Engine.correctAttitude(state, a.id, a.delta, a.why);
       else throw new ReplayError(`${label}: unknown action type`);
     } catch (err) {
       if (err && err.name === 'ReplayError') throw err;

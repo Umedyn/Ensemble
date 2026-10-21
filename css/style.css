@@ -189,6 +189,10 @@ details.rolls li { margin: 2px 0; }
 .mini .nm { white-space: nowrap; }
 .mini-mood { flex: 1; min-width: 0; font-style: italic; font-size: 0.75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mini .card-min { margin-left: auto; }
+.feel-row { display: flex; align-items: center; gap: 6px; margin: 2px 0; flex-wrap: wrap; }
+.feel-row button { padding: 0 8px; }
+.feel-row span { font-size: 0.8125rem; min-width: 5.5em; text-align: center; }
+.feel-why { flex: 1 1 8em; min-width: 0; font-size: 0.78rem; padding: 2px 6px; }
 .desc { margin: 4px 0; font-size: 0.8125rem; }
 .known-head { margin-top: 6px; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
 .known { margin: 2px 0 0; padding-left: 16px; font-size: 0.78rem; }

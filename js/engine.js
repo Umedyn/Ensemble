@@ -922,6 +922,8 @@
       Object.assign(state, pre);
       state.log = keepLog; state.turn = keepTurn; state.chapters = keepChapters;
       if (p.playerMovedTo) state.characters[state.player].status.location = p.playerMovedTo;
+      // Corrections the player made while this turn was pending still stand.
+      (p.corrections || []).forEach((c) => applyCorrection(state, c));
       endLoc = state.characters[state.player].status.location;
       Eng.advanceTime(state, minutes / 60, { events: [] }, !!p.routine);
       const entry = state.log.find((e) => e.turn === p.turn && e.type === 'scene');
@@ -1243,6 +1245,36 @@
 
     phase('');
     return { prose: text, beats, res, report: report || { applied: [], rejected: [] } };
+  }
+
+  // ---------- correcting your feelings (task 1-8) ----------
+  // The player fixes their own attitude when the model misread their tone. It
+  // changes only the player's feelings, applies at once, and reaches the next
+  // turn's prompts like any other attitude. A "why" replaces the note.
+  // Corrections are logged in state.corrections (Debug), kept on a pending
+  // turn so a step-in commit (which rewinds to the turn's start) re-applies
+  // them, and recorded for replays. Undo goes back to before the last action,
+  // so it also drops corrections made since then.
+  Eng.correctAttitude = function (state, id, delta, why) {
+    const pc = state.characters[state.player];
+    if (!state.characters[id] || id === state.player || !Eng.cast(state).includes(id)) return { error: 'unknown person' };
+    const d = E.clamp(Math.round(Number(delta) || 0), -20, 20);
+    const note = String(why || '').replace(/\s+/g, ' ').trim();
+    if (!d && !note) return { error: 'nothing to change' };
+    const rec = E.Recorder && E.Recorder.begin('correct', { id, delta: d, why: note });
+    if (rec) rec.end();
+    applyCorrection(state, { id, delta: d, why: note });
+    const entry = { turn: state.turn, id, delta: d, why: note, value: pc.relations[id] };
+    (state.corrections = state.corrections || []).push(entry);
+    if (state.corrections.length > 50) state.corrections.shift();
+    if (state.pending) (state.pending.corrections = state.pending.corrections || []).push({ id, delta: d, why: note });
+    return { value: pc.relations[id], note: (pc.attitudeNotes || {})[id] || '' };
+  };
+  function applyCorrection(state, c) {
+    const pc = state.characters[state.player];
+    pc.relations[c.id] = E.clamp((pc.relations[c.id] || 0) + c.delta, -100, 100);
+    pc.attitudeNotes = pc.attitudeNotes || {};
+    if (c.why) pc.attitudeNotes[c.id] = E.shorten(c.why, 80);
   }
 
   // ---------- undo and reroll ----------

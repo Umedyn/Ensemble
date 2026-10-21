@@ -665,10 +665,38 @@
     const body = `<div class="small muted">${who}</div>` +
       (c.description ? `<p class="desc">${esc(c.description)}</p>` : '') +
       (c.appearance ? `<p class="desc"><span class="muted">Looks:</span> ${esc(c.appearance)}</p>` : '') +
+      (id !== state.player && !dead ? cardFeelings(id, c) : '') +
       cardNeeds(c, dead) +
       `<div class="known-head">What you know</div>${knownHtml}`;
     return `<details class="card-details" data-card="${esc(id)}"${openCards.has(id) ? ' open' : ''}><summary>Details</summary>${body}</details>`;
   }
+  // Your feelings toward them, with −/+ (5 a step) and an optional "why" that
+  // replaces the note (task 1-8): for when the model misread your tone.
+  function cardFeelings(id, c) {
+    const v = state.characters[state.player].relations[id] || 0;
+    const note = (state.characters[state.player].attitudeNotes || {})[id];
+    const nm = esc(c.name);
+    return `<div class="feel" data-feel="${esc(id)}"><div class="known-head">Your feelings</div>` +
+      `<div class="feel-row"><button type="button" class="small" data-feel-step="-5" aria-label="Feel 5 worse toward ${nm}">−</button>` +
+      `<span class="rel-${E.relWord(v)}">${E.relWord(v)} ${v > 0 ? '+' : ''}${v}</span>` +
+      `<button type="button" class="small" data-feel-step="5" aria-label="Feel 5 better toward ${nm}">+</button>` +
+      `<input type="text" class="feel-why" maxlength="80" placeholder="Why (optional)" aria-label="Why you feel this way about ${nm}"></div>` +
+      (note ? `<div class="small muted">${esc(note)}</div>` : '') +
+      '<div class="small muted">Fix this when the story misread your tone. Undo also undoes changes made since your last action.</div></div>';
+  }
+  $('cast').addEventListener('click', (ev) => {
+    const btn = ev.target.closest('button[data-feel-step]');
+    if (!btn || !state || busy) return;
+    const box = btn.closest('[data-feel]');
+    const id = box.dataset.feel;
+    const why = box.querySelector('.feel-why').value;
+    const out = E.Engine.correctAttitude(state, id, parseInt(btn.dataset.feelStep, 10), why);
+    if (out.error) return;
+    notes.push({ kind: 'feelings', summary: `you corrected your feelings toward ${state.characters[id].name}: now ${out.value}`, detail: `Step: ${btn.dataset.feelStep}${why.trim() ? `\nWhy: ${why.trim()}` : ''}\nThe next turn's prompts use the new value.` });
+    autosave();
+    renderAll();
+  });
+
   // toggle doesn't bubble, so listen in the capture phase.
   $('cast').addEventListener('toggle', (ev) => {
     const d = ev.target;
@@ -712,7 +740,9 @@
       const mood = c.mood ? `mood (turn ${c.mood.turn}): ${c.mood.text}${c.mood.reason ? ' — ' + c.mood.reason : ''}` : 'mood: none';
       const tags = (c.tags || []).map((t) => `${t.text} [${t.until == null ? 'lasting' : 'until turn ' + t.until}]${t.reason ? ' — ' + t.reason : ''}`);
       return [`${c.name} (${id}): ${E.healthWord(c.status.health)}; ${needs}`, '  ' + mood].concat(tags.map((t) => '  tag: ' + t)).join('\n');
-    }).join('\n');
+    }).join('\n') + (state.corrections && state.corrections.length
+      ? '\n\nYour corrections:\n' + state.corrections.map((x) => `  turn ${x.turn}: ${state.characters[x.id] ? state.characters[x.id].name : x.id} ${x.delta > 0 ? '+' : ''}${x.delta} → ${x.value}${x.why ? ` (${x.why})` : ''}`).join('\n')
+      : '');
   }
 
   // Where each turn's time and tokens went, and which guards fired. The newest
