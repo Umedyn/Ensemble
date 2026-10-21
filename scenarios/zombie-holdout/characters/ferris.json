@@ -13,6 +13,8 @@
   "secret": "He has a hidden stash of canned food and the keys to the pickup in the lot, locked in his office desk.",
   "guard": "high",
   "voice": "Gruff, folksy, reminds everyone whose store this is.",
+  "description": "Owns Harmon's Hardware, inherited from his father, and treats the store like the last thing he has. Shrewd, folksy and wary of everyone in it.",
+  "appearance": "Heavyset, with a grey moustache, a faded store-logo cap and a ring of store keys on his belt that jingles when he walks.",
   "skills": {
     "shooting": 2,
     "mechanics": 2,

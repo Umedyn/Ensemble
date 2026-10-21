@@ -56,12 +56,13 @@ The format change everything else builds on, plus visible improvements to the ch
 - [x] Audit survival-specific assumptions: the injury and exhaustion penalties, needs being required, and event seeds that assume danger. A scenario with no needs at all must work.
 
 **Character presentation**
-- [ ] The card leads with portrait, name, role, a **mood** line and **tags**. Needs bars move into an expandable details section; the raw numbers are also shown in Debug. (Done except the portrait, which is task 1-7.)
+- [x] The card leads with portrait, name, role, a **mood** line and **tags**. Needs bars move into an expandable details section; the raw numbers are also shown in Debug.
 - [x] **Derived tags** come from engine numbers (stress ≥ 0.8 shows as "on edge", fatigue ≥ 0.8 as "exhausted", plus health). Thresholds are per scenario and have defaults.
 - [x] **Freeform tags and mood** are proposed by the update step and validated: at most 4 per character, a short phrase each, an expiry in turns, and a reason logged in Debug.
-- [ ] Optional `portrait` on characters (a path inside the world folder). Characters without one get a stand-in from the generic set, chosen deterministically by id so it never changes.
-- [ ] Cards can be minimized (to a portrait, name and mood row), remembered per character in `localStorage` with the usual try/catch.
-- [ ] **Character details:** description, appearance, pronouns, and what the player knows about them (player-known facts that name them).
+- [x] Optional `portrait` on characters (a path inside the world folder). Characters without one get a stand-in from the world's `portraitSet`, chosen deterministically by id so it never changes, or a monogram.
+- [ ] **Bundled stand-in portrait set**: pick a CC0 (or similarly permissive) set with the owner, credit it in `CREDITS.md`, and use it when a world has no `portraitSet` (monograms until then; see the open question below).
+- [x] Cards can be minimized (to a portrait, name and mood row), remembered per character in `localStorage` with the usual try/catch.
+- [x] **Character details:** description, appearance, pronouns, and what the player knows about them (player-known facts that name them).
 - [ ] **Correct your feelings:** nudge your own attitude when the model misreads your tone.
 
 **Themes and accessibility**

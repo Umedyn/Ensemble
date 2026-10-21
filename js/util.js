@@ -86,6 +86,15 @@
   E.clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   E.clone = (o) => JSON.parse(JSON.stringify(o));
   // Cuts at a word boundary with an ellipsis instead of mid-word.
+  // Stable 32-bit hash (FNV-1a) for picks that must never change, like a stand-in portrait.
+  E.hash = (s) => {
+    let h = 0x811c9dc5;
+    for (const ch of String(s)) { h ^= ch.codePointAt(0); h = Math.imul(h, 0x01000193) >>> 0; }
+    return h >>> 0;
+  };
+  // A file inside a world folder: relative, no "..", no URL, an image type.
+  E.isImagePath = (p) => typeof p === 'string' && /^[\w][\w ./-]*\.(png|jpe?g|webp|gif|svg)$/i.test(p) && !p.split('/').includes('..');
+
   E.shorten = (s, n) => {
     const t = String(s == null ? '' : s).trim();
     if (t.length <= n) return t;

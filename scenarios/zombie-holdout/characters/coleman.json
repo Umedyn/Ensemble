@@ -13,6 +13,8 @@
   "secret": "Two days ago something scratched his forearm during a supply run. He wrapped it and tells himself it was broken glass.",
   "guard": "medium",
   "voice": "Loud, quick, military slang, jokes when scared.",
+  "description": "Army reserve, two weekends a month, until the world ended. Brave, loud and loyal; the one who stands watch without being asked.",
+  "appearance": "Broad-shouldered with a buzz cut and an old unit T-shirt, a shotgun on a sling and dirt ground into his boots.",
   "skills": {
     "fighting": 3,
     "shooting": 4,

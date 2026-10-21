@@ -114,7 +114,8 @@ test('moods and tags appear in the status lines of the user message, never the h
   const calls = mockLLM(E, ({ kind }) => (kind === 'intent' ? { player: { summary: 'x' }, intents: [], events: [] } : '[+0m] Teo fidgets.'));
   await E.Engine.runTurn(state, 'Look at Teo.', 'moment');
   for (const c of calls) {
-    assert.match(c.user, /Teo Bauer \(he\/him\) \[bauer\]: health unhurt; mood: jumpy, talking too fast; tags: grease on his sleeves/, c.kind);
+    // (the narrator's line also has "looks:", task 1-7)
+    assert.match(c.user, /Teo Bauer \(he\/him\) \[bauer\]: health unhurt;( looks: [^;]+;)? mood: jumpy, talking too fast; tags: grease on his sleeves/, c.kind);
     assert.doesNotMatch(c.system, /jumpy|grease on his sleeves/);
   }
 });

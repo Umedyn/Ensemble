@@ -18,6 +18,7 @@
   --tag-bg: #2a2f37;
   --shadow: #000a;
   --backdrop: #0009;
+  --monogram-text: #ffffff;
   --focus: #d9a35b;
   --focus-width: 2px;
   --serif: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
@@ -45,6 +46,7 @@
   --tag-bg: #ece7de;
   --shadow: #0003;
   --backdrop: #0006;
+  --monogram-text: #ffffff;
   --focus: #8a4f0c;
   color-scheme: light;
 }
@@ -67,6 +69,7 @@
   --tag-bg: #1f1f1f;
   --shadow: transparent;
   --backdrop: #000000;
+  --monogram-text: #ffffff;
   --focus: #ffd400;
   --focus-width: 3px;
   color-scheme: dark;
@@ -173,6 +176,23 @@ details.rolls li { margin: 2px 0; }
 .needs { display: grid; grid-template-columns: 54px 1fr; gap: 2px 8px; align-items: center; font-size: 0.7188rem; color: var(--muted); margin-top: 6px; }
 .needs .bar { margin: 0; height: 5px; }
 .tag { display: inline-block; font-size: 0.6875rem; padding: 0 6px; border-radius: 9px; background: var(--tag-bg); margin: 3px 4px 0 0; }
+.panel-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.panel-head button.ghost { font-size: 0.75rem; padding: 0 4px; color: var(--muted); }
+.card .top { align-items: flex-start; }
+.card .who { flex: 1; min-width: 0; }
+.portrait { width: 2.5rem; height: 2.5rem; border-radius: 8px; object-fit: cover; flex: none; background: var(--tag-bg); }
+.monogram { display: inline-grid; place-items: center; color: var(--monogram-text); font-weight: 600; font-size: 0.875rem; letter-spacing: .5px; }
+.card-min { font-size: 1rem; line-height: 1; padding: 0 6px; color: var(--muted); flex: none; }
+.card.min { padding: 5px 8px; }
+.mini { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.mini .portrait { width: 1.75rem; height: 1.75rem; border-radius: 6px; font-size: 0.6875rem; }
+.mini .nm { white-space: nowrap; }
+.mini-mood { flex: 1; min-width: 0; font-style: italic; font-size: 0.75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mini .card-min { margin-left: auto; }
+.desc { margin: 4px 0; font-size: 0.8125rem; }
+.known-head { margin-top: 6px; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
+.known { margin: 2px 0 0; padding-left: 16px; font-size: 0.78rem; }
+.known li { margin: 2px 0; }
 .mood { font-style: italic; font-size: 0.8125rem; margin-top: 4px; }
 .mood.stale { color: var(--muted); }
 .tag.derived { background: transparent; border: 1px solid var(--line-strong); }

@@ -167,7 +167,7 @@ test('a broken start reports its error without hiding the others', () => {
 
 test('reserved fields are accepted silently; unknown fields are ignored with a warning', () => {
   const w = load((f) => {
-    Object.assign(f['world.json'], { regions: [{ id: 'coast' }], lore: [], map: {}, timeline: [], portraitSet: 'x', colour: 'grey' });
+    Object.assign(f['world.json'], { regions: [{ id: 'coast' }], lore: [], map: {}, timeline: [], colour: 'grey' });
     Object.assign(f['starts/morning.json'], { region: 'coast', playerSlot: {}, extras: [], standees: [], oppening: 'typo' });
     f['starts/storm.json'].cast[1].mood = 'grim';
   });
@@ -242,6 +242,8 @@ test('converted bundled worlds start the same game as their legacy versions', ()
   for (const [folder, legacyDir] of Object.entries(pairs)) {
     const now = newGame(folder);
     const before = newGame(legacyDir);
+    // Descriptions and appearances were added after the conversion (task 1-7).
+    Object.values(now.state.characters).forEach((c) => { delete c.description; delete c.appearance; });
     ['characters', 'locations', 'clocks', 'world', 'facts', 'factions', 'order', 'time', 'recent', 'player'].forEach((k) =>
       assert.deepEqual(plain(now.state[k]), plain(before.state[k]), `${folder}: state.${k}`));
     assert.equal(now.state.scenario.worldId, folder);

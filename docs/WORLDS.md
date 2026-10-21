@@ -38,7 +38,7 @@ scenarios/
     world.json
     starts/<startId>.json    one per id in world.json "starts"
     characters/<id>.json     the world's character pool
-    portraits/               (phase 1, later task) images referenced by characters
+    portraits/               images referenced by characters (`portrait`) and the stand-in set (`portraitSet`)
     maps/  lore/             (phases 3 and 5) reserved
 ```
 
@@ -69,7 +69,8 @@ Static servers can't list directories, so `world.json` lists its starts and char
 | `characters` | string[] | the character pool (ids in `characters/`) |
 | `starts` | string[] | start ids in `starts/`; the first is the default |
 | `locations`, `clocks` | | optional world-wide ones (rare); usually per start |
-| reserved | | `regions`, `map`, `lore`, `timeline`, `portraitSet`: accepted and ignored until their phase |
+| `portraitSet` | string[] | optional; image paths in the world folder used as stand-ins for characters without a `portrait`, picked by a hash of the id (task 1-7). Without it, a monogram |
+| reserved | | `regions`, `map`, `lore`, `timeline`: accepted and ignored until their phase |
 
 ## starts/&lt;id&gt;.json
 

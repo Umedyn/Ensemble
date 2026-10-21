@@ -126,7 +126,7 @@
     if (!ev.target.files.length) return;
     try {
       const { worlds, errors } = await E.Scenario.loadFromFiles(ev.target.files);
-      worlds.forEach((w, i) => { loaded.set('disk:' + w.folder, w); addScenarioOption('disk:' + w.folder, w.title + ' (disk)', i === 0); });
+      worlds.forEach((w, i) => { loaded.set('disk:' + w.folder, w); diskAssets.set(w.folder, w.assets || {}); addScenarioOption('disk:' + w.folder, w.title + ' (disk)', i === 0); });
       renderStarts();
       rememberPick();
       if (errors.length) alert('Some worlds were skipped:\n\n' + errors.join('\n\n'));
@@ -531,16 +531,87 @@
   function renderCast() {
     $('castTitle').textContent = state.scenario.castLabel || 'People';
     const here = state.characters[state.player].status.location;
-    $('cast').innerHTML = E.Engine.cast(state).map((id) => {
+    const ids = E.Engine.cast(state);
+    $('cast').innerHTML = ids.map((id) => {
       const c = state.characters[id];
       const isPlayer = id === state.player;
       const dead = c.status.health === 'dead';
-      const sections = [cardHeader(id, c, isPlayer), cardStatus(c, isPlayer), cardDetails(id, c, dead)].filter(Boolean);
-      return `<div class="card ${!isPlayer && c.status.location === here ? 'here' : ''} ${dead ? 'dead' : ''}">${sections.join('')}</div>`;
+      const min = isMinimized(id);
+      const sections = min ? [cardMini(id, c, isPlayer)] : [cardHeader(id, c, isPlayer), cardStatus(c, isPlayer), cardDetails(id, c, dead)].filter(Boolean);
+      return `<div class="card ${!isPlayer && c.status.location === here ? 'here' : ''} ${dead ? 'dead' : ''} ${min ? 'min' : ''}" data-id="${esc(id)}">${sections.join('')}</div>`;
     }).join('');
+    $('btnCollapseAll').textContent = ids.every(isMinimized) ? 'Expand all' : 'Collapse all';
   }
 
-  // Name, role, how they and you feel about each other, and where they are.
+  // ---------- portraits ----------
+  // Paths in the scenario are relative to the world folder. Server worlds load
+  // them from scenarios/<folder>/; worlds opened from disk use object URLs made
+  // from the picked files. Neither URL is ever saved. A picture that fails to
+  // load falls back to the monogram.
+  const diskAssets = new Map(); // world folder -> { path: File }
+  const assetUrls = new Map(); // "folder/path" -> object URL
+  function portraitUrl(path) {
+    const folder = state.scenario.folder;
+    const files = diskAssets.get(folder);
+    if (files && files[path]) {
+      const key = folder + '/' + path;
+      if (!assetUrls.has(key)) assetUrls.set(key, URL.createObjectURL(files[path]));
+      return assetUrls.get(key);
+    }
+    return location.protocol === 'file:' ? null : `scenarios/${encodeURIComponent(folder)}/${path.split('/').map(encodeURIComponent).join('/')}`;
+  }
+  function monogramHtml(id) {
+    const m = E.Engine.monogram(state, id);
+    return `<span class="portrait monogram" aria-hidden="true" style="background:hsl(${m.hue} 38% 32%)">${esc(m.monogram)}</span>`;
+  }
+  const failedUrls = new Set(); // pictures that didn't load: monogram from then on, no flicker
+  function portraitHtml(id) {
+    const p = E.Engine.portrait(state, id);
+    const url = p.path && portraitUrl(p.path);
+    return url && !failedUrls.has(url) ? `<img class="portrait" src="${esc(url)}" alt="" data-fallback="${esc(id)}">` : monogramHtml(id);
+  }
+  // error doesn't bubble, so listen in the capture phase.
+  $('cast').addEventListener('error', (ev) => {
+    const img = ev.target;
+    if (img.tagName !== 'IMG' || !img.dataset.fallback) return;
+    failedUrls.add(img.getAttribute('src'));
+    img.outerHTML = monogramHtml(img.dataset.fallback);
+  }, true);
+
+  // ---------- minimized cards ----------
+  // Remembered per world and character: { worldId: [ids] }.
+  const MIN_KEY = 'ensemble.cards.min';
+  function minimized() {
+    try { return JSON.parse(store.get(MIN_KEY)) || {}; } catch (e) { return {}; }
+  }
+  function isMinimized(id) { return (minimized()[state.scenario.worldId] || []).includes(id); }
+  function setMinimized(ids, on) {
+    const all = minimized();
+    const w = new Set(all[state.scenario.worldId] || []);
+    ids.forEach((id) => (on ? w.add(id) : w.delete(id)));
+    all[state.scenario.worldId] = [...w];
+    store.set(MIN_KEY, JSON.stringify(all));
+    renderCast();
+  }
+  $('cast').addEventListener('click', (ev) => {
+    const btn = ev.target.closest('button[data-min]');
+    if (btn) setMinimized([btn.dataset.min], !isMinimized(btn.dataset.min));
+  });
+  $('btnCollapseAll').addEventListener('click', () => {
+    if (!state) return;
+    const ids = E.Engine.cast(state);
+    setMinimized(ids, !ids.every(isMinimized));
+  });
+  const minButton = (id, c, min) =>
+    `<button type="button" class="ghost card-min" data-min="${esc(id)}" aria-label="${min ? 'Expand' : 'Minimize'} ${esc(c.name)}" title="${min ? 'Expand' : 'Minimize'}">${min ? '+' : '–'}</button>`;
+
+  // One row: portrait, name, mood.
+  function cardMini(id, c, isPlayer) {
+    const mood = !isPlayer && c.mood ? `<span class="mini-mood">${esc(c.mood.text)}</span>` : '';
+    return `<div class="mini">${portraitHtml(id)}<span class="nm">${esc(c.name)}${isPlayer ? ' (you)' : ''}</span>${mood}${minButton(id, c, true)}</div>`;
+  }
+
+  // Portrait, name, role, how they and you feel about each other, and where they are.
   function cardHeader(id, c, isPlayer) {
     const loc = state.locations[c.status.location];
     let rels = '';
@@ -553,7 +624,7 @@
       rels = `<div class="rels"><div class="rel-${relW}" title="How they feel about you">them: ${relW} ${rel > 0 ? '+' : ''}${rel}</div>` +
         `<div class="rel-${myW}" title="${esc(why ? 'How you feel about them: ' + why : 'How you feel about them')}">you: ${myW} ${mine > 0 ? '+' : ''}${mine}</div></div>`;
     }
-    return `<div class="top"><div><div class="nm">${esc(c.name)}${isPlayer ? ' (you)' : ''}</div><div class="role">${esc(c.role)}</div></div>${rels}</div>` +
+    return `<div class="top">${portraitHtml(id)}<div class="who"><div class="nm">${esc(c.name)}${isPlayer ? ' (you)' : ''}</div><div class="role">${esc(c.role)}</div></div>${rels}${minButton(id, c, false)}</div>` +
       `<div class="meta">${esc(loc ? loc.name : '?')}</div>`;
   }
 
@@ -580,12 +651,22 @@
     }).join('')}</div>`;
   }
 
-  // Collapsed details: needs bars for now (task 1-7 adds description and what
-  // you know about them). Open ones stay open across re-renders.
+  // Collapsed details about the person: who they are, needs, and what you know
+  // about them (only facts the player knows). Open ones stay open across re-renders.
   const openCards = new Set();
+  const KNOWN_SHOWN = 6;
   function cardDetails(id, c, dead) {
-    const body = cardNeeds(c, dead);
-    if (!body) return '';
+    const who = [c.pronouns, c.role, c.age].filter(Boolean).map(esc).join(' · ');
+    const known = E.Engine.knownAbout(state, id);
+    const knownHtml = known.length
+      ? `<ul class="known">${known.slice(0, KNOWN_SHOWN).map((f) => `<li>${esc(f.text)}</li>`).join('')}</ul>` +
+        (known.length > KNOWN_SHOWN ? `<div class="muted small">and ${known.length - KNOWN_SHOWN} more in Debug › Fact store</div>` : '')
+      : '<div class="muted small">Nothing yet.</div>';
+    const body = `<div class="small muted">${who}</div>` +
+      (c.description ? `<p class="desc">${esc(c.description)}</p>` : '') +
+      (c.appearance ? `<p class="desc"><span class="muted">Looks:</span> ${esc(c.appearance)}</p>` : '') +
+      cardNeeds(c, dead) +
+      `<div class="known-head">What you know</div>${knownHtml}`;
     return `<details class="card-details" data-card="${esc(id)}"${openCards.has(id) ? ' open' : ''}><summary>Details</summary>${body}</details>`;
   }
   // toggle doesn't bubble, so listen in the capture phase.

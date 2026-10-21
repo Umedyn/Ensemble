@@ -15,10 +15,10 @@
   // Start fields that are not world overrides.
   const START_OWN = ['id', 'title', 'summary', 'start', 'player', 'cast', 'opening', 'castLabel'];
   // World fields a start may override (merge rules below).
-  const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'tagThresholds', 'factions', 'world',
+  const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'tagThresholds', 'portraitSet', 'factions', 'world',
     'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks'];
   const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'characters', 'starts', ...OVERRIDABLE];
-  const WORLD_RESERVED = ['regions', 'map', 'lore', 'timeline', 'portraitSet'];
+  const WORLD_RESERVED = ['regions', 'map', 'lore', 'timeline'];
   const START_RESERVED = ['region', 'playerSlot', 'extras', 'standees'];
   const CAST_FIELDS = ['id', 'status', 'needs', 'relations', 'knows', 'want', 'secret', 'guard', 'tags'];
   // Merge rules: lists of {id} objects merge by id, lists of strings are
@@ -261,7 +261,11 @@
           if (byPath.has(dir + p)) found[p] = await readJSON(byPath.get(dir + p));
         }
         const folder = dir.replace(/\/$/, '').split('/').pop() || rootJson.id;
-        worlds.push(S.prepareWorld(folder, found));
+        const world = S.prepareWorld(folder, found);
+        // Image files in the folder, by path relative to it (the page makes URLs; never saved).
+        world.assets = {};
+        for (const [p, f] of byPath) if (p.startsWith(dir) && E.isImagePath(p.slice(dir.length))) world.assets[p.slice(dir.length)] = f;
+        worlds.push(world);
       } catch (err) {
         errors.push(`${dir || '(root)'}: ${err.message}`);
       }
@@ -292,6 +296,7 @@
       Object.entries((sp && sp.health) || {}).forEach(([k, v]) => req(['ok', 'hurt', 'badly_hurt'].includes(k) && typeof v === 'number', `skillPenalties.health.${k} must be ok/hurt/badly_hurt with a number`));
       ((sp && sp.needs) || []).forEach((n) => req(n && needIds.includes(n.need) && typeof n.at === 'number' && typeof n.penalty === 'number', `skillPenalties.needs entry for "${n && n.need}" needs a known need, "at" and "penalty"`));
     }
+    req(sc.portraitSet == null || (Array.isArray(sc.portraitSet) && sc.portraitSet.every(E.isImagePath)), '"portraitSet" must be a list of image paths inside the world folder');
     Object.entries(sc.tagThresholds || {}).forEach(([k, t]) => req(needIds.includes(k) && t && typeof t.at === 'number' && t.at > 0 && t.at <= 1 && typeof t.tag === 'string' && t.tag.trim(),
       `tagThresholds.${k} needs a known need, "at" between 0 and 1 and a "tag"`));
     (sc.revealPressure || []).forEach((n) => req(needIds.includes(n), `revealPressure "${n}" is not one of the world's needs`));
@@ -302,6 +307,8 @@
       req(c.id === expected, `characters/${expected}.json has id "${c.id}"`);
       req(c.name, `character "${c.id}" missing "name"`);
       req(!c.guard || ['low', 'medium', 'high'].includes(c.guard), `character "${c.id}" guard must be low, medium or high`);
+      req(c.portrait == null || E.isImagePath(c.portrait), `character "${c.id}" portrait must be an image path inside the world folder, like "portraits/${c.id}.png"`);
+      [['description', 600], ['appearance', 400]].forEach(([k, max]) => req(c[k] == null || (typeof c[k] === 'string' && c[k].length <= max), `character "${c.id}" ${k} must be text of at most ${max} characters`));
       // Tags (and the older status.conditions) start the game as lasting tags.
       [['tags', c.tags], ['status.conditions', c.status && c.status.conditions]].forEach(([k, v]) =>
         req(v == null || (Array.isArray(v) && v.every((t) => typeof t === 'string' && t.trim() && t.length <= 32)), `character "${c.id}" ${k} must be a list of short phrases (32 characters each)`));

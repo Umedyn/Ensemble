@@ -113,6 +113,9 @@
   function statusLine(state, id, forNarrator, around) {
     const c = state.characters[id];
     const parts = [`health ${E.healthWord(c.status.health)}`];
+    // The narrator sees how the people in the scene look: the first sentence of
+    // their appearance, here (per call) rather than in the header.
+    if (forNarrator && c.appearance) parts.push(`looks: ${E.shorten(String(c.appearance).split(/(?<=[.!?])\s/)[0], 160).replace(/[.!?]+$/, '')}`);
     if (c.mood && id !== state.player) parts.push(`mood: ${c.mood.text}`);
     if ((c.tags || []).length) parts.push(`tags: ${c.tags.map((t) => t.text).join(', ')}`);
     const needs = needsText(state, c, forNarrator);

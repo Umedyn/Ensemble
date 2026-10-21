@@ -13,6 +13,8 @@
   "secret": "He caused the recycler fault six nights ago by running it past its rated cycle to save a failing crop, then wiped that night's log.",
   "guard": "low",
   "voice": "Talks too fast, over-apologizes, tries to be funny.",
+  "description": "The youngest on the crew and the one who keeps everyone fed, eager to prove he earned his seat.",
+  "appearance": "Gangly and freckled, with a mop of curly brown hair, soil under his nails and a habit of drumming on counters.",
   "skills": {
     "science": 3,
     "tech": 2,

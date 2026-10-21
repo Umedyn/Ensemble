@@ -353,6 +353,64 @@ await check('cards show mood and tags, with needs tucked into Details that stay 
   await page.screenshot({ path: path.join(shots, 'cards-mood-tags.png') });
 });
 
+// Task 1-7: portraits (with a monogram when an image is missing), minimized
+// cards remembered per world, and the details view.
+const PNG_1PX = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+async function withPortraits(page) {
+  // Okafor gets a portrait that exists, Teo one that doesn't, plus a description.
+  for (const [id, extra] of [['okafor', { portrait: 'portraits/okafor.png', description: 'Runs the station like a lab: precise, proud, hard to read.' }], ['bauer', { portrait: 'portraits/missing.png' }]]) {
+    await page.route(`**/scenarios/mars-station/characters/${id}.json`, async (route) => {
+      const res = await route.fetch();
+      await route.fulfill({ response: res, json: Object.assign(await res.json(), extra) });
+    });
+  }
+  await page.route('**/scenarios/mars-station/portraits/okafor.png', (route) => route.fulfill({ status: 200, contentType: 'image/png', body: PNG_1PX }));
+  await page.reload();
+  await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
+}
+const card = (page, name) => page.locator('#cast .card', { hasText: name });
+
+for (const phone of [false, true]) {
+  await check(`${phone ? 'phone: ' : ''}portraits, minimized cards and the details view`, async (page) => {
+    await withPortraits(page);
+    await page.click('#btnNew');
+    await act(page, 'Look around.');
+    await act(page, 'Ask Teo about the rattle.');
+    if (phone) { await page.click('#btnSide'); await page.waitForTimeout(350); }
+    assert.ok(await card(page, 'Imani Okafor').locator('img.portrait').count(), 'Okafor has her portrait');
+    await page.waitForFunction(() => [...document.querySelectorAll('#cast .card')].find((c) => c.textContent.includes('Teo Bauer')).querySelector('.monogram'));
+    assert.equal(await card(page, 'Teo Bauer').locator('.monogram').textContent(), 'TB', 'a missing image falls back to the monogram');
+    assert.equal(await card(page, 'Lev Sorensen').locator('.monogram').textContent(), 'LS', 'no portrait: monogram, "Dr." skipped');
+    // details: who they are, description, and what you know
+    const teo = card(page, 'Teo Bauer');
+    await teo.locator('details.card-details summary').click();
+    assert.match(await teo.locator('details.card-details').textContent(), /he\/him · hydroponics technician · 24/);
+    assert.match(await teo.locator('.known').textContent(), /sensor issue/, 'the fact recorded about Teo');
+    await card(page, 'Imani Okafor').locator('details.card-details summary').click();
+    assert.match(await card(page, 'Imani Okafor').locator('.desc').first().textContent(), /Runs the station like a lab/);
+    assert.match(await card(page, 'Imani Okafor').locator('.desc').nth(1).textContent(), /Looks: Tall and straight-backed/, 'the bundled appearance');
+    // minimize one card: a single row with name and mood
+    await card(page, 'Teo Bauer').locator('button.card-min').click();
+    assert.ok(await card(page, 'Teo Bauer').evaluate((el) => el.classList.contains('min')));
+    assert.equal(await card(page, 'Teo Bauer').locator('.mini-mood').textContent(), 'jumpy, talking too fast');
+    assert.ok(!(await card(page, 'Teo Bauer').locator('details').count()), 'no details when minimized');
+    // collapse all, then the choice survives a reload
+    await page.click('#btnCollapseAll');
+    assert.equal(await page.locator('#cast .card.min').count(), 5);
+    assert.equal(await page.textContent('#btnCollapseAll'), 'Expand all');
+    await page.screenshot({ path: path.join(shots, `${phone ? 'phone-' : ''}cards-minimized.png`) });
+    await page.reload();
+    await page.waitForFunction(() => document.querySelectorAll('#cast .card').length > 0);
+    assert.equal(await page.locator('#cast .card.min').count(), 5, 'remembered');
+    await page.click(phone ? '#btnSide' : '#btnCollapseAll');
+    if (phone) { await page.waitForTimeout(350); await page.click('#btnCollapseAll'); }
+    assert.equal(await page.locator('#cast .card.min').count(), 0);
+    const box = await card(page, 'Imani Okafor').boundingBox();
+    assert.ok(box.x >= 0 && box.x + box.width <= (phone ? 390 : 1360), 'card fits the screen');
+    await page.screenshot({ path: path.join(shots, `${phone ? 'phone-' : ''}cards-expanded.png`) });
+  });
+}
+
 // Settings › Appearance (task 1-9). Sets the controls, then Save or cancel.
 async function setAppearance(page, { theme, textSize, font, spacing, motion }, save = true) {
   await page.click('#btnSettings');

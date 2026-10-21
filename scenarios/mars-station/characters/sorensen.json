@@ -13,6 +13,8 @@
   "secret": "Cultures from the deep ice core are showing activity he cannot explain as contamination. He has told no one and keeps the samples in an unlogged incubator.",
   "guard": "medium",
   "voice": "Soft-spoken, rambles when excited, deflects with jokes.",
+  "description": "The station's doctor by duty and its biologist by love; happiest at a microscope, and a little harder to find every week.",
+  "appearance": "Lanky and stooped, with an untidy blond beard, lab goggles around his neck and ink notes on the back of his hand.",
   "skills": {
     "medicine": 4,
     "science": 4,

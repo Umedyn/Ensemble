@@ -41,7 +41,7 @@ A normal turn is three model calls (intent, narrate, update), plus an occasional
 
 ## Prompts and the cache
 
-`system` is identical for every call in a turn: setting, genre guidance, rules, locations, groups, cast (public sheet with pronouns), chapter summaries, and player-known facts. It only grows at the end between turns, so KoboldCpp reuses most of it (in logs, 1,800 tokens processed for the first call and only ~600–1,000 for the next two). Anything that changes per call (status, needs, relations, clocks, secrets, the scene, the task) goes in `user`.
+`system` is identical for every call in a turn: setting, genre guidance, rules, locations, groups, cast (public sheet with pronouns), chapter summaries, and player-known facts. It only grows at the end between turns, so KoboldCpp reuses most of it (in logs, 1,800 tokens processed for the first call and only ~600–1,000 for the next two). Anything that changes per call (status, needs, relations, clocks, secrets, the scene, the task) goes in `user`. That includes how people look: the narrator's status lines carry the first sentence of `appearance` for the people in the scene only, so a cast of twenty doesn't grow every prompt.
 
 **Blocks.** Every prompt is an ordered list of named blocks: `P.layouts.<prompt>` lists block ids, `P.blocks.<id>` builds one from the prompt's context (text, a list of lines, or `null` to leave it out), and `P.build` joins them. A new section (genre guidance, lore, regions) is one block function plus one position in a layout. In the header, only the blocks in `P.LIVE_HEADER` (`chapters`, `facts`) may change during play, and they stay last; a test enforces this, and `tests/prompts.snapshot.test.js` pins every prompt byte for byte.
 

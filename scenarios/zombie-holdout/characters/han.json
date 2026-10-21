@@ -13,6 +13,8 @@
   "secret": "She fixed a handheld radio and heard a rescue convoy broadcast heading to a coastal safe zone. It said they can only take three more people. She hasn't told anyone.",
   "guard": "high",
   "voice": "Short sentences, long silences, rarely smiles.",
+  "description": "A mechanic who would rather fix things than talk about them. Keeps to herself and her toolbox, and notices more than she says.",
+  "appearance": "Lean, with black hair tied back under a bandana, oil-stained overalls and a socket wrench in her back pocket.",
   "skills": {
     "mechanics": 4,
     "stealth": 3,

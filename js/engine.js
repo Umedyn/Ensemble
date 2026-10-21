@@ -601,6 +601,31 @@
     return out;
   };
 
+  // ---------- portraits and what you know (task 1-7) ----------
+  // A character's picture: their own portrait, else a stand-in from the world's
+  // portraitSet picked by hashing the id (so it never changes), else a monogram
+  // (initials on a colour from the same hash). Paths are relative to the world
+  // folder; the page turns them into URLs, and saves keep only the paths.
+  Eng.portrait = function (state, id) {
+    const c = state.characters[id];
+    if (c.portrait) return { path: c.portrait };
+    const set = state.scenario.portraitSet || [];
+    if (set.length) return { path: set[E.hash(id) % set.length], standIn: true };
+    return Eng.monogram(state, id);
+  };
+  // Initials (titles like "Dr." skipped) on a hue from the id.
+  Eng.monogram = function (state, id) {
+    const c = state.characters[id];
+    const words = String(c.name || id).replace(/^(dr|mr|mrs|ms|mx|prof)\.?\s+/i, '').split(/\s+/).filter(Boolean);
+    const initials = (words.length > 1 ? words[0][0] + words[words.length - 1][0] : (words[0] || id).slice(0, 2)).toUpperCase();
+    return { monogram: initials, hue: E.hash(id) % 360 };
+  };
+
+  // Facts the player knows that are about this person, newest first.
+  Eng.knownAbout = function (state, id) {
+    return state.facts.filter((f) => (f.about || []).includes(id) && E.Memory.knows(f, state.player)).slice().reverse();
+  };
+
   // ---------- applying the model's update ----------
   Eng.applyUpdate = function (state, upd, present, ctx) {
     ctx = ctx || {};

@@ -40,12 +40,11 @@
     {
       "id": "coleman",
       "status": {
-        "health": "ok",
-        "location": "floor",
-        "conditions": [
-          "bandaged left forearm"
-        ]
+        "location": "floor"
       },
+      "tags": [
+        "bandaged left forearm"
+      ],
       "needs": {
         "hunger": 0.5,
         "fatigue": 0.4,

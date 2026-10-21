@@ -13,6 +13,8 @@
   "secret": "The mission's corporate sponsor quietly pays her a bonus for private reports on crew performance, and she has been sending them.",
   "guard": "medium",
   "voice": "Fast and teasing; swears in Tamil when stressed.",
+  "description": "Flies the Mule and fixes it too. Counts the sols to her daughter's birthday out loud and teases everyone into keeping up.",
+  "appearance": "Small and quick, with black hair in a practical braid, a coverall tied at the waist and a child's drawing taped inside her helmet.",
   "skills": {
     "piloting": 4,
     "tech": 3,

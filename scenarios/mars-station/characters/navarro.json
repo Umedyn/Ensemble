@@ -11,6 +11,8 @@
   ],
   "want": "keep the station running and get everyone home in one piece",
   "voice": "Dry and direct, short sentences; swears at machinery, never at people.",
+  "description": "Keeps Ares Deep's machines alive and has an opinion about every one of them. The crew trusts Kit because Kit says out loud what's broken.",
+  "appearance": "Wiry and pale from months indoors, with a shaved head, grease-dark knuckles and a multitool clipped to every pocket.",
   "skills": {
     "tech": 4,
     "science": 2,

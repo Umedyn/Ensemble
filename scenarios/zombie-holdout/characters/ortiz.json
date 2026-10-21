@@ -13,6 +13,8 @@
   "secret": "On day nine she left her previous group behind during an overrun to save herself. She tells people she was the only survivor.",
   "guard": "medium",
   "voice": "Calm and warm, calls people 'honey', goes cold when angry.",
+  "description": "Thirty years in an emergency room left her calm in a crisis and impossible to fool about a wound. She keeps the food count and everyone's spirits.",
+  "appearance": "Short and solid, with silver hair pinned up, reading glasses on a cord and a nurse's watch she still checks out of habit.",
   "skills": {
     "medicine": 4,
     "persuasion": 3,
