@@ -186,6 +186,24 @@ details.rolls li { margin: 2px 0; }
 .card .who { flex: 1; min-width: 0; }
 .portrait { width: 2.5rem; height: 2.5rem; border-radius: 8px; object-fit: cover; flex: none; background: var(--tag-bg); }
 .monogram { display: inline-grid; place-items: center; color: var(--monogram-text); font-weight: 600; font-size: 0.875rem; letter-spacing: .5px; }
+.head-tools { display: flex; gap: 2px; }
+#webDialog { width: min(40rem, 96vw); }
+.web-graph svg { width: 100%; height: auto; display: block; max-height: 60dvh; }
+.web-edge { fill: none; stroke: var(--line-strong); }
+.web-edge.pos { stroke: var(--good); }
+.web-edge.neg { stroke: var(--bad); }
+.web-edge.seen { stroke-dasharray: 5 4; }
+.web-arrow { fill: var(--line-strong); }
+.web-arrow.pos { fill: var(--good); }
+.web-arrow.neg { fill: var(--bad); }
+.web-ring { fill: none; stroke: var(--line-strong); stroke-width: 1.5; }
+.web-node.you .web-ring { stroke: var(--accent); stroke-width: 2.5; }
+.web-mono { fill: var(--monogram-text); font-size: 0.75rem; font-weight: 600; }
+.web-label { fill: var(--text); font-size: 0.6875rem; paint-order: stroke; stroke: var(--panel); stroke-width: 3px; stroke-linejoin: round; }
+.web-list { list-style: none; padding: 0; margin: 8px 0; font-size: 0.8125rem; max-height: 30dvh; overflow-y: auto; }
+.web-list li { margin: 3px 0; }
+.web-list li.seen { padding-left: 0.75rem; }
+.settings label.web-toggle { flex-direction: row; gap: 6px; align-items: center; }
 .elsewhere > summary { cursor: pointer; font-size: 0.75rem; color: var(--muted); margin: 2px 0 8px; }
 .card-min { font-size: 1rem; line-height: 1; padding: 0 6px; color: var(--muted); flex: none; }
 .card.min { padding: 5px 8px; }

@@ -70,7 +70,7 @@ try { window.EnsembleAppearance((JSON.parse(localStorage.getItem('ensemble.setti
     <div class="side-head mobile-only"><b>Situation &amp; people</b><button type="button" id="btnSideClose">Close</button></div>
     <section class="panel"><h3>Situation</h3><div id="situation"></div></section>
     <section class="panel" id="newsPanel"><h3>News</h3><div id="news"></div></section>
-    <section class="panel"><div class="panel-head"><h3 id="castTitle">People</h3><button type="button" id="btnCollapseAll" class="ghost small">Collapse all</button></div><div id="cast"></div></section>
+    <section class="panel"><div class="panel-head"><h3 id="castTitle">People</h3><span class="head-tools"><button type="button" id="btnWeb" class="ghost small" title="Who feels what about whom">Web</button><button type="button" id="btnCollapseAll" class="ghost small">Collapse all</button></span></div><div id="cast"></div></section>
     <section class="panel"><h3>Journal</h3><div id="journal"><div class="muted">Chapters appear here every few turns.</div></div></section>
   </aside>
 </main>
@@ -95,6 +95,17 @@ try { window.EnsembleAppearance((JSON.parse(localStorage.getItem('ensemble.setti
     <button value="local" class="choice"><b>KoboldCpp on this computer</b><span>Free and private, but needs a capable graphics card.</span><span id="setupLocal" class="small"></span></button>
     <button value="hybrid" class="choice"><b>Both</b><span>The hosted model plays the characters and narrates; KoboldCpp keeps the records.</span></button>
     <div class="row end"><button value="skip" class="ghost">Decide later</button></div>
+  </form>
+</dialog>
+
+<dialog id="webDialog" aria-labelledby="webTitle">
+  <form method="dialog" class="settings web">
+    <h3 id="webTitle">Who feels what</h3>
+    <label class="web-toggle"><input type="checkbox" id="webSecondary"> Include people in the background</label>
+    <div id="webGraph" class="web-graph"></div>
+    <ul id="webList" class="web-list"></ul>
+    <div class="muted small">Your own feelings, and how others treat you. Between other people, only what you have seen or been told (dashed). Exact numbers are in Debug.</div>
+    <div class="row end"><button value="close">Close</button></div>
   </form>
 </dialog>
 

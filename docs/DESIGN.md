@@ -91,6 +91,15 @@ Task 2-3. Minor people kept as stubs in `state.extras` (`{id, name, role, pronou
 - **Promotion**: an individual (never a group) named in the player's action on two different turns, or `about` a fact of weight 2+, is due. At commit, at most once a turn, a `worldbuild` call (its own routing step, "World building"; Hybrid sends it external) gets the stub, every fact about them and the last two scenes that mention them (so the sheet matches how they were shown), and returns a sheet. `Eng.characterFromExtra` keeps the id, name and place, clamps skills (0–4) and relations (±30, cast ids only), defaults the guard, validates any agenda, and runs `Scenario.characterProblems` (the same checks as character files). They join the cast as local with `joined: turn`, listed in the header's `newcomers` block. A bad sheet or failed call leaves them an extra (`promotion rejected`), with one retry.
 - **Bundled**: Ares Deep has Dana Ruiz (CAPCOM, a voice in Ops) and no invented extras; the holdout has Mrs. Albee and the herd (a group) and allows invented ones.
 
+## Relationship web
+
+Task 2-4. **Web** (in the cast panel) opens a graph of who feels what about whom. `Eng.relationWeb(state, {secondary})` decides what the player may see, as words only (`relWord`, with a level 0–2 and a sign); the numbers stay in Debug:
+
+- you → them, with your attitude note, and them → you (both already on the cards);
+- between two other people, only when the player knows a fact `about` both of them, with the latest such fact as the reason. Private facts don't count, so hidden feelings never show.
+
+Nodes are you and the local characters (secondary ones with the toggle), never the dead or extras. The page draws plain SVG with a small deterministic force layout (`layoutWeb` in `ui.js`: you fixed in the middle, two curves per pair so A→B and B→A can differ, colour by sign, thickness by level, dashed for what you only know from a fact) and the same edges as a text list for screen readers.
+
 ## Memory
 
 - **Facts** are short sentences with names, an owner list (`known_by`) and a weight. The update step can't record a fact again that the same people already know (75% of the content words shared), and can't change a world value a clock set earlier in the same turn. Facts the player could not have seen or heard are recorded as known only by whoever did. The engine drops anyone the update step names who wasn't there: a fact can be known only by the player, the people present, those in the turn's events (hidden ones included), or `all`.

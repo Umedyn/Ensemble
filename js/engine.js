@@ -979,6 +979,39 @@
     return state.facts.filter((f) => (f.about || []).includes(id) && E.Memory.knows(f, state.player)).slice().reverse();
   };
 
+  // ---------- relationship web (task 2-4) ----------
+  // Who feels what about whom, as the player could know it. Nodes: you, the
+  // local characters (and secondary ones on request), never the dead or
+  // extras. Edges, as words only (numbers stay in Debug):
+  //   you → them: your own feelings, with your note (source 'you')
+  //   them → you: how they treat you, already on their card ('them')
+  //   between two others: only when you know a fact about both ('seen'),
+  //   with the latest such fact as the reason. Hidden feelings never show.
+  const relLevel = (w) => ({ trusts: 2, hostile: 2, friendly: 1, wary: 1 }[w] || 0);
+  Eng.relationWeb = function (state, opts) {
+    const secondary = !!(opts && opts.secondary);
+    const pc = state.characters[state.player];
+    const nodes = Eng.cast(state, { alive: true }).filter((id) => id === state.player || secondary || Eng.tier(state, id) === 'local')
+      .map((id) => ({ id, name: state.characters[id].name, isPlayer: id === state.player, tier: Eng.tier(state, id) }));
+    const ids = nodes.map((n) => n.id);
+    const edges = [];
+    const add = (from, to, v, source, why) => {
+      const word = E.relWord(v);
+      edges.push({ from, to, word, level: relLevel(word), sign: v >= 15 ? 1 : v <= -15 ? -1 : 0, source, why: why || null });
+    };
+    ids.filter((id) => id !== state.player).forEach((id) => {
+      add(state.player, id, pc.relations[id] || 0, 'you', (pc.attitudeNotes || {})[id]);
+      add(id, state.player, state.characters[id].relations[state.player] || 0, 'them');
+    });
+    const known = state.facts.filter((f) => E.Memory.knows(f, state.player));
+    ids.forEach((a) => ids.forEach((b) => {
+      if (a === b || a === state.player || b === state.player) return;
+      const fact = known.filter((f) => (f.about || []).includes(a) && (f.about || []).includes(b)).pop();
+      if (fact) add(a, b, state.characters[a].relations[b] || 0, 'seen', fact.text);
+    }));
+    return { nodes, edges };
+  };
+
   // ---------- applying the model's update ----------
   Eng.applyUpdate = function (state, upd, present, ctx) {
     ctx = ctx || {};

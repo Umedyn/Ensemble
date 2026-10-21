@@ -666,6 +666,94 @@
     img.outerHTML = monogramHtml(img.dataset.fallback);
   }, true);
 
+  // ---------- relationship web (task 2-4) ----------
+  // E.Engine.relationWeb decides what the player may see; this only draws it:
+  // an SVG with a small force layout (you fixed in the middle), two curves per
+  // pair so A→B and B→A can differ, and a plain list for screen readers.
+  const WEB = 360;
+  function layoutWeb(nodes, edges) {
+    const c = WEB / 2;
+    const others = nodes.filter((n) => !n.isPlayer);
+    const pos = {};
+    nodes.forEach((n) => { pos[n.id] = { x: c, y: c }; });
+    others.forEach((n, i) => {
+      const a = (i / Math.max(1, others.length)) * 2 * Math.PI - Math.PI / 2;
+      pos[n.id] = { x: c + Math.cos(a) * WEB * 0.34, y: c + Math.sin(a) * WEB * 0.34 };
+    });
+    const pairs = new Map();
+    edges.forEach((e) => { const k = [e.from, e.to].sort().join('|'); pairs.set(k, Math.max(pairs.get(k) || 0, e.level)); });
+    const k = WEB / Math.sqrt(nodes.length + 1);
+    for (let it = 0; it < 220; it++) {
+      const step = 6 * (1 - it / 220) + 0.3;
+      const force = {};
+      nodes.forEach((n) => { force[n.id] = { x: 0, y: 0 }; });
+      nodes.forEach((a) => nodes.forEach((b) => {
+        if (a === b) return;
+        const dx = pos[a.id].x - pos[b.id].x, dy = pos[a.id].y - pos[b.id].y;
+        const d = Math.max(1, Math.hypot(dx, dy));
+        force[a.id].x += (dx / d) * (k * k) / d;
+        force[a.id].y += (dy / d) * (k * k) / d;
+      }));
+      pairs.forEach((level, key) => {
+        const [a, b] = key.split('|');
+        const dx = pos[a].x - pos[b].x, dy = pos[a].y - pos[b].y;
+        const d = Math.max(1, Math.hypot(dx, dy));
+        const pull = (d * d) / k * (0.6 + level * 0.25);
+        force[a].x -= (dx / d) * pull; force[a].y -= (dy / d) * pull;
+        force[b].x += (dx / d) * pull; force[b].y += (dy / d) * pull;
+      });
+      others.forEach((n) => {
+        const f = force[n.id];
+        const m = Math.max(1, Math.hypot(f.x, f.y));
+        pos[n.id].x = E.clamp(pos[n.id].x + (f.x / m) * step, 34, WEB - 34);
+        pos[n.id].y = E.clamp(pos[n.id].y + (f.y / m) * step, 30, WEB - 40);
+      });
+    }
+    return pos;
+  }
+  function webNode(n, p) {
+    const pic = E.Engine.portrait(state, n.id);
+    const url = pic.path && portraitUrl(pic.path);
+    const r = 18;
+    const face = url && !failedUrls.has(url)
+      ? `<clipPath id="webclip-${esc(n.id)}"><circle cx="${p.x}" cy="${p.y}" r="${r}"/></clipPath><image href="${esc(url)}" x="${p.x - r}" y="${p.y - r}" width="${2 * r}" height="${2 * r}" clip-path="url(#webclip-${esc(n.id)})" preserveAspectRatio="xMidYMid slice"/>`
+      : ((m) => `<circle cx="${p.x}" cy="${p.y}" r="${r}" style="fill:hsl(${m.hue} 38% 32%)"/><text class="web-mono" x="${p.x}" y="${p.y}" dy="0.35em" text-anchor="middle">${esc(m.monogram)}</text>`)(E.Engine.monogram(state, n.id));
+    const short = n.isPlayer ? 'You' : E.Engine.shortName(state.characters[n.id]);
+    return `<g class="web-node${n.isPlayer ? ' you' : ''}" data-id="${esc(n.id)}"><title>${esc(state.characters[n.id].name)}${n.isPlayer ? ' (you)' : ''}</title>${face}` +
+      `<circle class="web-ring" cx="${p.x}" cy="${p.y}" r="${r}"/><text class="web-label" x="${p.x}" y="${p.y + r + 12}" text-anchor="middle">${esc(short)}</text></g>`;
+  }
+  function webEdge(e, pos) {
+    const a = pos[e.from], b = pos[e.to];
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const d = Math.max(1, Math.hypot(dx, dy));
+    const ux = dx / d, uy = dy / d;
+    // Bend to the left of the direction of travel, so the two ways of a pair part.
+    const mx = (a.x + b.x) / 2 - uy * 16, my = (a.y + b.y) / 2 + ux * 16;
+    const sx = a.x + ux * 20 - uy * 4, sy = a.y + uy * 20 + ux * 4;
+    const ex = b.x - ux * 24 - uy * 4, ey = b.y - uy * 24 + ux * 4;
+    const cls = e.sign > 0 ? 'pos' : e.sign < 0 ? 'neg' : 'neu';
+    const nm = (id) => (id === state.player ? 'You' : state.characters[id].name);
+    const title = `${nm(e.from)} → ${nm(e.to)}: ${e.word}${e.why ? ` (${e.source === 'seen' ? 'you know: ' : ''}${e.why})` : ''}`;
+    return `<path class="web-edge ${cls}${e.source === 'seen' ? ' seen' : ''}" d="M${sx.toFixed(1)},${sy.toFixed(1)} Q${mx.toFixed(1)},${my.toFixed(1)} ${ex.toFixed(1)},${ey.toFixed(1)}" style="stroke-width:${1 + e.level * 1.5}" marker-end="url(#web-arrow-${cls})"><title>${esc(title)}</title></path>`;
+  }
+  function renderWeb() {
+    const web = E.Engine.relationWeb(state, { secondary: $('webSecondary').checked });
+    const pos = layoutWeb(web.nodes, web.edges);
+    const arrows = ['pos', 'neg', 'neu'].map((c) => `<marker id="web-arrow-${c}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="web-arrow ${c}" d="M0,0 L10,5 L0,10 z"/></marker>`).join('');
+    $('webGraph').innerHTML = `<svg viewBox="0 0 ${WEB} ${WEB}" role="img" aria-label="Relationship web: ${web.nodes.length} people">` +
+      `<defs>${arrows}</defs>${web.edges.map((e) => webEdge(e, pos)).join('')}${web.nodes.map((n) => webNode(n, pos[n.id])).join('')}</svg>`;
+    const nm = (id) => (id === state.player ? 'You' : state.characters[id].name);
+    const lines = web.edges.map((e) => `<li class="${e.source === 'seen' ? 'seen' : ''}">${esc(nm(e.from))} ${e.from === state.player ? 'feel' : 'feels'} <b class="rel-${e.word}">${e.word === 'trusts' ? 'trusting' : e.word}</b> toward ${esc(e.to === state.player ? 'you' : nm(e.to))}` +
+      `${e.why ? ` <span class="muted">— ${e.source === 'seen' ? 'you know: ' : ''}${esc(e.why)}</span>` : ''}</li>`);
+    $('webList').innerHTML = lines.join('') || '<li class="muted">No one else here yet.</li>';
+  }
+  $('btnWeb').addEventListener('click', () => {
+    if (!state) return;
+    renderWeb();
+    $('webDialog').showModal();
+  });
+  $('webSecondary').addEventListener('change', () => { if (state) renderWeb(); });
+
   // ---------- minimized cards ----------
   // Remembered per world and character: { worldId: [ids] }.
   const MIN_KEY = 'ensemble.cards.min';

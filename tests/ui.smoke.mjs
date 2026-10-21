@@ -437,6 +437,31 @@ await check('background people are under a collapsed Elsewhere list that remembe
   assert.ok(await card(page, 'Lev Sorensen').isVisible(), 'still open after a reload');
 });
 
+// Task 2-4: the relationship web, desktop and phone.
+for (const phone of [false, true]) {
+  await check(`${phone ? 'phone: ' : ''}the relationship web shows what you could know, as words`, async (page) => {
+    await newGame(page);
+    await act(page, 'Ask Teo about the rattle.');
+    if (phone) { await page.click('#btnSide'); await page.waitForTimeout(350); }
+    await page.click('#btnWeb');
+    await page.waitForSelector('#webDialog[open] svg');
+    const nodes = await page.locator('#webGraph .web-node').evaluateAll((els) => els.map((e) => e.dataset.id));
+    assert.deepEqual(nodes, ['navarro', 'okafor', 'bauer'], 'you and the local people (Okafor walked to Ops but is still local)');
+    const list = await page.textContent('#webList');
+    assert.match(list, /You feel friendly toward Teo Bauer/);
+    assert.match(list, /Teo Bauer feels \w+ toward you/);
+    assert.doesNotMatch(list, /[+-]\d/, 'no numbers');
+    assert.equal(await page.locator('#webGraph .web-edge.seen').count(), 0, 'nothing seen between others yet');
+    await page.check('#webSecondary');
+    assert.equal(await page.locator('#webGraph .web-node').count(), 5, 'everyone, with the background');
+    const box = await page.locator('#webDialog').boundingBox();
+    assert.ok(box.x >= 0 && box.x + box.width <= (phone ? 390 : 1360), 'the dialog fits the screen');
+    await page.screenshot({ path: path.join(shots, `${phone ? 'phone-' : ''}relationship-web.png`) });
+    await page.click('#webDialog button[value="close"]');
+    assert.ok(!(await page.isVisible('#webDialog')));
+  });
+}
+
 // Suggested actions fill the box; the player still presses Act.
 await check('suggestions fill the action box without acting', async (page) => {
   await newGame(page);

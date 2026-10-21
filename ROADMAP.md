@@ -82,7 +82,7 @@ Lets big casts fit in 8K and makes the world move without the player.
 - [x] **Promotion and demotion** rules live in the engine: a character becomes local when they enter the scene, are named by the player, or their agenda brings them into contact. They drop back to secondary after N turns without appearing. Every change is shown in Debug. (Agenda contact steps since 2-2.)
 - [ ] **Pin from the card**: let the player pin someone so they stay local (today `pinned` is authored only).
 - [x] **Extras**: one-line stubs (name, role, location) with no sheet. When promoted, one generation call turns an extra into a full character, validated and kept from then on. (Task 2-3; a group, like a patrol or the herd, can be one extra and never promotes.)
-- [ ] **Relationship web** (from the old Later list): a small graph of how people feel about each other, local characters first.
+- [x] **Relationship web** (from the old Later list): a small graph of how people feel about each other, local characters first. (Task 2-4: feelings between others show only once a fact you know involves both.)
 
 ## Phase 3: Maps
 
