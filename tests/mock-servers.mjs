@@ -36,6 +36,10 @@ function answer(user) {
     return '[+0m] You pry the access panel off the recycler. Teo hovers at your shoulder.\n\n[+30m] Okafor gathers her tablet and heads for Ops.\n\n[+55m] Teo hands you a spanner. "Probably just a sensor issue," he says, a little too fast.';
   }
   if (user.includes(' an agenda: what ')) return JSON.stringify({ routine: true });
+  if (user.includes('has come to matter in the story')) {
+    return JSON.stringify({ pronouns: 'she/her', age: 52, traits: ['calm', 'precise', 'tired'], want: 'see this crew home on schedule', secret: null,
+      voice: 'Measured, never rushed, even fourteen minutes late.', appearance: 'Grey-streaked hair in a clip, headset always on.', skills: {}, relations: {} });
+  }
   if (user.includes('things Kit Navarro could do next')) {
     return JSON.stringify({ suggestions: ['Ask Teo when the rattle started.', '1. Check the recycler logs myself.', 'Ask Teo when the rattle started.', 'Tell Okafor about the storm plan.'] });
   }
@@ -76,8 +80,16 @@ handler.log = [];
 export async function startMocks() {
   const kobold = http.createServer(handler(false));
   const api = http.createServer(handler(true));
-  await new Promise((r) => kobold.listen(5001, r));
-  await new Promise((r) => api.listen(5002, r));
+  // A real KoboldCpp left running on 5001 would answer the tests instead (and
+  // time every check out), so a busy port stops with a clear message.
+  const listen = (server, port, what) => new Promise((resolve, reject) => {
+    server.once('error', (err) => reject(err.code === 'EADDRINUSE'
+      ? new Error(`Port ${port} is already in use (${what}). Close whatever is using it, such as a running KoboldCpp, and run the UI tests again.`)
+      : err));
+    server.listen(port, resolve);
+  });
+  await listen(kobold, 5001, 'the fake KoboldCpp needs it');
+  await listen(api, 5002, 'the fake API needs it');
   return { log: handler.log, close: () => { kobold.close(); api.close(); } };
 }
 

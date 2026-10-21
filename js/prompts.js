@@ -25,7 +25,7 @@
   // later genre, lore titles, geography) goes before them.
   const B = (P.blocks = {});
   P.layouts = {};
-  P.LIVE_HEADER = ['chapters', 'facts'];
+  P.LIVE_HEADER = ['newcomers', 'chapters', 'facts'];
   P.build = function (layout, ctx) {
     const parts = [];
     P.layouts[layout].forEach((id) => {
@@ -36,7 +36,7 @@
     return parts.join('\n');
   };
 
-  P.layouts.header = ['intro', 'setting', 'genre', 'rules', 'places', 'groups', 'cast', 'chapters', 'facts'];
+  P.layouts.header = ['intro', 'setting', 'genre', 'rules', 'places', 'groups', 'cast', 'newcomers', 'chapters', 'facts'];
   P.header = (state) => P.build('header', { state, sc: state.scenario, pc: state.characters[state.player] });
 
   B.intro = () => 'You are the simulation engine and narrator for an interactive, character-driven story.';
@@ -62,7 +62,7 @@
   B.groups = ({ sc }) => (sc.factions && sc.factions.length
     ? ['\n=== GROUPS ==='].concat(sc.factions.map((f) => `- ${f.id}: ${f.name} — ${f.desc}`))
     : null);
-  B.cast = ({ state }) => ['\n=== CAST ==='].concat(Eng().cast(state).map((id) => {
+  const castLine = (state, id) => {
     const c = state.characters[id];
     const tag = id === state.player ? ' (PLAYER)' : '';
     const bits = [`${c.name}${c.pronouns ? ` (${c.pronouns})` : ''}, ${c.role}${c.age ? ', ' + c.age : ''}.`];
@@ -70,7 +70,15 @@
     if (c.want && id !== state.player) bits.push(`Wants: ${c.want}.`);
     if (c.voice) bits.push(`Voice: ${c.voice}`);
     return `- ${id}${tag}: ${bits.join(' ')}`;
-  }));
+  };
+  // Static: the starting cast. People promoted from extras (task 2-3) are
+  // listed in "newcomers" instead, so the cast block never changes.
+  B.cast = ({ state }) => ['\n=== CAST ==='].concat(Eng().cast(state).filter((id) => state.characters[id].joined == null).map((id) => castLine(state, id)));
+  // Live: grows when someone joins the cast during play.
+  B.newcomers = ({ state }) => {
+    const ids = Eng().cast(state).filter((id) => state.characters[id].joined != null);
+    return ids.length ? ['\n=== CAST: JOINED DURING THE STORY ==='].concat(ids.map((id) => castLine(state, id))) : null;
+  };
   // Live: grows at the end of the header between turns.
   B.chapters = ({ state }) => {
     const story = Mem().storyBlock(state);
@@ -149,6 +157,8 @@
       worldLines(state),
       `Present with ${pc.name}: ${present.length ? present.map((id) => name(state, id)).join(', ') : 'no one'}`,
     ];
+    const minor = Eng().extrasAt(state, pc.status.location);
+    if (minor.length) lines.push(`Also here (minor people): ${minor.map((x) => Eng().extraLabel(x)).join('; ')}`);
     if (elsewhere.length) lines.push(`Elsewhere: ${elsewhere.join(', ')}`);
     lines.push('\n=== STATUS ===');
     lines.push(statusLine(state, state.player, forNarrator, present));
@@ -170,7 +180,7 @@
   };
 
   // ---------- intent ----------
-  P.layouts.intent = ['now', 'private', 'offstage', 'background', 'agendaDue', 'lastScene', 'intentAction', 'intentTask'];
+  P.layouts.intent = ['now', 'private', 'extrasHere', 'offstage', 'background', 'agendaDue', 'lastScene', 'intentAction', 'intentTask'];
   P.intent = (state, present, action, stepLabel, stepId, due) =>
     P.build('intent', { state, sc: state.scenario, present, forNarrator: false, action, stepLabel, stepId, due: due || {} });
 
@@ -188,6 +198,23 @@
     });
     return priv.length ? '\n=== PRIVATE (each item is known ONLY to the character named) ===\n' + priv.join('\n') : null;
   };
+  // Minor people with the player (task 2-3): ids for events, and their notes.
+  // The rest go on one short line (no notes), so events can use their ids too.
+  B.extrasHere = ({ state }) => {
+    const here = state.characters[state.player].status.location;
+    const all = Object.values(state.extras || {});
+    const minor = all.filter((x) => x.location === here);
+    const away = all.filter((x) => x.location !== here).slice(0, 8);
+    if (!all.length) return null;
+    const lines = ['\n=== MINOR PEOPLE (no intents; they can be in events, "who" by id) ==='];
+    minor.forEach((x) => lines.push(`- here: ${x.id}: ${Eng().extraLabel(x)}${x.note ? ` — ${x.note}` : ''}`));
+    if (away.length) lines.push(`- elsewhere: ${away.map((x) => `${x.id} (${x.name}${x.group ? ', a group' : ''}, ${x.location ? (state.locations[x.location] || {}).name || x.location : 'no particular place'})`).join('; ')}`);
+    return lines;
+  };
+  const inventLine = (sc) => (sc.inventExtras
+    ? `   If the scene truly needs a minor person or group who isn't listed anywhere (a guard, a shopkeeper, a crowd), add them to "new_extras": {"name","role","location","group":false}. At most 1. Never for someone already in the cast.\n`
+    : '');
+
   // Local characters away from the player: what they want and hide, for events.
   B.offstage = ({ state, present }) => {
     const offstage = Eng().offstage(state, present).filter((id) => Eng().tier(state, id) === 'local');
@@ -237,7 +264,7 @@
    - "visibility": "seen" (happens in the player's room), "heard" (the player gets a sound, call or message about it) or "hidden" (the player has no idea).
    - "moves": [{"id":"character_id","to":"location_id"}] for offstage characters who go somewhere because of it, else [].
    - "scope": "local" for these.
-${tierTask(state, due)}
+${inventLine(sc)}${tierTask(state, due)}
 Reply with JSON only, exactly in this shape:
 ${intentExample(state, present)}`;
   };
@@ -264,7 +291,7 @@ ${intentExample(state, present)}`;
     );
     return `{"player":{"summary":"the player's action restated as a concrete attempt","needs_roll":false,"skill":null,"difficulty":"normal","move_to":null},
  "intents":[${intents.length ? '\n' + intents.join(',\n') + '\n ' : ''}],
- "events":[{"text":"one sentence","scope":"local","who":["character_id"],"where":"location_id","visibility":"heard","moves":[]}]}`;
+ "events":[{"text":"one sentence","scope":"local","who":["character_id"],"where":"location_id","visibility":"heard","moves":[]}]${state.scenario.inventExtras ? ',\n "new_extras":[]' : ''}}`;
   }
 
   function outcomeLines(state, res, forNarrator) {
@@ -326,6 +353,11 @@ ${intentExample(state, present)}`;
     return { state, presentStart, action, frame, res, pc, startLoc, endLoc, moved, left, arrived, statusIds: presentStart.concat(arrived), span: frame.spanMinutes || 60 };
   }
 
+  // Minor people in the scene's rooms (task 2-3): name and role, never the note.
+  function minorLine(state, locs) {
+    const minor = [...new Set(locs)].flatMap((l) => Eng().extrasAt(state, l));
+    return minor.length ? `\nAlso around (minor people, they may appear): ${minor.map((x) => Eng().extraLabel(x)).join('; ')}.` : '';
+  }
   B.sceneFrame = ({ state, presentStart, frame, pc, startLoc, endLoc, moved, left, arrived }) => `=== SCENE FRAME ===
 Starts: ${frame.startTime}, in ${startLoc ? startLoc.name : frame.startLoc}, with ${presentStart.length ? presentStart.map((id) => name(state, id)).join(', ') : 'no one'}.
 Ends: ${E.fmtTime(state)}, ${pc.name} ${moved ? `now in ${endLoc.name}` : `still in ${startLoc ? startLoc.name : frame.startLoc}`}.` +
@@ -334,6 +366,7 @@ Ends: ${E.fmtTime(state)}, ${pc.name} ${moved ? `now in ${endLoc.name}` : `still
         ? `${name(state, id)} stays behind in ${startLoc ? startLoc.name : frame.startLoc}`
         : `${name(state, id)} leaves for ${state.locations[state.characters[id].status.location].name}`).join('; ')}.` : '') +
       (arrived.length ? `\n${arrived.map((id) => name(state, id)).join(', ')} ${arrived.length > 1 ? 'are' : 'is'} there at the end.` : '') +
+      minorLine(state, [frame.startLoc, state.characters[state.player].status.location]) +
       `\n${worldLines(state)}`;
   // Narrator-side status (no secrets, notable needs only) for the player and statusIds.
   B.status = ({ state, statusIds }) => ['\n=== STATUS ===', statusLine(state, state.player, true, statusIds)]
@@ -497,7 +530,7 @@ locations: ${Object.keys(state.locations).join(', ')}
 world keys: ${Object.keys(state.world).join(', ') || '(none)'}
 groups: ${(state.factions || []).map((f) => f.id).join(', ') || '(none)'}
 clocks: ${state.clocks.map((c) => c.id).join(', ') || '(none)'}
-${sc.needs.length ? `needs: ${sc.needs.map((n) => n.id).join(', ')}\n` : ''}present this turn: ${[state.player].concat(present).join(', ')}`;
+${Object.keys(state.extras || {}).length ? `minor people (facts and location only): ${Object.values(state.extras).map((x) => `${x.id}${x.location ? ' in ' + x.location : ''}`).join(', ')}\n` : ''}${sc.needs.length ? `needs: ${sc.needs.map((n) => n.id).join(', ')}\n` : ''}present this turn: ${[state.player].concat(present).join(', ')}`;
   B.whatHappened = ({ state, action, res, cut }) => (cut
       ? '\n=== WHAT WAS PLANNED THIS TURN (the player stepped in partway: only what the scene below shows actually happened; moves, events and lines it does not show did NOT happen) ===\n'
       : '\n=== WHAT HAPPENED THIS TURN (full truth, including hidden actions) ===\n') + `Player action: "${action}"\n` + outcomeLines(state, res, false);
@@ -521,7 +554,8 @@ Record what changed this turn. Reply with JSON only, exactly in this shape:
           {"target":"faction:group_id","value":"new short stance"},
           {"target":"clock:clock_id","delta":-2}],
  "relations":[{"from":"character_id","to":"character_id","delta":5,"reason":"short reason"}],
- "player_attitude":[{"to":"character_id","delta":-5,"reason":"short reason in past tense"}],
+ "player_attitude":[{"to":"character_id","delta":-5,"reason":"short reason in past tense"}],${sc.inventExtras ? `
+ "new_extras":[],` : ''}
  "chapter_worthy":false}
 Guidelines:
 - 1 to 5 facts. Only things that actually happened or were revealed. Skip trivia.
@@ -536,7 +570,9 @@ Guidelines:
 - mood: for each non-player character present, at most one short line on how they come across right now, as others could read it (e.g. "short with everyone, avoiding Okafor"). Only when it changed. Never for ${name(state, state.player)}, and never hint at anyone's secret.
 - relations: how this turn changed how non-player characters feel about others (never ${name(state, state.player)}'s own feelings), delta between -15 and 15. Leave empty if nothing changed.
 - player_attitude: how ${name(state, state.player)}'s own feelings toward someone shifted, judged ONLY from the player action as quoted above (their words and tone), never from how the narrator embellished it. Snapping, mocking or threatening lowers it; thanking, helping, joking warmly or confiding raises it. Delta between -10 and 10. Leave empty if the action was neutral.
-- chapter_worthy: true only for a major turning point.
+- chapter_worthy: true only for a major turning point.${Object.keys(state.extras || {}).length ? `
+- minor people: may be in facts (about, known_by) and may change location; no relations, moods, tags or needs.` : ''}${sc.inventExtras ? `
+- new_extras: only if the scene clearly brought in a new minor person or group not listed above: {"name","role","location","group":false}. At most 1.` : ''}
 Use [] for any list with nothing to record.`;
 
   // ---------- suggested actions ----------
@@ -581,6 +617,31 @@ Give ${c.name} an agenda: what ${c.pronouns && /^she/.test(c.pronouns) ? 'she' :
 - contact_step: the index (0-based) of a step that brings ${c.name} to find ${state.characters[state.player].name}, or null.
 If ${c.name} would simply keep to routine, reply {"routine":true}.
 Reply with JSON only: {"goal":"...","steps":["...","..."],"hours":12,"contact_step":null}`;
+
+  // ---------- promoting an extra (task 2-3) ----------
+  // Turns a minor person into a full character. Sees everything known about
+  // them, private facts included; the result is checked like a character file.
+  P.layouts.fleshOut = ['extraStub', 'fleshOutTask'];
+  P.fleshOut = (state, id) => P.build('fleshOut', { state, x: state.extras[id], id });
+  B.extraStub = ({ state, x, id }) => {
+    const loc = x.location && state.locations[x.location];
+    const lines = [`=== ${x.name.toUpperCase()} (${id}) ===`, `${x.role}${x.pronouns ? ', ' + x.pronouns : ''}${loc ? `, usually in ${loc.name}` : ''}.${x.note ? ' ' + x.note : ''}`];
+    const facts = state.facts.filter((f) => (f.about || []).includes(id) || (f.known_by || []).includes(id)).slice(-8);
+    if (facts.length) lines.push('What has happened with them:', ...facts.map((f) => `- ${f.text}`));
+    // How the last scene showed them, so the sheet doesn't contradict it
+    // (playtest-albee-promoted: curlers and a reedy voice became a neat bun
+    // and a crisp one).
+    const surname = x.name.split(/\s+/).pop().toLowerCase();
+    const shown = (state.log || []).filter((e) => e.type === 'scene' && e.text && e.text.toLowerCase().includes(surname)).slice(-2).map((e) => e.text);
+    if (shown.length) lines.push('\n=== HOW THE STORY HAS SHOWN THEM ===', E.shorten(shown.join('\n\n'), 1600));
+    return lines;
+  };
+  B.fleshOutTask = ({ state, x }) => `
+=== TASK ===
+${x.name} has come to matter in the story. Write their character sheet. Keep the name and the role. Stay consistent with how the story has shown them: their looks, voice and what they said or did, and the note above.
+Reply with JSON only:
+{"pronouns":"she/her","age":40,"role":"${x.role}","traits":["three","short","traits"],"want":"what they want, one phrase","secret":"something they hide, or null","guard":"low|medium|high","voice":"how they talk, one sentence","appearance":"one or two sentences, the first a good one-line look","description":"who they are, one or two sentences","skills":{${state.scenario.skills.map((k) => `"${k}":1`).join(',')}},"relations":{"character_id":10},"agenda":{"goal":"what they work toward next","steps":["verb phrase","verb phrase"],"hours":12,"contact_step":null}}
+- skills from 0 to 4. relations: how they feel about cast members they have met, from -30 to 30 (ids: ${Eng().cast(state).join(', ')}).`;
 
   // ---------- chapter ----------
   P.layouts.chapter = ['chapterEvents', 'chapterTask'];

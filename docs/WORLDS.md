@@ -66,6 +66,8 @@ Static servers can't list directories, so `world.json` lists its starts and char
 | `world` | object | world-status defaults; starts may add or override keys |
 | `eventRates`, `eventSeeds`, `majorEventDays`, `majorHorizonDays`, `majorSeeds`, `revealSkills` | | as today; starts may override |
 | `tiers` | object | optional `{demoteAfter, maxLocal}` (whole numbers ≥ 1; defaults 4 and 6) for cast tiers (task 2-1). Starts may override field by field |
+| `extras` | object[] | minor people (task 2-3): `{id, name, role, location, note, pronouns, group, count}`. `location` may be `null` (nowhere in particular); `group: true` makes one entity of a crowd, patrol or horde, with an optional `count` ("hundreds"). Ids must not clash with characters or locations. Starts add to or change them by `id` |
+| `inventExtras` | boolean | default false; true lets the model add minor people during play (one a turn, 30 in all). Leave it off for closed settings |
 | `facts` | string[] | public facts true everywhere |
 | `characters` | string[] | the character pool (ids in `characters/`) |
 | `starts` | string[] | start ids in `starts/`; the first is the default |
@@ -88,7 +90,7 @@ Static servers can't list directories, so `world.json` lists its starts and char
 | `facts` | string[] | public facts specific to this start |
 | `opening` | string | first scene |
 | `castLabel` | string | sidebar heading ("Crew", "Survivors") |
-| reserved | | `region` (phase 3), `playerSlot` (phase 4: lets the player make their own character), `extras`, `standees` (phases 2 and 3) |
+| reserved | | `region` (phase 3), `playerSlot` (phase 4: lets the player make their own character), `standees` (phase 3) |
 
 ### cast entries
 
@@ -108,7 +110,7 @@ Overridable per start: `status`, `needs`, `relations`, `knows`, `want`, `secret`
 
 1. Start with a deep clone of the world.
 2. **Scalars, strings and every other field** (`setting`, `timeLabel`, `majorEventDays`, and lists not named below such as `skills`, `needs`, `majorSeeds`, `revealSkills`): the start's value replaces the world's.
-3. **Lists of objects with `id`** (`locations`, `clocks`, `factions`): merge by id, with start entries replacing world entries field by field. New ids are appended.
+3. **Lists of objects with `id`** (`locations`, `clocks`, `factions`, `extras`): merge by id, with start entries replacing world entries field by field. New ids are appended.
 4. **Lists of strings** (`rules`, `facts`, `tags`): world first, then the start's, without duplicates.
 5. **Plain objects** (`world`, `eventRates`, `eventSeeds`, `tiers`): shallow merge, with the start winning.
 6. `characters` = the start's cast ids in order; `characterData` = each pool file deep-merged with its cast entry (cast entry wins; plain objects such as `status`, `needs` and `relations` merge field by field, lists such as `knows` are replaced). Relations to pool characters who aren't in this start's cast are dropped (they're checked against the pool by `validateWorld` instead).

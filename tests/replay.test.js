@@ -144,6 +144,35 @@ test('playtest: a downtime scene that retells the last scene keeps only what is 
   assert.match(narrates[1].user, /- Teo Bauer: in [^,]+, comes to Kit with a too-cheerful theory about a sensor fault/);
 });
 
+// Holdout on NemoMix 12B, 2026-10-21 (playtest-albee-promoted): Mrs. Albee,
+// named on two turns, becomes a character. The narrator wrote dialogue like
+// a script ("You (Jordan Pike): ...", "Mrs. Albee: ..."), and her new sheet
+// contradicted how the scene had just shown her.
+test('playtest: Mrs. Albee, named twice, becomes a character who keeps what is known about her', async () => {
+  const r = await replay('playtest-albee-promoted');
+  const c = r.state.characters.albee;
+  assert.ok(c && !r.state.extras.albee);
+  assert.deepEqual([c.tier, c.joined, c.status.location], ['local', 2, 'dock']);
+  assert.ok(r.E.Engine.knownAbout(r.state, 'albee').some((f) => /armed men from the Ridge/.test(f.text)));
+  const intents = r.E.LLM.calls.filter((call) => call.kind === 'intent');
+  assert.match(intents[intents.length - 1].user, /Present with Jordan Pike: Mrs\. Albee/);
+});
+
+test('playtest: the promotion call sees how the last scene showed her', async () => {
+  const r = await replay('playtest-albee-promoted');
+  const wb = r.E.LLM.calls.find((call) => call.kind === 'worldbuild');
+  assert.match(wb.user, /=== HOW THE STORY HAS SHOWN THEM ===[^]*her hair in curlers/);
+  assert.match(wb.user, /Stay consistent with how the story has shown them/);
+});
+
+test('playtest: script-style speaker labels are taken out of the prose', async () => {
+  const r = await replay('playtest-albee-promoted');
+  const scenes = r.state.log.filter((e) => e.type === 'scene' && e.turn > 0);
+  scenes.forEach((s) => assert.doesNotMatch(s.text, /(^|\n)(You \(Jordan Pike\)|Mrs\. Albee):/));
+  assert.match(scenes[1].text, /^"Mrs\. Albee, what have you seen out here/);
+  assert.match(scenes[2].text, /\n\n"No, not army\. But they were organized/);
+});
+
 test('until stops after that many actions', async () => {
   const r = await replay('mock-session', { until: 2 });
   assert.equal(r.steps.length, 2);

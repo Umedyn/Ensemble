@@ -272,6 +272,15 @@ test('a scene that retells the last one keeps only the new paragraphs; a new sce
   assert.equal(E.Engine.cleanScene(fresh, {}, state), fresh);
 });
 
+test('speaker labels come off the start of a paragraph; other colons stay (playtest-albee-promoted)', () => {
+  const { E, state } = newGame();
+  const res = {};
+  const out = E.Engine.cleanScene('You (Kit Navarro): "Morning," you say.\n\n[+2m]\nTeo: "Hey, Kit!"\n\nOkafor: "Sit down."\n\nNote to self: never again. Sol 214: still here.', res, state);
+  assert.equal(out, '"Morning," you say.\n\n[+2m]\n"Hey, Kit!"\n\n"Sit down."\n\nNote to self: never again. Sol 214: still here.');
+  assert.deepEqual(guardTypes(res), ['speaker label removed']);
+  assert.ok(E.stepHours(state, 'moment').lengthMult >= 1, 'a moment scene gets room for the ~200 words the 12B writes');
+});
+
 test('prose cleanup: id tags become names, time markers stay, a cut line of dialogue is closed (playtest-id-tags-in-prose)', () => {
   const { E, state } = newGame();
   const res = {};

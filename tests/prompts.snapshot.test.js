@@ -41,6 +41,7 @@ function promptsFor(folder) {
     updateCut: P.update(state, 'Ask what happened.', res, 'You ask.', present, true),
     suggest: P.suggest(state),
     agenda: npcs[1] ? P.agenda(state, npcs[1], null) : '',
+    fleshOut: ((x) => (x ? P.fleshOut(state, x.id) : ''))(Object.values(state.extras || {}).find((e) => !e.group)),
   };
 
   // The player walks to where the moved NPC is: the frame shows who stayed and who's there.

@@ -176,6 +176,17 @@
     "demoteAfter": 4,
     "maxLocal": 6
   },
+  "inventExtras": false,
+  "extras": [
+    {
+      "id": "capcom",
+      "name": "Dana Ruiz",
+      "pronouns": "she/her",
+      "role": "Mission Control CAPCOM",
+      "location": "ops",
+      "note": "Only ever a voice and a face on the 14-minute-delay link in Ops; calm, by the book, and tired of the renewal politics."
+    }
+  ],
   "majorSeeds": [
     "a blocked CO2 scrubber filter starts life support failing",
     "a meteorite punches into the rover garage",

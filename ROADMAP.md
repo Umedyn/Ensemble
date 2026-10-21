@@ -81,7 +81,7 @@ Lets big casts fit in 8K and makes the world move without the player.
 - [x] **Secondary** characters get a one-line brief and an **agenda**: a goal, its steps, progress and a pace. "Keep routine" is a valid agenda. The engine advances agendas between turns, like clocks; the model only writes a step when one completes, as a local or hidden event. (Tasks 2-1 and 2-2.)
 - [x] **Promotion and demotion** rules live in the engine: a character becomes local when they enter the scene, are named by the player, or their agenda brings them into contact. They drop back to secondary after N turns without appearing. Every change is shown in Debug. (Agenda contact steps since 2-2.)
 - [ ] **Pin from the card**: let the player pin someone so they stay local (today `pinned` is authored only).
-- [ ] **Extras**: one-line stubs (name, role, location) with no sheet. When promoted, one generation call turns an extra into a full character, validated and kept from then on.
+- [x] **Extras**: one-line stubs (name, role, location) with no sheet. When promoted, one generation call turns an extra into a full character, validated and kept from then on. (Task 2-3; a group, like a patrol or the herd, can be one extra and never promotes.)
 - [ ] **Relationship web** (from the old Later list): a small graph of how people feel about each other, local characters first.
 
 ## Phase 3: Maps

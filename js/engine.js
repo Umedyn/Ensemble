@@ -50,6 +50,8 @@
       state.characters[c.id] = c;
     });
     Eng.initTiers(state);
+    state.extras = {};
+    (sc.extras || []).forEach((x) => { state.extras[x.id] = Eng.newExtra(x, 'author', 0); });
     // Starting knowledge becomes private facts; scenario facts are public.
     sc.characterData.forEach((c) =>
       (c.knows || []).forEach((text) =>
@@ -66,7 +68,7 @@
 
   // Saves and autosaves from older versions are upgraded one step at a time
   // when loaded. Each step takes a state at version n and returns n + 1.
-  Eng.STATE_VERSION = 5;
+  Eng.STATE_VERSION = 6;
   Eng.migrations = {
     // Worlds and starts (docs/WORLDS.md): the scenario records where it came from.
     1: (state) => {
@@ -105,6 +107,13 @@
       state.version = 5;
       return state;
     },
+    // Extras (task 2-3): older saves have none.
+    5: (state) => {
+      if (!state.extras) state.extras = {};
+      if (state.pending && state.pending.pre && !state.pending.pre.extras) state.pending.pre.extras = {};
+      state.version = 6;
+      return state;
+    },
   };
   Eng.migrate = function (state) {
     if (state.version == null) state.version = 1;
@@ -138,6 +147,73 @@
     return Eng.cast(state, { alive: true, includePlayer: false }).filter((id) => state.characters[id].status.location === here);
   };
   // Living non-player characters not in the scene (default: not with the player).
+  // ---------- extras (task 2-3) ----------
+  // Minor people (the innkeeper, a neighbour) or a group as one entity (a
+  // patrol, the herd): a name, a role, a location (null: nowhere in
+  // particular) and a note. They are not in the cast: no intents, needs,
+  // relations or cards. Events can involve and move them, facts can be about
+  // them, and an individual who comes to matter is promoted to a character.
+  Eng.EXTRAS_MAX = 30;
+  Eng.EXTRAS_PER_TURN = 1;
+  Eng.PROMOTE_MENTIONS = 2;
+  Eng.newExtra = (x, from, turn) => ({
+    id: x.id, name: x.name, role: x.role, pronouns: x.pronouns || null, location: x.location == null ? null : x.location,
+    note: x.note || '', group: !!x.group, count: x.group ? x.count || null : null,
+    from, born: turn, mentions: 0, lastMention: null, promote: false, tries: 0,
+  });
+  Eng.extrasAt = (state, loc) => Object.values(state.extras || {}).filter((x) => x.location && x.location === loc);
+  // "Mrs. Albee (elderly neighbour)", "the herd (group, hundreds)"
+  Eng.extraLabel = (x) => `${x.name}${x.pronouns ? ` (${x.pronouns})` : ''}, ${x.role}${x.group ? `, a group${x.count ? ' of ' + x.count : ''}` : ''}`;
+  const slug = (t) => String(t || '').toLowerCase().replace(/^(the|a|an)\s+/, '').replace(/^(dr|mr|mrs|ms|mx|capt|sgt|prof)\.?\s+/, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24);
+
+  // A minor person the model proposes ("new_extras"), in worlds that allow
+  // it: one per turn, 30 in all, checked like an authored one, with an id the
+  // engine makes. A name already in use means that person. Returns
+  // { id, note } or { error }.
+  Eng.proposeExtra = function (state, raw, turn, defaultLoc) {
+    if (!state.scenario.inventExtras) return { error: 'this world has no invented minor people' };
+    if (!raw || typeof raw !== 'object') return { error: 'not an object' };
+    const name = typeof raw.name === 'string' ? raw.name.replace(/\s+/g, ' ').trim() : '';
+    const role = typeof raw.role === 'string' ? raw.role.replace(/\s+/g, ' ').trim() : '';
+    if (!name || name.length > 40) return { error: `name must be 1–40 characters ("${name}")` };
+    if (!role || role.length > 60) return { error: `role must be 1–60 characters for ${name}` };
+    const low = name.toLowerCase();
+    const known = Object.values(state.characters).find((c) => c.name.toLowerCase() === low) || Object.values(state.extras).find((x) => x.name.toLowerCase() === low);
+    if (known) return { id: known.id, note: `${name} is already ${known.id}` };
+    const added = state.newExtras && state.newExtras.turn === turn ? state.newExtras.n : 0;
+    if (added >= Eng.EXTRAS_PER_TURN) return { error: `only ${Eng.EXTRAS_PER_TURN} new minor person per turn (${name})` };
+    if (Object.keys(state.extras).length >= Eng.EXTRAS_MAX) return { error: `already ${Eng.EXTRAS_MAX} minor people (${name})` };
+    const loc = raw.location == null || raw.location === '' ? defaultLoc : Eng.resolveLocation(state, raw.location, false);
+    if (raw.location != null && raw.location !== '' && !loc) return { error: `unknown location "${raw.location}" for ${name}` };
+    const base = slug(name) || 'extra';
+    let id = base;
+    for (let i = 2; state.characters[id] || state.extras[id] || state.locations[id]; i++) id = `${base}-${i}`;
+    const group = raw.group === true;
+    state.extras[id] = Eng.newExtra({ id, name, role, location: loc || null, group, count: group && typeof raw.count === 'string' ? raw.count.slice(0, 30) : null }, 'model', turn);
+    state.newExtras = { turn, n: added + 1 };
+    return { id, note: `+${Eng.extraLabel(state.extras[id])} in ${loc ? state.locations[loc].name : 'no particular place'} (${id})` };
+  };
+
+  // Being named in the player's action, on different turns, makes an
+  // individual extra due for promotion. Returns Debug lines.
+  Eng.noteExtraMentions = function (state, action, turn) {
+    const out = [];
+    Object.values(state.extras || {}).forEach((x) => {
+      if (x.group || x.lastMention === turn || !mentions(action, x)) return;
+      x.mentions += 1;
+      x.lastMention = turn;
+      if (x.mentions >= Eng.PROMOTE_MENTIONS && !x.promote) {
+        x.promote = true;
+        out.push(`${x.name}: named ${x.mentions} times, will become a full character`);
+      }
+    });
+    return out;
+  };
+
+  // Where someone is, character or extra.
+  const whereIs = (state, id) => (state.characters[id] ? state.characters[id].status.location : state.extras && state.extras[id] ? state.extras[id].location : null);
+  const isExtra = (state, id) => !!(state.extras && state.extras[id]);
+
   Eng.offstage = (state, present) => {
     present = present || Eng.present(state);
     return Eng.cast(state, { alive: true, includePlayer: false }).filter((id) => !present.includes(id));
@@ -589,14 +665,21 @@
       if (used[scope] >= caps[scope]) return guard(res, 'resolve', 'event dropped', `${scope} event not due or over the cap: ${ev.text}`);
       used[scope]++;
       const text = ev.text.trim().slice(0, 220);
-      const who = (Array.isArray(ev.who) ? ev.who : []).filter((id) => state.characters[id] && id !== state.player);
+      const who = (Array.isArray(ev.who) ? ev.who : []).filter((id) => (state.characters[id] || isExtra(state, id)) && id !== state.player);
       // Offstage people in an event may know facts about it (see applyUpdate).
       res.involved = [...new Set((res.involved || []).concat(who))];
-      const where = Eng.resolveLocation(state, ev.where, false) || (scope === 'local' && who[0] ? state.characters[who[0]].status.location : null);
+      const where = Eng.resolveLocation(state, ev.where, false) || (scope === 'local' && who[0] ? whereIs(state, who[0]) : null);
       let vis = ['seen', 'heard', 'hidden'].includes(ev.visibility) ? ev.visibility : 'heard';
       if (vis === 'seen' && where !== here) vis = 'heard';
       const moved = [];
       (Array.isArray(ev.moves) ? ev.moves : []).forEach((m) => {
+        if (m && isExtra(state, m.id)) {
+          const to = Eng.resolveLocation(state, m.to, false);
+          if (!to) return;
+          state.extras[m.id].location = to;
+          moved.push(`${state.extras[m.id].name} → ${state.locations[to].name}`);
+          return;
+        }
         if (!m || !state.characters[m.id] || m.id === state.player || present.includes(m.id)) return;
         const to = Eng.resolveLocation(state, m.to, false);
         if (!to || !Eng.alive(state, m.id)) return;
@@ -689,8 +772,18 @@
       outcomes.push(o);
     });
     applyEvents(state, intentObj, present, stepId || 'hour', res, due);
+    applyNewExtras(state, intentObj.new_extras, state.turn, state.characters[state.player].status.location, (why) => guard(res, 'resolve', 'extra rejected', why), (note) => guard(res, 'resolve', 'extra added', note));
     return res;
   };
+
+  function applyNewExtras(state, list, turn, defaultLoc, no, yes) {
+    if (list == null || (Array.isArray(list) && !list.length)) return;
+    if (!Array.isArray(list)) return no('"new_extras" is not a list');
+    list.slice(0, 3).forEach((raw) => {
+      const out = Eng.proposeExtra(state, raw, turn, defaultLoc);
+      if (out.error) no(out.error); else yes(out.note);
+    });
+  }
 
   // routine = long downtime: people eat and sleep, so hunger/fatigue settle
   // toward normal instead of climbing; stress drifts toward a calm baseline.
@@ -889,20 +982,22 @@
   // ---------- applying the model's update ----------
   Eng.applyUpdate = function (state, upd, present, ctx) {
     ctx = ctx || {};
-    const report = { applied: [], rejected: [], tags: [] };
+    const report = { applied: [], rejected: [], tags: [], extras: [] };
     const ids = new Set(Eng.cast(state));
+    const extraIds = new Set(Object.keys(state.extras || {}));
     const reject = (what, why) => report.rejected.push(`${what} — ${why}`);
     const witnesses = [state.player].concat(present);
     // Who could know this turn's facts: the player, the people present and
     // anyone in this turn's events (hidden ones included). Playtest
     // (playtest-zombie-steps-outside): a scene fact was given to two people
     // in other rooms.
-    const couldKnow = new Set(witnesses.concat(ctx.involved || []));
+    const couldKnow = new Set(witnesses.concat(ctx.involved || [], ctx.extrasPresent || []));
+    const named = (x) => ids.has(x) || extraIds.has(x);
 
     (Array.isArray(upd.facts) ? upd.facts : []).slice(0, 6).forEach((f) => {
       if (!f || !f.text) return reject('fact', 'no text');
-      const about = (f.about || []).filter((x) => ids.has(x));
-      let known = (f.known_by || []).filter((x) => x === 'all' || ids.has(x));
+      const about = (f.about || []).filter(named);
+      let known = (f.known_by || []).filter((x) => x === 'all' || named(x));
       if (!known.includes('all')) {
         const absent = known.filter((x) => !couldKnow.has(x));
         if (absent.length) reject('fact known_by', `dropped ${absent.join(', ')}: not in the scene (${String(f.text).slice(0, 60)})`);
@@ -920,6 +1015,11 @@
       if (same) return reject('fact', `already recorded: "${E.shorten(same.text, 80)}" (${E.shorten(String(f.text), 60)})`);
       const fact = E.Memory.addFact(state, { about, text: f.text, known_by: known, weight: f.weight });
       if (fact.weight >= 3) state.flags.chapterWorthy = true;
+      // An individual extra in a notable fact comes to matter (task 2-3).
+      about.filter((x) => extraIds.has(x) && !state.extras[x].group && !state.extras[x].promote && fact.weight >= 2).forEach((x) => {
+        state.extras[x].promote = true;
+        report.extras.push(`${state.extras[x].name}: in a notable fact, will become a full character`);
+      });
       report.applied.push(`fact: ${fact.text} (w${fact.weight}, known by ${fact.known_by.join('/')})`);
     });
 
@@ -927,7 +1027,16 @@
       if (!s || typeof s.target !== 'string') return reject('state', 'no target');
       const [kind, key] = s.target.split(':');
       const label = JSON.stringify(s);
-      if (kind === 'char') {
+      if (kind === 'char' && extraIds.has(key)) {
+        // Minor people have only a place.
+        const x = state.extras[key];
+        if (s.field !== 'location') return reject(label, 'minor people have only a location');
+        const dest = Eng.resolveLocation(state, s.value, false);
+        if (!dest) return reject(label, 'unknown location');
+        if (![ctx.startLoc, ctx.endLoc].includes(x.location) && dest !== ctx.endLoc) return reject(label, 'nobody in the scene could have seen that move');
+        if (ctx.keptProse != null && !Eng.seenLeaving(ctx.keptProse, x)) return reject(label, 'the player stepped in before they left');
+        x.location = dest;
+      } else if (kind === 'char') {
         const c = state.characters[key];
         if (!c) return reject(label, 'unknown character');
         if (s.field === 'health') {
@@ -983,6 +1092,7 @@
     });
 
     (Array.isArray(upd.relations) ? upd.relations : []).forEach((r) => {
+      if (r && (extraIds.has(r.from) || extraIds.has(r.to))) return reject('relation ' + JSON.stringify(r), 'minor people have no feelings tracked');
       if (!r || !ids.has(r.from) || !ids.has(r.to) || r.from === r.to) return reject('relation ' + JSON.stringify(r), 'bad ids');
       if (r.from === state.player) return reject('relation ' + JSON.stringify(r), "the player's feelings only change through player_attitude, from the player's own action");
       const c = state.characters[r.from];
@@ -995,6 +1105,7 @@
     const pc = state.characters[state.player];
     pc.attitudeNotes = pc.attitudeNotes || {};
     (Array.isArray(upd.player_attitude) ? upd.player_attitude : []).slice(0, 4).forEach((a) => {
+      if (a && extraIds.has(a.to)) return reject('player_attitude ' + JSON.stringify(a), 'minor people have no feelings tracked');
       if (!a || !ids.has(a.to) || a.to === state.player) return reject('player_attitude ' + JSON.stringify(a), 'bad id');
       const d = E.clamp(Math.round(Number(a.delta) || 0), -10, 10);
       if (!d) return;
@@ -1002,6 +1113,9 @@
       if (a.reason) pc.attitudeNotes[a.to] = E.shorten(a.reason, 80);
       report.applied.push(`your attitude: →${a.to} ${d > 0 ? '+' : ''}${d}${a.reason ? ' (' + a.reason + ')' : ''}`);
     });
+
+    applyNewExtras(state, upd.new_extras, ctx.turn ?? state.turn, ctx.endLoc || state.characters[state.player].status.location,
+      (why) => reject('new_extras', why), (note) => report.extras.push(note));
 
     if (upd.chapter_worthy === true) state.flags.chapterWorthy = true;
     return report;
@@ -1152,10 +1266,28 @@
     return kept.join('\n\n');
   };
 
-  // With state, character id tags in brackets become names, and retellings
-  // of the last scene go, first.
+  // Script-style speaker labels at the start of a paragraph ("You (Jordan
+  // Pike): ...", "Mrs. Albee: ...") copy the outcome list's format; the label
+  // goes and the line stays (playtest-albee-promoted).
+  Eng.dropSpeakerLabels = function (state, text, res) {
+    const names = new Set();
+    Object.values(state.characters).concat(Object.values(state.extras || {})).forEach((c) => {
+      [c.name, Eng.shortName(c), String(c.name || '').split(/\s+/)[0]].forEach((n) => n && n.length > 1 && names.add(n.toLowerCase()));
+    });
+    let n = 0;
+    const out = String(text).split(/\n\s*\n/).map((para) => para.replace(/^(\s*(?:\[[^\]]*\]\s*)?)(?:you\s*\([^)\n]{1,40}\)|([A-Z][\w.' -]{1,40}?))\s*:\s+(?=\S)/i, (all, lead, label) => {
+      if (label && !names.has(label.trim().toLowerCase())) return all;
+      n++;
+      return lead;
+    })).join('\n\n');
+    if (n) guard(res, 'scene', 'speaker label removed', `${n} paragraph${n > 1 ? 's' : ''}`);
+    return n ? out : text;
+  };
+
+  // With state, character id tags in brackets become names, speaker labels
+  // and retellings of the last scene go, first.
   Eng.cleanScene = function (text, res, state) {
-    const raw = state ? Eng.dropRetold(state, Eng.replaceIdTags(state, String(text || '').trim(), res), res) : String(text || '').trim();
+    const raw = state ? Eng.dropRetold(state, Eng.dropSpeakerLabels(state, Eng.replaceIdTags(state, String(text || '').trim(), res), res), res) : String(text || '').trim();
     const whole = Eng.trimIncomplete(raw);
     if (whole !== raw) guard(res, 'scene', 'cut to last sentence', '…' + raw.slice(raw.startsWith(whole) ? whole.length : whole.length - 1));
     const paras = (t) => t.split(/\n\s*\n/).filter((p) => p.trim()).length;
@@ -1270,9 +1402,10 @@
         maxTokens: 520, temperature: 0.3,
       });
       const expired = Eng.expireTags(state, p.turn);
-      report = Eng.applyUpdate(state, upd, p.present, { startLoc: p.frame.startLoc, endLoc, keptProse: cut ? prose : null, involved: p.res.involved, turn: p.turn });
+      report = Eng.applyUpdate(state, upd, p.present, { startLoc: p.frame.startLoc, endLoc, keptProse: cut ? prose : null, involved: p.res.involved, turn: p.turn, extrasPresent: p.extrasPresent || [] });
       report.rejected.forEach((r) => guard(p.res, 'memory', 'update rejected', r));
       expired.concat(report.tags).forEach((t) => guard(p.res, 'memory', 'tags & mood', t));
+      report.extras.forEach((t) => guard(p.res, 'memory', 'extras', t));
     } catch (err) {
       E.Memory.addFact(state, { about: [state.player], text: `${state.characters[state.player].name}: ${p.action}`.slice(0, 200), known_by: ['all'], weight: 1 });
       report = { applied: [], rejected: [], warning: 'Update step failed: ' + err.message };
@@ -1284,6 +1417,7 @@
     const eventWho = cut ? [] : [].concat(...(p.res.director || []).filter((d) => d.visibility !== 'hidden').map((d) => d.who || []));
     Eng.updateTiers(state, p.turn, { here: Eng.present(state), events: eventWho }).forEach((t) => guard(p.res, 'memory', 'cast tier', t));
     delete state.pending;
+    await promoteExtra(state, p.turn, p.res, phase);
     await proposeAgenda(state, p.res, phase);
 
     const why = E.Memory.needsChapter(state);
@@ -1298,6 +1432,68 @@
       }
     }
     return report;
+  };
+
+  // An extra who has come to matter becomes a full character: one
+  // "worldbuild" call per turn at most, checked like a character file. The id
+  // stays, so facts about them still hold. They join as local, in the header's
+  // newcomers block (the cast block never changes). Two tries, then they stay
+  // an extra.
+  Eng.PROMOTE_TRIES = 2;
+  async function promoteExtra(state, turn, res, phase) {
+    const x = Object.values(state.extras || {}).find((e) => e.promote && !e.group && e.tries < Eng.PROMOTE_TRIES);
+    if (!x) return;
+    x.tries += 1;
+    phase(`Getting to know ${x.name}…`);
+    let c;
+    try {
+      const raw = await E.LLM.chatJSON({ kind: 'worldbuild', system: E.Prompts.header(state), user: E.Prompts.fleshOut(state, x.id), maxTokens: 700, temperature: 0.7 });
+      c = Eng.characterFromExtra(state, x, raw, turn);
+    } catch (err) {
+      c = { error: 'the call failed: ' + err.message };
+    }
+    if (c.error) return guard(res, 'memory', 'promotion rejected', `${x.name}: ${c.error}${x.tries < Eng.PROMOTE_TRIES ? '; will try again' : '; stays a minor person'}`);
+    state.characters[c.id] = c;
+    state.order.push(c.id);
+    delete state.extras[x.id];
+    guard(res, 'memory', 'extra promoted', `${c.name} (${c.pronouns}), ${c.role}: wants ${c.want}${c.agenda ? `; agenda: ${c.agenda.goal}` : ''}`);
+  }
+
+  // The model's sheet for an extra → a character, or { error }.
+  const text = (v, n) => (typeof v === 'string' && v.replace(/\s+/g, ' ').trim() ? v.replace(/\s+/g, ' ').trim().slice(0, n) : null);
+  Eng.characterFromExtra = function (state, x, raw, turn) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { error: 'not a character sheet' };
+    const sc = state.scenario;
+    const want = text(raw.want, 160);
+    if (!want) return { error: 'no "want"' };
+    const traits = (Array.isArray(raw.traits) ? raw.traits : []).map((t) => text(t, 30)).filter(Boolean).slice(0, 4);
+    if (!traits.length) return { error: 'no "traits"' };
+    const c = {
+      id: x.id, name: x.name, pronouns: text(raw.pronouns, 20) || x.pronouns || 'they/them', role: text(raw.role, 60) || x.role,
+      traits, want, voice: text(raw.voice, 160) || undefined,
+      description: text(raw.description, 600) || undefined, appearance: text(raw.appearance, 400) || undefined,
+      skills: {}, relations: {}, status: { health: 'ok', location: x.location || state.characters[state.player].status.location },
+      needs: {}, tags: [], tier: 'local', lastSeen: turn, joined: turn,
+    };
+    const age = Math.round(Number(raw.age));
+    if (age > 0 && age < 130) c.age = age;
+    const secret = text(raw.secret, 300);
+    if (secret && !/^(none|null|no secret)\.?$/i.test(secret)) {
+      c.secret = secret;
+      c.guard = ['low', 'medium', 'high'].includes(raw.guard) ? raw.guard : 'medium';
+    }
+    sc.skills.forEach((k) => { c.skills[k] = E.clamp(Math.round(Number((raw.skills || {})[k]) || 1), 0, 4); });
+    Object.entries(raw.relations && typeof raw.relations === 'object' ? raw.relations : {}).forEach(([k, v]) => {
+      if (state.characters[k] && k !== x.id) c.relations[k] = E.clamp(Math.round(Number(v) || 0), -30, 30);
+    });
+    sc.needs.forEach((n) => { c.needs[n.id] = 0.2; });
+    if (raw.agenda != null) {
+      const a = Eng.cleanAgenda(raw.agenda, true);
+      if (!a.error) c.agenda = a.agenda;
+    }
+    Object.keys(c).forEach((k) => c[k] === undefined && delete c[k]);
+    const problems = E.Scenario.characterProblems(c, sc, new Set(Object.keys(state.locations)), Object.keys(state.characters));
+    return problems.length ? { error: problems.join('; ') } : c;
   };
 
   // Someone in the background with no agenda (no field at all), or a finished
@@ -1612,10 +1808,12 @@
 
     // Before the start snapshot, so a step-in (which rewinds to it) keeps it.
     const tierChanges = Eng.promoteForAction(state, Eng.present(state), action, state.turn + 1);
+    const extraNotes = Eng.noteExtraMentions(state, action, state.turn + 1);
     const pre = E.clone(state);
     delete pre.log; delete pre.pending; delete pre.undo;
     state.turn += 1;
     const present = Eng.present(state);
+    const extrasPresent = Eng.extrasAt(state, state.characters[state.player].status.location).map((x) => x.id);
     const system = E.Prompts.header(state); // same prefix for all calls this turn
 
     const due = Eng.tiersDue(state, step.hours);
@@ -1628,6 +1826,7 @@
     const frame = { startTime: E.fmtTime(state), startLoc: state.characters[state.player].status.location, stepId: step.id, stepLabel: step.label, words: step.words, spanMinutes: Math.round(step.hours * 60) };
     const res = Eng.resolve(state, intentObj, present, action, step.id, due);
     tierChanges.forEach((t) => guard(res, 'resolve', 'cast tier', t));
+    extraNotes.forEach((t) => guard(res, 'resolve', 'extras', t));
     const before = timeSnapshot(state);
     Eng.advanceTime(state, step.hours, res);
 
@@ -1644,7 +1843,7 @@
     // Memory is recorded at the start of the next turn, once we know how
     // much of this scene the player let play out.
     const playerOut = res.outcomes.find((o) => o.id === state.player);
-    state.pending = { turn: state.turn, action, res, frame, present, beats, pre, playerMovedTo: playerOut && playerOut.moved, narration };
+    state.pending = { turn: state.turn, action, res, frame, present, extrasPresent, beats, pre, playerMovedTo: playerOut && playerOut.moved, narration };
 
     phase('');
     return { prose: text, beats, res, report: report || { applied: [], rejected: [] } };

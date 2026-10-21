@@ -16,14 +16,14 @@
   const START_OWN = ['id', 'title', 'summary', 'start', 'player', 'cast', 'opening', 'castLabel'];
   // World fields a start may override (merge rules below).
   const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'tagThresholds', 'portraitSet', 'factions', 'world',
-    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers'];
+    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras'];
   const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'characters', 'starts', ...OVERRIDABLE];
   const WORLD_RESERVED = ['regions', 'map', 'lore', 'timeline'];
-  const START_RESERVED = ['region', 'playerSlot', 'extras', 'standees'];
+  const START_RESERVED = ['region', 'playerSlot', 'standees'];
   const CAST_FIELDS = ['id', 'status', 'needs', 'relations', 'knows', 'want', 'secret', 'guard', 'tags', 'tier', 'pinned', 'agenda'];
   // Merge rules: lists of {id} objects merge by id, lists of strings are
   // unioned, plain objects merge shallowly; anything else is replaced.
-  const ID_LISTS = ['locations', 'clocks', 'factions'];
+  const ID_LISTS = ['locations', 'clocks', 'factions', 'extras'];
   const STRING_LISTS = ['rules', 'facts', 'tags'];
   const OBJECTS = ['world', 'eventRates', 'eventSeeds', 'tiers'];
 
@@ -276,6 +276,30 @@
     return { worlds, errors };
   };
 
+  // One character's sheet: a character file merged with its cast entry, or a
+  // promoted extra (task 2-3). castIds: who relations may point at.
+  S.characterProblems = function (c, sc, locIds, castIds) {
+    const problems = [];
+    const req = (cond, msg) => { if (!cond) problems.push(msg); };
+    req(c.name, `character "${c.id}" missing "name"`);
+    req(!c.guard || ['low', 'medium', 'high'].includes(c.guard), `character "${c.id}" guard must be low, medium or high`);
+    req(c.tier == null || ['local', 'secondary'].includes(c.tier), `character "${c.id}" tier must be local or secondary`);
+    req(c.pinned == null || typeof c.pinned === 'boolean', `character "${c.id}" pinned must be true or false`);
+    if (c.agenda != null) {
+      const a = E.Engine.cleanAgenda(c.agenda);
+      req(!a.error, `character "${c.id}": ${a.error}`);
+    }
+    req(c.portrait == null || E.isImagePath(c.portrait), `character "${c.id}" portrait must be an image path inside the world folder, like "portraits/${c.id}.png"`);
+    [['description', 600], ['appearance', 400]].forEach(([k, max]) => req(c[k] == null || (typeof c[k] === 'string' && c[k].length <= max), `character "${c.id}" ${k} must be text of at most ${max} characters`));
+    // Tags (and the older status.conditions) start the game as lasting tags.
+    [['tags', c.tags], ['status.conditions', c.status && c.status.conditions]].forEach(([k, v]) =>
+      req(v == null || (Array.isArray(v) && v.every((t) => typeof t === 'string' && t.trim() && t.length <= 32)), `character "${c.id}" ${k} must be a list of short phrases (32 characters each)`));
+    req(c.status && locIds.has(c.status.location), `character "${c.id}" starts at unknown location "${c.status && c.status.location}"`);
+    Object.keys(c.skills || {}).forEach((k) => req(sc.skills.includes(k), `character "${c.id}" has skill "${k}" not in scenario skills`));
+    Object.keys(c.relations || {}).forEach((k) => req(castIds.includes(k), `character "${c.id}" has relation to unknown "${k}"`));
+    return problems;
+  };
+
   // Catches authoring mistakes early with readable messages.
   S.validate = function (sc) {
     const problems = [];
@@ -305,23 +329,26 @@
     (sc.characterData || []).forEach((c, i) => {
       const expected = sc.characters[i];
       req(c.id === expected, `characters/${expected}.json has id "${c.id}"`);
-      req(c.name, `character "${c.id}" missing "name"`);
-      req(!c.guard || ['low', 'medium', 'high'].includes(c.guard), `character "${c.id}" guard must be low, medium or high`);
-      req(c.tier == null || ['local', 'secondary'].includes(c.tier), `character "${c.id}" tier must be local or secondary`);
-      req(c.pinned == null || typeof c.pinned === 'boolean', `character "${c.id}" pinned must be true or false`);
-      if (c.agenda != null) {
-        const a = E.Engine.cleanAgenda(c.agenda);
-        req(!a.error, `character "${c.id}": ${a.error}`);
-      }
-      req(c.portrait == null || E.isImagePath(c.portrait), `character "${c.id}" portrait must be an image path inside the world folder, like "portraits/${c.id}.png"`);
-      [['description', 600], ['appearance', 400]].forEach(([k, max]) => req(c[k] == null || (typeof c[k] === 'string' && c[k].length <= max), `character "${c.id}" ${k} must be text of at most ${max} characters`));
-      // Tags (and the older status.conditions) start the game as lasting tags.
-      [['tags', c.tags], ['status.conditions', c.status && c.status.conditions]].forEach(([k, v]) =>
-        req(v == null || (Array.isArray(v) && v.every((t) => typeof t === 'string' && t.trim() && t.length <= 32)), `character "${c.id}" ${k} must be a list of short phrases (32 characters each)`));
-      req(c.status && locIds.has(c.status.location), `character "${c.id}" starts at unknown location "${c.status && c.status.location}"`);
-      Object.keys(c.skills || {}).forEach((k) => req(sc.skills.includes(k), `character "${c.id}" has skill "${k}" not in scenario skills`));
-      Object.keys(c.relations || {}).forEach((k) => req(sc.characters.includes(k), `character "${c.id}" has relation to unknown "${k}"`));
+      problems.push(...S.characterProblems(c, sc, locIds, sc.characters));
     });
+    // Extras (task 2-3): minor people, or a group as one entity.
+    const extraIds = new Set();
+    (sc.extras == null ? [] : Array.isArray(sc.extras) ? sc.extras : [null]).forEach((x) => {
+      const where = `extra "${(x && x.id) || '?'}"`;
+      if (!isObj(x)) return problems.push('"extras" must be a list of {id, name, role, location}');
+      req(typeof x.id === 'string' && /^[a-z0-9][a-z0-9_-]*$/.test(x.id), `${where}: "id" must be lowercase letters, digits, - or _`);
+      req(!extraIds.has(x.id), `${where} is listed twice`);
+      req(!(sc.characters || []).includes(x.id) && !locIds.has(x.id), `${where}: id is already used by a character or location`);
+      extraIds.add(x.id);
+      req(typeof x.name === 'string' && x.name.trim() && x.name.length <= 40, `${where}: "name" must be text of at most 40 characters`);
+      req(typeof x.role === 'string' && x.role.trim() && x.role.length <= 60, `${where}: "role" must be text of at most 60 characters`);
+      req(x.location === null || locIds.has(x.location), `${where}: unknown location "${x.location}" (use null for nowhere in particular)`);
+      req(x.note == null || (typeof x.note === 'string' && x.note.length <= 200), `${where}: "note" must be text of at most 200 characters`);
+      req(x.pronouns == null || (typeof x.pronouns === 'string' && x.pronouns.length <= 20), `${where}: "pronouns" must be short text`);
+      req(x.group == null || typeof x.group === 'boolean', `${where}: "group" must be true or false`);
+      req(x.count == null || (x.group === true && typeof x.count === 'string' && x.count.length <= 30), `${where}: "count" is a short phrase, for groups only`);
+    });
+    req(sc.inventExtras == null || typeof sc.inventExtras === 'boolean', '"inventExtras" must be true or false');
     req(sc.tags == null || (Array.isArray(sc.tags) && sc.tags.length <= 8 && sc.tags.every((t) => typeof t === 'string' && t.trim() && t.length <= 40)),
       '"tags" must be a list of at most 8 short words or phrases (40 characters each)');
     if (sc.tiers != null) {

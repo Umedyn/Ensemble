@@ -564,7 +564,9 @@
     const loc = state.locations[pc.status.location];
     const present = E.Engine.present(state).map(nm);
     $('sceneBar').innerHTML = `<b>${esc(E.fmtTime(state))}</b> · ${esc(state.scenario.worldTitle || state.scenario.title)}${state.scenario.startTitle ? `<span class="desktop-only"> (${esc(state.scenario.startTitle)})</span>` : ''} · You are in <b>${esc(loc ? loc.name : '?')}</b>` +
-      (present.length ? ` with ${esc(present.join(', '))}` : ', alone') + ` · Chapter ${state.chapter}, turn ${state.turn}`;
+      (present.length ? ` with ${esc(present.join(', '))}` : ', alone') +
+      ((m) => (m.length ? `<span class="desktop-only"> · also here: ${esc(m.map((x) => `${x.name} (${x.role})`).join(', '))}</span>` : ''))(E.Engine.extrasAt(state, pc.status.location)) +
+      ` · Chapter ${state.chapter}, turn ${state.turn}`;
   }
 
   function renderSituation() {
@@ -814,6 +816,14 @@
         <div class="muted">Raw output</div><pre>${esc(c.raw)}</pre></details>`).join('') ||
       '<div class="muted">No model calls yet.</div>';
   }
+  // Minor people (task 2-3): where they are, how often you named them, promotion.
+  function extrasDebug() {
+    const xs = Object.values(state.extras || {});
+    if (!xs.length) return '';
+    return '\n\nMinor people:\n' + xs.map((x) => `  ${x.name} (${x.id}), ${x.role}${x.group ? `, group${x.count ? ' of ' + x.count : ''}` : ''}; in ${x.location ? (state.locations[x.location] || {}).name || x.location : 'no particular place'}; ${x.from === 'model' ? `added turn ${x.born}` : 'authored'}` +
+      (x.group ? '' : `; named ${x.mentions}×${x.promote ? `; promotion due (${x.tries} tries)` : ''}`) + (x.note ? `\n    note: ${x.note}` : '')).join('\n');
+  }
+
   // The raw numbers behind the cards (needs as 0–1, tag expiry, mood reasons).
   function characterDebug() {
     return E.Engine.cast(state).map((id) => {
@@ -828,7 +838,7 @@
         ? `  agenda: ${a.goal} — ${a.done ? 'done' : `step ${a.step + 1}/${a.steps.length} "${a.steps[a.step].text}"${a.steps[a.step].contact ? ' (comes to you)' : ''}, ${Math.round(a.progress * 100)}%${a.due ? ', DUE' : ''}`}; ${a.hours} h a step, ${a.visibility}${a.followUp ? ', follow-up' : ''}`
         : 'agenda' in c ? '  agenda: routine' : '  agenda: none yet (the model will propose one when they are in the background)'];
       return [`${c.name} (${id}): ${E.healthWord(c.status.health)}; ${needs}${tier}`, '  ' + mood].concat(agenda).concat(tags.map((t) => '  tag: ' + t)).join('\n');
-    }).join('\n') + (state.corrections && state.corrections.length
+    }).join('\n') + extrasDebug() + (state.corrections && state.corrections.length
       ? '\n\nYour corrections:\n' + state.corrections.map((x) => `  turn ${x.turn}: ${state.characters[x.id] ? state.characters[x.id].name : x.id} ${x.delta > 0 ? '+' : ''}${x.delta} → ${x.value}${x.why ? ` (${x.why})` : ''}`).join('\n')
       : '');
   }
@@ -963,7 +973,7 @@
   // local | external | hybrid (characters and narration external, bookkeeping local)
   function routingFor(mode) {
     const out = {};
-    E.routeSteps.forEach((r) => { out[r.id] = mode === 'hybrid' ? (['intent', 'narrate'].includes(r.id) ? 'external' : 'local') : mode; });
+    E.routeSteps.forEach((r) => { out[r.id] = mode === 'hybrid' ? (['intent', 'narrate', 'worldbuild'].includes(r.id) ? 'external' : 'local') : mode; });
     return out;
   }
   document.querySelectorAll('[data-route]').forEach((btn) => btn.addEventListener('click', () => {

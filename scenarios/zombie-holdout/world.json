@@ -90,6 +90,26 @@
     "demoteAfter": 3,
     "maxLocal": 5
   },
+  "inventExtras": true,
+  "extras": [
+    {
+      "id": "albee",
+      "name": "Mrs. Albee",
+      "pronouns": "she/her",
+      "role": "elderly neighbour",
+      "location": "dock",
+      "note": "Has been living in the trailer at the loading dock since day three; deaf in one ear, sharp otherwise, keeps a shotgun she says is not loaded."
+    },
+    {
+      "id": "herd",
+      "name": "the herd",
+      "role": "a slow tide of the dead",
+      "group": true,
+      "count": "hundreds",
+      "location": null,
+      "note": "Drifting along the highway toward the junction and the store; noise draws it."
+    }
+  ],
   "majorSeeds": [
     "the dead break through a window",
     "someone in the group gets bitten",

@@ -18,6 +18,7 @@
     { id: 'narrate', label: 'Narration' },
     { id: 'update', label: 'Memory updates' },
     { id: 'chapter', label: 'Chapter summaries' },
+    { id: 'worldbuild', label: 'World building (new characters)' },
   ];
 
   E.defaults = {
@@ -25,7 +26,7 @@
       local: { preset: 'kobold-local', url: 'http://localhost:5001/v1', key: '', model: 'koboldcpp', context: 8192 },
       external: { preset: 'openrouter', url: 'https://openrouter.ai/api/v1', key: '', model: '', context: 32768 },
     },
-    routing: { intent: 'local', narrate: 'local', update: 'local', chapter: 'local' },
+    routing: { intent: 'local', narrate: 'local', update: 'local', chapter: 'local', worldbuild: 'local' },
     memoryCap: 32768, // the most context memory is planned for, however big the model's
     temperature: 0.8,
     narrateTokens: 320,
@@ -123,7 +124,8 @@
 
   // Time steps the player can choose per action. "nextMorning" is computed.
   E.timeSteps = [
-    { id: 'moment', label: 'A few minutes', hours: 0.25, words: '60–120', lengthMult: 0.7 },
+    // 0.7 cut nearly every moment scene off on the 12B (playtest-albee-promoted).
+    { id: 'moment', label: 'A few minutes', hours: 0.25, words: '60–120', lengthMult: 1.1 },
     { id: 'hour', label: 'About an hour', hours: 1, words: '100–200', lengthMult: 1.2 },
     { id: 'hours', label: 'A few hours', hours: 3, words: '150–250', lengthMult: 1.45 },
     { id: 'morning', label: 'Until next morning', hours: null, words: '200–300', lengthMult: 1.75 },
