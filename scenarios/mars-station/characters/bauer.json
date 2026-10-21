@@ -29,5 +29,17 @@
     "okafor": 10,
     "sorensen": 20,
     "raman": 15
+  },
+  "agenda": {
+    "goal": "make sure nobody finds out what happened to the recycler",
+    "hours": 10,
+    "steps": [
+      "checks whether the wiped log left any trace in the backups",
+      "patches the recycler's bearing quietly so the rattle drops",
+      {
+        "text": "comes to Kit with a too-cheerful theory about a sensor fault",
+        "contact": true
+      }
+    ]
   }
 }

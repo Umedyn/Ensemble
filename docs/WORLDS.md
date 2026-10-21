@@ -102,7 +102,7 @@ A character file is the person's **identity**: name, pronouns, role, age, traits
 ]
 ```
 
-Overridable per start: `status`, `needs`, `relations`, `knows`, `want`, `secret`, `guard`, `tags`. A cast entry may also set `tier` (`"local"` or `"secondary"`; default: local if they start in the player's room) and `pinned` (`true`: always local); see Cast tiers in `docs/DESIGN.md`. A plain id uses the file as it is. Character files may still contain `status`, `needs`, `relations` and `knows` as defaults; existing files therefore stay valid.
+Overridable per start: `status`, `needs`, `relations`, `knows`, `want`, `secret`, `guard`, `tags`. A cast entry may also set `tier` (`"local"` or `"secondary"`; default: local if they start in the player's room) and `pinned` (`true`: always local); see Cast tiers in `docs/DESIGN.md`. `agenda` (`{goal, steps, hours, visibility}`, steps as text or `{text, contact}`; `null` for routine) is usually in the character file and may be overridden per start; see Agendas in `docs/DESIGN.md`. With no `agenda` field at all, the model proposes one in play. A plain id uses the file as it is. Character files may still contain `status`, `needs`, `relations` and `knows` as defaults; existing files therefore stay valid.
 
 ## Merge rules (`S.compose`)
 

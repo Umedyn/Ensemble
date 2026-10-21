@@ -175,7 +175,7 @@ test('the intent prompt stays flat with a 12-person cast', () => {
   assert.equal(big.state.order.length, 12);
   const a = intentUser(small.E, small.state).length;
   const b = intentUser(big.E, big.state).length;
-  assert.ok(b - a <= 7 * 180, `7 background people add ${b - a} characters`);
+  assert.ok(b - a <= 7 * 240, `7 background people add ${b - a} characters`);
   // Richer background sheets don't grow it (their want is already past the 60-character cut).
   Object.values(big.state.characters).filter((c) => c.id.startsWith('tech')).forEach((c) => {
     c.want += ' and then much more besides';

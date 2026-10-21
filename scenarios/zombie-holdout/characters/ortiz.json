@@ -29,5 +29,17 @@
     "coleman": 10,
     "han": 15,
     "ferris": 0
+  },
+  "agenda": {
+    "goal": "stretch the food so nobody has to be left behind",
+    "hours": 10,
+    "steps": [
+      "recounts the stockroom shelves and rewrites the ration chart",
+      "sets aside a hidden emergency bag for the weakest of the group",
+      {
+        "text": "comes to Jordan with the real numbers and a hard proposal",
+        "contact": true
+      }
+    ]
   }
 }

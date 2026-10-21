@@ -29,5 +29,17 @@
     "ortiz": 10,
     "han": 20,
     "ferris": -20
+  },
+  "agenda": {
+    "goal": "hide how bad the wound is getting",
+    "hours": 8,
+    "steps": [
+      "rewraps his forearm alone and swallows the last painkillers",
+      "scouts the route toward the county line from the roof",
+      {
+        "text": "comes to Jordan asking to take the pickup out alone",
+        "contact": true
+      }
+    ]
   }
 }

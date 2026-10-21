@@ -45,6 +45,8 @@
       delete c.status.conditions;
       c.relations = c.relations || {};
       c.skills = c.skills || {};
+      if (c.id === sc.player) delete c.agenda;
+      else if ('agenda' in c) c.agenda = Eng.cleanAgenda(c.agenda).agenda || null;
       state.characters[c.id] = c;
     });
     Eng.initTiers(state);
@@ -64,7 +66,7 @@
 
   // Saves and autosaves from older versions are upgraded one step at a time
   // when loaded. Each step takes a state at version n and returns n + 1.
-  Eng.STATE_VERSION = 4;
+  Eng.STATE_VERSION = 5;
   Eng.migrations = {
     // Worlds and starts (docs/WORLDS.md): the scenario records where it came from.
     1: (state) => {
@@ -92,6 +94,15 @@
       const pre = state.pending && state.pending.pre;
       if (pre && pre.characters) Eng.initTiers({ player: state.player, characters: pre.characters }, state.turn);
       state.version = 4;
+      return state;
+    },
+    // Agendas (task 2-2): people in older saves keep to routine, so loading
+    // one never starts proposal calls.
+    4: (state) => {
+      const fill = (chars) => Object.values(chars || {}).forEach((c) => { if (c.id !== state.player && !('agenda' in c)) c.agenda = null; });
+      fill(state.characters);
+      if (state.pending && state.pending.pre) fill(state.pending.pre.characters);
+      state.version = 5;
       return state;
     },
   };
@@ -197,6 +208,163 @@
     });
     return out;
   };
+
+  // ---------- agendas (task 2-2) ----------
+  // A character's own goal as a few steps at a pace (hours per step). The
+  // engine advances them like clocks (secondary characters only during turns,
+  // everyone during a downtime skip); when a step completes it is due, and the
+  // next intent call writes it as one event tagged with the agenda, or the
+  // engine writes it from the step text. A contact step brings the person to
+  // the player. null (or no steps) is routine: nothing fires.
+  Eng.AGENDA_HOURS = 12;
+  Eng.AGENDA_STEPS = 5;
+  const ROUTINE = /^(keep(s|ing)? (to )?)?(the |their |his |her )?(usual )?routine\.?$/i;
+  // raw (authored or proposed) → { agenda } (null for routine) or { error }.
+  // proposed: the model's shape, { goal, steps, hours, contact_step } or { routine: true }.
+  Eng.cleanAgenda = function (raw, proposed) {
+    if (raw == null) return { agenda: null };
+    if (typeof raw !== 'object' || Array.isArray(raw)) return { error: 'agenda must be an object with "goal" and "steps"' };
+    if (raw.routine === true) return { agenda: null };
+    const goal = typeof raw.goal === 'string' ? raw.goal.replace(/\s+/g, ' ').trim() : '';
+    if (!goal) return { error: 'agenda has no "goal"' };
+    if (goal.length > 120) return { error: 'agenda goal is longer than 120 characters' };
+    const list = raw.steps == null ? [] : raw.steps;
+    if (!Array.isArray(list)) return { error: 'agenda "steps" must be a list' };
+    if (!list.length) return ROUTINE.test(goal) ? { agenda: null } : { error: 'agenda has no steps (use "keep routine" for none)' };
+    const max = proposed ? 4 : Eng.AGENDA_STEPS;
+    if (list.length > max) return { error: `agenda has more than ${max} steps` };
+    const steps = [];
+    for (let i = 0; i < list.length; i++) {
+      const st = list[i];
+      const text = (typeof st === 'string' ? st : st && typeof st.text === 'string' ? st.text : '').replace(/\s+/g, ' ').trim();
+      if (!text || /^(one sentence|\.\.\.|…)$/i.test(text)) return { error: `agenda step ${i + 1} has no text` };
+      if (text.length > 140) return { error: `agenda step ${i + 1} is longer than 140 characters` };
+      steps.push({ text, contact: !!((st && st.contact === true) || (proposed && raw.contact_step === i)) });
+    }
+    let hours = raw.hours == null ? Eng.AGENDA_HOURS : Number(raw.hours);
+    if (!(hours > 0)) return { error: 'agenda "hours" must be a number of hours per step' };
+    hours = proposed ? E.clamp(Math.round(hours), 2, 72) : hours;
+    if (hours < 1 || hours > 240) return { error: 'agenda "hours" must be between 1 and 240' };
+    const visibility = raw.visibility == null || proposed ? 'hidden' : raw.visibility;
+    if (!['hidden', 'heard'].includes(visibility)) return { error: 'agenda "visibility" must be hidden or heard' };
+    const step = E.clamp(Math.round(Number(raw.step) || 0), 0, steps.length);
+    return { agenda: { goal, steps, hours, visibility, step, progress: E.clamp(Number(raw.progress) || 0, 0, 1), due: !!raw.due, done: step >= steps.length, followUp: !!raw.followUp } };
+  };
+  const activeAgenda = (c) => (c && c.agenda && !c.agenda.done && c.agenda.steps[c.agenda.step] ? c.agenda : null);
+  Eng.agendaStep = (c) => { const a = activeAgenda(c); return a ? a.steps[a.step] : null; };
+  // Ids whose current step is due, in cast order.
+  Eng.agendasDue = (state) => Eng.cast(state, { alive: true, includePlayer: false }).filter((id) => { const a = activeAgenda(state.characters[id]); return a && a.due; });
+
+  // During turns only secondary characters advance; locals act through intents.
+  function advanceAgendas(state, hours) {
+    Eng.cast(state, { alive: true, includePlayer: false, tier: 'secondary' }).forEach((id) => {
+      const a = activeAgenda(state.characters[id]);
+      if (!a || a.due) return;
+      a.progress = Math.min(1, a.progress + hours / a.hours);
+      if (a.progress >= 1) a.due = true;
+    });
+  }
+
+  // A step is done: the next one starts, or the agenda is finished.
+  function completeStep(state, c, res, how) {
+    const a = c.agenda;
+    const st = a.steps[a.step];
+    a.step += 1;
+    a.progress = 0;
+    a.due = false;
+    if (a.step >= a.steps.length) a.done = true;
+    guard(res, 'resolve', 'agenda step', `${c.name}: step ${a.step}/${a.steps.length} "${st.text}"${how ? ` (${how})` : ''}${a.done ? '; agenda done' : ''}`);
+  }
+
+  // The event the engine writes when the model left a due step out.
+  const stepSentence = (c, st) => `${Eng.shortName(c)} ${st.text.replace(/[.!?]+$/, '')}.`;
+
+  // Applies the due steps for one intent result: one event per due step (the
+  // model's, tagged "agenda": id, or the engine's), hidden agendas stay
+  // hidden, a contact step brings the person into the player's room.
+  // Returns the events that were not agenda events.
+  function applyAgendaEvents(state, raw, present, res) {
+    const due = Eng.agendasDue(state);
+    if (!due.length && !raw.some((ev) => ev && ev.agenda)) return raw;
+    const here = state.characters[state.player].status.location;
+    const written = new Set();
+    const rest = [];
+    const write = (id, ev) => {
+      const c = state.characters[id];
+      const a = c.agenda;
+      const st = a.steps[a.step];
+      const text = (ev && typeof ev.text === 'string' && ev.text.trim() && !/^one sentence$/i.test(ev.text.trim()) ? ev.text.trim() : stepSentence(c, st)).slice(0, 220);
+      const who = [id].concat((ev && Array.isArray(ev.who) ? ev.who : []).filter((x) => x !== id && state.characters[x] && x !== state.player));
+      let where = c.status.location;
+      const moved = [];
+      if (st.contact) {
+        if (where !== here) { c.status.location = here; moved.push(`${c.name} → ${state.locations[here].name}`); }
+        where = here;
+      } else if (ev && !present.includes(id)) {
+        const to = Eng.resolveLocation(state, ev.where, false);
+        if (to && to !== where && to !== here) { c.status.location = to; where = to; moved.push(`${c.name} → ${state.locations[to].name}`); }
+      }
+      const vis = st.contact ? 'seen' : a.visibility === 'heard' ? (where === here ? 'seen' : 'heard') : 'hidden';
+      res.involved = [...new Set((res.involved || []).concat(who))];
+      if (vis === 'hidden') E.Memory.addFact(state, { about: [id], text, known_by: who, weight: 2 });
+      else res.events.push((vis === 'heard' ? '(heard from elsewhere; only a sound, call or message reaches the player) ' : '') + text);
+      res.director.push({ scope: 'local', text, visibility: vis, who, where, moved, effects: [], agenda: id });
+      completeStep(state, c, res, ev ? null : 'written by the engine');
+    };
+    raw.forEach((ev) => {
+      if (!ev || !ev.agenda) return rest.push(ev);
+      const id = String(ev.agenda);
+      if (!due.includes(id) || written.has(id)) return guard(res, 'resolve', 'event dropped', `agenda event for ${id} not due or already written: ${ev.text || ''}`);
+      written.add(id);
+      write(id, ev);
+    });
+    due.filter((id) => !written.has(id)).forEach((id) => write(id, null));
+    return rest;
+  }
+
+  // Downtime: every living non-player agenda runs for the whole span. Steps
+  // completed on the way are recorded (hidden ones as private facts); the
+  // contact step the skip stops at (plan.agenda) is left due for skipTurn.
+  // Returns [{ id, text, visibility }] for the downtime prompt.
+  Eng.runAgendas = function (state, hours, plan, res) {
+    const out = [];
+    const stop = plan && plan.agenda;
+    Eng.cast(state, { alive: true, includePlayer: false }).forEach((id) => {
+      const c = state.characters[id];
+      let left = hours;
+      for (let a = activeAgenda(c); a && left > 0; a = activeAgenda(c)) {
+        const st = a.steps[a.step];
+        const need = (a.due ? 0 : 1 - a.progress) * a.hours;
+        if (need > left + 1e-9) { a.progress += left / a.hours; break; }
+        left -= need;
+        if (st.contact) { a.progress = 1; a.due = true; if (!(stop && stop.id === id)) guard(res, 'resolve', 'agenda step', `${c.name}: "${st.text}" is due (comes to you next)`); break; }
+        const text = stepSentence(c, st);
+        if (a.visibility === 'heard') E.Memory.addFact(state, { about: [id], text, known_by: [id, state.player], weight: 1 });
+        else E.Memory.addFact(state, { about: [id], text, known_by: [id], weight: 2 });
+        out.push({ id, text, visibility: a.visibility });
+        completeStep(state, c, res, 'during the downtime');
+      }
+    });
+    return out;
+  };
+
+  // Hours until each living non-player's next contact step completes, if any.
+  function nextContact(state) {
+    let best = null;
+    Eng.cast(state, { alive: true, includePlayer: false }).forEach((id) => {
+      const a = activeAgenda(state.characters[id]);
+      if (!a) return;
+      let h = (a.due ? 0 : 1 - a.progress) * a.hours;
+      for (let i = a.step; i < a.steps.length; i++) {
+        if (i > a.step) h += a.hours;
+        if (a.steps[i].contact) {
+          if (!best || h < best.hours) best = { hours: Math.max(1, Math.ceil(h)), id, step: i, text: a.steps[i].text };
+          return;
+        }
+      }
+    });
+    return best;
+  }
 
   // ---------- resolution ----------
   // Roll penalties from health and needs. A world can set its own
@@ -403,13 +571,16 @@
   }
 
   Eng.applyEvents = (...a) => applyEvents(...a);
-  function applyEvents(state, intentObj, present, stepId, res, due, capsOverride) {
+  // noAgendas: the downtime skip leaves due agenda steps for the next turn.
+  function applyEvents(state, intentObj, present, stepId, res, due, capsOverride, noAgendas) {
     due = due || {};
     const here = state.characters[state.player].status.location;
-    const raw = Array.isArray(intentObj.events) ? intentObj.events : [];
+    res.director = [];
+    // Agenda steps that are due (task 2-2) don't count toward the caps.
+    const all = Array.isArray(intentObj.events) ? intentObj.events : [];
+    const raw = noAgendas ? all.filter((ev) => !(ev && ev.agenda)) : applyAgendaEvents(state, all, present, res);
     const caps = capsOverride || { local: EVENT_CAP[stepId] ?? 1, regional: due.regional ? 1 : 0, world: due.world ? 1 : 0 };
     const used = { local: 0, regional: 0, world: 0 };
-    res.director = [];
     state.news = state.news || [];
     state.tierLast = state.tierLast || {};
     raw.forEach((ev) => {
@@ -541,11 +712,18 @@
       cl.value = E.clamp(cl.value + (cl.perHour || 0) * hours, 0, cl.max);
       if (cl.value >= cl.max) Eng.fireClock(state, cl, res);
     });
+    // Downtime runs agendas itself (Eng.runAgendas), step by step.
+    if (!routine) advanceAgendas(state, hours);
   };
 
   Eng.fireClock = function (state, cl, res) {
     cl.fired = true;
-    if (cl.fireWorld) Object.assign(state.world, cl.fireWorld);
+    if (cl.fireWorld) {
+      Object.assign(state.world, cl.fireWorld);
+      // The update step can't undo these in the same turn (playtest-agenda-skips).
+      state.worldSetBy = state.worldSetBy || {};
+      Object.keys(cl.fireWorld).forEach((k) => { state.worldSetBy[k] = { turn: state.turn, clock: cl.name }; });
+    }
     const text = cl.fireText || `${cl.name} has come to pass.`;
     res.events.push(text);
     E.Memory.addFact(state, { about: [], text, known_by: ['all'], weight: 3 });
@@ -575,6 +753,11 @@
       }
     }
     const randomHours = meanDays > 0 ? Math.max(6, -Math.log(1 - E.rng()) * meanDays * 24) : Infinity;
+    // Someone's agenda bringing them to the player stops the skip too (task 2-2).
+    const contact = nextContact(state);
+    if (contact && contact.hours <= horizon && contact.hours <= randomHours && (!clockHit || contact.hours < clockHit.hours)) {
+      return { hours: contact.hours, reason: 'agenda', agenda: contact };
+    }
     if (clockHit && clockHit.hours <= randomHours) return { hours: clockHit.hours, reason: 'clock', clock: clockHit };
     if (randomHours <= horizon) return { hours: Math.round(randomHours), reason: 'random' };
     return { hours: horizon, reason: 'horizon' };
@@ -726,6 +909,15 @@
         known = known.filter((x) => couldKnow.has(x));
       }
       if (!known.length) known = witnesses.slice();
+      const words = contentWords(f.text);
+      const same = words.size >= 5 && state.facts.find((old) => {
+        const ow = contentWords(old.text);
+        if (ow.size < 5 || !(old.known_by.includes('all') || known.every((x) => x !== 'all' && old.known_by.includes(x)))) return false;
+        let hit = 0;
+        words.forEach((w) => { if (ow.has(w)) hit++; });
+        return hit / Math.min(words.size, ow.size) >= 0.75;
+      });
+      if (same) return reject('fact', `already recorded: "${E.shorten(same.text, 80)}" (${E.shorten(String(f.text), 60)})`);
       const fact = E.Memory.addFact(state, { about, text: f.text, known_by: known, weight: f.weight });
       if (fact.weight >= 3) state.flags.chapterWorthy = true;
       report.applied.push(`fact: ${fact.text} (w${fact.weight}, known by ${fact.known_by.join('/')})`);
@@ -773,6 +965,8 @@
         } else return reject(label, 'unknown field');
       } else if (kind === 'world') {
         if (!(key in state.world)) return reject(label, 'unknown world key');
+        const lock = (state.worldSetBy || {})[key];
+        if (lock && lock.turn === (ctx.turn ?? state.turn)) return reject(label, `set by "${lock.clock}" this turn`);
         state.world[key] = String(s.value || '').slice(0, 120);
       } else if (kind === 'faction') {
         const f = (state.factions || []).find((x) => x.id === key);
@@ -923,10 +1117,15 @@
 
   // Drops trailing paragraphs that are the player character's own action or
   // thoughts ("You turn back to…"), so the scene ends on someone else's move.
+  // A beat that is only the player's action goes too. But once a paragraph
+  // has been dropped, the paragraph that opens its beat (a time marker) stays:
+  // dropping both lost the whole live scene that ends a skip
+  // (playtest-agenda-skips).
   Eng.trimPlayerEnding = function (prose) {
     const paras = String(prose || '').split(/\n\s*\n/);
     let dropped = 0;
     while (paras.length > 1 && dropped < 2 && /^\s*(\[[^\]]*\]\s*)?(you|your)\b/i.test(paras[paras.length - 1])) {
+      if (dropped && /^\s*\[\s*\+/.test(paras[paras.length - 1])) break;
       paras.pop();
       dropped++;
     }
@@ -934,9 +1133,29 @@
   };
 
   // The full cleanup for a model-written scene, recording what it changed.
-  // With state, character id tags in brackets become names first.
+  // Paragraphs that retell the previous scene (80% of their content words in
+  // it) are dropped; inline time markers start their own paragraph first.
+  // playtest-agenda-skips: a downtime scene opened by repeating the last one.
+  Eng.dropRetold = function (state, text, res) {
+    const last = state.recent && state.recent[state.recent.length - 1];
+    const prev = contentWords(last && last.text);
+    if (prev.size < 8) return text;
+    const MARK = /\[\s*\+\s*\d[^\]]*\]/g;
+    const paras = String(text).replace(/[ \t]+(\[\s*\+\s*\d[^\]]*\])/g, '\n\n$1').split(/\n\s*\n/);
+    const retold = (para) => {
+      const w = [...contentWords(para.replace(MARK, ''))];
+      return w.length >= 8 && w.filter((x) => prev.has(x)).length / w.length >= 0.8;
+    };
+    const kept = paras.filter((para) => !retold(para));
+    if (kept.length === paras.length || !kept.length) return text;
+    guard(res, 'scene', 'retold last scene', `dropped ${paras.length - kept.length} of ${paras.length} paragraphs`);
+    return kept.join('\n\n');
+  };
+
+  // With state, character id tags in brackets become names, and retellings
+  // of the last scene go, first.
   Eng.cleanScene = function (text, res, state) {
-    const raw = state ? Eng.replaceIdTags(state, String(text || '').trim(), res) : String(text || '').trim();
+    const raw = state ? Eng.dropRetold(state, Eng.replaceIdTags(state, String(text || '').trim(), res), res) : String(text || '').trim();
     const whole = Eng.trimIncomplete(raw);
     if (whole !== raw) guard(res, 'scene', 'cut to last sentence', '…' + raw.slice(raw.startsWith(whole) ? whole.length : whole.length - 1));
     const paras = (t) => t.split(/\n\s*\n/).filter((p) => p.trim()).length;
@@ -986,6 +1205,7 @@
     time: E.clone(state.time),
     needs: E.clone(Eng.cast(state).map((id) => state.characters[id].needs)),
     clocks: state.clocks.map((c) => ({ value: c.value, fired: c.fired })),
+    agendas: E.clone(Eng.cast(state).map((id) => state.characters[id].agenda || null)),
   });
 
   // Winds the clock back to where the scene actually ended: the last beat plus
@@ -995,6 +1215,7 @@
     state.time = E.clone(snap.time);
     Eng.cast(state).forEach((id, i) => { state.characters[id].needs = E.clone(snap.needs[i]); });
     state.clocks.forEach((c, i) => { if (snap.clocks[i]) c.value = snap.clocks[i].value; });
+    if (snap.agendas) Eng.cast(state).forEach((id, i) => { if (snap.agendas[i]) state.characters[id].agenda = E.clone(snap.agendas[i]); });
   };
 
   Eng.settleSceneTime = function (state, beats, spanMinutes, before, res) {
@@ -1063,6 +1284,7 @@
     const eventWho = cut ? [] : [].concat(...(p.res.director || []).filter((d) => d.visibility !== 'hidden').map((d) => d.who || []));
     Eng.updateTiers(state, p.turn, { here: Eng.present(state), events: eventWho }).forEach((t) => guard(p.res, 'memory', 'cast tier', t));
     delete state.pending;
+    await proposeAgenda(state, p.res, phase);
 
     const why = E.Memory.needsChapter(state);
     if (why) {
@@ -1077,6 +1299,47 @@
     }
     return report;
   };
+
+  // Someone in the background with no agenda (no field at all), or a finished
+  // one not yet followed up, gets one from the model: one call per turn at
+  // most, validated; anything invalid (or a failed call) is routine.
+  Eng.needsAgenda = (state) => Eng.cast(state, { alive: true, includePlayer: false, tier: 'secondary' }).find((id) => {
+    const c = state.characters[id];
+    return !('agenda' in c) || (c.agenda && c.agenda.done && !c.agenda.followUp);
+  });
+  async function proposeAgenda(state, res, phase) {
+    const id = Eng.needsAgenda(state);
+    if (!id) return;
+    const c = state.characters[id];
+    const previous = c.agenda && c.agenda.done ? c.agenda.goal : null;
+    phase('Planning ahead…');
+    let out;
+    try {
+      const raw = await E.LLM.chatJSON({ kind: 'intent (agenda)', system: E.Prompts.header(state), user: E.Prompts.agenda(state, id, previous), maxTokens: 220, temperature: 0.7 });
+      out = Eng.cleanAgenda(raw, true);
+    } catch (err) {
+      out = { error: 'the call failed: ' + err.message };
+    }
+    if (out.error) {
+      c.agenda = null;
+      guard(res, 'memory', 'agenda rejected', `${c.name}: ${out.error}; keeps to routine`);
+      return;
+    }
+    c.agenda = out.agenda;
+    if (c.agenda && previous) c.agenda.followUp = true;
+    guard(res, 'memory', 'agenda set', c.agenda
+      ? `${c.name}: ${c.agenda.goal} (${c.agenda.steps.length} steps, ${c.agenda.hours} h each${c.agenda.steps.some((st) => st.contact) ? ', comes to you' : ''})`
+      : `${c.name}: keeps to routine`);
+  }
+
+  // True when the player's own words name a location ("work in the lab").
+  function planNames(state, text, locId) {
+    const l = state.locations[locId];
+    const t = ' ' + String(text || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ') + ' ';
+    return [l.id, l.name].concat(l.name.split(/\s*&\s*|\s+and\s+/))
+      .map((n) => String(n).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim())
+      .some((n) => n.length > 2 && t.includes(' ' + n + ' '));
+  }
 
   // The downtime turn: simulate time, ask the model for a montage and (if
   // needed) the interrupting event, then narrate it with day-stamped beats.
@@ -1094,20 +1357,26 @@
 
     phase('Fast-forwarding…');
     Eng.advanceTime(state, plan.hours, res, true);
+    const agendaSteps = Eng.runAgendas(state, plan.hours, plan, res);
     frame.endTime = E.fmtTime(state);
     frame.days = Math.round(plan.hours / 24 * 10) / 10;
 
     phase('Simulating the downtime…');
     const obj = await E.LLM.chatJSON({
-      kind: 'intent', system, user: E.Prompts.skipIntent(state, action, plan, frame, res),
+      kind: 'intent', system, user: E.Prompts.skipIntent(state, action, plan, frame, res, agendaSteps),
       maxTokens: 900, temperature: 0.8,
     });
 
     // what happened in the meantime
     Eng.applyEvents(state, { events: Array.isArray(obj.events) ? obj.events : [] }, [], 'hours', res,
-      { regional: true, world: plan.hours >= 72 }, { local: 2, regional: 2, world: plan.hours >= 72 ? 1 : 0 });
-    // the interrupting event, when it isn't a pressure clock firing
-    if (plan.reason !== 'clock') {
+      { regional: true, world: plan.hours >= 72 }, { local: 2, regional: 2, world: plan.hours >= 72 ? 1 : 0 }, true);
+    // the interrupting event, when it isn't a pressure clock firing or someone's agenda
+    if (plan.reason === 'agenda') {
+      const c = state.characters[plan.agenda.id];
+      const text = stepSentence(c, plan.agenda);
+      res.events.push(`[major] ${text}`);
+      res.major = { text, scope: 'agenda', who: plan.agenda.id };
+    } else if (plan.reason !== 'clock') {
       const m = obj.major_event && typeof obj.major_event.text === 'string' ? obj.major_event : { text: 'Something goes badly wrong, and the routine ends.' };
       const text = m.text.trim().slice(0, 240);
       const scope = ['regional', 'world'].includes(m.scope) ? m.scope : 'local';
@@ -1117,7 +1386,9 @@
       if (scope !== 'local') { state.news.push({ scope, text, time: E.fmtTime(state), effects }); state.tierLast[scope] = absHours(state); }
       res.major = { text, scope, effects };
     } else {
-      res.major = { text: res.events[res.events.length - 1] || plan.clock.name, scope: 'clock' };
+      // The planned clock's own text: model events were applied after it (playtest-agenda-skips).
+      const cl = state.clocks.find((c) => c.id === plan.clock.id);
+      res.major = { text: (cl && cl.fireText) || `${plan.clock.name} has come to pass.`, scope: 'clock' };
     }
     // where everyone is when it hits
     (Array.isArray(obj.positions) ? obj.positions : []).forEach((p) => {
@@ -1125,13 +1396,29 @@
       const loc = c && Eng.resolveLocation(state, p.where, false);
       if (c && loc && Eng.alive(state, p.id)) c.status.location = loc;
     });
+    // The player ends up somewhere else only if their plan names it (rule 3;
+    // playtest-agenda-skips: "keep to routine" put Kit outside as the storm hit).
     const pw = Eng.resolveLocation(state, obj.player_where, false);
-    if (pw) state.characters[state.player].status.location = pw;
+    if (pw && pw !== frame.startLoc) {
+      if (planNames(state, action, pw)) state.characters[state.player].status.location = pw;
+      else guard(res, 'resolve', 'move cancelled', `the downtime put the player in ${pw}; their plan doesn't take them there`);
+    }
+    // The agenda that ends the downtime brings its person to the player.
+    if (plan.reason === 'agenda') {
+      const c = state.characters[plan.agenda.id];
+      if (activeAgenda(c) && c.agenda.due) {
+        c.status.location = state.characters[state.player].status.location;
+        E.Memory.addFact(state, { about: [c.id], text: res.major.text, known_by: [c.id, state.player], weight: 2 });
+        completeStep(state, c, res, 'ends the downtime');
+      }
+    }
     res.outcomes.push({ id: state.player, action: action || 'keeps to routine through the downtime', visible: true, roll: null, moved: null });
     state.flags.chapterWorthy = true;
 
     const montage = Array.isArray(obj.montage) ? obj.montage.filter((x) => x && x.text).slice(0, 5) : [];
-    const doings = Array.isArray(obj.positions) ? obj.positions.filter((p) => p && state.characters[p.id] && p.doing) : [];
+    const doings = (Array.isArray(obj.positions) ? obj.positions.filter((p) => p && state.characters[p.id] && p.doing) : [])
+      .map((p) => (plan.reason === 'agenda' && p.id === plan.agenda.id ? Object.assign({}, p, { doing: plan.agenda.text }) : p));
+    if (plan.reason === 'agenda' && !doings.some((p) => p.id === plan.agenda.id)) doings.push({ id: plan.agenda.id, doing: plan.agenda.text });
     const narration = { skip: true, system, action, montage, doings, presentStart };
     const beats = await writeSkipScene(state, narration, { frame, res }, phase);
     const text = beatsText(beats);
@@ -1335,7 +1622,7 @@
     phase(due.world ? 'The wider world stirs…' : due.regional ? 'Something stirs nearby…' : 'Characters deciding…');
     const intentObj = await E.LLM.chatJSON({
       kind: 'intent', system, user: E.Prompts.intent(state, present, action, step.label, step.id, due),
-      maxTokens: 260 + 150 * present.length + (due.regional ? 120 : 0) + (due.world ? 140 : 0), temperature: 0.7,
+      maxTokens: 260 + 150 * present.length + 80 * Eng.agendasDue(state).length + (due.regional ? 120 : 0) + (due.world ? 140 : 0), temperature: 0.7,
     });
 
     const frame = { startTime: E.fmtTime(state), startLoc: state.characters[state.player].status.location, stepId: step.id, stepLabel: step.label, words: step.words, spanMinutes: Math.round(step.hours * 60) };

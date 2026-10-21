@@ -20,6 +20,8 @@ function promptsFor(folder) {
   const here = state.characters[state.player].status.location;
   const away = Object.keys(state.locations).find((l) => l !== here);
   if (npcs[1]) state.characters[npcs[1]].status.location = away;
+  // The moved NPC's agenda step is due (task 2-2).
+  if (npcs[1] && state.characters[npcs[1]].agenda) state.characters[npcs[1]].agenda.due = true;
   if (npcs[2]) state.characters[npcs[2]].status.health = 'dead';
   state.recent = [{ turn: 1, action: 'Look around.', text: 'You look around. Nobody says much.' }];
 
@@ -38,6 +40,7 @@ function promptsFor(folder) {
     update: P.update(state, 'Ask what happened.', res, 'You ask. They shrug.', present, false),
     updateCut: P.update(state, 'Ask what happened.', res, 'You ask.', present, true),
     suggest: P.suggest(state),
+    agenda: npcs[1] ? P.agenda(state, npcs[1], null) : '',
   };
 
   // The player walks to where the moved NPC is: the frame shows who stayed and who's there.
@@ -46,7 +49,7 @@ function promptsFor(folder) {
 
   const skipFrame = { startLoc: away, startTime: frame.startTime, endTime: 'later', days: 3 };
   const skipRes = { outcomes: [], events: ['A supply drop lands nearby.', '[major] An alarm sounds.'], major: { text: '[major] An alarm sounds.' } };
-  out.skipIntent = P.skipIntent(state, 'Keep busy.', { reason: 'horizon' }, skipFrame, skipRes);
+  out.skipIntent = P.skipIntent(state, 'Keep busy.', { reason: 'horizon' }, skipFrame, skipRes, npcs[1] ? [{ id: npcs[1], text: 'Someone finishes a task.', visibility: 'hidden' }] : []);
   out.narrateSkip = P.narrateSkip(state, 'Keep busy.', skipFrame, [{ after: '1d', text: 'Days pass.' }],
     npcs.filter((id) => id !== npcs[2]).map((id) => ({ id, doing: 'resting' })), skipRes, present);
   out.chapter = P.chapter(state);

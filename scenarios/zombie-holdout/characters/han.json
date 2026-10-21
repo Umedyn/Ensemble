@@ -29,5 +29,17 @@
     "ortiz": 5,
     "coleman": 20,
     "ferris": -10
+  },
+  "agenda": {
+    "goal": "get a seat on the convoy",
+    "hours": 12,
+    "steps": [
+      "listens to the convoy broadcast again and notes the pickup time",
+      "works on the pickup in the lot, looking for a way to start it without keys",
+      {
+        "text": "comes to Jordan to sound them out about leaving with her",
+        "contact": true
+      }
+    ]
   }
 }

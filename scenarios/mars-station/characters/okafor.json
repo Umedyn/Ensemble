@@ -29,5 +29,14 @@
     "sorensen": -10,
     "raman": 5,
     "bauer": 0
+  },
+  "agenda": {
+    "goal": "keep the renewal case clean before the next uplink",
+    "hours": 16,
+    "steps": [
+      "rereads the core-sample report line by line in Ops",
+      "drafts a confident summary of the ice findings for Mission Control",
+      "quietly checks who has opened the raw sample files on the shared drive"
+    ]
   }
 }

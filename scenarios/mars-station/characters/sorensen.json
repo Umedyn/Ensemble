@@ -29,5 +29,17 @@
     "okafor": -10,
     "raman": 10,
     "bauer": 20
+  },
+  "agenda": {
+    "goal": "prove the deep-ice cultures are alive",
+    "hours": 14,
+    "steps": [
+      "runs a second culture from the deep core in the unlogged incubator",
+      "checks the results against the contamination controls, twice",
+      {
+        "text": "comes to find Kit, wanting a second opinion from someone he trusts",
+        "contact": true
+      }
+    ]
   }
 }

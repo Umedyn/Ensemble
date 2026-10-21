@@ -29,5 +29,14 @@
     "ortiz": 0,
     "coleman": -20,
     "han": -10
+  },
+  "agenda": {
+    "goal": "stay in charge of the store and what is in it",
+    "hours": 14,
+    "steps": [
+      "moves part of his stash into a crawlspace behind the office",
+      "makes a quiet deal with whoever seems most useful to him",
+      "starts setting new rules for who gets to go into the stockroom"
+    ]
   }
 }

@@ -29,5 +29,17 @@
     "okafor": 5,
     "sorensen": 10,
     "bauer": 15
+  },
+  "agenda": {
+    "goal": "file this week's private crew report for the sponsor",
+    "hours": 12,
+    "steps": [
+      "notes who is arguing and who is slipping behind schedule",
+      "writes the private report to Halvorsen Aerospace in the rover cab",
+      {
+        "text": "comes to ask Kit, casually, how they think Okafor is holding up",
+        "contact": true
+      }
+    ]
   }
 }

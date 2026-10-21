@@ -104,6 +104,46 @@ test('playtest: a scene cut off at the token limit closes the line of dialogue i
   assert.match(r.state.recent[0].text, /he nods quickly\. "Y-yes, Imani\."$/);
 });
 
+// Ares Deep on NemoMix 12B, 2026-10-21 (playtest-agenda-skips): two skips
+// with no plan. The first stops at the storm, the second at Teo's agenda.
+test('playtest: the clock that ends a skip is what the narrator is told ends it', async () => {
+  const r = await replay('playtest-agenda-skips');
+  const narrates = r.E.LLM.calls.filter((c) => c.kind === 'narrate');
+  assert.match(narrates[0].user, /=== WHAT ENDS IT ===\nThe dust storm arrives\./, 'not the sponsor message applied after it');
+});
+
+test('playtest: a skip with no plan leaves Kit where they were, not outside in the storm', async () => {
+  const r = await replay('playtest-agenda-skips', { until: 1 });
+  assert.equal(r.state.characters.navarro.status.location, 'commons');
+  assert.ok([...r.state.pending.res.guards].some((g) => g.type === 'move cancelled' && /surface/.test(g.detail)));
+});
+
+test('playtest: the live beat that ends a skip survives the player-ending trim', async () => {
+  const r = await replay('playtest-agenda-skips', { until: 1 });
+  const beats = [...r.state.pending.beats];
+  assert.match(beats[beats.length - 1].text, /The Mule's windshield just cracked![^]*I need help!"$/);
+});
+
+test('playtest: the update step cannot undo what a clock set this turn, or record a fact twice', async () => {
+  const r = await replay('playtest-agenda-skips');
+  assert.equal(r.state.world.power, 'solar output collapsed, running on battery reserve');
+  assert.equal(r.state.facts.filter((f) => /dust storm arrives/i.test(f.text)).length, 1);
+  const report = r.E.Engine.telemetry[r.E.Engine.telemetry.length - 1];
+  assert.ok(report.guards.some((g) => g.type === 'update rejected' && /set by "Dust storm arrival" this turn/.test(g.detail)));
+  assert.ok(report.guards.some((g) => g.type === 'update rejected' && /already recorded/.test(g.detail)));
+});
+
+test('playtest: a downtime scene that retells the last scene keeps only what is new, and Teo arrives with his theory', async () => {
+  const r = await replay('playtest-agenda-skips');
+  const text = r.state.recent[0].text;
+  assert.doesNotMatch(text, /drilling into your skull/);
+  assert.match(text, /^Teo comes bounding into the suit room/);
+  assert.equal(r.state.characters.bauer.status.location, r.state.characters.navarro.status.location);
+  assert.equal(r.state.characters.bauer.agenda.done, true);
+  const narrates = r.E.LLM.calls.filter((c) => c.kind === 'narrate');
+  assert.match(narrates[1].user, /- Teo Bauer: in [^,]+, comes to Kit with a too-cheerful theory about a sensor fault/);
+});
+
 test('until stops after that many actions', async () => {
   const r = await replay('mock-session', { until: 2 });
   assert.equal(r.steps.length, 2);

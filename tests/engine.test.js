@@ -254,6 +254,24 @@ test('prose cleanup: repeated paragraphs, cut-off sentences, endings on the play
   assert.deepEqual(guardTypes(quiet), [], 'clean prose fires nothing');
 });
 
+test('player-ending trim: a beat that is only the player goes, but a beat keeps its opening once its ending was dropped (playtest-agenda-skips)', () => {
+  const { E } = newGame();
+  assert.equal(E.Engine.trimPlayerEnding('[+0m] Teo shrugs.\n\n[+40m] You walk off.'), '[+0m] Teo shrugs.');
+  assert.equal(E.Engine.trimPlayerEnding('[+0h] Days pass.\n\n[+19h] You stare out. Priya calls: "I need help!"\n\nYou grab your suit.'),
+    '[+0h] Days pass.\n\n[+19h] You stare out. Priya calls: "I need help!"');
+});
+
+test('a scene that retells the last one keeps only the new paragraphs; a new scene in the same place is untouched', () => {
+  const { E, state } = newGame();
+  state.recent = [{ turn: 1, text: 'You scan the morning status reports while the recycler rattle drills into your skull. Teo rushes by, muttering about pressure regulators and spare gaskets.' }];
+  const res = {};
+  const out = E.Engine.cleanScene('[+0h] You scan the morning status reports while the recycler rattle drills into your skull. Teo rushes by muttering about pressure regulators. [+10h] Teo comes bounding in with a circuit board, grinning.', res, state);
+  assert.equal(out, '[+10h] Teo comes bounding in with a circuit board, grinning.');
+  assert.deepEqual(guardTypes(res), ['retold last scene']);
+  const fresh = '[+0m] The recycler rattle is worse now. Teo swears at the pressure regulators, then asks you for a spare gasket from the status locker.';
+  assert.equal(E.Engine.cleanScene(fresh, {}, state), fresh);
+});
+
 test('prose cleanup: id tags become names, time markers stay, a cut line of dialogue is closed (playtest-id-tags-in-prose)', () => {
   const { E, state } = newGame();
   const res = {};
@@ -324,6 +342,7 @@ test('hidden events become private knowledge and change nothing public', () => {
 test('the storm chain: firing a clock starts its follow-ups, and long skips stop at the next one', () => {
   const { E, state } = newGame();
   fixedRng(E, [0.999]); // keep random major events far away
+  Object.values(state.characters).forEach((c) => { c.agenda = null; }); // and agendas (tests/agendas.test.js)
   const plan1 = E.Engine.planMajorSkip(state);
   assert.equal(plan1.reason, 'clock');
   assert.equal(plan1.clock.id, 'storm');

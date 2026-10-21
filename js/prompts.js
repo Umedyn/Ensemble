@@ -170,15 +170,19 @@
   };
 
   // ---------- intent ----------
-  P.layouts.intent = ['now', 'private', 'offstage', 'background', 'lastScene', 'intentAction', 'intentTask'];
+  P.layouts.intent = ['now', 'private', 'offstage', 'background', 'agendaDue', 'lastScene', 'intentAction', 'intentTask'];
   P.intent = (state, present, action, stepLabel, stepId, due) =>
     P.build('intent', { state, sc: state.scenario, present, forNarrator: false, action, stepLabel, stepId, due: due || {} });
+
+  // The step someone's agenda is on (task 2-2); intent-side only.
+  const working = (c) => { const st = Eng().agendaStep(c); return st ? st.text : null; };
 
   // Secrets and private facts of the people present: only ever in the intent call.
   B.private = ({ state, present }) => {
     const priv = [];
     present.forEach((id) => {
       const c = state.characters[id];
+      if (working(c)) priv.push(`- ${c.name}'s aim: ${c.agenda.goal} (next: ${working(c)})`);
       if (c.secret) priv.push(`- ${c.name}'s secret: ${c.secret} (guard: ${c.guard || 'medium'}; ${({ low: 'cracks easily when confronted', medium: 'holds up unless stressed or trusting', high: 'very hard to crack' })[c.guard || 'medium']})`);
       Mem().privateFacts(state, id).slice(-6).forEach((f) => priv.push(`- ${c.name} knows: ${f.text}`));
     });
@@ -191,7 +195,7 @@
     return '\n=== OFFSTAGE (not with the player; for events only) ===\n' + offstage.map((id) => {
       const c = state.characters[id];
       const loc = state.locations[c.status.location];
-      return `- ${id} (${c.name}), in ${loc ? loc.name : c.status.location}: wants ${c.want || '?'}${c.secret ? '; secret: ' + c.secret : ''}`;
+      return `- ${id} (${c.name}), in ${loc ? loc.name : c.status.location}: wants ${c.want || '?'}${c.secret ? '; secret: ' + c.secret : ''}${working(c) ? '; working on: ' + working(c) : ''}`;
     }).join('\n');
   };
   // Secondary characters (task 2-1): one short line each, no secrets, so a big
@@ -202,8 +206,20 @@
     return ['\n=== BACKGROUND (not with the player; one line each; for events only) ==='].concat(ids.map((id) => {
       const c = state.characters[id];
       const loc = state.locations[c.status.location];
-      return `- ${id} (${c.name}, ${E.shorten(c.role || '?', 40)}), in ${loc ? loc.name : c.status.location}${c.want ? '; wants: ' + E.shorten(c.want, 60) : ''}`;
+      return `- ${id} (${c.name}, ${E.shorten(c.role || '?', 40)}), in ${loc ? loc.name : c.status.location}${c.want ? '; wants: ' + E.shorten(c.want, 60) : ''}${working(c) ? '; now: ' + E.shorten(working(c), 50) : ''}`;
     }));
+  };
+  // Agenda steps the engine says are due: each becomes exactly one event.
+  B.agendaDue = ({ state }) => {
+    const ids = Eng().agendasDue(state);
+    if (!ids.length) return null;
+    const pc = state.characters[state.player];
+    return ['\n=== AGENDA STEPS DUE (write each as exactly one event with "agenda" set to that id) ==='].concat(ids.map((id) => {
+      const c = state.characters[id];
+      const st = Eng().agendaStep(c);
+      const how = st.contact ? `comes to ${pc.name} with it; "visibility":"seen"` : c.agenda.visibility === 'heard' ? '"visibility":"heard"' : '"visibility":"hidden", the player has no idea';
+      return `- ${id} (${c.name}), working toward "${c.agenda.goal}": ${st.text} (${how})`;
+    }), `   Shape: {"text":"one sentence, with names","agenda":"${ids[0]}","scope":"local","who":["${ids[0]}"],"where":"location_id","visibility":"hidden","moves":[]}. These are in addition to the other events.`);
   };
   B.intentAction = ({ action, stepLabel }) => `\n=== PLAYER ACTION (time passing: ${stepLabel}) ===\n"${action}"\nThe player's action takes up this whole span. Others act during the same span.`;
   B.intentTask = ({ state, sc, present, stepId, due }) => {
@@ -378,7 +394,8 @@ Reply with the new beats only.`;
       const rel = c.relations[state.player] || 0;
       const mine = state.characters[state.player].relations[id] || 0;
       return `- ${id} (${c.name}${c.pronouns ? ', ' + c.pronouns : ''}), in ${loc ? loc.name : c.status.location}; wants ${c.want || '?'}; feels toward the player: ${E.relWord(rel)}; the player feels: ${E.relWord(mine)}` +
-        (withSecrets && c.secret ? `; secret (guard ${c.guard || 'medium'}): ${c.secret}` : '');
+        (withSecrets && c.secret ? `; secret (guard ${c.guard || 'medium'}): ${c.secret}` : '') +
+        (withSecrets && working(c) ? `; aim: ${c.agenda.goal}` : '');
     }).join('\n');
   }
 
@@ -396,17 +413,24 @@ Reply with the new beats only.`;
     return [].concat(state.scenario.majorSeeds || [], (s.regional || []).slice(0, 3), (s.world || []).slice(0, 3));
   }
 
-  P.layouts.skipIntent = ['skipFrame', 'people', 'lastScene', 'skipTask'];
-  P.skipIntent = (state, action, plan, frame, res) =>
-    P.build('skipIntent', { state, pc: state.characters[state.player], action, plan, frame, res });
+  P.layouts.skipIntent = ['skipFrame', 'people', 'agendaDuring', 'lastScene', 'skipTask'];
+  P.skipIntent = (state, action, plan, frame, res, agendaSteps) =>
+    P.build('skipIntent', { state, pc: state.characters[state.player], action, plan, frame, res, agendaSteps: agendaSteps || [] });
 
   B.skipFrame = ({ state, pc, action, frame }) => `=== DOWNTIME: ${frame.startTime} → ${frame.endTime} (about ${frame.days} days) ===
 ${pc.name} was in ${state.locations[frame.startLoc] ? state.locations[frame.startLoc].name : frame.startLoc} when it began.
 ${pc.name}'s plan for the downtime: "${action || 'keep to routine'}"
 ${worldLines(state)}`;
   B.people = ({ state }) => '\n=== PEOPLE (everyone, including private secrets; the player sees none of these secrets) ===\n' + crewBrief(state, true);
+  // What people's agendas got done during the downtime (task 2-2).
+  B.agendaDuring = ({ state, agendaSteps }) => (agendaSteps.length
+    ? ['\n=== WHAT PEOPLE GOT DONE (their own plans; hint at hidden ones at most) ==='].concat(agendaSteps.map((a) => `- ${a.text}${a.visibility === 'hidden' ? ' (hidden from the player)' : ''}`))
+    : null);
   B.skipTask = ({ state, pc, plan, res }) => {
-    const ends = plan.reason === 'clock'
+    const who = plan.agenda && state.characters[plan.agenda.id];
+    const ends = plan.reason === 'agenda'
+      ? `The downtime ends when ${who.name} comes to find ${pc.name}: "${plan.agenda.text}". Set "major_event" to null; ${who.name} is with ${pc.name} at the end, and your positions should fit that moment.`
+      : plan.reason === 'clock'
       ? `The downtime ends because a pressure comes to a head: "${res.events[res.events.length - 1] || plan.clock.name}". Set "major_event" to null; your positions should fit that moment.`
       : `The downtime ends with a MAJOR EVENT that you choose: something serious and unexpected that demands a response right now. ${majorKinds(state)}${majorIdeas(state).length ? ` Ideas: ${majorIdeas(state).join('; ')}.` : ''}`;
     return `
@@ -419,7 +443,7 @@ Reply with JSON only:
  "positions":[{"id":"character_id","where":"location_id","doing":"what they are doing when it hits"}],
  "player_where":"location_id"}
 Guidelines:
-- montage: 2 to 4 moments in order, spread across the downtime ("after" = time since it began, like "3d" or "10h"). How people pass the time, relationships shifting, small incidents, secrets being worked on. ${pc.name} follows their plan and their feelings.
+- montage: 2 to 4 moments in order, spread across the downtime ("after" = time since it began, like "3d" or "10h"), all after the last scene (never retell it). How people pass the time, relationships shifting, small incidents, secrets being worked on. ${pc.name} follows their plan and their feelings.
 - events: 0 to 2 newsworthy things during the downtime, with concrete effects for regional/world ones (use only existing ids/keys: world ${Object.keys(state.world).join(', ')}; groups ${(state.factions || []).map((f) => f.id).join(', ') || 'none'}; clocks ${state.clocks.filter((c) => !c.fired).map((c) => c.id).join(', ') || 'none'}).
 - positions: one entry for EVERY other character: ${Eng().cast(state, { alive: true, includePlayer: false }).join(', ')}. Locations: ${Object.keys(state.locations).join(', ')}.
 - player_where: where ${pc.name} is when it hits, consistent with their plan.`;
@@ -453,7 +477,7 @@ ${worldLines(state)}`;
     return `
 === TASK ===
 Write 3 or 4 beats in second person ("you" is ${pc.name}), 250–350 words in total. Start each beat on its own line with a time marker since the downtime began: ${useDays ? '[+0d], [+3d], [+8d]' : '[+0h], [+6h], [+15h]'} and so on.
-1. The first beats are a brief montage of the downtime, a few sentences each: how the days pass, how people get along, the small things. ${pc.name} follows their plan and treats people according to the feelings in STATUS.
+1. The first beats are a brief montage of the downtime, starting after the last scene (never retell it), a few sentences each: how the days pass, how people get along, the small things. ${pc.name} follows their plan and treats people according to the feelings in STATUS.
 2. The final beat starts with ${endMark} and is a live scene in present tense: the thing that ends the downtime hits ${loc ? loc.name : 'where ' + pc.name + ' is'}, and the people there react in their own voices.
 Hard rules:
 - Use each character's pronouns exactly as given in STATUS.
@@ -532,6 +556,31 @@ Suggest 4 different things ${pc.name} could do next, written the way the player 
 Make them different: one that talks to someone here, one practical task, one that pursues ${pc.name}'s goal or a pressure above, and one bolder or riskier.
 Use only people, places and things from the scene and the lists above. Say what ${pc.name} tries, never how it turns out.
 Reply with JSON only: {"suggestions":["...","...","...","..."]}`;
+
+  // ---------- agenda proposal (task 2-2) ----------
+  // One person in the background gets a goal of their own. Like the intent
+  // call, it sees their secret; it never reaches the narrator.
+  P.layouts.agenda = ['agendaPerson', 'agendaTask'];
+  P.agenda = (state, id, previous) => P.build('agenda', { state, c: state.characters[id], id, previous });
+  B.agendaPerson = ({ state, c, id, previous }) => {
+    const loc = state.locations[c.status.location];
+    const lines = [`=== ${c.name.toUpperCase()} (${id}) ===`, `${c.role}${c.pronouns ? ', ' + c.pronouns : ''}, in ${loc ? loc.name : c.status.location}. ${E.fmtTime(state)}.`];
+    if (c.traits && c.traits.length) lines.push(`Traits: ${c.traits.join(', ')}.`);
+    if (c.want) lines.push(`Wants: ${c.want}.`);
+    if (c.secret) lines.push(`Secret (private): ${c.secret}`);
+    Mem().privateFacts(state, id).slice(-3).forEach((f) => lines.push(`Knows: ${f.text}`));
+    if (previous) lines.push(`Just finished working toward: ${previous}.`);
+    return lines;
+  };
+  B.agendaTask = ({ state, c, previous }) => `
+=== TASK ===
+Give ${c.name} an agenda: what ${c.pronouns && /^she/.test(c.pronouns) ? 'she' : c.pronouns && /^he/.test(c.pronouns) ? 'he' : 'they'} quietly works toward over the next few days while ${state.characters[state.player].name} is elsewhere, driven by ${previous ? 'what comes next after that goal' : 'their want and secret'}.
+- goal: one short phrase.
+- steps: 2 to 4 short actions in order, each starting with a verb, without the name (like "runs a second test on the ice cultures").
+- hours: how long each step takes, 4 to 48.
+- contact_step: the index (0-based) of a step that brings ${c.name} to find ${state.characters[state.player].name}, or null.
+If ${c.name} would simply keep to routine, reply {"routine":true}.
+Reply with JSON only: {"goal":"...","steps":["...","..."],"hours":12,"contact_step":null}`;
 
   // ---------- chapter ----------
   P.layouts.chapter = ['chapterEvents', 'chapterTask'];

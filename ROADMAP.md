@@ -38,6 +38,7 @@ Every later phase needs fast testing against a real model, and turns take 30–6
 - [x] **Turn recorder and replay tests.** Export a session's raw model responses as a fixture, and add a fake backend that replays them so a real bad log becomes a regression test. Fixtures live in `tests/fixtures/`.
 - [ ] **Validation pass (carried over).** Play every time step on the reference setup; run several major-event skips in a row; compare Hybrid with all-local; tune reveal thresholds, event rates and scene lengths; play the zombie holdout end to end.
 - [ ] **Reveals must carry the secret.** Playtest 2026-10-21 (DeepSeek, Ares Deep): Teo's intent put his deflection ("probably just a bubble in the line") in `reveals`; the guard allowed it on stress alone, so prompts listed a non-secret under REVEALS. A reveal that shares no content words with the secret or private facts should become null (guard + test from the recording).
+- [ ] **Flaky UI check.** "portraits, minimized cards and the details view" times out about one run in five waiting for Teo's `.known` list (seen 2026-10-20 twice; passes on rerun). Find the race (likely a re-render closing the details, or the commit's fact landing after the card renders) and wait on the right condition.
 - [ ] **Mood repeats.** The update step re-sets a near-identical mood ("clipped and businesslike, eyes fixed on the weather relay" → "clipped and fixed on the weather relay") despite "only when it changed"; consider skipping a mood that shares most words with the current one, so the turn it was set stays meaningful.
 
 ## Phase 1: Foundations
@@ -77,8 +78,8 @@ The format change everything else builds on, plus visible improvements to the ch
 Lets big casts fit in 8K and makes the world move without the player.
 
 - [x] **Local** characters (in the scene, named by the player, or flagged important) get the full simulation: an intent each turn, needs, and full presence in prompts.
-- [ ] **Secondary** characters get a one-line brief and an **agenda**: a goal, its steps, progress and a pace. "Keep routine" is a valid agenda. The engine advances agendas between turns, like clocks; the model only writes a step when one completes, as a local or hidden event. (One-line brief done in 2-1; the agenda is 2-2.)
-- [x] **Promotion and demotion** rules live in the engine: a character becomes local when they enter the scene, are named by the player, or their agenda brings them into contact. They drop back to secondary after N turns without appearing. Every change is shown in Debug. (Agenda contact arrives with 2-2.)
+- [x] **Secondary** characters get a one-line brief and an **agenda**: a goal, its steps, progress and a pace. "Keep routine" is a valid agenda. The engine advances agendas between turns, like clocks; the model only writes a step when one completes, as a local or hidden event. (Tasks 2-1 and 2-2.)
+- [x] **Promotion and demotion** rules live in the engine: a character becomes local when they enter the scene, are named by the player, or their agenda brings them into contact. They drop back to secondary after N turns without appearing. Every change is shown in Debug. (Agenda contact steps since 2-2.)
 - [ ] **Pin from the card**: let the player pin someone so they stay local (today `pinned` is authored only).
 - [ ] **Extras**: one-line stubs (name, role, location) with no sheet. When promoted, one generation call turns an extra into a full character, validated and kept from then on.
 - [ ] **Relationship web** (from the old Later list): a small graph of how people feel about each other, local characters first.
