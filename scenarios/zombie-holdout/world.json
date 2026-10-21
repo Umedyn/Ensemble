@@ -86,6 +86,10 @@
   },
   "majorEventDays": 6,
   "majorHorizonDays": 21,
+  "tiers": {
+    "demoteAfter": 3,
+    "maxLocal": 5
+  },
   "majorSeeds": [
     "the dead break through a window",
     "someone in the group gets bitten",

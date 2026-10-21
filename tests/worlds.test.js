@@ -244,6 +244,8 @@ test('converted bundled worlds start the same game as their legacy versions', ()
     const before = newGame(legacyDir);
     // Descriptions and appearances were added after the conversion (task 1-7).
     Object.values(now.state.characters).forEach((c) => { delete c.description; delete c.appearance; });
+    // Cast tiers were added after the conversion too (task 2-1): zombie-holdout's Ortiz starts local.
+    [now, before].forEach((g) => Object.values(g.state.characters).forEach((c) => delete c.tier));
     ['characters', 'locations', 'clocks', 'world', 'facts', 'factions', 'order', 'time', 'recent', 'player'].forEach((k) =>
       assert.deepEqual(plain(now.state[k]), plain(before.state[k]), `${folder}: state.${k}`));
     assert.equal(now.state.scenario.worldId, folder);

@@ -16,16 +16,16 @@
   const START_OWN = ['id', 'title', 'summary', 'start', 'player', 'cast', 'opening', 'castLabel'];
   // World fields a start may override (merge rules below).
   const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'tagThresholds', 'portraitSet', 'factions', 'world',
-    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks'];
+    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers'];
   const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'characters', 'starts', ...OVERRIDABLE];
   const WORLD_RESERVED = ['regions', 'map', 'lore', 'timeline'];
   const START_RESERVED = ['region', 'playerSlot', 'extras', 'standees'];
-  const CAST_FIELDS = ['id', 'status', 'needs', 'relations', 'knows', 'want', 'secret', 'guard', 'tags'];
+  const CAST_FIELDS = ['id', 'status', 'needs', 'relations', 'knows', 'want', 'secret', 'guard', 'tags', 'tier', 'pinned'];
   // Merge rules: lists of {id} objects merge by id, lists of strings are
   // unioned, plain objects merge shallowly; anything else is replaced.
   const ID_LISTS = ['locations', 'clocks', 'factions'];
   const STRING_LISTS = ['rules', 'facts', 'tags'];
-  const OBJECTS = ['world', 'eventRates', 'eventSeeds'];
+  const OBJECTS = ['world', 'eventRates', 'eventSeeds', 'tiers'];
 
   const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
   const castId = (entry) => (typeof entry === 'string' ? entry : entry && entry.id);
@@ -307,6 +307,8 @@
       req(c.id === expected, `characters/${expected}.json has id "${c.id}"`);
       req(c.name, `character "${c.id}" missing "name"`);
       req(!c.guard || ['low', 'medium', 'high'].includes(c.guard), `character "${c.id}" guard must be low, medium or high`);
+      req(c.tier == null || ['local', 'secondary'].includes(c.tier), `character "${c.id}" tier must be local or secondary`);
+      req(c.pinned == null || typeof c.pinned === 'boolean', `character "${c.id}" pinned must be true or false`);
       req(c.portrait == null || E.isImagePath(c.portrait), `character "${c.id}" portrait must be an image path inside the world folder, like "portraits/${c.id}.png"`);
       [['description', 600], ['appearance', 400]].forEach(([k, max]) => req(c[k] == null || (typeof c[k] === 'string' && c[k].length <= max), `character "${c.id}" ${k} must be text of at most ${max} characters`));
       // Tags (and the older status.conditions) start the game as lasting tags.
@@ -318,6 +320,10 @@
     });
     req(sc.tags == null || (Array.isArray(sc.tags) && sc.tags.length <= 8 && sc.tags.every((t) => typeof t === 'string' && t.trim() && t.length <= 40)),
       '"tags" must be a list of at most 8 short words or phrases (40 characters each)');
+    if (sc.tiers != null) {
+      req(isObj(sc.tiers), '"tiers" must be an object with "demoteAfter" and/or "maxLocal"');
+      Object.entries(isObj(sc.tiers) ? sc.tiers : {}).forEach(([k, v]) => req(['demoteAfter', 'maxLocal'].includes(k) && Number.isInteger(v) && v >= 1, `tiers.${k} must be demoteAfter/maxLocal with a whole number of at least 1`));
+    }
     req(sc.toneNote == null || (typeof sc.toneNote === 'string' && sc.toneNote.length <= 300), '"toneNote" must be text of at most 300 characters');
     Object.entries(sc.eventRates || {}).forEach(([k, v]) => req(['regional', 'world'].includes(k) && typeof v === 'number' && v >= 0, `eventRates.${k} must be regional/world with hours >= 0 (0 turns it off)`));
     (sc.factions || []).forEach((f) => req(f.id && f.name && f.desc && f.stance, `group "${f.id || '?'}" needs id, name, desc and stance`));

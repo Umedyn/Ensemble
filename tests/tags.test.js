@@ -157,7 +157,7 @@ test('save migration v2→v3 turns conditions into lasting tags, in the pending 
   v2.characters.ortiz.status.conditions = ['flour on her hands'];
   v2.pending = { pre: { characters: JSON.parse(JSON.stringify(v2.characters)) } };
   const v3 = E.Engine.migrate(v2);
-  assert.equal(v3.version, 3);
+  assert.equal(v3.version, E.Engine.STATE_VERSION);
   assert.deepEqual([...v3.characters.coleman.tags.map((t) => [t.text, t.until])], [['bandaged left forearm', null]]);
   assert.deepEqual(texts(v3.characters.ortiz), ['flour on her hands']);
   assert.equal(v3.characters.ortiz.status.conditions, undefined);

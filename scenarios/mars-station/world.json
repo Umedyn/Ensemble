@@ -172,6 +172,10 @@
   },
   "majorEventDays": 9,
   "majorHorizonDays": 30,
+  "tiers": {
+    "demoteAfter": 4,
+    "maxLocal": 6
+  },
   "majorSeeds": [
     "a blocked CO2 scrubber filter starts life support failing",
     "a meteorite punches into the rover garage",

@@ -183,6 +183,7 @@ details.rolls li { margin: 2px 0; }
 .card .who { flex: 1; min-width: 0; }
 .portrait { width: 2.5rem; height: 2.5rem; border-radius: 8px; object-fit: cover; flex: none; background: var(--tag-bg); }
 .monogram { display: inline-grid; place-items: center; color: var(--monogram-text); font-weight: 600; font-size: 0.875rem; letter-spacing: .5px; }
+.elsewhere > summary { cursor: pointer; font-size: 0.75rem; color: var(--muted); margin: 2px 0 8px; }
 .card-min { font-size: 1rem; line-height: 1; padding: 0 6px; color: var(--muted); flex: none; }
 .card.min { padding: 5px 8px; }
 .mini { display: flex; align-items: center; gap: 8px; min-width: 0; }

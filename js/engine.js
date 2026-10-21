@@ -47,6 +47,7 @@
       c.skills = c.skills || {};
       state.characters[c.id] = c;
     });
+    Eng.initTiers(state);
     // Starting knowledge becomes private facts; scenario facts are public.
     sc.characterData.forEach((c) =>
       (c.knows || []).forEach((text) =>
@@ -63,7 +64,7 @@
 
   // Saves and autosaves from older versions are upgraded one step at a time
   // when loaded. Each step takes a state at version n and returns n + 1.
-  Eng.STATE_VERSION = 3;
+  Eng.STATE_VERSION = 4;
   Eng.migrations = {
     // Worlds and starts (docs/WORLDS.md): the scenario records where it came from.
     1: (state) => {
@@ -83,6 +84,14 @@
       move(state.characters, state.turn);
       if (state.pending && state.pending.pre) move(state.pending.pre.characters, state.turn);
       state.version = 3;
+      return state;
+    },
+    // Cast tiers (task 2-1): the default rule, everyone last seen now.
+    3: (state) => {
+      Eng.initTiers(state, state.turn);
+      const pre = state.pending && state.pending.pre;
+      if (pre && pre.characters) Eng.initTiers({ player: state.player, characters: pre.characters }, state.turn);
+      state.version = 4;
       return state;
     },
   };
@@ -107,9 +116,10 @@
   // state.order), so cast tiers and standees only change them here. Lookups by
   // id stay state.characters[id].
   Eng.alive = (state, id) => state.characters[id] && state.characters[id].status.health !== 'dead';
+  // tier: 'local' or 'secondary' keeps only that tier (the player is local).
   Eng.cast = (state, opts) => {
-    const { alive = false, includePlayer = true } = opts || {};
-    return state.order.filter((id) => (includePlayer || id !== state.player) && (!alive || Eng.alive(state, id)));
+    const { alive = false, includePlayer = true, tier = null } = opts || {};
+    return state.order.filter((id) => (includePlayer || id !== state.player) && (!alive || Eng.alive(state, id)) && (!tier || Eng.tier(state, id) === tier));
   };
   // Living non-player characters at a location (default: where the player is).
   Eng.present = (state, loc) => {
@@ -120,6 +130,72 @@
   Eng.offstage = (state, present) => {
     present = present || Eng.present(state);
     return Eng.cast(state, { alive: true, includePlayer: false }).filter((id) => !present.includes(id));
+  };
+
+  // ---------- cast tiers (task 2-1) ----------
+  // Local characters (with the player, or important right now) get the full
+  // simulation; secondary ones are in the background with a one-line brief in
+  // the intent call, no intent, and needs that settle like downtime routine.
+  // The header's cast block never looks at tiers (cache rule). The engine
+  // decides every change and logs it as a 'cast tier' guard.
+  Eng.TIERS = { demoteAfter: 4, maxLocal: 6 };
+  Eng.tierRules = (state) => Object.assign({}, Eng.TIERS, state.scenario.tiers || {});
+  Eng.tier = (state, id) => (id === state.player || state.characters[id].tier !== 'secondary' ? 'local' : 'secondary');
+
+  // Authored tier and pinned win; otherwise people in the player's room are
+  // local and the rest secondary. Fills in only what is missing.
+  Eng.initTiers = function (state, turn) {
+    const here = state.characters[state.player].status.location;
+    Object.values(state.characters).forEach((c) => {
+      if (c.lastSeen == null) c.lastSeen = turn || 0;
+      if (c.id === state.player || c.pinned) c.tier = 'local';
+      else if (c.tier !== 'local' && c.tier !== 'secondary') c.tier = c.status.location === here ? 'local' : 'secondary';
+    });
+  };
+
+  function promote(state, ids, turn, why, out) {
+    ids.forEach((id) => {
+      const c = state.characters[id];
+      if (!c || id === state.player) return;
+      c.lastSeen = Math.max(c.lastSeen || 0, turn);
+      if (c.tier === 'secondary') {
+        c.tier = 'local';
+        out.push(`${c.name} → local (${why})`);
+      }
+    });
+    return out;
+  }
+
+  // Before the intent call: the people with the player and anyone the
+  // player's action names come to the foreground, so they get full detail now.
+  Eng.promoteForAction = function (state, present, action, turn) {
+    const out = promote(state, present, turn, 'in the scene', []);
+    const named = Eng.cast(state, { alive: true, includePlayer: false }).filter((id) => !present.includes(id) && mentions(action, state.characters[id]));
+    return promote(state, named, turn, 'named in your action', out);
+  };
+
+  // When a turn is committed: who ended up in the scene and who was in a seen
+  // or heard event come forward; locals not seen for demoteAfter turns go to
+  // the background (unless pinned), and so do the longest-unseen offstage
+  // locals beyond maxLocal. Returns Debug lines.
+  Eng.updateTiers = function (state, turn, ctx) {
+    const rules = Eng.tierRules(state);
+    const here = (ctx && ctx.here) || [];
+    const out = promote(state, here, turn, 'in the scene', []);
+    promote(state, ((ctx && ctx.events) || []).filter((id) => !here.includes(id)), turn, 'in an event you saw or heard', out);
+    const demote = (c, why) => { c.tier = 'secondary'; out.push(`${c.name} → secondary (${why})`); };
+    const offstage = () => Eng.cast(state, { alive: true, includePlayer: false, tier: 'local' })
+      .filter((id) => !here.includes(id) && !state.characters[id].pinned).map((id) => state.characters[id]);
+    offstage().forEach((c) => {
+      const gone = turn - (c.lastSeen || 0);
+      if (gone >= rules.demoteAfter) demote(c, `not seen for ${gone} turns`);
+    });
+    const locals = Eng.cast(state, { alive: true, includePlayer: false, tier: 'local' }).filter((id) => !here.includes(id)).length;
+    let over = locals - rules.maxLocal;
+    offstage().sort((a, b) => (a.lastSeen || 0) - (b.lastSeen || 0)).forEach((c) => {
+      if (over-- > 0) demote(c, `more than ${rules.maxLocal} people in the foreground offstage`);
+    });
+    return out;
   };
 
   // ---------- resolution ----------
@@ -454,7 +530,8 @@
       Eng.cast(state, { alive: true }).forEach((id) => {
         const c = state.characters[id];
         const v = c.needs[n.id] || 0;
-        c.needs[n.id] = routine
+        // People in the background live their routine: needs settle, not climb.
+        c.needs[n.id] = routine || Eng.tier(state, id) === 'secondary'
           ? E.clamp(0.35 + (v - 0.35) * Math.exp(-hours / 24), 0, 1)
           : E.clamp(v + (n.perHour || 0) * hours, 0, 1);
       });
@@ -951,6 +1028,10 @@
       guard(p.res, 'memory', 'update failed', err.message);
     }
     if (cut) report.applied.unshift(`interjected after beat ${cut} of ${total}`);
+    // Tiers follow the scene as it played out. After a step-in the events may
+    // not have reached the player, so only the people there count.
+    const eventWho = cut ? [] : [].concat(...(p.res.director || []).filter((d) => d.visibility !== 'hidden').map((d) => d.who || []));
+    Eng.updateTiers(state, p.turn, { here: Eng.present(state), events: eventWho }).forEach((t) => guard(p.res, 'memory', 'cast tier', t));
     delete state.pending;
 
     const why = E.Memory.needsChapter(state);
@@ -971,6 +1052,7 @@
   // needed) the interrupting event, then narrate it with day-stamped beats.
   async function skipTurn(state, action, phase) {
     const plan = Eng.planMajorSkip(state);
+    const tierChanges = Eng.promoteForAction(state, Eng.present(state), action, state.turn + 1);
     const pre = E.clone(state);
     delete pre.log; delete pre.pending; delete pre.undo;
     state.turn += 1;
@@ -978,6 +1060,7 @@
     const frame = { startTime: E.fmtTime(state), startLoc: state.characters[state.player].status.location, stepId: 'major', stepLabel: 'until something major happens', spanMinutes: Math.round(plan.hours * 60) };
     const presentStart = Eng.present(state);
     const res = { outcomes: [], events: [], guards: [] };
+    tierChanges.forEach((t) => guard(res, 'resolve', 'cast tier', t));
 
     phase('Fast-forwarding…');
     Eng.advanceTime(state, plan.hours, res, true);
@@ -1210,6 +1293,8 @@
     }
     const step = E.stepHours(state, stepId);
 
+    // Before the start snapshot, so a step-in (which rewinds to it) keeps it.
+    const tierChanges = Eng.promoteForAction(state, Eng.present(state), action, state.turn + 1);
     const pre = E.clone(state);
     delete pre.log; delete pre.pending; delete pre.undo;
     state.turn += 1;
@@ -1225,6 +1310,7 @@
 
     const frame = { startTime: E.fmtTime(state), startLoc: state.characters[state.player].status.location, stepId: step.id, stepLabel: step.label, words: step.words, spanMinutes: Math.round(step.hours * 60) };
     const res = Eng.resolve(state, intentObj, present, action, step.id, due);
+    tierChanges.forEach((t) => guard(res, 'resolve', 'cast tier', t));
     const before = timeSnapshot(state);
     Eng.advanceTime(state, step.hours, res);
 

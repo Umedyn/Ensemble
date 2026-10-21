@@ -18,16 +18,17 @@ The model is used for judgment and prose. Everything that must stay true (where 
 
 `Engine.newGame(scenario)` builds:
 
-- `characters[id]`: sheet (name, pronouns, role, traits, want, secret, guard, voice, skills), `needs` (0–1), `status` (health, location), `tags` ([{text, set, until, reason}]), `mood` ({text, turn, reason}; non-player only), `relations[otherId]` (−100..100: how this person feels about the other), and for the player `attitudeNotes` (latest reason per person)
+- `characters[id]`: sheet (name, pronouns, role, traits, want, secret, guard, voice, skills), `needs` (0–1), `status` (health, location), `tags` ([{text, set, until, reason}]), `mood` ({text, turn, reason}; non-player only), `relations[otherId]` (−100..100: how this person feels about the other), `tier` (`local` | `secondary`), `pinned`, `lastSeen` (turn), and for the player `attitudeNotes` (latest reason per person)
 - `locations`, `world` (key → short status), `factions` (name, desc, stance), `clocks` (pressures with `value/max/perHour`, `fireText`, `fireWorld`, follow-up `then` clocks)
 - `facts[]`: `{ text, about[], known_by[] | ['all'], weight 1–3, turn, chapter }`
 - `chapters[]`, `recent` (last scene), `log` (display only), `news`, `pending` (the last turn awaiting memory), `undo` (the whole state from before the last action), `tierLast` (when regional/world events last happened)
 
 ## The turn
 
-1. **Commit the previous turn** (`commitPending`). Run the update step on the scene as it actually played out. If the player stepped in after beat *k*, first rebuild the turn from its starting snapshot: re-apply the player's own move, advance time to the midpoint between beat *k* and *k+1*, and give the update step only beats 1..*k*. Then close a chapter if due.
+0. **Promote for the action** (`promoteForAction`, before the turn's start snapshot): the people present and anyone the action names become local.
+1. **Commit the previous turn** (`commitPending`). Run the update step on the scene as it actually played out, then update cast tiers (`updateTiers`). If the player stepped in after beat *k*, first rebuild the turn from its starting snapshot: re-apply the player's own move, advance time to the midpoint between beat *k* and *k+1*, and give the update step only beats 1..*k*. Then close a chapter if due.
 2. **Roll event tiers** (`tiersDue`): are a regional and/or world event due, given elapsed time, scenario rates and cooldowns?
-3. **Intent call** (model): judge the player's action (roll needed? skill, difficulty, move); one intent per present character (action, says, reveals, visibility, move); events for the span (local, plus regional/world only if due, with effects). Sees secrets and private knowledge of present characters, and one-line briefs of offstage characters.
+3. **Intent call** (model): judge the player's action (roll needed? skill, difficulty, move); one intent per present character (action, says, reveals, visibility, move); events for the span (local, plus regional/world only if due, with effects). Sees secrets and private knowledge of present characters, a brief (want, secret) of offstage local characters, and one line (role, place, want) per secondary character.
 4. **Resolve** (engine): cancel moves away from the person the action names (unless the player states the move or names someone at the destination); gate reveals by guard; detect leaks; roll d20 + 2×skill vs 8/12/16 with injury and exhaustion penalties; apply moves; apply events and their effects; hidden events become private facts.
 5. **Advance time**: needs tick (or settle, for downtime), clocks advance and may fire (adding follow-up clocks).
 6. **Narrate call** (model): a scene frame (starts where/with whom, ends where, who left or arrived), status with pronouns, the player's attitude toward those present, resolved outcomes (covert ones only as "out of sight"), and beat instructions. The narrator never sees secrets.
@@ -54,6 +55,19 @@ A normal turn is three model calls (intent, narrate, update), plus an occasional
 **Guards.** Whenever the engine overrules or cleans up the model it records `{ stage, type, detail }` in the turn's `res.guards`: `move cancelled`, `reveal blocked`, `leak deflected`, `event dropped` (resolve); `cut to last sentence`, `repeated paragraph removed`, `player ending trimmed`, `relocation regenerated`, `continuation dropped` (scene; Reroll replaces these); `update rejected`, `update failed` (memory, recorded at the next turn's commit and reported with that turn, tagged with the scene's turn). New guards should call `guard()` in `engine.js` so they show up in reports.
 
 Budgets scale with `E.memoryContext()`: the smallest context among the backends routing uses, capped by `memoryCap` (default 32K). Facts ~20%, chapter summaries ~12%. Weight-3 facts are always kept; minor ones go first.
+
+## Cast tiers
+
+Task 2-1. Every non-player character is **local** or **secondary**; the player is always local.
+
+- **Local**: the full simulation. Present locals get an intent; offstage locals get the OFFSTAGE brief (where, want, secret) in the intent call. Needs tick at the world's rates.
+- **Secondary**: in the background. No intent, one line in the intent call's BACKGROUND block (`id (Name, role), in Place: wants …`, want cut to 60 characters, never the secret), so adding people adds one short line each and richer sheets add nothing. Needs settle as in downtime routine. Events can still move them and give them private facts.
+- **Start**: authored `tier` or `pinned` on the cast entry, else local when in the player's starting room.
+- **Promotion** (engine only): present at the start of a turn or named in the player's action (`mentions`, before the intent call and before the turn's snapshot, so a step-in keeps it); at commit, anyone in the player's room after the update step and anyone in a seen or heard event (none after a step-in: the event may not have reached the player; hidden events never). Each also sets `lastSeen`.
+- **Demotion** at commit: non-pinned offstage locals with `turn − lastSeen ≥ demoteAfter` (default 4); then, if more than `maxLocal` (default 6) locals are away from the player, the longest-unseen non-pinned ones. Settings: the world's `tiers`, over `Eng.TIERS`.
+- **Cache**: the header's cast block lists everyone the same way whatever their tier, so a tier change never disturbs the cached prefix; all tier-dependent detail is in the intent user message. The downtime skip still briefs everyone (its positions need the whole cast).
+- **Debug**: every change is a `cast tier` guard (resolve stage for promotions before the intent call, memory stage at commit), and the characters view shows each tier, pin and `lastSeen`. The sidebar lists you, the people with you and other locals, then secondary people in a collapsed **Elsewhere** list.
+- `Eng.cast(state, { tier })` filters by tier; `Eng.tier(state, id)` reads one.
 
 ## Memory
 

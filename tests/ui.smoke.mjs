@@ -411,6 +411,23 @@ for (const phone of [false, true]) {
   });
 }
 
+// Task 2-1: background (secondary) people sit in a collapsed Elsewhere list.
+await check('background people are under a collapsed Elsewhere list that remembers being opened', async (page) => {
+  await page.click('#btnNew');
+  await page.waitForFunction(() => document.querySelectorAll('#cast .card').length > 0);
+  const front = await page.locator('#cast > .card .nm').allTextContents();
+  assert.match(front[0], /Kit Navarro/, 'you first');
+  assert.ok(front.some((n) => /Teo Bauer/.test(n)) && !front.some((n) => /Sorensen|Raman/.test(n)), 'the people with you, not the background');
+  const away = page.locator('#cast details.elsewhere');
+  assert.match(await away.locator(':scope > summary').textContent(), /Elsewhere \(2\)/);
+  assert.ok(!(await card(page, 'Lev Sorensen').isVisible()), 'collapsed at first');
+  await away.locator(':scope > summary').click();
+  assert.ok(await card(page, 'Lev Sorensen').isVisible());
+  await page.reload();
+  await page.waitForFunction(() => document.querySelectorAll('#cast .card').length > 0);
+  assert.ok(await card(page, 'Lev Sorensen').isVisible(), 'still open after a reload');
+});
+
 // Task 1-8: fix your own feelings toward someone from their details.
 await check('correct your feelings from a card', async (page) => {
   await page.click('#btnNew');

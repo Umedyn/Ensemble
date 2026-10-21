@@ -75,9 +75,10 @@ The format change everything else builds on, plus visible improvements to the ch
 
 Lets big casts fit in 8K and makes the world move without the player.
 
-- [ ] **Local** characters (in the scene, named by the player, or flagged important) get the full simulation: an intent each turn, needs, and full presence in prompts.
-- [ ] **Secondary** characters get a one-line brief and an **agenda**: a goal, its steps, progress and a pace. "Keep routine" is a valid agenda. The engine advances agendas between turns, like clocks; the model only writes a step when one completes, as a local or hidden event.
-- [ ] **Promotion and demotion** rules live in the engine: a character becomes local when they enter the scene, are named by the player, or their agenda brings them into contact. They drop back to secondary after N turns without appearing. Every change is shown in Debug.
+- [x] **Local** characters (in the scene, named by the player, or flagged important) get the full simulation: an intent each turn, needs, and full presence in prompts.
+- [ ] **Secondary** characters get a one-line brief and an **agenda**: a goal, its steps, progress and a pace. "Keep routine" is a valid agenda. The engine advances agendas between turns, like clocks; the model only writes a step when one completes, as a local or hidden event. (One-line brief done in 2-1; the agenda is 2-2.)
+- [x] **Promotion and demotion** rules live in the engine: a character becomes local when they enter the scene, are named by the player, or their agenda brings them into contact. They drop back to secondary after N turns without appearing. Every change is shown in Debug. (Agenda contact arrives with 2-2.)
+- [ ] **Pin from the card**: let the player pin someone so they stay local (today `pinned` is authored only).
 - [ ] **Extras**: one-line stubs (name, role, location) with no sheet. When promoted, one generation call turns an extra into a full character, validated and kept from then on.
 - [ ] **Relationship web** (from the old Later list): a small graph of how people feel about each other, local characters first.
 

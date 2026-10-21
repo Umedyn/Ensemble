@@ -11,6 +11,7 @@
   "cast": [
     {
       "id": "navarro",
+      "pinned": true,
       "status": {
         "location": "commons"
       },

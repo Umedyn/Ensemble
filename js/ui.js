@@ -550,20 +550,41 @@
 
   // A cast card is composed from one function per section, in renderCast. Each
   // section returns its markup, or '' to leave it out.
+  // You, then the people with you, then other local characters; secondary
+  // characters (task 2-1) in a collapsed "Elsewhere" list below.
   function renderCast() {
     $('castTitle').textContent = state.scenario.castLabel || 'People';
     const here = state.characters[state.player].status.location;
     const ids = E.Engine.cast(state);
-    $('cast').innerHTML = ids.map((id) => {
+    const card = (id) => {
       const c = state.characters[id];
       const isPlayer = id === state.player;
       const dead = c.status.health === 'dead';
       const min = isMinimized(id);
       const sections = min ? [cardMini(id, c, isPlayer)] : [cardHeader(id, c, isPlayer), cardStatus(c, isPlayer), cardDetails(id, c, dead)].filter(Boolean);
       return `<div class="card ${!isPlayer && c.status.location === here ? 'here' : ''} ${dead ? 'dead' : ''} ${min ? 'min' : ''}" data-id="${esc(id)}">${sections.join('')}</div>`;
-    }).join('');
+    };
+    const others = ids.filter((id) => id !== state.player);
+    const withYou = others.filter((id) => state.characters[id].status.location === here);
+    const local = others.filter((id) => !withYou.includes(id) && E.Engine.tier(state, id) === 'local');
+    const away = others.filter((id) => !withYou.includes(id) && !local.includes(id));
+    $('cast').innerHTML = [state.player].concat(withYou, local).map(card).join('') + (away.length
+      ? `<details class="elsewhere"${elsewhereOpen() ? ' open' : ''}><summary>Elsewhere (${away.length})</summary>${away.map(card).join('')}</details>`
+      : '');
     $('btnCollapseAll').textContent = ids.every(isMinimized) ? 'Expand all' : 'Collapse all';
   }
+  // Whether the Elsewhere list is open, remembered per world.
+  const ELSEWHERE_KEY = 'ensemble.cards.elsewhere';
+  function elsewhereAll() {
+    try { return JSON.parse(store.get(ELSEWHERE_KEY)) || {}; } catch (e) { return {}; }
+  }
+  const elsewhereOpen = () => !!elsewhereAll()[state.scenario.worldId];
+  $('cast').addEventListener('toggle', (ev) => {
+    if (!ev.target.matches || !ev.target.matches('details.elsewhere')) return;
+    const all = elsewhereAll();
+    all[state.scenario.worldId] = ev.target.open;
+    store.set(ELSEWHERE_KEY, JSON.stringify(all));
+  }, true);
 
   // ---------- portraits ----------
   // Paths in the scenario are relative to the world folder. Server worlds load
@@ -746,7 +767,7 @@
     $('debugBody').innerHTML =
       renderTelemetry() +
       (state ? `<details><summary>Fact store (${state.facts.length})</summary><pre>${esc(facts)}</pre></details>` : '') +
-      (state ? `<details><summary>Characters: needs, mood and tags</summary><pre>${esc(characterDebug())}</pre></details>` : '') +
+      (state ? `<details><summary>Characters: needs, tiers, mood and tags</summary><pre>${esc(characterDebug())}</pre></details>` : '') +
       notes.slice().reverse().map((n) => `<details class="note"><summary><b>${esc(n.kind)}</b> · ${esc(n.summary)}</summary><pre>${esc(n.detail)}</pre></details>`).join('') +
       calls.map((c) => `<details><summary><b>${esc(c.kind)}</b> · ${esc(c.backend || '')} · ${c.ms} ms · ~${c.estTokens} tokens${c.overBudget ? ' <span class="fail">over context!</span>' : ''}${c.finish === 'length' ? ' <span class="fail">cut off at the token limit</span>' : ''}${c.salvaged ? ' <span class="fail">salvaged: kept the complete part</span>' : ''}${c.error ? ' <span class="fail">' + esc(c.error) + '</span>' : ''}</summary>
         <div class="muted">System (shared prefix)</div><pre>${esc(c.system)}</pre>
@@ -761,7 +782,8 @@
       const needs = Object.entries(c.needs || {}).map(([k, v]) => `${k} ${v.toFixed(2)}`).join(', ') || 'no needs';
       const mood = c.mood ? `mood (turn ${c.mood.turn}): ${c.mood.text}${c.mood.reason ? ' — ' + c.mood.reason : ''}` : 'mood: none';
       const tags = (c.tags || []).map((t) => `${t.text} [${t.until == null ? 'lasting' : 'until turn ' + t.until}]${t.reason ? ' — ' + t.reason : ''}`);
-      return [`${c.name} (${id}): ${E.healthWord(c.status.health)}; ${needs}`, '  ' + mood].concat(tags.map((t) => '  tag: ' + t)).join('\n');
+      const tier = id === state.player ? '' : `; ${E.Engine.tier(state, id)}${c.pinned ? ' (pinned)' : ''}, last seen turn ${c.lastSeen || 0}`;
+      return [`${c.name} (${id}): ${E.healthWord(c.status.health)}; ${needs}${tier}`, '  ' + mood].concat(tags.map((t) => '  tag: ' + t)).join('\n');
     }).join('\n') + (state.corrections && state.corrections.length
       ? '\n\nYour corrections:\n' + state.corrections.map((x) => `  turn ${x.turn}: ${state.characters[x.id] ? state.characters[x.id].name : x.id} ${x.delta > 0 ? '+' : ''}${x.delta} → ${x.value}${x.why ? ` (${x.why})` : ''}`).join('\n')
       : '');

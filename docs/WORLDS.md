@@ -65,6 +65,7 @@ Static servers can't list directories, so `world.json` lists its starts and char
 | `factions` | | as today; starts may override `stance` |
 | `world` | object | world-status defaults; starts may add or override keys |
 | `eventRates`, `eventSeeds`, `majorEventDays`, `majorHorizonDays`, `majorSeeds`, `revealSkills` | | as today; starts may override |
+| `tiers` | object | optional `{demoteAfter, maxLocal}` (whole numbers ≥ 1; defaults 4 and 6) for cast tiers (task 2-1). Starts may override field by field |
 | `facts` | string[] | public facts true everywhere |
 | `characters` | string[] | the character pool (ids in `characters/`) |
 | `starts` | string[] | start ids in `starts/`; the first is the default |
@@ -101,7 +102,7 @@ A character file is the person's **identity**: name, pronouns, role, age, traits
 ]
 ```
 
-Overridable per start: `status`, `needs`, `relations`, `knows`, `want`, `secret`, `guard`, `tags`. A plain id uses the file as it is. Character files may still contain `status`, `needs`, `relations` and `knows` as defaults; existing files therefore stay valid.
+Overridable per start: `status`, `needs`, `relations`, `knows`, `want`, `secret`, `guard`, `tags`. A cast entry may also set `tier` (`"local"` or `"secondary"`; default: local if they start in the player's room) and `pinned` (`true`: always local); see Cast tiers in `docs/DESIGN.md`. A plain id uses the file as it is. Character files may still contain `status`, `needs`, `relations` and `knows` as defaults; existing files therefore stay valid.
 
 ## Merge rules (`S.compose`)
 
@@ -109,7 +110,7 @@ Overridable per start: `status`, `needs`, `relations`, `knows`, `want`, `secret`
 2. **Scalars, strings and every other field** (`setting`, `timeLabel`, `majorEventDays`, and lists not named below such as `skills`, `needs`, `majorSeeds`, `revealSkills`): the start's value replaces the world's.
 3. **Lists of objects with `id`** (`locations`, `clocks`, `factions`): merge by id, with start entries replacing world entries field by field. New ids are appended.
 4. **Lists of strings** (`rules`, `facts`, `tags`): world first, then the start's, without duplicates.
-5. **Plain objects** (`world`, `eventRates`, `eventSeeds`): shallow merge, with the start winning.
+5. **Plain objects** (`world`, `eventRates`, `eventSeeds`, `tiers`): shallow merge, with the start winning.
 6. `characters` = the start's cast ids in order; `characterData` = each pool file deep-merged with its cast entry (cast entry wins; plain objects such as `status`, `needs` and `relations` merge field by field, lists such as `knows` are replaced). Relations to pool characters who aren't in this start's cast are dropped (they're checked against the pool by `validateWorld` instead).
 7. The composed scenario gets `worldId`, `startId`, `folder` (the world folder) and `title` (`"<world title>: <start title>"` for display, or just the world title when the start has none, plus `worldTitle` and `startTitle` separately). `format` and `starts` are dropped. The prompt header's `SETTING:` line uses `worldTitle`, so start titles stay out of prompts.
 8. Then `S.validate(composed)`: today's checks, unchanged. `S.compose` itself doesn't validate; `S.prepareWorld` does both.

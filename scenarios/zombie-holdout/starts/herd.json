@@ -25,6 +25,7 @@
     },
     {
       "id": "ortiz",
+      "tier": "local",
       "status": {
         "location": "stockroom"
       },

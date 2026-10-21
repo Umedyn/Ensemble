@@ -42,7 +42,7 @@ test('scenario validation accepts and ignores fields the engine does not use yet
   const sc = readScenario('mars-station');
   Object.assign(sc, { tags: ['hard-sf'], lore: [{ id: 'ares', title: 'The Ares program' }], regions: [{ id: 'tharsis' }] });
   sc.locations[0].region = 'tharsis';
-  Object.assign(sc.characterData[1], { tags: ['stubborn'], portrait: 'okafor.png', tier: 'core', region: 'tharsis' });
+  Object.assign(sc.characterData[1], { tags: ['stubborn'], portrait: 'okafor.png', region: 'tharsis' });
   const state = E.Engine.newGame(E.Scenario.validate(sc));
   assert.equal(state.characters[sc.characterData[1].id].name, sc.characterData[1].name);
   assert.ok(E.Prompts.header(state).includes(sc.worldTitle));

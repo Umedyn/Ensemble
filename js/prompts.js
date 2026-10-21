@@ -169,7 +169,7 @@
   };
 
   // ---------- intent ----------
-  P.layouts.intent = ['now', 'private', 'offstage', 'lastScene', 'intentAction', 'intentTask'];
+  P.layouts.intent = ['now', 'private', 'offstage', 'background', 'lastScene', 'intentAction', 'intentTask'];
   P.intent = (state, present, action, stepLabel, stepId, due) =>
     P.build('intent', { state, sc: state.scenario, present, forNarrator: false, action, stepLabel, stepId, due: due || {} });
 
@@ -183,14 +183,26 @@
     });
     return priv.length ? '\n=== PRIVATE (each item is known ONLY to the character named) ===\n' + priv.join('\n') : null;
   };
+  // Local characters away from the player: what they want and hide, for events.
   B.offstage = ({ state, present }) => {
-    const offstage = Eng().offstage(state, present);
+    const offstage = Eng().offstage(state, present).filter((id) => Eng().tier(state, id) === 'local');
     if (!offstage.length) return null;
     return '\n=== OFFSTAGE (not with the player; for events only) ===\n' + offstage.map((id) => {
       const c = state.characters[id];
       const loc = state.locations[c.status.location];
       return `- ${id} (${c.name}), in ${loc ? loc.name : c.status.location}: wants ${c.want || '?'}${c.secret ? '; secret: ' + c.secret : ''}`;
     }).join('\n');
+  };
+  // Secondary characters (task 2-1): one short line each, no secrets, so a big
+  // cast keeps this prompt small.
+  B.background = ({ state, present }) => {
+    const ids = Eng().offstage(state, present).filter((id) => Eng().tier(state, id) === 'secondary');
+    if (!ids.length) return null;
+    return ['\n=== BACKGROUND (not with the player; one line each; for events only) ==='].concat(ids.map((id) => {
+      const c = state.characters[id];
+      const loc = state.locations[c.status.location];
+      return `- ${id} (${c.name}, ${E.shorten(c.role || '?', 40)}), in ${loc ? loc.name : c.status.location}${c.want ? ': wants ' + E.shorten(c.want, 60) : ''}`;
+    }));
   };
   B.intentAction = ({ action, stepLabel }) => `\n=== PLAYER ACTION (time passing: ${stepLabel}) ===\n"${action}"\nThe player's action takes up this whole span. Others act during the same span.`;
   B.intentTask = ({ state, sc, present, stepId, due }) => {
