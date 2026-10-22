@@ -47,6 +47,12 @@ async function check(name, fn) {
   }
 }
 
+// Clicks a room's floor on the detailed map, near its bottom-left corner
+// (clear of furniture, under the label strip).
+const clickFloor = async (page, id) => {
+  const box = await page.locator(`#mapPane .map-room[data-room="${id}"] .sd-floor, #mapPane .map-room[data-room="${id}"] .sd-ground`).first().boundingBox();
+  await page.mouse.click(box.x + 6, box.y + box.height - 6);
+};
 const sceneReady = (page) => page.waitForFunction(() => document.getElementById('sceneBar').textContent.trim() !== '');
 
 // Act is only enabled at the end of a scene or after choosing "Step in here",
@@ -552,6 +558,11 @@ await check('go somewhere new: the engine builds the place, the map shows it, De
   assert.match(await page.textContent('.map-routes'), /↗ Parking Lot/);
   await page.click('.map-route');
   assert.equal(await page.inputValue('#actionInput'), 'Go to Parking Lot.');
+  // Task 3-7: a new place starts in fog; a "?" marks where a known way leads.
+  await page.fill('#actionInput', '');
+  assert.ok(await page.locator('#mapPane .sd-stub').count(), 'unknown rooms show only as "?"');
+  await page.locator('#mapPane .sd-stub').first().click();
+  assert.equal(await page.inputValue('#actionInput'), 'Find out what is through there.');
   await page.screenshot({ path: path.join(shots, 'generated-site.png') });
   await page.click('#btnDebug');
   assert.match(await page.textContent('#debugBody'), /Places made during the story \(1\)/);
@@ -721,8 +732,13 @@ await check('the map sits beside the story, switches views, and clicking fills i
   assert.equal(await page.locator('#mapPane .map-room').count(), 9, "Ares Deep's nine rooms");
   assert.ok(await page.locator('#mapPane .map-room.here[data-room="commons"]').count(), 'you are in the Commons');
   assert.match(await page.textContent('#mapList'), /Commons \(you are here\): you, Dr\. Imani Okafor, Teo Bauer/);
-  await page.locator('#mapPane .map-room[data-room="lab"] .floor').click();
+  assert.equal(await page.locator('#mapPane svg.sd .sd-stub').count(), 0, 'the crew knows its own base');
+  await clickFloor(page, 'lab');
   assert.equal(await page.inputValue('#actionInput'), 'Go to the Lab.');
+  await page.fill('#actionInput', '');
+  // Task 3-7: a gameplay piece fills in the box too; decoration doesn't.
+  await page.locator('#mapPane .map-feature[data-feature="galley table"]').click();
+  assert.equal(await page.inputValue('#actionInput'), 'Look at the galley table.');
   await page.fill('#actionInput', '');
   await page.locator('#mapPane .map-token[data-id="bauer"]').click();
   assert.equal(await page.inputValue('#actionInput'), 'Talk to Teo.');
@@ -748,7 +764,7 @@ await check('phone: the map button swaps the story for the map', async (page) =>
   assert.ok((await page.isVisible('#mapPane svg')) && !(await page.isVisible('#log')));
   const svg = await page.locator('#mapPane svg').boundingBox();
   assert.ok(svg.x >= 0 && svg.x + svg.width <= 390, 'the map fits the screen');
-  await page.locator('#mapPane .map-room[data-room="dock"] .floor').click();
+  await clickFloor(page, 'dock');
   assert.equal(await page.inputValue('#actionInput'), 'Go to the Loading Dock.');
   await page.screenshot({ path: path.join(shots, 'phone-map.png') });
   await page.click('#btnMapPhone');
@@ -784,7 +800,7 @@ await check('world and regional views: regions by who holds them, the info strip
   await page.screenshot({ path: path.join(shots, 'map-region.png') });
   await page.click('[data-mapview="local"]');
   assert.ok(await page.locator('#mapPane .map-room').count(), 'back to the rooms');
-  assert.equal(await page.locator('#mapPane .map-lock').count(), 1, "the office door is locked (task 3-6)");
+  assert.equal(await page.locator('#mapPane .sd-lock').count(), 1, "the office door is locked (task 3-6)");
   assert.match(await page.textContent('#mapPane'), /forklift/);
   // Ares Deep has no map image: a node map from the neighbours.
   await page.selectOption('#scenarioSelect', 'server:mars-station');
@@ -898,7 +914,7 @@ await check('screen readers hear each new beat', async (page) => {
 });
 
 // Settings › Appearance (task 1-9). Sets the controls, then Save or cancel.
-async function setAppearance(page, { theme, textSize, font, spacing, motion }, save = true) {
+async function setAppearance(page, { theme, textSize, font, spacing, motion, mapDetail }, save = true) {
   await page.click('#btnSettings');
   const section = page.locator('#settings details[data-section="appearance"]');
   if (!(await section.evaluate((d) => d.open))) await section.locator('summary').click();
@@ -906,6 +922,7 @@ async function setAppearance(page, { theme, textSize, font, spacing, motion }, s
   if (font) await page.selectOption('#aFont', font);
   if (spacing) await page.selectOption('#aSpacing', spacing);
   if (motion) await page.selectOption('#aMotion', motion);
+  if (mapDetail) await page.selectOption('#aMapDetail', mapDetail);
   if (textSize) await page.locator('#aTextSize').evaluate((el, v) => { el.value = String(v); el.dispatchEvent(new Event('input', { bubbles: true })); }, textSize);
   await page.click(save ? '#settings button[value="save"]' : '#settings button[value="cancel"]');
 }
@@ -936,6 +953,30 @@ await check('appearance: themes, text size and story font apply, survive a reloa
   await setAppearance(page, { theme: 'hv' }, false);
   await page.waitForFunction(() => document.documentElement.getAttribute('data-theme') === 'light', null, { timeout: 2000 });
 });
+
+// Task 3-7: the detailed map in every theme, on desktop and phone; "Map
+// detail: simple" draws the boxes.
+for (const phone of [false, true]) {
+  await check(`${phone ? 'phone: ' : ''}the detailed map in every theme, and the simple one`, async (page) => {
+    await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+    await newGame(page);
+    await sceneReady(page);
+    if (phone) await page.click('#btnMapPhone');
+    for (const theme of ['dark', 'light', 'hv']) {
+      await setAppearance(page, { theme });
+      assert.ok(await page.isVisible('#mapPane svg.sd'), theme);
+      assert.equal(await page.locator('#mapPane svg.sd .map-room').count(), 6, `${theme}: the holdout's six rooms`);
+      assert.equal(await page.locator('#mapPane svg.sd .map-feature').count(), 14, `${theme}: all fourteen features`);
+      const hidden = await page.locator('#mapPane svg.sd .sd-decor').evaluateAll((els) => els.every((e) => getComputedStyle(e).display === 'none'));
+      if (theme === 'hv') assert.ok(hidden, 'no decoration in high visibility');
+      await page.screenshot({ path: path.join(shots, `map-detail-${phone ? 'phone-' : ''}${theme}.png`) });
+    }
+    await page.locator('#mapPane .map-feature[data-feature="generator"]').click();
+    assert.equal(await page.inputValue('#actionInput'), 'Look at the generator.');
+    await setAppearance(page, { mapDetail: 'simple' });
+    assert.ok(!(await page.locator('#mapPane svg.sd').count()) && (await page.locator('#mapPane .map-room .floor').count()) === 6, 'simple: the boxes');
+  });
+}
 
 await check('phone: high visibility at 150% fits the screen', async (page) => {
   await setAppearance(page, { theme: 'hv', textSize: 150 });

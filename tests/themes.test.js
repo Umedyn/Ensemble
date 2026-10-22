@@ -48,6 +48,15 @@ const PAIRS = [
   ['focus', SURFACES, 3, 3],
   // Faction colours on the world map (task 3-4): shapes, so 3:1 against the page.
   ...[1, 2, 3, 4, 5, 6, 7, 8].map((n) => [`f${n}`, ['bg'], 3, 3]),
+  // The detailed local map (task 3-7): room labels on the floor, walls and
+  // outlines as shapes (3:1).
+  ['muted', ['map-floor', 'map-ground'], 4.5, 4.5],
+  ['map-wall', ['bg', 'panel', 'map-floor'], 3, 3],
+  ['map-furn-line', ['map-furn', 'map-floor'], 3, 3],
+  ['accent', ['map-floor', 'map-furn'], 3, 3],
+  ['text', ['map-floor'], 3, 3],
+  ['bad', ['map-floor'], 3, 3],
+  ['map-ground-dot', ['map-ground'], 3, 3],
 ];
 
 for (const [name, vars] of Object.entries(themes)) {

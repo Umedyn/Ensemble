@@ -105,7 +105,9 @@ Pax Historia's map at personal scale: World → Regional → Local.
 - [x] **Layout styles** per site type in a DOM-free `js/layouts.js`: deterministic placement from sizes and links, so the same site always lays out the same way and survives saves. Built: `generic`, `hall` (warehouse, store), `corridor` (apartment floor, station ring).
 - [ ] More layout styles (`office floor`, `club`, `compound`, `sewer`, …) as generated sites need them (4-4).
 - [x] **SVG floor plan**: walls, door gaps, locked-door, vent and hatch symbols, labels and tokens, in theme colours (high visibility included), never generated art.
-- [x] **What the player has seen**: unseen rooms stay dark until entered, seen or revealed (a floor plan bought from a fixer is a real advantage).
+- [x] **What the player has seen**: unknown rooms aren't drawn; a "?" marks where a known opening leads. A room shows once entered, seen or revealed (a floor plan bought from a fixer is a real advantage).
+- [x] **Detailed local maps with fog** (task 3-7): floor plans with walls, doors, windows, floors and furniture chosen by inferred room kind, still procedural SVG and deterministic. Rooms in view get full detail, remembered rooms structure only (no feature state the player didn't see), and unknown rooms aren't drawn. Decoration is visual only; only features from the data are gameplay. Includes a "Map detail: simple / detailed" setting.
+- [ ] Later, possibly: remember each feature's last-seen state (as `state.known` does for people), so a remembered room can show the cabinet as you left it. Today remembered rooms show features with no state, and doors out of sight show as plain doors.
 - [x] **Movement follows links**: you can only step into a room linked to the one you're in. Naming a farther room walks the route (`Eng.route`) through the rooms in between, and each one counts for time and for being seen; a locked link blocks the route until it's opened.
 - [x] **Authored features are the truth**: doors, windows, vents and objects a map maker placed are what exists, and the game goes off them.
 - [x] **Inferred features**: where the map is silent, the model may propose a plausible feature when the player tries to use one ("I climb out the window"). The engine accepts it only if it doesn't contradict the map: windows only on exterior walls (the layout knows which those are), never into a secure room, and never over a feature the author placed. Once accepted it's recorded on the site, so it's there next time and for everyone.
@@ -183,6 +185,7 @@ Everything a creator needs to build a world without touching JSON.
 
 - [ ] Two new original scenarios in very different genres, such as a resistance cell in an occupied city and a high-school slice-of-life. At least one uses a map image with regions, and one uses generated starts.
 - [ ] Fix whatever turns out to be survival-specific. Add a test named after each fix.
+- [ ] More room kinds for the detailed map (3-7), added with the new settings (worlds) that need them: sci-fi (engine room or reactor, cryo, hangar; "cargo"/"hold" as warehouse) and medieval (great hall, chapel, forge, stable, throne room, courtyard). Break ties with the world's genre tags first ("hall", "bridge", "keep" mean different rooms in different genres), with tests that pin those words per genre.
 
 ## Content settings
 

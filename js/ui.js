@@ -1128,12 +1128,15 @@
   }
 
   // ---------- local map (task 3-3) ----------
-  // E.Layouts.plan places the rooms; this draws them as plain SVG with theme
-  // colours: walls, a mark for each kind of link, labels, features, and
-  // tokens where the player last saw everyone (faded when out of sight).
-  // Clicking fills in the action box and never acts. A start's "localMap"
-  // draws its floor-plan image with room hotspots instead.
-  const CELL = 30;
+  // E.Layouts.plan places the rooms; E.SiteDraw draws them as floor plans
+  // (task 3-7) from what the player knows, built here: rooms in view, rooms
+  // remembered, doors as last seen. "Map detail: simple" draws plain boxes
+  // with theme colours: walls, a mark for each kind of link, labels,
+  // features. Tokens go where the player last saw everyone (faded when out of
+  // sight). Clicking fills in the action box and never acts. A start's
+  // "localMap" draws its floor-plan image with room hotspots instead.
+  const CELL = E.SiteDraw.CELL;
+  let mapDetailPreview = null; // Settings › Map detail while the dialog is open
   let planCache = { key: null, plan: null };
   function mapPlan() {
     const sc = state.scenario;
@@ -1215,6 +1218,38 @@
       default: return gap;
     }
   }
+  // The detailed map's inputs (task 3-7), so what the player knows is decided
+  // here: rooms in view (full detail, feature state), remembered rooms (no
+  // state), the rest unknown. A door out of sight is drawn as a plain door,
+  // since it may have changed since.
+  function detailedMapSvg(here, tokens) {
+    const plan = mapPlan();
+    const inView = E.Engine.visibleRooms(state).filter((id) => plan.rooms[id]);
+    const remembered = Object.keys(plan.rooms).filter((id) => !inView.includes(id) && state.seenRooms.includes(id));
+    const rooms = {};
+    Object.keys(plan.rooms).forEach((id) => {
+      const l = state.locations[id];
+      const feats = E.Engine.features(state, id);
+      rooms[id] = { name: l.name, outside: !!l.outside, features: inView.includes(id) ? feats : feats.map((f) => ({ name: f.name, state: null, inferred: f.inferred })) };
+    });
+    const links = {};
+    plan.links.forEach((k) => {
+      const live = inView.includes(k.a) || inView.includes(k.b);
+      links[[k.a, k.b].sort().join('|')] = live ? E.Engine.linkShown(state, k.a, k.b) || k.kind : k.kind === 'locked door' ? 'door' : k.kind;
+    });
+    const sc = state.scenario;
+    const site = E.Sites.playerSite(state);
+    return E.SiteDraw.render(plan, rooms, { inView, remembered, here, seed: `${sc.worldId}:${site === E.Sites.HOME ? sc.startId : site}`, links, tokens, tokenSvg });
+  }
+  // Decoration drops out when the map is drawn small (task 3-7).
+  function sizeDetailedMap() {
+    const svg = document.querySelector('#mapPane svg.sd');
+    if (!svg) return;
+    const vb = svg.viewBox.baseVal;
+    const w = svg.getBoundingClientRect().width;
+    svg.classList.toggle('sd-small', !!(vb && vb.width && w && w / vb.width < 0.85));
+  }
+  try { new ResizeObserver(sizeDetailedMap).observe($('mapPane')); } catch (e) {}
   const KIND_WORD = { open: 'way', door: 'door', 'locked door': 'locked door', vent: 'vent', hatch: 'hatch', window: 'window', stairs: 'stairs' };
   function localMapHtml() {
     const here = state.characters[state.player].status.location;
@@ -1228,6 +1263,8 @@
       const url = portraitUrl(lm.image);
       const rooms = Object.entries(lm.rooms).map(([id, r]) => `<g class="map-room${id === here ? ' here' : ''}" tabindex="0" role="button" data-room="${esc(id)}" aria-label="${esc(roomName(id))}"><rect class="floor" x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" style="fill-opacity:0.15"/>${roomTokens(tokens[id] || [], r.x, r.y, r.w, r.h)}</g>`).join('');
       svg = `<svg class="map-svg" viewBox="0 0 ${lm.width} ${lm.height}" role="img" aria-label="Map">${url ? `<image href="${esc(url)}" x="0" y="0" width="${lm.width}" height="${lm.height}"/>` : ''}${rooms}</svg>`;
+    } else if ((mapDetailPreview || E.settings.appearance.mapDetail) !== 'simple') {
+      svg = detailedMapSvg(here, tokens);
     } else {
       const plan = mapPlan();
       const W = plan.width * CELL, H = plan.height * CELL;
@@ -1342,6 +1379,7 @@
         (view === 'local' ? '' : `<span class="zoom"><button type="button" data-zoom="in" aria-label="Zoom in" title="Zoom in">+</button><button type="button" data-zoom="out" aria-label="Zoom out" title="Zoom out">−</button><button type="button" data-zoom="reset" aria-label="Reset the view" title="Reset the view">⟲</button></span>`) + '</div>'
       : '';
     pane.innerHTML = tabs + (view === 'local' ? localMapHtml() : worldMapHtml(view));
+    sizeDetailedMap();
   }
   // Zoom the world map's viewBox around a point (in map units), within limits.
   function zoomWorld(factor, cx, cy) {
@@ -1442,6 +1480,9 @@
     }
     const route = el.closest('.map-route');
     if (route) return fillAction(`Go to ${route.dataset.name}.`);
+    // A gameplay piece on the detailed map (task 3-7); decoration has no data.
+    const feat = el.closest('.map-feature');
+    if (feat) return fillAction(`Look at ${/^(the|a|an|my|your|his|her|their|\w+'s)\b/i.test(feat.dataset.feature) ? '' : 'the '}${feat.dataset.feature}.`);
     const room = el.closest('.map-room');
     if (!room) return;
     const id = room.dataset.room;
@@ -1453,7 +1494,7 @@
     if (ev.key !== 'Enter' && ev.key !== ' ') return;
     const reg = ev.target.closest && ev.target.closest('.region-g');
     if (reg) { ev.preventDefault(); mapSel = reg.dataset.region; renderMap(); const el = document.querySelector(`.region-g[data-region="${reg.dataset.region}"]`); if (el) el.focus(); return; }
-    if (!ev.target.closest('.map-token, .map-room')) return;
+    if (!ev.target.closest('.map-token, .map-room, .map-feature')) return;
     ev.preventDefault();
     mapActivate(ev.target);
   });
@@ -2025,6 +2066,7 @@
     $('aFont').value = a.storyFont;
     $('aSpacing').value = a.lineSpacing;
     $('aMotion').value = a.motion;
+    $('aMapDetail').value = a.mapDetail === 'simple' ? 'simple' : 'detailed';
   }
   function readAppearance() {
     return {
@@ -2033,11 +2075,13 @@
       storyFont: $('aFont').value,
       lineSpacing: $('aSpacing').value,
       motion: $('aMotion').value,
+      mapDetail: $('aMapDetail').value,
     };
   }
-  ['aTheme', 'aTextSize', 'aFont', 'aSpacing', 'aMotion'].forEach((id) => $(id).addEventListener('input', () => {
+  ['aTheme', 'aTextSize', 'aFont', 'aSpacing', 'aMotion', 'aMapDetail'].forEach((id) => $(id).addEventListener('input', () => {
     $('aTextSizeOut').textContent = $('aTextSize').value + '%';
     applyAppearance(readAppearance());
+    if (id === 'aMapDetail') { mapDetailPreview = $('aMapDetail').value; if (state) renderMap(); }
   }));
   // "Same as my device" follows the OS while the page is open.
   ['(prefers-color-scheme: light)', '(prefers-reduced-motion: reduce)'].forEach((q) => {
@@ -2088,6 +2132,7 @@
       if (state) renderJournal();
     }
     applyAppearance(E.settings.appearance);
+    if (mapDetailPreview) { mapDetailPreview = null; if (state) renderMap(); }
   });
 
   // ---------- mobile side sheet ----------

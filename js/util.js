@@ -33,7 +33,7 @@
     chapterLength: 5,
     debug: false,
     // Settings › Appearance; index.html applies it before first paint.
-    appearance: { theme: 'dark', textSize: 100, storyFont: 'serif', lineSpacing: 'normal', motion: 'system' },
+    appearance: { theme: 'dark', textSize: 100, storyFont: 'serif', lineSpacing: 'normal', motion: 'system', mapDetail: 'detailed' },
   };
   E.settings = JSON.parse(JSON.stringify(E.defaults));
 

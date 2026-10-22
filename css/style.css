@@ -30,6 +30,17 @@
   --f6: #4fb8ad;
   --f7: #d77399;
   --f8: #a3a374;
+  /* Detailed local map (task 3-7): walls, floors, furniture, outside ground */
+  --map-wall: #6b7382;
+  --map-floor: #1e2228;
+  --map-floor-line: #2a3038;
+  --map-furn: #2e343e;
+  --map-furn-line: #7a8291;
+  --map-ground: #2a1e19;
+  --map-ground-dot: #8f6b5a;
+  --map-screen: #3d6f78;
+  --map-plant: #6f9f5f;
+  --map-hazard: #c9a13d;
   --serif: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
   --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
   --story-font: var(--serif);
@@ -65,6 +76,16 @@
   --f6: #21756d;
   --f7: #a13a61;
   --f8: #666637;
+  --map-wall: #4a4f58;
+  --map-floor: #f7f4ee;
+  --map-floor-line: #e3dccf;
+  --map-furn: #e3ddd1;
+  --map-furn-line: #7d7668;
+  --map-ground: #ead8ca;
+  --map-ground-dot: #8a6450;
+  --map-screen: #8cc3c9;
+  --map-plant: #5d9a4c;
+  --map-hazard: #a87806;
   color-scheme: light;
 }
 /* High visibility: very high contrast, thick borders and focus rings, no
@@ -97,6 +118,16 @@
   --f6: #66ffe6;
   --f7: #ff8cc6;
   --f8: #e6e68c;
+  --map-wall: #ffffff;
+  --map-floor: #000000;
+  --map-floor-line: #000000;
+  --map-furn: #000000;
+  --map-furn-line: #e6e6e6;
+  --map-ground: #0b0b0b;
+  --map-ground-dot: #e6e6e6;
+  --map-screen: #66c2ff;
+  --map-plant: #8cff8c;
+  --map-hazard: #ffd400;
   color-scheme: dark;
 }
 :root[data-font="sans"] { --story-font: var(--sans); }
@@ -185,6 +216,63 @@ button:disabled { opacity: .5; cursor: default; }
 .map-token text.count { fill: var(--text); font-size: 10px; }
 .map-token:focus { outline: none; }
 .map-token:focus .tok, .map-token:hover .tok { stroke: var(--focus); stroke-width: 2; }
+/* Detailed local map (task 3-7, js/sitedraw.js). Decoration and patterns
+   are dropped in high visibility and when the map is drawn small. */
+.map-svg.sd { margin: 0 auto; }
+.sd .sd-floor { fill: var(--map-floor); }
+.sd .sd-ground { fill: var(--map-ground); }
+.sd .sd-ground-edge { fill: none; stroke: var(--map-ground-dot); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.sd .sd-wall-outer { fill: none; stroke: var(--map-wall); stroke-width: 10; stroke-linejoin: miter; }
+.sd .sd-wall-inner { fill: none; stroke: var(--map-wall); stroke-width: 3; }
+.sd .sd-past .sd-floor, .sd .sd-past .sd-ground { opacity: 0.75; }
+.sd .sd-pat { pointer-events: none; }
+.sd-pl { stroke: var(--map-floor-line); stroke-width: 0.8; fill: none; }
+.sd-faint { opacity: 0.6; }
+.sd-pd { fill: var(--map-floor-line); }
+.sd-pr { fill: var(--map-ground-dot); }
+.sd .sd-gap { fill: var(--map-floor); }
+.sd .sd-leaf { stroke: var(--text); stroke-width: 2; }
+.sd .sd-swing { fill: none; stroke: var(--muted); stroke-width: 0.8; stroke-dasharray: 2 2; }
+.sd .sd-post { fill: var(--map-wall); }
+.sd .sd-vent { fill: var(--map-floor); stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 2; }
+.sd .sd-window { fill: var(--map-floor); stroke: var(--map-wall); stroke-width: 1.5; }
+.sd .sd-window-line { stroke: var(--map-screen); stroke-width: 2; }
+.sd .sd-remote { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 4 4; fill: none; }
+.sd-fu { fill: var(--map-furn); stroke: var(--map-furn-line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.sd-fd { fill: var(--map-furn-line); stroke: none; }
+.sd-fl { stroke: var(--map-furn-line); stroke-width: 1; vector-effect: non-scaling-stroke; fill: none; }
+.sd-screen { fill: var(--map-screen); }
+.sd-arch { fill: none; stroke: var(--map-furn-line); stroke-width: 2; }
+.sd-leaves { stroke: var(--map-plant); stroke-width: 5; stroke-dasharray: 4 2; vector-effect: non-scaling-stroke; fill: none; }
+.sd-curtain { stroke: var(--hidden); stroke-width: 2; }
+.sd-hazard { stroke: var(--map-hazard); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.sd-rig { fill: none; stroke: var(--map-furn-line); stroke-width: 2; }
+.sd-rock { fill: var(--map-ground-dot); }
+.sd-lock-body { fill: var(--bad); }
+.sd-lock-shackle { fill: none; stroke: var(--bad); stroke-width: 1.4; }
+.sd .sd-on { fill: var(--good); }
+.sd .sd-decor, .sd .sd-scatter, .sd .sd-labels, .sd .sd-here, .sd .sd-door { pointer-events: none; }
+.sd .sd-decor { opacity: 0.7; }
+.sd .sd-ring { fill: none; stroke: var(--accent); stroke-width: 1.2; stroke-dasharray: 3 2; }
+.sd .map-feature { cursor: pointer; }
+.sd .map-feature.sd-remembered use { opacity: 0.55; }
+.sd .map-feature:hover .sd-ring, .sd .map-feature:focus .sd-ring { stroke: var(--focus); stroke-dasharray: none; stroke-width: 2; }
+.sd .map-feature:focus { outline: none; }
+.sd .sd-here { fill: none; stroke: var(--accent); stroke-width: 2; }
+.sd .map-room:hover .sd-floor, .sd .map-room:focus .sd-floor, .sd .map-room:hover .sd-ground, .sd .map-room:focus .sd-ground { stroke: var(--focus); stroke-width: 2; }
+.sd .sd-label { fill: var(--muted); font-family: var(--sans); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; paint-order: stroke; stroke: var(--map-floor); stroke-width: 3px; }
+.sd .sd-note { fill: var(--muted); font-size: 8px; font-family: var(--sans); paint-order: stroke; stroke: var(--map-floor); stroke-width: 3px; }
+.sd .sd-stub { cursor: pointer; }
+.sd .sd-stub circle { fill: var(--panel-2); stroke: var(--line-strong); stroke-width: 1.5; stroke-dasharray: 3 2; }
+.sd .sd-stub text { fill: var(--text); font-size: 11px; font-family: var(--sans); font-weight: 700; }
+.sd .sd-stub:hover circle, .sd .sd-stub:focus circle { stroke: var(--focus); stroke-dasharray: none; }
+.sd.sd-small .sd-decor, .sd.sd-small .sd-scatter { display: none; }
+:root[data-theme="hv"] .sd .sd-pat, :root[data-theme="hv"] .sd .sd-decor, :root[data-theme="hv"] .sd .sd-scatter { display: none; }
+:root[data-theme="hv"] .sd .sd-wall-outer { stroke-width: 12; }
+:root[data-theme="hv"] .sd .sd-wall-inner { stroke-width: 4; }
+:root[data-theme="hv"] .sd .sd-ring { stroke-dasharray: none; stroke-width: 2; }
+:root[data-theme="hv"] .sd .sd-past .sd-floor, :root[data-theme="hv"] .sd .sd-past .sd-ground, :root[data-theme="hv"] .sd .map-feature.sd-remembered use { opacity: 1; }
+:root[data-theme="hv"] .sd .sd-label { fill: var(--text); }
 .map-more { fill: var(--muted); font-size: 10px; font-family: var(--sans); }
 .map-empty { color: var(--muted); text-align: center; margin-top: 40px; }
 /* World and regional views (task 3-4) */
