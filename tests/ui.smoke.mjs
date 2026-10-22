@@ -480,6 +480,49 @@ await check('suggestions fill the action box without acting', async (page) => {
   assert.ok(await page.locator('#suggestions').isHidden(), 'gone after the turn');
 });
 
+// Task 3-3: the local map next to the story; clicking fills in the box, never acts.
+await check('the map sits beside the story, switches views, and clicking fills in the action box', async (page) => {
+  await newGame(page);
+  await sceneReady(page);
+  assert.ok(await page.isVisible('#mapPane svg'), 'split view by default on desktop');
+  assert.ok(await page.isVisible('#log'));
+  assert.equal(await page.locator('#mapPane .map-room').count(), 9, "Ares Deep's nine rooms");
+  assert.ok(await page.locator('#mapPane .map-room.here[data-room="commons"]').count(), 'you are in the Commons');
+  assert.match(await page.textContent('#mapList'), /Commons \(you are here\): you, Dr\. Imani Okafor, Teo Bauer/);
+  await page.locator('#mapPane .map-room[data-room="lab"] .floor').click();
+  assert.equal(await page.inputValue('#actionInput'), 'Go to the Lab.');
+  await page.fill('#actionInput', '');
+  await page.locator('#mapPane .map-token[data-id="bauer"]').click();
+  assert.equal(await page.inputValue('#actionInput'), 'Talk to Teo.');
+  assert.equal(await page.locator('#log .entry.action').count(), 0, 'nothing was played');
+  await page.click('.view-switch button[data-view="map"]');
+  assert.ok(!(await page.isVisible('#log')) && (await page.isVisible('#mapPane svg')), 'map only');
+  await page.click('.view-switch button[data-view="text"]');
+  assert.ok((await page.isVisible('#log')) && !(await page.isVisible('#mapPane')), 'text only');
+  await page.reload();
+  await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
+  await sceneReady(page);
+  assert.ok(!(await page.isVisible('#mapPane')), 'the view is remembered for this world');
+  await page.click('.view-switch button[data-view="split"]');
+  await page.screenshot({ path: path.join(shots, 'map-split.png') });
+});
+
+await check('phone: the map button swaps the story for the map', async (page) => {
+  await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+  await newGame(page);
+  await sceneReady(page);
+  assert.ok(!(await page.isVisible('#mapPane')), 'story first on a phone');
+  await page.click('#btnMapPhone');
+  assert.ok((await page.isVisible('#mapPane svg')) && !(await page.isVisible('#log')));
+  const svg = await page.locator('#mapPane svg').boundingBox();
+  assert.ok(svg.x >= 0 && svg.x + svg.width <= 390, 'the map fits the screen');
+  await page.locator('#mapPane .map-room[data-room="dock"] .floor').click();
+  assert.equal(await page.inputValue('#actionInput'), 'Go to the Loading Dock.');
+  await page.screenshot({ path: path.join(shots, 'phone-map.png') });
+  await page.click('#btnMapPhone');
+  assert.ok(await page.isVisible('#log'));
+});
+
 // Task 1-8: fix your own feelings toward someone from their details.
 await check('correct your feelings from a card', async (page) => {
   await newGame(page);

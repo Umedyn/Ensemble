@@ -55,6 +55,11 @@
         "hydro",
         "quarters",
         "suitroom"
+      ],
+      "size": "large",
+      "features": [
+        "galley table",
+        "the window"
       ]
     },
     {
@@ -63,6 +68,11 @@
       "desc": "Status boards, the long-delay comm link and the station logs.",
       "connects": [
         "commons"
+      ],
+      "size": "medium",
+      "features": [
+        "status boards",
+        "comm console"
       ]
     },
     {
@@ -71,6 +81,12 @@
       "desc": "Two cots, a scanner and a locked drug cabinet.",
       "connects": [
         "commons"
+      ],
+      "size": "small",
+      "features": [
+        "two cots",
+        "scanner",
+        "drug cabinet"
       ]
     },
     {
@@ -79,6 +95,12 @@
       "desc": "Core sample racks, a glovebox and incubators for ice cultures.",
       "connects": [
         "commons"
+      ],
+      "size": "medium",
+      "features": [
+        "sample racks",
+        "glovebox",
+        "incubators"
       ]
     },
     {
@@ -87,6 +109,10 @@
       "desc": "Grow racks under purple light and the water recycler, rattling.",
       "connects": [
         "commons"
+      ],
+      "size": "medium",
+      "features": [
+        "grow racks"
       ]
     },
     {
@@ -95,6 +121,10 @@
       "desc": "Five curtained bunks. The only privacy on the station.",
       "connects": [
         "commons"
+      ],
+      "size": "medium",
+      "features": [
+        "bunks"
       ]
     },
     {
@@ -105,6 +135,17 @@
         "commons",
         "garage",
         "surface"
+      ],
+      "size": "small",
+      "features": [
+        "suit lockers",
+        "airlock"
+      ],
+      "links": [
+        {
+          "to": "surface",
+          "kind": "door"
+        }
       ]
     },
     {
@@ -114,6 +155,17 @@
       "connects": [
         "suitroom",
         "surface"
+      ],
+      "size": "medium",
+      "features": [
+        "the Mule",
+        "vehicle airlock"
+      ],
+      "links": [
+        {
+          "to": "surface",
+          "kind": "door"
+        }
       ]
     },
     {
@@ -124,9 +176,18 @@
         "suitroom",
         "garage"
       ],
-      "region": "crater-rim"
+      "region": "crater-rim",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "solar field",
+        "drill site"
+      ]
     }
   ],
+  "site": {
+    "type": "corridor"
+  },
   "regions": [
     {
       "id": "station",

@@ -248,6 +248,8 @@ test('converted bundled worlds start the same game as their legacy versions', ()
     [now, before].forEach((g) => Object.values(g.state.characters).forEach((c) => { delete c.tier; delete c.agenda; }));
     // Regions (task 3-1) too: every location got a region, and the header a REGIONS block.
     Object.values(now.state.locations).forEach((l) => { delete l.region; });
+    // And site layout data (task 3-3).
+    Object.values(now.state.locations).forEach((l) => ['size', 'level', 'outside', 'features', 'links'].forEach((k) => delete l[k]));
     ['characters', 'locations', 'clocks', 'world', 'facts', 'factions', 'order', 'time', 'recent', 'player'].forEach((k) =>
       assert.deepEqual(plain(now.state[k]), plain(before.state[k]), `${folder}: state.${k}`));
     assert.equal(now.state.scenario.worldId, folder);

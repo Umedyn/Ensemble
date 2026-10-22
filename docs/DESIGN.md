@@ -111,6 +111,15 @@ Task 3-2. Unnamed groups (guards, a gang, the dead) as one entity in `state.stan
 - **Singling one out**: the player's intent may set `single_out: {standee, name, role}`. It is accepted only when the player's own words name the group (a word of its label), so the model can't decide it for them. The count drops by one and an individual extra (`from: 'standee'`) stands in the same room; the usual promotion path can make them a character. The last one singled out ends the group.
 - **Bundled**: the holdout has `stragglers` (5 dead, calm) in the parking lot. Ares Deep has no crowds.
 
+## Local map
+
+Task 3-3. The model describes, the engine draws. `js/layouts.js` (DOM-free) turns the rooms into rectangles on a grid: `Layouts.plan(locations, {type, seed})` places each level breadth-first from a hub (the biggest room for `hall`, a long corridor for `corridor`, the best-linked room for `generic`), preferring spots that share a wall with every placed room it links to, and gives each link its spot on the shared wall (or `remote`: a dashed line on the same level, a "↕ hatch to …" note across levels). Levels stack top to bottom, ground floor first. It is seeded by the world and start, never random, and uses only authored data, so it is the same every time, survives saves without being stored, and never moves when people do.
+
+- **What the player knows**: `state.seenRooms` (authored rooms start seen unless `seen: false`; entering a room, or standing next to it through an `open` link, reveals it) and `state.known[id] = {loc, turn}`, where the player last saw each character, extra and group. `Eng.noteSeen` updates both after a turn is played and again at commit (a step-in rewinds to the turn's start first): everyone in the player's room, visible moves (`outcomes`, `groups`), seen or heard events, groups in view, and people the update step moved who were in the scene. Covert moves and hidden events never update it. `Eng.knownWhere` returns `{loc, turn, now}`.
+- **The cards follow the same rule**: a card says where you last saw someone ("last seen in the Office (turn 3)"), never where they really are.
+- **The view**: plain SVG in theme colours. Rooms with walls, labels, features and a mark per link kind; unseen rooms dark with "?"; tokens (portraits or monograms, a counted badge for a group in its state's colour, a ring for you), faded for anyone not in view. A text list of rooms and who is known to be there is there for screen readers. Clicking a room fills in "Go to the …", a person "Talk to …", a group "Watch the …"; nothing is sent. A start's `localMap` draws its image with room hotspots instead.
+- **Layout**: on desktop the story area switches between Text, Split (story and map side by side, the default) and Map, remembered per world. On a phone the 🗺 button swaps the story for the map.
+
 ## Relationship web
 
 Task 2-4. **Web** (in the cast panel) opens a graph of who feels what about whom. `Eng.relationWeb(state, {secondary})` decides what the player may see, as words only (`relWord`, with a level 0–2 and a sign); the numbers stay in Debug:

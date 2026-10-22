@@ -146,6 +146,7 @@
     try {
       const world = await resolveWorld($('scenarioSelect').value);
       state = E.Engine.newGame(E.Scenario.startScenario(world, $('startSelect').value || undefined));
+      restoreView();
       rememberPick();
       showPickInfo(false);
       uiCut = null;
@@ -225,6 +226,7 @@
       if (!s.scenario || !s.characters || !s.player) throw new Error('That file is not an Ensemble save.');
       stopRecording();
       state = E.Engine.migrate(s);
+      restoreView();
       showPickInfo(false);
       openTurns.clear();
       uiCut = null;
@@ -408,6 +410,7 @@
     renderSituation();
     renderNews();
     renderCast();
+    renderMap();
     renderJournal();
     renderDebug();
   }
@@ -606,6 +609,178 @@
       (n.effects && n.effects.length ? `<div class="muted small">${n.effects.map(esc).join(' · ')}</div>` : '') + '</div>'
     ).join('');
   }
+
+  // ---------- local map (task 3-3) ----------
+  // E.Layouts.plan places the rooms; this draws them as plain SVG with theme
+  // colours: walls, a mark for each kind of link, labels, features, and
+  // tokens where the player last saw everyone (faded when out of sight).
+  // Clicking fills in the action box and never acts. A start's "localMap"
+  // draws its floor-plan image with room hotspots instead.
+  const CELL = 30;
+  let planCache = { key: null, plan: null };
+  function mapPlan() {
+    const sc = state.scenario;
+    const key = `${sc.worldId}|${sc.startId}|${Object.keys(state.locations).join(',')}`;
+    if (planCache.key !== key) planCache = { key, plan: E.Layouts.plan(state.locations, { type: sc.site && sc.site.type, seed: `${sc.worldId}:${sc.startId}` }) };
+    return planCache.plan;
+  }
+  // Tokens by room, as the player knows them.
+  function mapTokens() {
+    const byRoom = {};
+    const add = (loc, t) => { if (loc && state.seenRooms.includes(loc)) (byRoom[loc] = byRoom[loc] || []).push(t); };
+    const pc = state.characters[state.player];
+    add(pc.status.location, { kind: 'character', id: state.player, label: pc.name, player: true, now: true });
+    E.Engine.cast(state, { alive: true, includePlayer: false }).forEach((id) => {
+      const kw = E.Engine.knownWhere(state, id);
+      if (kw) add(kw.loc, { kind: 'character', id, label: state.characters[id].name, now: kw.now, turn: kw.turn });
+    });
+    Object.values(state.extras || {}).forEach((x) => {
+      const kw = E.Engine.knownWhere(state, x.id);
+      if (kw) add(kw.loc, { kind: 'extra', id: x.id, label: x.name, now: kw.now, turn: kw.turn });
+    });
+    Object.values(state.standees || {}).forEach((g) => {
+      const kw = E.Engine.knownWhere(state, g.id);
+      if (kw) add(kw.loc, { kind: 'standee', id: g.id, label: g.label, count: g.count, state: g.state, now: kw.now, turn: kw.turn });
+    });
+    return byRoom;
+  }
+  function tokenSvg(t, cx, cy, r) {
+    const tip = t.player ? `${t.label} (you)` : `${t.label}${t.kind === 'standee' ? `: ${t.count}, ${t.state}` : ''}${t.now ? '' : ` (last seen turn ${t.turn})`}`;
+    const attrs = `class="map-token${t.now ? '' : ' stale'}" tabindex="0" role="button" data-kind="${t.kind}" data-id="${esc(t.id)}" aria-label="${esc(tip)}"`;
+    let body;
+    if (t.kind === 'standee') {
+      body = `<circle class="tok badge badge-${esc(t.state)}" cx="${cx}" cy="${cy}" r="${r}"/><text class="count" x="${cx}" y="${cy + 3.5}" text-anchor="middle">${t.count}</text>`;
+    } else {
+      const m = E.Engine.monogram(state, t.id);
+      const p = t.kind === 'character' ? E.Engine.portrait(state, t.id) : {};
+      const url = p.path && portraitUrl(p.path);
+      const clip = `clip-${t.id.replace(/[^a-z0-9_-]/gi, '')}`;
+      body = url && !failedUrls.has(url)
+        ? `<clipPath id="${clip}"><circle cx="${cx}" cy="${cy}" r="${r}"/></clipPath><circle class="tok" cx="${cx}" cy="${cy}" r="${r}" style="fill:hsl(${m.hue} 38% 32%)"/><image href="${esc(url)}" x="${cx - r}" y="${cy - r}" width="${2 * r}" height="${2 * r}" clip-path="url(#${clip})" preserveAspectRatio="xMidYMid slice"/>`
+        : `<circle class="tok" cx="${cx}" cy="${cy}" r="${t.kind === 'extra' ? r - 2 : r}" style="fill:hsl(${m.hue} 38% 32%)"/><text x="${cx}" y="${cy + 3}" text-anchor="middle">${esc(m.monogram)}</text>`;
+      if (t.player) body += `<circle class="ring" cx="${cx}" cy="${cy}" r="${r + 2.5}"/>`;
+    }
+    return `<g ${attrs}><title>${esc(tip)}</title>${body}</g>`;
+  }
+  // Tokens in a row (wrapping) inside a room's box; the rest as "+N".
+  function roomTokens(list, x, y, w, h) {
+    const r = 9, step = 2 * r + 4;
+    const cols = Math.max(1, Math.floor((w - 8) / step));
+    const rows = Math.max(1, Math.floor((h - 4) / step));
+    const fit = cols * rows;
+    const shown = list.length > fit ? list.slice(0, fit - 1) : list;
+    let out = shown.map((t, i) => tokenSvg(t, x + 4 + r + (i % cols) * step, y + r + 2 + Math.floor(i / cols) * step, r)).join('');
+    if (list.length > shown.length) {
+      const i = shown.length;
+      out += `<text class="map-more" x="${x + 4 + (i % cols) * step + 2}" y="${y + r + 6 + Math.floor(i / cols) * step}">+${list.length - shown.length}</text>`;
+    }
+    return out;
+  }
+  function linkMark(k) {
+    const len = 0.9 * CELL, x = k.x * CELL, y = k.y * CELL;
+    const v = k.orient === 'v';
+    const gap = v ? `<rect class="map-gap" x="${x - 2}" y="${y - len / 2}" width="4" height="${len}"/>` : `<rect class="map-gap" x="${x - len / 2}" y="${y - 2}" width="${len}" height="4"/>`;
+    const leaf = v ? `<line class="map-door" x1="${x}" y1="${y - len / 2}" x2="${x + len * 0.6}" y2="${y - len / 2 + 4}"/>` : `<line class="map-door" x1="${x - len / 2}" y1="${y}" x2="${x - len / 2 + 4}" y2="${y + len * 0.6}"/>`;
+    switch (k.kind) {
+      case 'door': return gap + leaf;
+      case 'locked door': return gap + leaf + `<rect class="map-lock" x="${x - 3}" y="${y - 3}" width="6" height="6"/>`;
+      case 'vent': case 'hatch': return v ? `<rect class="map-vent" x="${x - 3}" y="${y - 6}" width="6" height="12"/>` : `<rect class="map-vent" x="${x - 6}" y="${y - 3}" width="12" height="6"/>`;
+      case 'window': return gap + (v ? `<line class="map-window" x1="${x - 2}" y1="${y - len / 2}" x2="${x - 2}" y2="${y + len / 2}"/><line class="map-window" x1="${x + 2}" y1="${y - len / 2}" x2="${x + 2}" y2="${y + len / 2}"/>`
+        : `<line class="map-window" x1="${x - len / 2}" y1="${y - 2}" x2="${x + len / 2}" y2="${y - 2}"/><line class="map-window" x1="${x - len / 2}" y1="${y + 2}" x2="${x + len / 2}" y2="${y + 2}"/>`);
+      case 'stairs': return gap + [-4, 0, 4].map((d) => (v ? `<line class="map-door" x1="${x - 4}" y1="${y + d}" x2="${x + 4}" y2="${y + d}"/>` : `<line class="map-door" x1="${x + d}" y1="${y - 4}" x2="${x + d}" y2="${y + 4}"/>`)).join('');
+      default: return gap;
+    }
+  }
+  const KIND_WORD = { open: 'way', door: 'door', 'locked door': 'locked door', vent: 'vent', hatch: 'hatch', window: 'window', stairs: 'stairs' };
+  function renderMap() {
+    const pane = $('mapPane');
+    if (!state) { pane.innerHTML = ''; return; }
+    const here = state.characters[state.player].status.location;
+    const tokens = mapTokens();
+    const seen = (id) => state.seenRooms.includes(id);
+    const roomName = (id) => (seen(id) ? state.locations[id].name : 'unknown room');
+    const lm = state.scenario.localMap;
+    let svg;
+    if (lm) {
+      const url = portraitUrl(lm.image);
+      const rooms = Object.entries(lm.rooms).map(([id, r]) => `<g class="map-room${id === here ? ' here' : ''}" tabindex="0" role="button" data-room="${esc(id)}" aria-label="${esc(roomName(id))}"><rect class="floor" x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" style="fill-opacity:0.15"/>${roomTokens(tokens[id] || [], r.x, r.y, r.w, r.h)}</g>`).join('');
+      svg = `<svg class="map-svg" viewBox="0 0 ${lm.width} ${lm.height}" role="img" aria-label="Map">${url ? `<image href="${esc(url)}" x="0" y="0" width="${lm.width}" height="${lm.height}"/>` : ''}${rooms}</svg>`;
+    } else {
+      const plan = mapPlan();
+      const W = plan.width * CELL, H = plan.height * CELL;
+      const levels = plan.levels.length > 1 ? plan.levels.map((b) => `<text class="map-level" x="${b.x * CELL}" y="${b.y * CELL - 9}">${b.level === 0 ? 'ground floor' : b.level > 0 ? `level ${b.level}` : `below ${-b.level}`}</text>`).join('') : '';
+      const rooms = Object.entries(plan.rooms).map(([id, r]) => {
+        const l = state.locations[id];
+        const x = r.x * CELL, y = r.y * CELL, w = r.w * CELL, h = r.h * CELL;
+        const cls = `map-room${l.outside ? ' outside' : ''}${id === here ? ' here' : ''}${seen(id) ? '' : ' unseen'}`;
+        const label = seen(id) ? `<text class="map-label" x="${x + 5}" y="${y + 13}">${esc(E.shorten(l.name, Math.floor((w - 8) / 6.5)))}</text>` : `<text class="map-feat" x="${x + w / 2}" y="${y + h / 2 + 3}" text-anchor="middle">?</text>`;
+        const feats = seen(id) && (l.features || []).length ? `<text class="map-feat" x="${x + 5}" y="${y + h - 5}">${esc(E.shorten(l.features.join(' · '), Math.floor(w / 5)))}</text>` : '';
+        // Ways to another level: a note in the room.
+        const up = plan.links.filter((k) => k.remote && (k.a === id || k.b === id) && plan.rooms[k.a].level !== plan.rooms[k.b].level)
+          .map((k) => { const o = k.a === id ? k.b : k.a; return `${KIND_WORD[k.kind]} to ${roomName(o)}`; });
+        const upText = up.length ? `<text class="map-feat" x="${x + 5}" y="${y + h - (feats ? 16 : 5)}">↕ ${esc(E.shorten(up.join(', '), Math.floor((w - 8) / 5)))}</text>` : '';
+        const toks = roomTokens(tokens[id] || [], x, y + 18, w, h - (up.length ? 42 : 30));
+        return `<g class="${cls}" tabindex="0" role="button" data-room="${esc(id)}" aria-label="${esc(roomName(id))}"><rect class="floor" x="${x}" y="${y}" width="${w}" height="${h}" rx="2"/>${label}${upText}${feats}</g><g class="map-tokens">${toks}</g>`;
+      }).join('');
+      const remote = plan.links.filter((k) => k.remote && plan.rooms[k.a].level === plan.rooms[k.b].level).map((k) => {
+        const a = plan.rooms[k.a], b = plan.rooms[k.b];
+        return `<line class="map-remote" x1="${(a.x + a.w / 2) * CELL}" y1="${(a.y + a.h / 2) * CELL}" x2="${(b.x + b.w / 2) * CELL}" y2="${(b.y + b.h / 2) * CELL}"/>`;
+      }).join('');
+      const marks = plan.links.filter((k) => !k.remote).map(linkMark).join('');
+      // Never smaller than about three quarters of full size (the pane scrolls).
+      svg = `<svg class="map-svg" viewBox="-4 -4 ${W + 8} ${H + 8}" style="min-width:${Math.round(W * 0.75)}px" role="img" aria-label="Map">${remote}${rooms}${marks}${levels}</svg>`;
+    }
+    // The same in words, for screen readers.
+    const list = Object.keys(state.locations).filter(seen).map((id) => {
+      const who = (tokens[id] || []).map((t) => (t.player ? 'you' : t.kind === 'standee' ? `${t.count} ${t.label}` : t.label) + (t.now ? '' : ' (last seen)'));
+      return `<li>${esc(state.locations[id].name)}${id === here ? ' (you are here)' : ''}: ${esc(who.join(', ') || 'no one you know of')}</li>`;
+    }).join('');
+    pane.innerHTML = svg + `<ul class="sr-only" id="mapList">${list}</ul>`;
+  }
+  // Clicking fills in the action box (never acts).
+  function fillAction(text) {
+    const box = $('actionInput');
+    box.value = box.value.trim() ? `${box.value.trim()} ${text}` : text;
+    box.focus();
+  }
+  function mapActivate(el) {
+    if (!state || !el) return;
+    const tok = el.closest('.map-token');
+    if (tok) {
+      const id = tok.dataset.id;
+      if (id === state.player) return;
+      if (tok.dataset.kind === 'standee') return fillAction(`Watch the ${state.standees[id] ? state.standees[id].label : id}.`);
+      const who = tok.dataset.kind === 'extra' ? state.extras[id] : state.characters[id];
+      return fillAction(`Talk to ${who ? (tok.dataset.kind === 'extra' ? who.name : E.Engine.shortName(who)) : id}.`);
+    }
+    const room = el.closest('.map-room');
+    if (!room) return;
+    const id = room.dataset.room;
+    if (id === state.characters[state.player].status.location) return;
+    fillAction(state.seenRooms.includes(id) ? `Go to the ${state.locations[id].name}.` : 'Find out what is through there.');
+  }
+  $('mapPane').addEventListener('click', (ev) => mapActivate(ev.target));
+  $('mapPane').addEventListener('keydown', (ev) => {
+    if (ev.key !== 'Enter' && ev.key !== ' ') return;
+    if (!ev.target.closest('.map-token, .map-room')) return;
+    ev.preventDefault();
+    mapActivate(ev.target);
+  });
+  // Text, split or map: per world on desktop; the phone button switches text and map.
+  const VIEW_KEY = 'ensemble.view';
+  function viewAll() { try { return JSON.parse(store.get(VIEW_KEY)) || {}; } catch (e) { return {}; } }
+  function setView(mode, remember) {
+    const story = $('story');
+    story.classList.remove('view-text', 'view-split', 'view-map');
+    story.classList.add('view-' + mode);
+    document.querySelectorAll('.view-switch button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === mode)));
+    $('btnMapPhone').setAttribute('aria-pressed', String(mode === 'map'));
+    if (remember && state) { const all = viewAll(); all[state.scenario.worldId] = mode; store.set(VIEW_KEY, JSON.stringify(all)); }
+  }
+  function restoreView() { setView((state && viewAll()[state.scenario.worldId]) || 'split', false); }
+  document.querySelectorAll('.view-switch button').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view, true)));
+  $('btnMapPhone').addEventListener('click', () => setView($('story').classList.contains('view-map') ? 'text' : 'map', false));
+  setView('split', false);
 
   // A cast card is composed from one function per section, in renderCast. Each
   // section returns its markup, or '' to leave it out.
@@ -815,7 +990,16 @@
         `<div class="rel-${myW}" title="${esc(why ? 'How you feel about them: ' + why : 'How you feel about them')}">you: ${myW} ${mine > 0 ? '+' : ''}${mine}</div></div>`;
     }
     return `<div class="top">${portraitHtml(id)}<div class="who"><div class="nm">${esc(c.name)}${isPlayer ? ' (you)' : ''}</div><div class="role">${esc(c.role)}</div></div>${rels}${minButton(id, c, false)}</div>` +
-      `<div class="meta">${esc(loc ? loc.name : '?')}</div>`;
+      `<div class="meta">${esc(whereText(id, isPlayer, loc))}</div>`;
+  }
+  // Where the card says someone is (task 3-3): where you last saw them, so a
+  // covert move never shows.
+  function whereText(id, isPlayer, loc) {
+    if (isPlayer) return loc ? loc.name : '?';
+    const kw = E.Engine.knownWhere(state, id);
+    const room = kw && state.locations[kw.loc];
+    if (!room) return 'whereabouts unknown';
+    return kw.now ? room.name : `last seen in ${room.name}${kw.turn ? ` (turn ${kw.turn})` : ''}`;
   }
 
   // Who they are right now: the mood line (others only; it fades when it hasn't
@@ -1224,6 +1408,7 @@
     if (saved) {
       try {
         state = E.Engine.migrate(JSON.parse(saved));
+        restoreView();
         showPickInfo(false);
         renderAll();
       } catch (e) { state = null; }

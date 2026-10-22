@@ -46,16 +46,25 @@ try { window.EnsembleAppearance((JSON.parse(localStorage.getItem('ensemble.setti
 </header>
 
 <main class="layout">
-  <section class="story">
-    <div id="sceneBar" class="scene-bar"></div>
+  <section class="story view-split" id="story">
+    <div class="story-head">
+      <div id="sceneBar" class="scene-bar"></div>
+      <div class="view-switch desktop-only" role="group" aria-label="Story and map">
+        <button type="button" data-view="text" title="Story only">Text</button><button type="button" data-view="split" title="Story and map side by side">Split</button><button type="button" data-view="map" title="Map only">Map</button>
+      </div>
+    </div>
+    <div class="story-body">
     <div id="log" class="log">
       <div class="empty">Pick a world and press <b>New game</b>.<br>First time? Open <b>Settings</b> and connect a model: KoboldCpp on your computer, or an API key (for example OpenRouter).</div>
+    </div>
+    <div id="mapPane" class="map-pane" aria-label="Map of where you are"></div>
     </div>
     <form id="actionForm" class="action">
       <textarea id="actionInput" rows="3" placeholder="What do you do? (Ctrl+Enter to act)"></textarea>
       <div id="suggestions" class="suggestions hidden" aria-label="Suggested actions"></div>
       <div class="action-row">
         <select id="timeStep" title="How much time this action takes"></select>
+        <button type="button" id="btnMapPhone" class="mobile-only" aria-label="Map" title="Map" aria-pressed="false">🗺</button>
         <button type="button" id="btnSide" class="mobile-only" aria-label="Situation, people and journal" title="Situation, people and journal">👥</button>
         <span id="phase" class="phase"></span>
         <button type="button" id="btnUndo" class="tool" aria-label="Undo last turn" title="Undo the last turn and put your action back in the box. Only one turn can be undone." disabled>↶<span class="lbl"> Undo</span></button>
@@ -198,6 +207,7 @@ try { window.EnsembleAppearance((JSON.parse(localStorage.getItem('ensemble.setti
 <script src="js/prompts.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/scenario.js"></script>
+<script src="js/layouts.js"></script>
 <script src="js/ui.js"></script>
 </body>
 </html>

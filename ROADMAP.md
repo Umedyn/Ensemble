@@ -95,16 +95,17 @@ Pax Historia's map at personal scale: World → Regional → Local.
 - [x] Prompts get static geography in the header, and the control and tags of the current region and its neighbours in the user message only.
 
 **Local map: tokens on nodes**
-- [ ] Every character is a **token** on a location node, named characters and **standees** alike.
+- [x] Every character is a **token** on a location node, named characters and **standees** alike.
 - [x] **Standees** are unnamed groups such as gang members, guards or a mob: label, count, location, state (calm, alert, hostile, fled, down). The engine tracks them; the model can propose moves, count changes and state changes, and the engine validates and clamps them. A standee can be promoted to an extra or a named character when the player singles one out.
 - [x] **Guard posts and patrols**: standees can hold a post or follow a patrol route through the room graph; whether the player is seen depends on who is in or next to their room.
 - [ ] Later, possibly: positions inside a room (doorway, cover, back wall) for a more hands-on feel. The site layout below gives every room coordinates, so this becomes possible; decide after playing with tokens.
 
 **Site layouts: the model describes, the engine draws**
 - [ ] **Site data**: rooms (size, purpose, features), links with a kind (`open`, `door`, `locked door`, `vent`, `hatch`, `window`, `stairs`), entrances from outside (watched or not), and stateful features the engine tracks (a door locked or open, a camera on or off). The model never draws: grids and ASCII from a 12B are unreliable, and a drawing can't be validated.
-- [ ] **Layout styles** per site type (`warehouse`, `apartment floor`, `office floor`, `club`, `compound`, `sewer`, …) in a DOM-free `js/layouts.js`: deterministic placement from sizes and links, so the same site always lays out the same way and survives saves.
-- [ ] **SVG floor plan**: walls, door gaps, locked-door, vent and hatch symbols, labels and tokens, in theme colours (high visibility included), never generated art.
-- [ ] **What the player has seen**: unseen rooms stay dark until entered, seen or revealed (a floor plan bought from a fixer is a real advantage).
+- [x] **Layout styles** per site type in a DOM-free `js/layouts.js`: deterministic placement from sizes and links, so the same site always lays out the same way and survives saves. Built: `generic`, `hall` (warehouse, store), `corridor` (apartment floor, station ring).
+- [ ] More layout styles (`office floor`, `club`, `compound`, `sewer`, …) as generated sites need them (4-4).
+- [x] **SVG floor plan**: walls, door gaps, locked-door, vent and hatch symbols, labels and tokens, in theme colours (high visibility included), never generated art.
+- [x] **What the player has seen**: unseen rooms stay dark until entered, seen or revealed (a floor plan bought from a fixer is a real advantage).
 - [ ] **Movement follows links**: you can only step into a room linked to the one you're in. Naming a farther room walks the route (`Eng.route`) through the rooms in between, and each one counts for time and for being seen; a locked link blocks the route until it's opened.
 - [ ] **Authored features are the truth**: doors, windows, vents and objects a map maker placed are what exists, and the game goes off them.
 - [ ] **Inferred features**: where the map is silent, the model may propose a plausible feature when the player tries to use one ("I climb out the window"). The engine accepts it only if it doesn't contradict the map: windows only on exterior walls (the layout knows which those are), never into a secure room, and never over a feature the author placed. Once accepted it's recorded on the site, so it's there next time and for everyone.
@@ -113,7 +114,7 @@ Pax Historia's map at personal scale: World → Regional → Local.
 **Views**
 - [ ] **World view**: the map image with creator-drawn region polygons coloured by controller, and tag badges. Without an image, a node map laid out automatically.
 - [ ] **Regional view**: the world view zoomed to the current region and its neighbours.
-- [ ] **Local view**: the room graph laid out automatically from `connects`, or an optional floor-plan image with room hotspots, showing tokens. Clicking a room or token fills in the action box ("go to the lab", "talk to Teo").
+- [x] **Local view**: the room graph laid out automatically from `connects`, or an optional floor-plan image with room hotspots, showing tokens. Clicking a room or token fills in the action box ("go to the lab", "talk to Teo").
 - [ ] Phone layout: one view at a time with a switcher.
 
 **First creator tab**

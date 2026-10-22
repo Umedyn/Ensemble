@@ -16,7 +16,7 @@
   const START_OWN = ['id', 'title', 'summary', 'start', 'player', 'cast', 'opening', 'castLabel', 'region'];
   // World fields a start may override (merge rules below).
   const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'tagThresholds', 'portraitSet', 'factions', 'world',
-    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'standees'];
+    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'standees', 'site', 'localMap'];
   const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'characters', 'starts', ...OVERRIDABLE];
   const WORLD_RESERVED = ['map', 'lore', 'timeline'];
   const START_RESERVED = ['playerSlot'];
@@ -417,6 +417,58 @@
     return problems;
   }
 
+  // Site layout data (task 3-3), all optional: room size, floor, outside,
+  // features, secure, whether the player knows the room yet, and links with a
+  // kind. A link is also a connection (added to "connects" here), so links
+  // only add how a way through looks. The start's "site" picks the layout
+  // style; "localMap" draws a floor-plan image with room hotspots instead.
+  S.LINK_KINDS = ['open', 'door', 'locked door', 'vent', 'hatch', 'window', 'stairs'];
+  S.ROOM_SIZES = ['small', 'medium', 'large'];
+  S.SITE_TYPES = ['generic', 'hall', 'corridor'];
+  function siteProblems(sc, locIds) {
+    const problems = [];
+    const req = (cond, msg) => { if (!cond) problems.push(msg); };
+    const locs = sc.locations || [];
+    const byId = {};
+    locs.forEach((l) => (byId[l.id] = l));
+    locs.forEach((l) => {
+      const where = `location "${l.id}"`;
+      req(l.size == null || S.ROOM_SIZES.includes(l.size), `${where}: "size" must be small, medium or large`);
+      req(l.level == null || (Number.isInteger(l.level) && l.level >= -3 && l.level <= 5), `${where}: "level" must be a whole number from -3 to 5 (0 is the ground floor)`);
+      req(l.outside == null || typeof l.outside === 'boolean', `${where}: "outside" must be true or false`);
+      req(l.secure == null || typeof l.secure === 'boolean', `${where}: "secure" must be true or false`);
+      req(l.seen == null || typeof l.seen === 'boolean', `${where}: "seen" must be true or false`);
+      req(l.features == null || (Array.isArray(l.features) && l.features.length <= 6 && l.features.every((f) => typeof f === 'string' && f.trim() && f.length <= 30)),
+        `${where}: "features" must be a list of at most 6 short names (30 characters each)`);
+      if (l.links == null) return;
+      if (!Array.isArray(l.links)) return problems.push(`${where}: "links" must be a list of {to, kind}`);
+      l.links.forEach((k) => {
+        const ok = k && locIds.has(k.to) && k.to !== l.id;
+        req(ok, `${where}: link to unknown room "${k && k.to}"`);
+        req(k && S.LINK_KINDS.includes(k.kind), `${where}: link to "${k && k.to}" needs a kind: ${S.LINK_KINDS.join(', ')}`);
+        if (ok) { l.connects = l.connects || []; if (!l.connects.includes(k.to)) l.connects.push(k.to); }
+      });
+    });
+    // Secure rooms (vault, cell) have exactly one way in.
+    locs.filter((l) => l.secure).forEach((l) => {
+      const ways = new Set((l.connects || []).concat(locs.filter((o) => (o.connects || []).includes(l.id)).map((o) => o.id)));
+      req(ways.size === 1, `location "${l.id}" is secure, so it needs exactly one way in (it has ${ways.size})`);
+    });
+    if (sc.site != null) {
+      req(isObj(sc.site) && (sc.site.type == null || S.SITE_TYPES.includes(sc.site.type)), `"site" must be {type}, with type ${S.SITE_TYPES.join(', ')}`);
+    }
+    if (sc.localMap != null) {
+      const m = sc.localMap;
+      req(isObj(m) && E.isImagePath(m.image) && m.width > 0 && m.height > 0 && isObj(m.rooms), '"localMap" needs an "image" in the world folder, "width", "height" and "rooms"');
+      Object.entries((isObj(m) && isObj(m.rooms)) ? m.rooms : {}).forEach(([id, r]) => {
+        req(locIds.has(id), `localMap: unknown room "${id}"`);
+        req(isObj(r) && [r.x, r.y, r.w, r.h].every((n) => typeof n === 'number' && n >= 0) && r.x + r.w <= m.width && r.y + r.h <= m.height,
+          `localMap: room "${id}" needs x, y, w and h inside the image`);
+      });
+    }
+    return problems;
+  }
+
   // Catches authoring mistakes early with readable messages.
   S.validate = function (sc) {
     const problems = [];
@@ -443,6 +495,7 @@
     (sc.revealPressure || []).forEach((n) => req(needIds.includes(n), `revealPressure "${n}" is not one of the world's needs`));
     const locIds = new Set((sc.locations || []).map((l) => l.id));
     (sc.locations || []).forEach((l) => (l.connects || []).forEach((c) => req(locIds.has(c), `location "${l.id}" connects to unknown "${c}"`)));
+    problems.push(...siteProblems(sc, locIds));
     (sc.characterData || []).forEach((c, i) => {
       const expected = sc.characters[i];
       req(c.id === expected, `characters/${expected}.json has id "${c.id}"`);

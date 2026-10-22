@@ -117,7 +117,51 @@ button:disabled { opacity: .5; cursor: default; }
 .topbar { flex: none; }
 .layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; flex: 1; min-height: 0; }
 .story { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); }
-.scene-bar { padding: 8px 18px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 0.8125rem; min-height: 37px; }
+.story-head { display: flex; align-items: center; border-bottom: 1px solid var(--line); }
+.scene-bar { flex: 1; min-width: 0; padding: 8px 18px; color: var(--muted); font-size: 0.8125rem; min-height: 37px; }
+.view-switch { display: flex; gap: 0; margin-right: 12px; flex: none; }
+.view-switch button { font-size: 0.75rem; padding: 3px 10px; border-radius: 0; }
+.view-switch button:first-child { border-radius: 6px 0 0 6px; }
+.view-switch button:last-child { border-radius: 0 6px 6px 0; }
+.view-switch button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.story-body { flex: 1; display: flex; min-height: 0; }
+.story-body > .log { flex: 1 1 0; min-width: 0; }
+.map-pane { flex: 1 1 0; min-width: 0; overflow: auto; padding: 14px; border-left: 1px solid var(--line); }
+.story.view-text .map-pane { display: none; }
+.story.view-map .log { display: none; }
+.story.view-map .map-pane { border-left: none; }
+/* Local map (task 3-3): theme colours only */
+.map-svg { width: 100%; height: auto; max-height: 100%; display: block; }
+.map-room .floor { fill: var(--panel-2); stroke: var(--line-strong); stroke-width: 2; }
+.map-room.outside .floor { fill: var(--bg); stroke-dasharray: 6 4; }
+.map-room.here .floor { stroke: var(--accent); stroke-width: 3; }
+.map-room.unseen .floor { fill: var(--bg); stroke: var(--line); }
+.map-room:focus { outline: none; }
+.map-room:focus .floor, .map-room:hover .floor { stroke: var(--focus); }
+.map-room { cursor: pointer; }
+.map-label { fill: var(--text); font-size: 11px; font-family: var(--sans); font-weight: 600; }
+.map-feat { fill: var(--muted); font-size: 9px; font-family: var(--sans); }
+.map-level { fill: var(--muted); font-size: 10px; font-family: var(--sans); text-transform: uppercase; letter-spacing: 0.05em; }
+.map-gap { fill: var(--panel-2); }
+.map-door { stroke: var(--text); stroke-width: 1.5; fill: none; }
+.map-lock { fill: var(--bad); }
+.map-vent { fill: var(--panel); stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 2; }
+.map-window { stroke: var(--muted); stroke-width: 1; }
+.map-remote { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 4 4; fill: none; }
+.map-token { cursor: pointer; }
+.map-token.stale { opacity: 0.45; }
+.map-token .ring { fill: none; stroke: var(--accent); stroke-width: 2.5; }
+.map-token text { fill: var(--monogram-text); font-size: 9px; font-family: var(--sans); font-weight: 700; }
+.map-token .badge { fill: var(--panel); stroke-width: 2; }
+.map-token .badge-calm { stroke: var(--muted); }
+.map-token .badge-alert { stroke: var(--accent); }
+.map-token .badge-hostile { stroke: var(--bad); }
+.map-token .badge-down { stroke: var(--line-strong); stroke-dasharray: 2 2; }
+.map-token text.count { fill: var(--text); font-size: 10px; }
+.map-token:focus { outline: none; }
+.map-token:focus .tok, .map-token:hover .tok { stroke: var(--focus); stroke-width: 2; }
+.map-more { fill: var(--muted); font-size: 10px; font-family: var(--sans); }
+.map-empty { color: var(--muted); text-align: center; margin-top: 40px; }
 .scene-bar b { color: var(--text); }
 .log { flex: 1; overflow-y: auto; padding: 18px 22px 30px; }
 .log .empty { color: var(--muted); margin-top: 40px; text-align: center; }
@@ -300,6 +344,8 @@ dialog { max-height: 90dvh; overflow-y: auto; }
   .layout { grid-template-columns: minmax(0, 1fr); }
   .story { border-right: none; }
   .scene-bar { padding: 6px 12px; font-size: 0.75rem; }
+  .map-pane { border-left: none; padding: 8px; }
+  .story.view-split .map-pane { display: none; }
   .log { padding: 12px 14px 20px; }
   .entry.scene { font-size: 1rem; }
   .action { padding: 8px 10px calc(10px + env(safe-area-inset-bottom)); }

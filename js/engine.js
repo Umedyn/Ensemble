@@ -57,6 +57,11 @@
     (sc.extras || []).forEach((x) => { state.extras[x.id] = Eng.newExtra(x, 'author', 0); });
     state.standees = {};
     (sc.standees || []).forEach((g) => { state.standees[g.id] = Eng.newStandee(g); });
+    // The local map (task 3-3): rooms the player knows, and where they last saw everyone.
+    state.seenRooms = Object.values(state.locations).filter((l) => l.seen !== false).map((l) => l.id);
+    state.known = {};
+    Eng.knowAll(state, 0);
+    Eng.noteSeen(state, null, 0);
     // Starting knowledge becomes private facts; scenario facts are public.
     sc.characterData.forEach((c) =>
       (c.knows || []).forEach((text) =>
@@ -73,7 +78,7 @@
 
   // Saves and autosaves from older versions are upgraded one step at a time
   // when loaded. Each step takes a state at version n and returns n + 1.
-  Eng.STATE_VERSION = 8;
+  Eng.STATE_VERSION = 9;
   Eng.migrations = {
     // Worlds and starts (docs/WORLDS.md): the scenario records where it came from.
     1: (state) => {
@@ -141,6 +146,17 @@
       convert(state);
       if (state.pending && state.pending.pre) convert(state.pending.pre);
       state.version = 8;
+      return state;
+    },
+    // The local map (task 3-3): every room seen, everyone where they are now.
+    8: (state) => {
+      const fill = (st, turn) => {
+        if (!st.seenRooms) st.seenRooms = Object.keys(st.locations || {});
+        if (!st.known) { st.known = {}; if (st.characters) Eng.knowAll(st, turn); }
+      };
+      fill(state, state.turn);
+      if (state.pending && state.pending.pre) fill(Object.assign(state.pending.pre, { player: state.player }), state.turn);
+      state.version = 9;
       return state;
     },
   };
@@ -417,6 +433,58 @@
     g.count -= 1;
     const gone = g.count <= 0 ? '; ' + removeStandee(state, g, 'is down to no one') : '';
     return { id, note: `${name} singled out from ${g.label} (${id}); ${g.label} now ${Math.max(0, g.count)}${gone}` };
+  };
+
+  // ---------- what the player knows of the map (task 3-3) ----------
+  // state.seenRooms: rooms the player has been in or seen into (unseen rooms
+  // are drawn dark). state.known[id] = { loc, turn }: where the player last
+  // saw each character, extra and group. Covert moves and hidden events never
+  // update it, so the map and the cards never show what the player didn't see.
+  Eng.knowAll = function (state, turn) {
+    Object.values(state.characters || {}).forEach((c) => { if (c.id !== state.player) state.known[c.id] = { loc: c.status.location, turn }; });
+    Object.values(state.extras || {}).forEach((x) => { if (x.location) state.known[x.id] = { loc: x.location, turn }; });
+    Object.values(state.standees || {}).forEach((g) => { state.known[g.id] = { loc: g.location, turn }; });
+  };
+  // Rooms the player can see into from where they stand: through open links.
+  Eng.visibleRooms = function (state) {
+    const here = state.characters[state.player].status.location;
+    const l = state.locations[here];
+    const open = (a, b) => {
+      const k = ((state.locations[a] || {}).links || []).find((x) => x.to === b) || ((state.locations[b] || {}).links || []).find((x) => x.to === a);
+      return !k || k.kind === 'open';
+    };
+    return [here].concat(l ? Eng.linkedRooms(state, here).filter((o) => open(here, o)) : []);
+  };
+  // Records what the player can see now: the rooms in view, everyone in the
+  // player's room, groups in view, and (when res is given) visible moves and
+  // seen or heard events. Called after a turn is played and again at commit.
+  Eng.noteSeen = function (state, res, turn) {
+    state.seenRooms = state.seenRooms || [];
+    state.known = state.known || {};
+    const here = state.characters[state.player].status.location;
+    const view = Eng.visibleRooms(state);
+    view.forEach((r) => { if (!state.seenRooms.includes(r)) state.seenRooms.push(r); });
+    const mark = (id, loc) => { if (id && id !== state.player && loc) state.known[id] = { loc, turn }; };
+    if (res) {
+      (res.outcomes || []).forEach((o) => { if (o.visible && o.moved && o.id !== state.player) mark(o.id, o.moved); });
+      (res.groups || []).forEach((g) => { if (g.visible && g.moved) mark(g.id, g.moved); });
+      (res.director || []).forEach((d) => { if (d.visibility !== 'hidden' && d.where) (d.who || []).forEach((id) => mark(id, whereIs(state, id) || d.where)); });
+    }
+    Eng.present(state).forEach((id) => mark(id, here));
+    Eng.extrasAt(state, here).forEach((x) => mark(x.id, here));
+    Object.values(state.standees || {}).forEach((g) => { if (view.includes(g.location)) mark(g.id, g.location); });
+    // Gone for good: no longer on the map.
+    Object.keys(state.known).forEach((id) => { if (!state.characters[id] && !(state.extras || {})[id] && !(state.standees || {})[id]) delete state.known[id]; });
+  };
+  // Where the player believes someone is: { loc, turn, now } (now: in view
+  // this turn), or null when they've never seen them.
+  Eng.knownWhere = function (state, id) {
+    if (id === state.player) return { loc: state.characters[id].status.location, turn: state.turn, now: true };
+    const k = state.known && state.known[id];
+    if (!k) return null;
+    const actual = whereIs(state, id);
+    const view = Eng.visibleRooms(state);
+    return { loc: k.loc, turn: k.turn, now: k.loc === actual && view.includes(actual) && (k.loc === state.characters[state.player].status.location || !!(state.standees || {})[id]) };
   };
 
   // Where someone is, character, extra or group.
@@ -1297,8 +1365,9 @@
     return Eng.monogram(state, id);
   };
   // Initials (titles like "Dr." skipped) on a hue from the id.
+  // Characters and extras (the map shows both).
   Eng.monogram = function (state, id) {
-    const c = state.characters[id];
+    const c = state.characters[id] || (state.extras && state.extras[id]) || {};
     const words = String(c.name || id).replace(/^(dr|mr|mrs|ms|mx|prof)\.?\s+/i, '').split(/\s+/).filter(Boolean);
     const initials = (words.length > 1 ? words[0][0] + words[words.length - 1][0] : (words[0] || id).slice(0, 2)).toUpperCase();
     return { monogram: initials, hue: E.hash(id) % 360 };
@@ -1801,16 +1870,24 @@
         maxTokens: 520, temperature: 0.3,
       });
       const expired = Eng.expireTags(state, p.turn);
+      const before = {};
+      Eng.cast(state, { includePlayer: false }).forEach((id) => (before[id] = state.characters[id].status.location));
       report = Eng.applyUpdate(state, upd, p.present, { startLoc: p.frame.startLoc, endLoc, keptProse: cut ? prose : null, involved: p.res.involved, turn: p.turn, extrasPresent: p.extrasPresent || [], engaged: p.res.engaged || [] });
       report.rejected.forEach((r) => guard(p.res, 'memory', 'update rejected', r));
       expired.concat(report.tags).forEach((t) => guard(p.res, 'memory', 'tags & mood', t));
       report.extras.forEach((t) => guard(p.res, 'memory', 'extras', t));
+      // People the update step moved were seen leaving or arriving.
+      Object.entries(before).forEach(([id, loc]) => {
+        const now = state.characters[id] && state.characters[id].status.location;
+        if (now && now !== loc && [p.frame.startLoc, endLoc].includes(loc)) state.known[id] = { loc: now, turn: p.turn };
+      });
     } catch (err) {
       E.Memory.addFact(state, { about: [state.player], text: `${state.characters[state.player].name}: ${p.action}`.slice(0, 200), known_by: ['all'], weight: 1 });
       report = { applied: [], rejected: [], warning: 'Update step failed: ' + err.message };
       guard(p.res, 'memory', 'update failed', err.message);
     }
     if (cut) report.applied.unshift(`interjected after beat ${cut} of ${total}`);
+    Eng.noteSeen(state, cut ? null : p.res, p.turn);
     // Tiers follow the scene as it played out. After a step-in the events may
     // not have reached the player, so only the people there count.
     const eventWho = cut ? [] : [].concat(...(p.res.director || []).filter((d) => d.visibility !== 'hidden').map((d) => d.who || []));
@@ -2025,6 +2102,7 @@
     const here = state.characters[state.player].status.location;
     const witnesses = Eng.present(state);
     frame.startLoc = here;
+    Eng.noteSeen(state, null, state.turn);
     state.pending = { turn: state.turn, action: action || 'Keeps to routine through the downtime.', res, frame, present: witnesses, beats, pre, routine: true, narration };
     phase('');
     return { prose: text, beats, res, plan };
@@ -2243,6 +2321,7 @@
     // Memory is recorded at the start of the next turn, once we know how
     // much of this scene the player let play out.
     const playerOut = res.outcomes.find((o) => o.id === state.player);
+    Eng.noteSeen(state, res, state.turn);
     state.pending = { turn: state.turn, action, res, frame, present, extrasPresent, beats, pre, playerMovedTo: playerOut && playerOut.moved, narration };
 
     phase('');

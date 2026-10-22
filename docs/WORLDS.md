@@ -86,7 +86,9 @@ Static servers can't list directories, so `world.json` lists its starts and char
 | `start` | `{day, hour}` | |
 | `player` | id | must be in `cast` |
 | `cast` | (id \| object)[] | who's in this start; see below |
-| `locations` | | the local rooms, same shape as today |
+| `locations` | | the local rooms: `{id, name, desc, connects}`, plus optional site layout fields (task 3-3): `size` (`small`, `medium`, `large`), `level` (0 the ground floor, 1 upstairs or the roof, −1 a basement; −3 to 5), `outside` (true for open ground), `features` (up to 6 short names, such as "forklift"), `secure` (exactly one way in), `seen` (false: the player doesn't know the room yet) and `links` (`[{to, kind}]`, kind `open`, `door`, `locked door`, `vent`, `hatch`, `window` or `stairs`; a link is also a connection, added to `connects` when validated). Links only change how the map draws a way through until task 3-6 |
+| `site` | object | optional `{type}`: the layout style for the map, `generic` (default), `hall` (the biggest room in the middle, as in a store or warehouse) or `corridor` (a spine with rooms off it). May be set in the world when every start shares the rooms |
+| `localMap` | object | optional `{image, width, height, rooms: {id: {x, y, w, h}}}`: a floor-plan image in the world folder, drawn with the rooms as hotspots instead of the generated plan. Pixel coordinates inside the image |
 | `clocks` | | local pressures, same shape as today |
 | `world`, `factions`, `eventRates`, … | | overrides of world fields (see merge rules) |
 | `facts` | string[] | public facts specific to this start |

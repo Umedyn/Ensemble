@@ -94,6 +94,12 @@
         "stockroom",
         "office",
         "dock"
+      ],
+      "size": "large",
+      "features": [
+        "tool aisles",
+        "boarded windows",
+        "generator"
       ]
     },
     {
@@ -103,6 +109,12 @@
       "connects": [
         "floor",
         "dock"
+      ],
+      "size": "medium",
+      "features": [
+        "shelving",
+        "bedrolls",
+        "food pile"
       ]
     },
     {
@@ -112,6 +124,18 @@
       "connects": [
         "floor",
         "roof"
+      ],
+      "size": "small",
+      "features": [
+        "locked desk",
+        "dead landline",
+        "roof ladder"
+      ],
+      "links": [
+        {
+          "to": "roof",
+          "kind": "hatch"
+        }
       ]
     },
     {
@@ -120,6 +144,12 @@
       "desc": "Flat tar roof with a view of the highway and the town.",
       "connects": [
         "office"
+      ],
+      "size": "medium",
+      "level": 1,
+      "outside": true,
+      "features": [
+        "view of the highway"
       ]
     },
     {
@@ -130,6 +160,17 @@
         "floor",
         "stockroom",
         "lot"
+      ],
+      "size": "medium",
+      "features": [
+        "forklift",
+        "Mrs. Albee's trailer"
+      ],
+      "links": [
+        {
+          "to": "lot",
+          "kind": "door"
+        }
       ]
     },
     {
@@ -138,9 +179,18 @@
       "desc": "Open asphalt, abandoned cars, a pickup with no keys. Exposed.",
       "connects": [
         "dock"
+      ],
+      "size": "large",
+      "outside": true,
+      "features": [
+        "the pickup",
+        "abandoned cars"
       ]
     }
   ],
+  "site": {
+    "type": "hall"
+  },
   "clocks": [
     {
       "id": "horde",
