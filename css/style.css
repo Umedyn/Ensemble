@@ -438,3 +438,44 @@ dialog { max-height: 90dvh; overflow-y: auto; }
 .setup .choice:hover { border-color: var(--accent); }
 .setup .choice span.ok { color: var(--good); }
 #btnSetup { font-size: 0.75rem; color: var(--muted); }
+
+/* character creator (task 4-1) */
+#makerDialog { width: min(44rem, 96vw); }
+.maker-body { display: flex; flex-direction: column; gap: 10px; }
+.maker-body fieldset { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px 8px; margin: 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.maker-body legend { font-size: 0.8125rem; color: var(--muted); padding: 0 4px; }
+.maker-body textarea { resize: vertical; }
+.mk-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.mk-row > label { flex: 1 1 8rem; }
+.mk-row > .mk-name { flex: 3 1 12rem; }
+.mk-row > .mk-age { flex: 0 1 5rem; }
+.mk-row > .mk-guard { flex: 0 1 9rem; }
+.settings label.mk-option { flex-direction: row; align-items: flex-start; gap: 8px; color: var(--text); }
+.mk-option input[type=radio] { margin-top: 4px; }
+.mk-option .muted { font-size: 0.75rem; }
+.mk-option input[type=text] { margin-top: 4px; width: 100%; }
+.mk-field { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.mk-field > label { align-self: stretch; }
+.mk-offer { font-size: 0.8125rem; border: 1px dashed var(--line-strong); border-radius: 6px; padding: 4px 8px; align-self: stretch; }
+.mk-chip { font-size: 0.8125rem; padding: 1px 4px 1px 8px; }
+.mk-chip button { padding: 0 4px; font-size: 0.875rem; line-height: 1; }
+.mk-ideas { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.mk-idea { border-style: dashed; }
+.mk-skills { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: 4px 12px !important; }
+.mk-skills legend { grid-column: 1 / -1; }
+.mk-skill { display: flex; align-items: center; gap: 6px; font-size: 0.8125rem; }
+.mk-skill span { flex: 1; }
+.mk-skill b { min-width: 1.2em; text-align: center; }
+.mk-skill button { padding: 0 8px; }
+.mk-pics { flex-direction: row !important; flex-wrap: wrap; gap: 6px 14px !important; }
+.settings label.mk-pic { flex-direction: row; align-items: center; gap: 6px; color: var(--text); }
+.settings label.mk-feel { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(6rem, 2fr) 6.5em; align-items: center; gap: 8px; color: var(--text); }
+.mk-feel > span:last-child { font-size: 0.8125rem; text-align: right; }
+.maker-errors { margin: 0; padding-left: 18px; font-size: 0.8125rem; }
+.maker-errors:empty { display: none; }
+.maker-foot { position: sticky; bottom: -1px; background: var(--panel); padding-top: 6px; border-top: 1px solid var(--line); }
+@media (max-width: 860px) {
+  #makerDialog { width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 0; }
+  .settings label.mk-feel { grid-template-columns: 1fr 6.5em; }
+  .mk-feel input[type=range] { grid-column: 1 / -1; grid-row: 2; }
+}

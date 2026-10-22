@@ -332,6 +332,83 @@ await check('a broken start shows its error in the picker instead of starting', 
   assert.match(await page.textContent('#sceneBar'), /Commons/, 'the other start still plays');
 });
 
+// Task 4-1: the character creator.
+const makerOpen = async (page) => {
+  await page.click('#btnNew');
+  await page.waitForSelector('#makerDialog[open]');
+};
+const gameStarted = (page) => page.waitForFunction(() => /turn 0$/.test(document.getElementById('sceneBar').textContent.trim()));
+
+await check('make my own character and play a turn', async (page) => {
+  assert.ok(await page.isVisible('#whoSelect'), 'the recycler start has a player slot');
+  assert.equal(await page.inputValue('#whoSelect'), 'default');
+  assert.match(await page.textContent('#whoSelect'), /Play as Kit Navarro/);
+  await page.selectOption('#whoSelect', 'own');
+  assert.match(await page.textContent('#pickInfo'), /your own crew member/);
+  await makerOpen(page);
+  await page.click('#mkStart');
+  assert.match(await page.textContent('#makerErrors'), /Give your character a name/);
+  assert.equal(await page.locator('.entry').count(), 0, 'no game yet');
+  await page.fill('[data-f="name"]', 'Ada Brandt');
+  // the draft survives closing the form
+  await page.click('#mkClose');
+  await makerOpen(page);
+  assert.equal(await page.inputValue('[data-f="name"]'), 'Ada Brandt');
+  await page.fill('[data-f="want"]', 'see the storm through');
+  await page.check('input[name="mk-role"][value="logistics"]');
+  assert.match(await page.textContent('.mk-skills legend'), /5 of 10 points left, up to 3 each/);
+  await page.click('[data-skill="tech"][data-step="1"]');
+  assert.ok(await page.locator('[data-skill="tech"][data-step="1"]').isDisabled(), 'tech is at the cap (3)');
+  assert.match(await page.textContent('.mk-skills legend'), /4 of 10 points left/);
+  await page.click('[data-trait-add="organized"]');
+  assert.equal(await page.locator('.mk-chip').count(), 1);
+  // Suggest offers; nothing changes until the player picks it
+  await page.click('[data-suggest="voice"]');
+  await page.waitForSelector('.mk-offer');
+  assert.equal(await page.inputValue('[data-f="voice"]'), '');
+  await page.click('[data-offer-use="voice"]');
+  assert.match(await page.inputValue('[data-f="voice"]'), /Quick and wry/);
+  await page.click('[data-suggest="traits"]');
+  await page.waitForSelector('[data-trait-add="restless"]');
+  assert.equal(await page.locator('.mk-chip').count(), 1, 'suggested traits are only ideas');
+  assert.equal(await page.locator('.mk-feel').count(), 4, 'feelings toward the four crew members, Kit left out');
+  await page.screenshot({ path: path.join(shots, 'character-creator.png') });
+  await page.click('#mkStart');
+  await gameStarted(page);
+  assert.ok(!(await page.isVisible('#makerDialog')));
+  assert.match(await page.textContent('#cast'), /Ada Brandt/);
+  assert.doesNotMatch(await page.textContent('#cast'), /Kit Navarro/);
+  await act(page, 'Ask Teo about the rattle.');
+  assert.equal(await page.locator('.entry.action').count(), 1);
+  const card = page.locator('#cast .card', { hasText: 'Ada Brandt' });
+  await card.locator('details.card-details summary').click();
+  const download = page.waitForEvent('download');
+  await card.locator('[data-save-char]').click();
+  assert.equal((await download).suggestedFilename(), 'ada-brandt.json');
+});
+
+await check('phone: make my own character and play a turn', async (page) => {
+  await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+  const who = await page.locator('#whoSelect').boundingBox();
+  assert.ok(who && who.x + who.width <= 390, 'who you play: a third stacked select, on screen');
+  await page.selectOption('#whoSelect', 'own');
+  await makerOpen(page);
+  const box = await page.locator('#makerDialog').boundingBox();
+  assert.ok(box.width >= 380 && box.width <= 390, 'the form fills the screen');
+  assert.ok(await page.evaluate(() => { const d = document.getElementById('makerDialog'); return d.scrollWidth <= d.clientWidth; }), 'no sideways scrolling');
+  await page.fill('[data-f="name"]', 'Sam Whitlock');
+  await page.fill('[data-f="want"]', 'get to the coast');
+  await page.fill('input[name="mk-role"][value=""] ~ span input', 'tow truck driver');
+  await page.fill('#mkTrait', 'blunt');
+  await page.press('#mkTrait', 'Enter');
+  assert.equal(await page.locator('.mk-chip').count(), 1);
+  assert.ok(await page.isVisible('#mkStart'), 'Start game stays in reach');
+  await page.click('#mkStart');
+  await gameStarted(page);
+  await act(page, 'Look around.');
+  assert.equal(await page.locator('.entry.action').count(), 1);
+});
+
 await check('phone: pick a world and a start, and play a turn', async (page) => {
   const world = await page.locator('#scenarioSelect').boundingBox();
   const start = await page.locator('#startSelect').boundingBox();

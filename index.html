@@ -30,6 +30,7 @@ try { window.EnsembleAppearance((JSON.parse(localStorage.getItem('ensemble.setti
     <div class="pickers">
       <select id="scenarioSelect" title="World" aria-label="World"></select>
       <select id="startSelect" class="hidden" title="Where you start" aria-label="Start"></select>
+      <select id="whoSelect" class="hidden" title="Who you play" aria-label="Who you play"></select>
     </div>
     <button id="btnNew">New game</button>
     <label class="btn desktop-only" title="Load worlds from disk (pick one world folder or the whole scenarios folder)">Open folder<input type="file" id="folderInput" webkitdirectory directory multiple hidden></label>
@@ -116,6 +117,20 @@ try { window.EnsembleAppearance((JSON.parse(localStorage.getItem('ensemble.setti
     <ul id="webList" class="web-list"></ul>
     <div class="muted small">Your own feelings, and how others treat you. Between other people, only what you have seen or been told (dashed). Exact numbers are in Debug.</div>
     <div class="row end"><button value="close">Close</button></div>
+  </form>
+</dialog>
+
+<dialog id="makerDialog" class="maker-dialog" aria-labelledby="makerTitle">
+  <form id="makerForm" class="settings maker">
+    <div class="row"><h3 id="makerTitle">Make your character</h3><div class="spacer"></div><button type="button" id="mkClose" class="ghost" aria-label="Close (your draft is kept)" title="Close (your draft is kept)">✕</button></div>
+    <div id="makerBody" class="maker-body"></div>
+    <ul id="makerErrors" class="maker-errors fail" aria-live="polite"></ul>
+    <div class="row wrap maker-foot">
+      <label class="btn" title="Fill the form from a saved character file">Load character<input type="file" id="mkLoad" accept=".json,application/json" hidden></label>
+      <button type="button" id="mkSave" title="Download this character as a file you can load again">Save this character</button>
+      <div class="spacer"></div>
+      <button type="button" id="mkStart" class="primary">Start game</button>
+    </div>
   </form>
 </dialog>
 
@@ -208,6 +223,7 @@ try { window.EnsembleAppearance((JSON.parse(localStorage.getItem('ensemble.setti
 <script src="js/prompts.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/scenario.js"></script>
+<script src="js/charmaker.js"></script>
 <script src="js/layouts.js"></script>
 <script src="js/mapdraw.js"></script>
 <script src="js/ui.js"></script>

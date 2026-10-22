@@ -104,5 +104,6 @@ test('validation checks needs, skillPenalties and revealPressure', () => {
   assert.doesNotThrow(bad({ revealPressure: ['fear'], skillPenalties: { health: { hurt: -1 }, needs: [{ need: 'fear', at: 0.9, penalty: -1 }] } }));
   const sc = readScenario('zombie-holdout');
   delete sc.needs;
+  delete sc.playerSlot.needs; // the made character's starting needs name the world's needs
   assert.deepEqual([...E.Scenario.validate(sc).needs], [], 'no needs listed means none');
 });

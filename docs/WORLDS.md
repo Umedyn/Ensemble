@@ -85,7 +85,7 @@ Static servers can't list directories, so `world.json` lists its starts and char
 | `id`, `title` | string | e.g. "Sol 214: the recycler" |
 | `summary` | string | shown on the start picker: who you are and what's going on |
 | `start` | `{day, hour}` | |
-| `player` | id | must be in `cast` |
+| `player` | id | must be in `cast`; may be left out when the start has a `playerSlot` (then every player makes their own) |
 | `cast` | (id \| object)[] | who's in this start; see below |
 | `locations` | | the local rooms: `{id, name, desc, connects}`, plus optional site layout fields (task 3-3): `size` (`small`, `medium`, `large`), `level` (0 the ground floor, 1 upstairs or the roof, −1 a basement; −3 to 5), `outside` (true for open ground), `features` (up to 6 short names, such as "forklift", or `{name, state}` for one the engine tracks, such as `{"name": "camera", "state": "on"}`), `secure` (exactly one way in), `seen` (false: the player doesn't know the room yet) and `links` (`[{to, kind}]`, kind `open`, `door`, `locked door`, `vent`, `hatch`, `window` or `stairs`; a link is also a connection, added to `connects` when validated; a `locked door` may name `key: [character ids]`, the people who pass, lock and unlock it freely). Since task 3-6 the engine plays by them: nobody passes a locked door without the key, shut doors block sight |
 | `entrances` | object[] | optional `[{room, kind, watched}]`: ways in from outside (task 3-6). Watched ones make sneaking through that room harder. May be set in the world or a start |
@@ -97,7 +97,7 @@ Static servers can't list directories, so `world.json` lists its starts and char
 | `opening` | string | first scene |
 | `castLabel` | string | sidebar heading ("Crew", "Survivors") |
 | `region` | id | where the player starts; required when the world has `regions`, and the default region of the start's locations |
-| reserved | | `playerSlot` (phase 4: lets the player make their own character) |
+| `playerSlot` | object | optional (task 4-1): lets the player make their own character. See below |
 
 ### cast entries
 
@@ -110,6 +110,38 @@ A character file is the person's **identity**: name, pronouns, role, age, traits
     "relations": { "navarro": 20 }, "knows": ["Hydroponics lost three racks of soy last week..."] }
 ]
 ```
+
+### playerSlot (the character creator)
+
+```json
+"playerSlot": {
+  "location": "commons",
+  "summary": "You make your own crew member...",
+  "knows": ["The recycler's rattle started six nights ago..."],
+  "needs": { "stress": 0.3 },
+  "roles": [{ "id": "systems", "label": "Systems engineer", "desc": "...", "skills": { "tech": 3 }, "suggestedTraits": ["practical"] }],
+  "peoples": [{ "id": "local", "label": "Harbor-born", "desc": "...", "suggestedTraits": ["wry"] }],
+  "freeform": false,
+  "skillPoints": 10, "maxSkill": 3,
+  "relationsDefault": 10, "castFeelings": 10,
+  "keepDefault": false
+}
+```
+
+| field | notes |
+|---|---|
+| `location` | required; a room of the start, where the made character begins |
+| `summary` | optional, up to 400 characters; shown in the picker instead of the start's summary (which usually names the authored player) |
+| `knows`, `needs` | optional; the made character's private starting facts and starting needs (the world's need ids, 0–1) |
+| `roles` | `{id, label, desc, skills, suggestedTraits}`; at least one unless `freeform`. A role's `skills` fill in the point-buy (within its limits) and the player can change them |
+| `peoples` | optional, same shape without `skills`; a people or origin, stored as the character's `people` |
+| `freeform` | true lets the player write their own role (and people) |
+| `skillPoints`, `maxSkill` | required; the point-buy budget across the world's skills, and the highest any one skill can be (1–4) |
+| `relationsDefault` | the player's starting feelings toward the cast: a number, or `{id: n}` (−100..100; default 0). The form starts from these and the player can change them |
+| `castFeelings` | how the cast feels about the newcomer, same shape (default 0) |
+| `keepDefault` | false (default): the authored `player` leaves the cast when someone makes their own; true keeps them on as a non-player character |
+
+The made character is a character file like any other (`id` from the name, made unique; `people` when a people was picked; `portrait` a path from the world's `portraitSet`, left out for the stand-in, or `false` for initials only), checked by `Scenario.characterProblems`. `CharMaker.withPlayer` adds it to the composed scenario as the player, at the front of the cast, sets `madePlayer`, applies `castFeelings`, drops the authored player (and feelings about them) unless `keepDefault`, and validates the result. When a world loads, each start with a slot is checked with a sample made character, so a slot that can't produce a playable game shows "(has errors)" in the picker. Saves embed the scenario, so the character travels with the game.
 
 Overridable per start: `status`, `needs`, `relations`, `knows`, `want`, `secret`, `guard`, `tags`. A cast entry may also set `tier` (`"local"` or `"secondary"`; default: local if they start in the player's room) and `pinned` (`true`: always local); see Cast tiers in `docs/DESIGN.md`. `agenda` (`{goal, steps, hours, visibility}`, steps as text or `{text, contact}`; `null` for routine) is usually in the character file and may be overridden per start; see Agendas in `docs/DESIGN.md`. With no `agenda` field at all, the model proposes one in play. A plain id uses the file as it is. Character files may still contain `status`, `needs`, `relations` and `knows` as defaults; existing files therefore stay valid.
 
@@ -143,7 +175,7 @@ The bundled `mars-station` and `zombie-holdout` folders were converted in task 1
 
 1. **World**: title, summary and tags (`index.json` order; "Open folder" adds more).
 2. **Start**: title and summary for each start, the default selected. If a world has one start, this step is skipped.
-3. (Phase 4) **"Make my own"** appears when a start has a `playerSlot`, or when the world allows generated starts.
+3. **Who you play** (task 4-1): a start with a `playerSlot` adds a third select, "Play as <name>" (when it has a `player`) or "Make my own". New game with "Make my own" opens the character form; Start game there begins the game. Generated starts (task 4-2) will add their own entry.
 
 Phone layout: two stacked selects, nothing more.
 

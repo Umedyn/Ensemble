@@ -42,6 +42,13 @@ function promptsFor(folder) {
     suggest: P.suggest(state),
     agenda: npcs[1] ? P.agenda(state, npcs[1], null) : '',
     fleshOut: ((x) => (x ? P.fleshOut(state, x.id) : ''))(Object.values(state.extras || {}).find((e) => !e.group)),
+    // Character creator (task 4-1): the draft game's header and a Suggest call.
+    charSuggest: ((sc) => {
+      if (!sc.playerSlot) return '';
+      const f = Object.assign(E.CharMaker.defaults(sc), { name: 'Sam Reyes', traits: ['patient'], want: 'see the week out' });
+      const draft = E.CharMaker.draftState(sc, f);
+      return P.header(draft) + '\n\n' + P.charSuggest(draft, 'traits', f);
+    })(state.scenario),
   };
 
   // The player walks to where the moved NPC is: the frame shows who stayed and who's there.

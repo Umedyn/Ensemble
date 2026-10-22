@@ -7,6 +7,69 @@
     "hour": 7
   },
   "player": "navarro",
+  "playerSlot": {
+    "location": "commons",
+    "summary": "You make your own crew member, 214 sols into the rotation. The water recycler has started to rattle, a dust storm is twenty hours out, and somebody on this crew is hiding why.",
+    "knows": [
+      "The recycler's rattle started six nights ago, the same night Teo had the late hydroponics shift."
+    ],
+    "needs": {
+      "hunger": 0.2,
+      "fatigue": 0.2,
+      "stress": 0.3
+    },
+    "roles": [
+      {
+        "id": "systems",
+        "label": "Systems engineer",
+        "desc": "Keeps the station's air, water and power running, and gets the blame when they don't.",
+        "skills": {
+          "tech": 3,
+          "science": 1,
+          "athletics": 1
+        },
+        "suggestedTraits": [
+          "practical",
+          "stubborn",
+          "patient"
+        ]
+      },
+      {
+        "id": "logistics",
+        "label": "Supply and comms officer",
+        "desc": "Runs the inventory, the uplink schedule and the station's endless paperwork.",
+        "skills": {
+          "tech": 2,
+          "social": 2,
+          "piloting": 1
+        },
+        "suggestedTraits": [
+          "organized",
+          "chatty",
+          "dry"
+        ]
+      },
+      {
+        "id": "auditor",
+        "label": "Sponsor's auditor",
+        "desc": "Came out on the last lander to check the program's numbers for Halvorsen Aerospace. The crew is polite about it.",
+        "skills": {
+          "social": 3,
+          "science": 2,
+          "stealth": 1
+        },
+        "suggestedTraits": [
+          "meticulous",
+          "polite",
+          "lonely"
+        ]
+      }
+    ],
+    "skillPoints": 10,
+    "maxSkill": 3,
+    "relationsDefault": 10,
+    "castFeelings": 10
+  },
   "region": "station",
   "castLabel": "Crew",
   "cast": [

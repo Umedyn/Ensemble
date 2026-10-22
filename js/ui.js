@@ -51,7 +51,7 @@
     try { return JSON.parse(store.get(PICK_KEY)) || {}; } catch (e) { return {}; }
   }
   function rememberPick() {
-    store.set(PICK_KEY, JSON.stringify({ world: $('scenarioSelect').value, start: $('startSelect').value }));
+    store.set(PICK_KEY, JSON.stringify({ world: $('scenarioSelect').value, start: $('startSelect').value, who: $('whoSelect').value }));
   }
 
   const worldLabel = (w) => (w.error ? `${w.title} (has errors)` : w.title);
@@ -65,15 +65,32 @@
 
   // Fills the start select for the picked world. With one start (or none
   // usable) it stays hidden and New game plays the default.
-  function renderStarts(preferred) {
+  function renderStarts(preferred, preferredWho) {
     const w = loaded.get($('scenarioSelect').value);
     const sel = $('startSelect');
     const starts = w && w.starts ? w.starts : [];
     sel.innerHTML = starts.map((s) => `<option value="${esc(s.id)}">${esc(s.title)}${s.error ? ' (has errors)' : ''}</option>`).join('');
     sel.value = starts.some((s) => s.id === preferred) ? preferred : (w && w.defaultStart) || '';
     sel.classList.toggle('hidden', starts.length < 2);
+    renderWho(preferredWho);
+  }
+
+  // Who you play (task 4-1): a start with a playerSlot offers its own
+  // character ("Play as …", when it has one) and "Make my own".
+  const pickedStart = () => {
+    const w = loaded.get($('scenarioSelect').value);
+    return w && w.starts ? w.starts.find((s) => s.id === $('startSelect').value) : null;
+  };
+  function renderWho(preferred) {
+    const st = pickedStart();
+    const sel = $('whoSelect');
+    const show = !!(st && st.slot && !st.error);
+    sel.innerHTML = !show ? '' : (st.defaultPlayer ? `<option value="default">Play as ${esc(st.defaultPlayer)}</option>` : '') + '<option value="own">Make my own</option>';
+    if (show) sel.value = Array.from(sel.options).some((o) => o.value === preferred) ? preferred : sel.options[0].value;
+    sel.classList.toggle('hidden', !show);
     renderPickInfo();
   }
+  const makingOwn = () => !$('whoSelect').classList.contains('hidden') && $('whoSelect').value === 'own';
 
   // Desktop line under the pickers: the world's summary and tags, then who
   // you are in the picked start, or why it won't load.
@@ -83,16 +100,18 @@
     if (w.error) { $('pickInfo').innerHTML = `<span class="fail">${esc(w.error)}</span>`; return; }
     const st = w.starts.find((s) => s.id === $('startSelect').value);
     const tags = (w.tags || []).map((t) => `<span class="tag">${esc(t)}</span>`).join('');
+    const summary = st && ((makingOwn() && st.slotSummary) || st.summary);
     const start = !st ? '' : st.error
       ? `<br><span class="fail">This start can't be played: ${esc(st.error)}</span>`
-      : st.summary ? `<br>${w.starts.length > 1 ? `<b>${esc(st.title)}:</b> ` : ''}${esc(st.summary)}` : '';
+      : summary ? `<br>${w.starts.length > 1 ? `<b>${esc(st.title)}:</b> ` : ''}${esc(summary)}` : '';
     $('pickInfo').innerHTML = `<b>${esc(w.title)}</b>${w.summary ? ' · ' + esc(w.summary) : ''}${tags}${start}`;
   }
 
   // The summary line shows while picking and folds away once a game is running.
   const showPickInfo = (on) => $('pickInfo').classList.toggle('hidden', !on);
   $('scenarioSelect').addEventListener('change', () => { renderStarts(); rememberPick(); showPickInfo(true); });
-  $('startSelect').addEventListener('change', () => { renderPickInfo(); rememberPick(); showPickInfo(true); });
+  $('startSelect').addEventListener('change', () => { renderWho($('whoSelect').value); rememberPick(); showPickInfo(true); });
+  $('whoSelect').addEventListener('change', () => { renderPickInfo(); rememberPick(); showPickInfo(true); });
 
   // Server worlds load up front so the picker can show their summaries and starts.
   async function loadServerList() {
@@ -109,7 +128,7 @@
     worlds.forEach((w, i) => { loaded.set('server:' + list[i].folder, w); addScenarioOption('server:' + list[i].folder, worldLabel(w)); });
     const pick = rememberedPick();
     if (pick.world && loaded.has(pick.world)) $('scenarioSelect').value = pick.world;
-    renderStarts(pick.world === $('scenarioSelect').value ? pick.start : null);
+    renderStarts(pick.world === $('scenarioSelect').value ? pick.start : null, pick.who);
   }
 
   // The picked world, fetched again from the server so edited files show up
@@ -143,27 +162,236 @@
     if (state && state.turn > 0 && !confirm('Start a new game? Unsaved progress will be lost.')) return;
     // Busy while the world loads, so Act can't fire into the old (or no) game.
     setBusy(true);
+    let world = null;
+    const startId = $('startSelect').value || undefined;
     try {
-      const world = await resolveWorld($('scenarioSelect').value);
-      state = E.Engine.newGame(E.Scenario.startScenario(world, $('startSelect').value || undefined));
-      restoreView();
-      rememberPick();
-      showPickInfo(false);
-      uiCut = null;
-      uiShown = 1;
-      openTurns.clear();
-      E.LLM.calls.length = 0;
-      E.Engine.telemetry.length = 0;
-      stopRecording();
-      notes.length = 0;
-      if (world.warnings.length) notes.push({ kind: 'world', summary: `${world.warnings.length} unknown field${world.warnings.length === 1 ? '' : 's'} ignored in "${world.title}"`, detail: world.warnings.join('\n') });
-      autosave();
+      world = await resolveWorld($('scenarioSelect').value);
+      if (!makingOwn()) beginGame(world, E.Scenario.startScenario(world, startId));
     } catch (e) {
+      world = null;
       alert(e.message);
     } finally {
       setBusy(false);
     }
+    // Make my own (task 4-1): the game starts from the character form.
+    if (world && makingOwn()) return openMaker(world, startId || world.defaultStart);
     if (state) renderAll();
+    $('actionInput').focus();
+  });
+
+  // A fresh game from a scenario, with the page reset for it.
+  function beginGame(world, scenario) {
+    state = E.Engine.newGame(scenario);
+    restoreView();
+    rememberPick();
+    showPickInfo(false);
+    uiCut = null;
+    uiShown = 1;
+    openTurns.clear();
+    E.LLM.calls.length = 0;
+    E.Engine.telemetry.length = 0;
+    stopRecording();
+    notes.length = 0;
+    if (world.warnings.length) notes.push({ kind: 'world', summary: `${world.warnings.length} unknown field${world.warnings.length === 1 ? '' : 's'} ignored in "${world.title}"`, detail: world.warnings.join('\n') });
+    if (scenario.madePlayer) notes.push({ kind: 'character', summary: `you made ${state.characters[state.player].name}`, detail: JSON.stringify(E.CharMaker.toFile(state.characters[state.player]), null, 1) });
+    autosave();
+  }
+
+  // ---------- character creator (task 4-1) ----------
+  // The form for a start's playerSlot. E.CharMaker decides what's allowed and
+  // builds the character; this only draws the form and keeps its values. The
+  // draft is kept in this browser, so closing the form loses nothing.
+  let maker = null; // { world, startId, sc, key, form, offers, pending, note, errors }
+  const DRAFT_KEY = 'ensemble.makerDraft';
+  const CM = E.CharMaker;
+  function openMaker(world, startId) {
+    const st = world.starts.find((s) => s.id === startId);
+    const sc = st.scenario;
+    const key = `${world.folder}/${startId}`;
+    const form = CM.defaults(sc);
+    try {
+      const d = JSON.parse(store.get(DRAFT_KEY));
+      if (d && d.key === key && d.form) Object.assign(form, d.form, { feelings: Object.assign(form.feelings, d.form.feelings) });
+    } catch (e) { /* no draft */ }
+    maker = { world, startId, sc, key, form, offers: {}, pending: null, note: '', errors: [] };
+    $('makerTitle').textContent = `Make your character: ${st.title}`;
+    renderMaker();
+    $('makerDialog').showModal();
+  }
+  const saveDraft = () => { if (maker) store.set(DRAFT_KEY, JSON.stringify({ key: maker.key, form: maker.form })); };
+
+  function renderMaker() {
+    if (!maker) return;
+    const { sc, form, offers } = maker;
+    const slot = sc.playerSlot;
+    const L = CM.LIMITS;
+    const focusKey = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.fk : null;
+    const val = (k) => esc(form[k] == null ? '' : String(form[k]));
+    const suggestBtn = (field) => `<button type="button" class="small mk-suggest" data-suggest="${field}" data-fk="sg-${field}"${maker.pending ? ' disabled' : ''} title="Ask the model for an idea; nothing changes until you pick it">${maker.pending === field ? 'Thinking…' : '💡 Suggest'}</button>`;
+    const offerBox = (field) => (offers[field] ? `<div class="mk-offer"><span class="muted">Suggestion:</span> ${esc(offers[field])} <button type="button" class="small" data-offer-use="${field}" data-fk="use-${field}">Use</button> <button type="button" class="small ghost" data-offer-dismiss="${field}">Dismiss</button></div>` : '');
+    const text = (k, label, max, rows) => `<label>${label}${rows ? `<textarea data-f="${k}" maxlength="${max}" rows="${rows}">${val(k)}</textarea>` : `<input type="text" data-f="${k}" maxlength="${max}" value="${val(k)}">`}</label>`;
+    const choices = (key, list, title, freeText) => {
+      if (!(list || []).length && !slot.freeform) return '';
+      const listed = (list || []).some((r) => r.id === form[key]);
+      const own = slot.freeform ? `<label class="mk-option"><input type="radio" name="mk-${key}" value="" data-choice="${key}"${listed ? '' : ' checked'}> <span><b>Something else</b> <input type="text" data-f="${freeText}" maxlength="60" value="${val(freeText)}" placeholder="Write your own" aria-label="Your own ${title.toLowerCase()}"></span></label>` : '';
+      return `<fieldset class="mk-choices"><legend>${title}</legend>${(list || []).map((r) => `<label class="mk-option"><input type="radio" name="mk-${key}" value="${esc(r.id)}" data-choice="${key}"${form[key] === r.id ? ' checked' : ''}> <span><b>${esc(r.label)}</b>${r.desc ? ` <span class="muted">${esc(r.desc)}</span>` : ''}</span></label>`).join('')}${own}</fieldset>`;
+    };
+    const traitIdeas = [...new Set(CM.suggestedTraits(sc, form).concat(offers.traits || []))].filter((t) => !form.traits.some((x) => x.toLowerCase() === t.toLowerCase()));
+    const left = CM.pointsLeft(sc, form.skills);
+    const skills = sc.skills.map((k) => {
+      const v = form.skills[k] || 0;
+      return `<div class="mk-skill"><span>${esc(k)}</span><button type="button" class="small" data-skill="${esc(k)}" data-step="-1" data-fk="sk-${esc(k)}-" aria-label="Less ${esc(k)}"${v <= 0 ? ' disabled' : ''}>−</button><b>${v}</b><button type="button" class="small" data-skill="${esc(k)}" data-step="1" data-fk="sk-${esc(k)}+" aria-label="More ${esc(k)}"${v >= slot.maxSkill || left <= 0 ? ' disabled' : ''}>+</button></div>`;
+    }).join('');
+    const pics = [['standin', 'Stand-in'], ['none', 'Initials only']].concat((sc.portraitSet || []).map((p) => [p, null]));
+    const portraits = pics.map(([v, label]) => {
+      const url = label ? null : assetUrl(sc.folder, v);
+      const name = v.split('/').pop();
+      return `<label class="mk-pic"><input type="radio" name="mk-portrait" value="${esc(v)}" data-portrait="1"${form.portrait === v ? ' checked' : ''}> ${label ? esc(label) : url ? `<img src="${esc(url)}" alt="${esc(name)}" class="portrait">` : esc(name)}</label>`;
+    }).join('');
+    const feelings = CM.castFor(sc).map((id) => {
+      const c = sc.characterData.find((d) => d.id === id);
+      const v = form.feelings[id] || 0;
+      return `<label class="mk-feel"><span>${esc(c.name)} <span class="muted small">${esc(c.role || '')}</span></span><input type="range" min="-100" max="100" step="5" value="${v}" data-feel-id="${esc(id)}" aria-label="Your feelings toward ${esc(c.name)}"><span class="rel-${E.relWord(v)}" data-feel-out="${esc(id)}">${E.relWord(v)} ${v > 0 ? '+' : ''}${v}</span></label>`;
+    }).join('');
+    $('makerBody').innerHTML =
+      '<div class="mk-row">' +
+        `<label class="mk-name">Name<input type="text" data-f="name" maxlength="${L.name}" value="${val('name')}" autocomplete="off"></label>` +
+        `<label>Pronouns<input type="text" data-f="pronouns" maxlength="${L.pronouns}" value="${val('pronouns')}" list="mkPronouns"></label>` +
+        `<label class="mk-age">Age<input type="number" data-f="age" min="1" max="129" value="${val('age')}"></label>` +
+      '</div><datalist id="mkPronouns"><option value="she/her"><option value="he/him"><option value="they/them"></datalist>' +
+      choices('role', slot.roles, 'Role', 'roleText') +
+      choices('people', slot.peoples, 'People', 'peopleText') +
+      `<div class="mk-field">${text('description', 'Who you are', L.description, 3)}${suggestBtn('description')}${offerBox('description')}</div>` +
+      text('appearance', 'Appearance (the first sentence is how the story sees you)', L.appearance, 2) +
+      `<fieldset class="mk-traits"><legend>Traits</legend><div>${form.traits.map((t, i) => `<span class="tag mk-chip">${esc(t)} <button type="button" class="ghost" data-trait-remove="${i}" aria-label="Remove ${esc(t)}">×</button></span>`).join('') || '<span class="muted small">None yet.</span>'}</div>` +
+        `<div class="row"><input type="text" id="mkTrait" maxlength="${L.trait}" placeholder="Add a trait" aria-label="Add a trait" data-fk="trait-in"><button type="button" class="small" id="mkTraitAdd">Add</button>${suggestBtn('traits')}</div>` +
+        (traitIdeas.length ? `<div class="mk-ideas"><span class="muted small">Ideas:</span> ${traitIdeas.map((t) => `<button type="button" class="small mk-idea" data-trait-add="${esc(t)}">+ ${esc(t)}</button>`).join('')}</div>` : '') +
+      '</fieldset>' +
+      `<div class="mk-field">${text('voice', 'Voice (how you talk)', L.voice)}${suggestBtn('voice')}${offerBox('voice')}</div>` +
+      text('want', 'What you want', L.want) +
+      `<div class="mk-row">${text('secret', 'A secret (optional; the others may find it out)', L.secret, 2)}<label class="mk-guard">How well you keep it<select data-f="guard">${['low', 'medium', 'high'].map((g) => `<option value="${g}"${form.guard === g ? ' selected' : ''}>${g}</option>`).join('')}</select></label></div>` +
+      `<fieldset class="mk-skills"><legend>Skills: <span class="${left < 0 ? 'fail' : ''}">${left} of ${slot.skillPoints} points left</span>, up to ${slot.maxSkill} each</legend>${skills}</fieldset>` +
+      `<fieldset class="mk-pics"><legend>Portrait</legend>${portraits}</fieldset>` +
+      (feelings ? `<fieldset class="mk-feelings"><legend>How you feel about them at the start</legend>${feelings}</fieldset>` : '') +
+      (maker.note ? `<div class="fail small">${esc(maker.note)}</div>` : '');
+    $('makerErrors').innerHTML = maker.errors.map((e) => `<li>${esc(e)}</li>`).join('');
+    if (focusKey) { const el = $('makerBody').querySelector(`[data-fk="${focusKey}"]`); if (el && !el.disabled) el.focus(); }
+  }
+
+  $('makerBody').addEventListener('input', (ev) => {
+    if (!maker) return;
+    const t = ev.target;
+    if (t.dataset.f) maker.form[t.dataset.f] = t.dataset.f === 'age' ? (t.value === '' ? null : Number(t.value)) : t.value;
+    // Typing your own role or people picks "Something else".
+    if (t.dataset.f === 'roleText' || t.dataset.f === 'peopleText') {
+      const radio = t.closest('.mk-option').querySelector('input[type=radio]');
+      radio.checked = true;
+      maker.form[radio.dataset.choice] = '';
+    }
+    if (t.dataset.feelId) {
+      const v = Number(t.value);
+      maker.form.feelings[t.dataset.feelId] = v;
+      const out = $('makerBody').querySelector(`[data-feel-out="${t.dataset.feelId}"]`);
+      out.textContent = `${E.relWord(v)} ${v > 0 ? '+' : ''}${v}`;
+      out.className = 'rel-' + E.relWord(v);
+    }
+    saveDraft();
+  });
+  $('makerBody').addEventListener('change', (ev) => {
+    if (!maker) return;
+    const t = ev.target;
+    if (t.dataset.choice) {
+      maker.form[t.dataset.choice] = t.value;
+      // A listed role brings its skills; your own keeps what you set.
+      if (t.dataset.choice === 'role' && t.value) maker.form.skills = CM.roleSkills(maker.sc, t.value);
+    } else if (t.dataset.portrait) maker.form.portrait = t.value;
+    else return;
+    saveDraft();
+    renderMaker();
+  });
+  function addTrait(t) {
+    const v = String(t || '').trim().slice(0, CM.LIMITS.trait);
+    if (maker.offers.traits) maker.offers.traits = maker.offers.traits.filter((x) => x !== t);
+    if (!v || maker.form.traits.some((x) => x.toLowerCase() === v.toLowerCase())) return;
+    maker.form.traits.push(v);
+  }
+  $('makerBody').addEventListener('keydown', (ev) => {
+    if (!maker || ev.target.id !== 'mkTrait' || ev.key !== 'Enter') return;
+    ev.preventDefault();
+    addTrait(ev.target.value);
+    saveDraft();
+    renderMaker();
+    $('mkTrait').focus();
+  });
+  $('makerBody').addEventListener('click', (ev) => {
+    if (!maker) return;
+    const b = ev.target.closest('button');
+    if (!b) return;
+    const f = maker.form;
+    if (b.dataset.skill) {
+      const k = b.dataset.skill;
+      const next = Object.assign({}, f.skills, { [k]: (f.skills[k] || 0) + Number(b.dataset.step) });
+      if (CM.skillProblems(maker.sc, next).length) return;
+      f.skills = next;
+    } else if (b.dataset.traitRemove != null) f.traits.splice(Number(b.dataset.traitRemove), 1);
+    else if (b.dataset.traitAdd != null) addTrait(b.dataset.traitAdd);
+    else if (b.id === 'mkTraitAdd') addTrait($('mkTrait').value);
+    else if (b.dataset.suggest) return void runSuggest(b.dataset.suggest);
+    else if (b.dataset.offerUse) { f[b.dataset.offerUse] = maker.offers[b.dataset.offerUse]; maker.offers[b.dataset.offerUse] = null; }
+    else if (b.dataset.offerDismiss) maker.offers[b.dataset.offerDismiss] = null;
+    else return;
+    saveDraft();
+    renderMaker();
+  });
+  // One field from the model, offered and never applied on its own.
+  async function runSuggest(field) {
+    if (!maker || maker.pending) return;
+    const m = maker;
+    m.pending = field;
+    m.note = '';
+    renderMaker();
+    try { m.offers[field] = await CM.suggest(m.sc, field, m.form); }
+    catch (e) { m.note = e.message; }
+    m.pending = null;
+    if (maker === m) renderMaker();
+  }
+  $('makerForm').addEventListener('submit', (ev) => ev.preventDefault());
+  $('mkClose').addEventListener('click', () => $('makerDialog').close());
+  $('makerDialog').addEventListener('close', () => { maker = null; });
+  $('mkSave').addEventListener('click', () => {
+    if (!maker) return;
+    const out = CM.build(maker.sc, maker.form);
+    maker.errors = out.errors || [];
+    renderMaker();
+    if (out.character) download(`${out.character.id}.json`, CM.toFile(out.character));
+  });
+  $('mkLoad').addEventListener('change', async (ev) => {
+    const file = ev.target.files[0];
+    ev.target.value = '';
+    if (!file || !maker) return;
+    try {
+      maker.form = CM.formFrom(maker.sc, JSON.parse(await file.text()));
+      maker.offers = {};
+      maker.errors = [];
+      saveDraft();
+    } catch (e) {
+      maker.errors = [`That file isn't a character: ${e.message}`];
+    }
+    renderMaker();
+  });
+  $('mkStart').addEventListener('click', () => {
+    if (!maker) return;
+    const out = CM.build(maker.sc, maker.form);
+    let scenario = null;
+    if (out.character) {
+      try { scenario = E.Scenario.startScenario(maker.world, maker.startId, out.character); }
+      catch (e) { out.errors = [e.message]; }
+    }
+    if (!scenario) { maker.errors = out.errors; renderMaker(); return; }
+    const world = maker.world;
+    $('makerDialog').close();
+    beginGame(world, scenario);
+    renderAll();
     $('actionInput').focus();
   });
 
@@ -992,8 +1220,8 @@
   // load falls back to the monogram.
   const diskAssets = new Map(); // world folder -> { path: File }
   const assetUrls = new Map(); // "folder/path" -> object URL
-  function portraitUrl(path) {
-    const folder = state.scenario.folder;
+  const portraitUrl = (path) => assetUrl(state.scenario.folder, path);
+  function assetUrl(folder, path) {
     const files = diskAssets.get(folder);
     if (files && files[path]) {
       const key = folder + '/' + path;
@@ -1205,6 +1433,7 @@
       (c.description ? `<p class="desc">${esc(c.description)}</p>` : '') +
       (c.appearance ? `<p class="desc"><span class="muted">Looks:</span> ${esc(c.appearance)}</p>` : '') +
       (id !== state.player && !dead ? cardFeelings(id, c) : '') +
+      (id === state.player && state.scenario.madePlayer === id ? '<button type="button" class="small" data-save-char>Save this character</button>' : '') +
       cardNeeds(c, dead) +
       `<div class="known-head">What you know</div>${knownHtml}`;
     return `<details class="card-details" data-card="${esc(id)}"${openCards.has(id) ? ' open' : ''}><summary>Details</summary>${body}</details>`;
@@ -1224,6 +1453,7 @@
       '<div class="small muted">Fix this when the story misread your tone. Undo also undoes changes made since your last action.</div></div>';
   }
   $('cast').addEventListener('click', (ev) => {
+    if (ev.target.closest('button[data-save-char]') && state) return void download(state.player + '.json', E.CharMaker.toFile(state.characters[state.player]));
     const btn = ev.target.closest('button[data-feel-step]');
     if (!btn || !state || busy) return;
     const box = btn.closest('[data-feel]');

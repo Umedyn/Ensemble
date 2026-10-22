@@ -13,13 +13,13 @@
 
   // ---------- field lists ----------
   // Start fields that are not world overrides.
-  const START_OWN = ['id', 'title', 'summary', 'start', 'player', 'cast', 'opening', 'castLabel', 'region'];
+  const START_OWN = ['id', 'title', 'summary', 'start', 'player', 'cast', 'opening', 'castLabel', 'region', 'playerSlot'];
   // World fields a start may override (merge rules below).
   const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'tagThresholds', 'portraitSet', 'factions', 'world',
     'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'standees', 'site', 'localMap', 'map', 'entrances'];
   const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'characters', 'starts', ...OVERRIDABLE];
   const WORLD_RESERVED = ['lore', 'timeline'];
-  const START_RESERVED = ['playerSlot'];
+  const START_RESERVED = [];
   const CAST_FIELDS = ['id', 'status', 'needs', 'relations', 'knows', 'want', 'secret', 'guard', 'tags', 'tier', 'pinned', 'agenda'];
   // Merge rules: lists of {id} objects merge by id, lists of strings are
   // unioned, plain objects merge shallowly; anything else is replaced.
@@ -125,7 +125,7 @@
     Object.entries(legacy).forEach(([k, v]) => {
       if (k === 'characterData' || k === 'folder') return;
       if (k === 'characters') world.characters = v.slice();
-      else if (['start', 'player', 'locations', 'clocks', 'opening', 'castLabel', 'region'].includes(k)) start[k] = E.clone(v);
+      else if (['start', 'player', 'locations', 'clocks', 'opening', 'castLabel', 'region', 'playerSlot'].includes(k)) start[k] = E.clone(v);
       else world[k] = E.clone(v);
     });
     world.starts = ['default'];
@@ -175,7 +175,7 @@
       req(cast.length, `${where}: missing "cast"`);
       dupes(cast).forEach((id) => problems.push(`${where}: "${id}" is in the cast twice`));
       cast.forEach((id) => req(pool.includes(id), `${where}: cast member "${id}" is not in the world's characters`));
-      req(cast.includes(st.player), `${where}: "player" must be in the cast`);
+      if (st.player != null || !st.playerSlot) req(cast.includes(st.player), `${where}: "player" must be in the cast${st.playerSlot ? '' : ' (or give the start a "playerSlot" so players make their own)'}`);
       ['locations', 'clocks', 'factions', 'regions'].forEach((k) =>
         dupes((Array.isArray(st[k]) ? st[k] : []).map((x) => x && x.id)).forEach((id) => problems.push(`${where}: ${k} has "${id}" twice`)));
       (st.cast || []).forEach((entry) => {
@@ -235,19 +235,32 @@
       starts: w.starts.map((id) => {
         const st = bundle.starts[id];
         const info = { id, title: st.title || w.title, summary: st.summary || '' };
-        try { info.scenario = S.validate(S.compose(w, st, bundle.characters, folder)); }
-        catch (err) { info.error = err.message; }
+        try {
+          info.scenario = S.validate(S.compose(w, st, bundle.characters, folder));
+          // Character creator (task 4-1): who you can play, and a sample made
+          // character, so a slot that can't produce a playable game shows here.
+          const sc = info.scenario;
+          info.defaultPlayer = sc.player != null ? sc.characterData[sc.characters.indexOf(sc.player)].name : null;
+          if (sc.playerSlot) {
+            E.CharMaker.withPlayer(sc, E.CharMaker.sample(sc));
+            info.slot = true;
+            if (sc.playerSlot.summary) info.slotSummary = sc.playerSlot.summary;
+          }
+        } catch (err) { info.error = err.message; }
         return info;
       }),
     };
   };
 
-  // A loaded world's start (default: the first) → a fresh scenario copy.
-  S.startScenario = function (loaded, startId) {
+  // A loaded world's start (default: the first) → a fresh scenario copy. With
+  // a character from the creator (task 4-1), that character is the player.
+  S.startScenario = function (loaded, startId, character) {
     const id = startId || loaded.defaultStart;
     const st = loaded.starts.find((s) => s.id === id);
     if (!st) throw new Error(`World "${loaded.title}" has no start "${id}".`);
     if (st.error) throw new Error(st.error);
+    if (character) return E.CharMaker.withPlayer(st.scenario, character);
+    if (st.scenario.player == null) throw new Error(`"${st.title}" has no character of its own: choose Make my own.`);
     return E.clone(st.scenario);
   };
 
@@ -354,7 +367,8 @@
       const a = E.Engine.cleanAgenda(c.agenda);
       req(!a.error, `character "${c.id}": ${a.error}`);
     }
-    req(c.portrait == null || E.isImagePath(c.portrait), `character "${c.id}" portrait must be an image path inside the world folder, like "portraits/${c.id}.png"`);
+    req(c.portrait == null || c.portrait === false || E.isImagePath(c.portrait), `character "${c.id}" portrait must be an image path inside the world folder, like "portraits/${c.id}.png" (or false for initials only)`);
+    req(c.people == null || (typeof c.people === 'string' && c.people.trim() && c.people.length <= 60), `character "${c.id}" people must be text of at most 60 characters`);
     [['description', 600], ['appearance', 400]].forEach(([k, max]) => req(c[k] == null || (typeof c[k] === 'string' && c[k].length <= max), `character "${c.id}" ${k} must be text of at most ${max} characters`));
     // Tags (and the older status.conditions) start the game as lasting tags.
     [['tags', c.tags], ['status.conditions', c.status && c.status.conditions]].forEach(([k, v]) =>
@@ -544,7 +558,8 @@
     req(sc.title, 'missing "title"');
     req(sc.setting, 'missing "setting"');
     req(Array.isArray(sc.characters) && sc.characters.length, 'missing "characters" list');
-    req(sc.characters && sc.characters.includes(sc.player), '"player" must be one of "characters"');
+    // A start with a playerSlot may leave the player to the character creator (task 4-1).
+    if (sc.player != null || !sc.playerSlot) req(sc.characters && sc.characters.includes(sc.player), '"player" must be one of "characters"');
     req(Array.isArray(sc.locations) && sc.locations.length, 'missing "locations"');
     sc.skills = sc.skills || ['physical', 'technical', 'social', 'knowledge', 'stealth'];
     // No needs unless the world lists them (task 1-5: a world without needs plays fine).
@@ -597,6 +612,7 @@
     Object.entries(sc.eventRates || {}).forEach(([k, v]) => req(['regional', 'world'].includes(k) && typeof v === 'number' && v >= 0, `eventRates.${k} must be regional/world with hours >= 0 (0 turns it off)`));
     (sc.factions || []).forEach((f) => req(f.id && f.name && f.desc && f.stance, `group "${f.id || '?'}" needs id, name, desc and stance`));
     (sc.factions || []).forEach((f) => req(f.color == null || (Number.isInteger(f.color) && f.color >= 1 && f.color <= S.FACTION_COLORS), `group "${f.id}": "color" must be a whole number from 1 to ${S.FACTION_COLORS} (a theme colour)`));
+    if (sc.playerSlot != null && Array.isArray(sc.characters)) problems.push(...E.CharMaker.slotProblems(sc));
     problems.push(...mapProblems(sc, locIds));
     problems.push(...regionProblems(sc));
     problems.push(...standeeProblems(sc, locIds, extraIds));

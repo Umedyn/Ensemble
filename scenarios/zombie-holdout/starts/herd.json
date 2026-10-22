@@ -7,6 +7,72 @@
     "hour": 9
   },
   "player": "pike",
+  "playerSlot": {
+    "location": "floor",
+    "summary": "You make your own survivor, one of the five inside Harmon's. Food is down to four days, a herd is drifting toward the store, and a rescue convoy on the radio says it can take only three more people.",
+    "knows": [
+      "Gil Ferris keeps the office locked even at night and gets defensive when anyone goes near it."
+    ],
+    "needs": {
+      "hunger": 0.4,
+      "fatigue": 0.3,
+      "fear": 0.4
+    },
+    "roles": [
+      {
+        "id": "local",
+        "label": "Local from town",
+        "desc": "Grew up five miles from here and knows who lived where, and what they kept in the garage.",
+        "skills": {
+          "scavenging": 2,
+          "persuasion": 2,
+          "stealth": 1
+        },
+        "suggestedTraits": [
+          "stubborn",
+          "nostalgic",
+          "resourceful"
+        ]
+      },
+      {
+        "id": "trucker",
+        "label": "Long-haul trucker",
+        "desc": "Was passing through on the highway when it all came apart, and never got the rig moving again.",
+        "skills": {
+          "fighting": 2,
+          "shooting": 1,
+          "mechanics": 1,
+          "scavenging": 1
+        },
+        "suggestedTraits": [
+          "blunt",
+          "tireless",
+          "wry"
+        ]
+      },
+      {
+        "id": "teacher",
+        "label": "Schoolteacher",
+        "desc": "Taught at the county middle school. Still counts heads out of habit.",
+        "skills": {
+          "persuasion": 2,
+          "medicine": 1,
+          "stealth": 1,
+          "scavenging": 1
+        },
+        "suggestedTraits": [
+          "patient",
+          "firm",
+          "haunted"
+        ]
+      }
+    ],
+    "freeform": true,
+    "skillPoints": 10,
+    "maxSkill": 3,
+    "relationsDefault": 0,
+    "castFeelings": 0
+  },
   "region": "highway-strip",
   "castLabel": "Group",
   "cast": [

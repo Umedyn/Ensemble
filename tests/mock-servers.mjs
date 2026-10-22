@@ -18,6 +18,11 @@ const reply = (res, content, prompt) => json(res, 200, {
 
 // Answers each pipeline step with plausible content, based on the prompt text.
 function answer(user) {
+  if (user.includes('=== MAKING A CHARACTER ===')) {
+    if (user.includes('personality traits')) return JSON.stringify({ traits: ['sharp-eyed', 'restless', 'loyal'] });
+    if (user.includes('how this character talks')) return JSON.stringify({ voice: 'Quick and wry, trails off when nervous.' });
+    return JSON.stringify({ description: 'Came up on the supply rotation two years ago and never quite left.' });
+  }
   if (user.includes('=== DOWNTIME:')) {
     return JSON.stringify({ montage: [{ after: '2d', text: 'The crew settles into routines.' }], events: [], major_event: null,
       positions: [{ id: 'raman', where: 'commons', doing: 'dealing cards' }], player_where: 'commons' });

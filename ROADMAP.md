@@ -124,7 +124,7 @@ Pax Historia's map at personal scale: World → Regional → Local.
 
 Make your own character and start, and have the engine fill in the world around you.
 
-- [ ] **Character creator**: a form producing the same character JSON: name, pronouns, description, appearance, role, people or origin (from the start's allowed list, or freeform), traits, voice, skills (point-buy within the world's skill list), want, an optional secret, and a portrait from the world's set or the stand-in set.
+- [x] **Character creator**: a form producing the same character JSON: name, pronouns, description, appearance, role, people or origin (from the start's allowed list, or freeform), traits, voice, skills (point-buy within the world's skill list), want, an optional secret, and a portrait from the world's set or the stand-in set.
 - [ ] **Generated starts**: the player picks a world, a region and a role. Generation runs as small calls, each validated before the next: local rooms, then the cast one character at a time, then relationships and tensions, then extras and standees, then the opening situation.
   - **Plan first, then fill in.** Call 1 writes a skeleton: setting summary, tone tags, groups, skill list, and a cast plan with one line per slot ("the station lead with something to hide"). Each later call fills one slot, which keeps characters distinct.
   - **Carry a compact summary forward**, not full JSON: premise, skeleton, and one line per item already made (id, role, key trait, secret hint).

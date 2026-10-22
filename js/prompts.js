@@ -79,7 +79,7 @@
   const castLine = (state, id) => {
     const c = state.characters[id];
     const tag = id === state.player ? ' (PLAYER)' : '';
-    const bits = [`${c.name}${c.pronouns ? ` (${c.pronouns})` : ''}, ${c.role}${c.age ? ', ' + c.age : ''}.`];
+    const bits = [`${c.name}${c.pronouns ? ` (${c.pronouns})` : ''}, ${c.role}${c.people ? ` (${c.people})` : ''}${c.age ? ', ' + c.age : ''}.`];
     if (c.traits && c.traits.length) bits.push(`Traits: ${c.traits.join(', ')}.`);
     if (c.want && id !== state.player) bits.push(`Wants: ${c.want}.`);
     if (c.voice) bits.push(`Voice: ${c.voice}`);
@@ -800,6 +800,44 @@ ${x.name} has come to matter in the story. Write their character sheet. Keep the
 Reply with JSON only:
 {"pronouns":"she/her","age":40,"role":"${x.role}","traits":["three","short","traits"],"want":"what they want, one phrase","secret":"something they hide, or null","guard":"low|medium|high","voice":"how they talk, one sentence","appearance":"one or two sentences, the first a good one-line look","description":"who they are, one or two sentences","skills":{${state.scenario.skills.map((k) => `"${k}":1`).join(',')}},"relations":{"character_id":10},"agenda":{"goal":"what they work toward next","steps":["verb phrase","verb phrase"],"hours":12,"contact_step":null}}
 - skills from 0 to 4. relations: how they feel about cast members they have met, from -30 to 30 (ids: ${Eng().cast(state).join(', ')}).`;
+
+  // ---------- character creator (task 4-1) ----------
+  // One field for the character the player is making, from what they have
+  // filled in so far. state is the draft game (CharMaker.draftState), so the
+  // header is the one the game will use. The player's own secret stays out:
+  // the suggestion is shown to them, and nothing needs it.
+  P.layouts.charSuggest = ['charDraft', 'charSuggestTask'];
+  P.charSuggest = (state, field, form) => P.build('charSuggest', { state, sc: state.scenario, field, form: form || {} });
+  B.charDraft = ({ state, sc, form }) => {
+    const slot = sc.playerSlot || {};
+    const choice = (list, id, free) => {
+      const r = (list || []).find((x) => x.id === id);
+      return r ? `${r.label}${r.desc ? ` — ${r.desc}` : ''}` : (free || '').trim() || null;
+    };
+    const loc = state.locations[slot.location];
+    const lines = ['=== MAKING A CHARACTER ===', `The player is making the character they will play, joining this story in ${loc ? loc.name : slot.location}.`];
+    const add = (label, v) => { if (v != null && String(v).trim()) lines.push(`${label}: ${String(v).trim()}`); };
+    add('Name', form.name);
+    add('Pronouns', form.pronouns);
+    add('Age', form.age);
+    add('Role', choice(slot.roles, form.role, form.roleText));
+    add('People', choice(slot.peoples, form.people, form.peopleText));
+    add('Traits', (form.traits || []).join(', '));
+    add('Wants', form.want);
+    add('Voice', form.voice);
+    add('Appearance', form.appearance);
+    add('Description', form.description);
+    return lines;
+  };
+  const CHAR_ASK = {
+    traits: ['Suggest 4 short personality traits (one or two words each) that fit this character and differ from the ones they already have.', '{"traits":["...","...","...","..."]}'],
+    voice: ['Suggest how this character talks: one sentence, under 25 words, like "Few words, dry humor, calm under pressure."', '{"voice":"..."}'],
+    description: ['Suggest a short description of who this character is: two sentences, under 60 words, about their past and their place here. No secrets, nothing about the future.', '{"description":"..."}'],
+  };
+  B.charSuggestTask = ({ field }) => `
+=== TASK ===
+${CHAR_ASK[field][0]} Keep to the setting and to what the player has filled in.
+Reply with JSON only: ${CHAR_ASK[field][1]}`;
 
   // ---------- chapter ----------
   P.layouts.chapter = ['chapterEvents', 'chapterTask'];

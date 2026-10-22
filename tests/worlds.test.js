@@ -168,7 +168,7 @@ test('a broken start reports its error without hiding the others', () => {
 test('reserved fields are accepted silently; unknown fields are ignored with a warning', () => {
   const w = load((f) => {
     Object.assign(f['world.json'], { lore: [], timeline: [], colour: 'grey' });
-    Object.assign(f['starts/morning.json'], { playerSlot: {}, extras: [], standees: [], oppening: 'typo' });
+    Object.assign(f['starts/morning.json'], { extras: [], standees: [], oppening: 'typo' });
     f['starts/storm.json'].cast[1].mood = 'grim';
   });
   assert.deepEqual([...w.warnings], [

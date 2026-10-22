@@ -1586,6 +1586,7 @@
   Eng.portrait = function (state, id) {
     const c = state.characters[id];
     if (c.portrait) return { path: c.portrait };
+    if (c.portrait === false) return Eng.monogram(state, id);
     const set = state.scenario.portraitSet || [];
     if (set.length) return { path: set[E.hash(id) % set.length], standIn: true };
     return Eng.monogram(state, id);
