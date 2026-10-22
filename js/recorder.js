@@ -74,12 +74,12 @@
     return last;
   };
 
-  // Called by the engine at the start of each action (turn, reroll, undo, correct).
+  // Called by the engine at the start of each action (turn, reroll, undo, correct, pin).
   // Returns a handle whose end(err) closes the action, or null when idle.
   R.begin = function (type, args) {
     if (!rec) return null;
-    // undo and correct use no dice and no model.
-    const entry = Object.assign({ type }, args || {}, ['undo', 'correct'].includes(type) ? {} : { rng: [], calls: [] });
+    // undo, correct and pin use no dice and no model.
+    const entry = Object.assign({ type }, args || {}, ['undo', 'correct', 'pin'].includes(type) ? {} : { rng: [], calls: [] });
     rec.fixture.actions.push(entry);
     rec.current = entry;
     return {

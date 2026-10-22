@@ -119,9 +119,43 @@ test('ties: names become ids, the player\'s own feelings are left out, values cl
   const out = GEN.check.ties(replies().ties, ctx);
   assert.deepEqual(plain(out.relations), [{ from: 'lena-marsh', to: 'owen-pruitt', value: 30 }, { from: 'kay-dunbar', to: 'sam-whitlock', value: 25 }]);
   assert.deepEqual(plain(out.knows), [{ id: 'owen-pruitt', text: 'The radio in the booths still picks up the convoy at night.' }]);
-  assert.deepEqual(plain(out.clocks), [{ id: 'fuel-runs-out', name: 'The fuel runs out', value: 0, max: 8, perHour: 0.1, fireText: 'The generator dies and the lights go out.' }]);
+  assert.deepEqual(plain(out.clocks), [{ id: 'fuel-runs-out', name: 'The fuel runs out', value: 0, max: 8, perHour: 0.1, fireText: 'The generator dies and the lights go out.',
+    then: [{ id: 'cold-sets-in', name: 'The cold sets in', value: 0, max: 6, perHour: 0.2, fireText: 'Frost on the inside of the windows; nobody sleeps.' }] }]);
   assert.ok(out.warnings.some((x) => /player's own feelings/.test(x)));
   assert.match(GEN.check.ties({ relations: [] }, ctx).error, /add 1 or 2 "pressures"/);
+});
+
+test('ties: each pressure may have one follow-up; event ideas are text, at most 3', () => {
+  const { E, w, job, GEN } = setup();
+  job.steps.player = { character: { id: 'sam-whitlock', name: 'Sam Whitlock' } };
+  job.steps.cast = { people: [{ id: 'kay-dunbar', name: 'Kay Dunbar', secret: 'Kay was bitten on the wrist two days ago and keeps the bite hidden under a glove.' }] };
+  const ctx = ctxOf(E, w, job);
+  const out = GEN.check.ties(replies().ties, ctx);
+  assert.deepEqual([...out.events], ['a convoy of strangers pulls into the lot', 'the storm drain backs up into the kitchen', 'the radio picks up a voice nobody knows']);
+  const leaky = GEN.check.ties({ pressures: [{ name: 'The fuel runs out', fireText: 'The lights go out.', then: { name: "Kay's glove", fireText: 'Kay\'s glove slips and the bite on her wrist shows.' } }, { name: 'No water', fireText: 'The taps run dry.', then: { name: 'Thirst' } }],
+    events: ['Kay pulls off the glove and the bite on her wrist is plain to see'] }, ctx);
+  assert.equal(leaky.clocks[0].then, undefined, 'a follow-up that gives away a secret is left out, the pressure stays');
+  assert.equal(leaky.clocks[1].then, undefined, 'a follow-up without fireText is left out');
+  assert.deepEqual([...leaky.events], []);
+  assert.ok(leaky.warnings.some((x) => /follow-up "Kay's glove" left out: it gives away Kay Dunbar's secret/.test(x)));
+  assert.ok(leaky.warnings.some((x) => /event idea left out/.test(x)));
+});
+
+test('a generated follow-up starts when its pressure comes to a head; event ideas steer regional events', async () => {
+  const { E, w, job, GEN } = setup();
+  mock(E);
+  await GEN.run(w, job);
+  const { start } = GEN.toStart(w, job);
+  const ideas = start.eventSeeds.regional;
+  assert.deepEqual(plain(ideas.slice(0, 3)), ['a convoy of strangers pulls into the lot', 'the storm drain backs up into the kitchen', 'the radio picks up a voice nobody knows'].map((text) => ({ text, region: 'main-street' })));
+  assert.equal(ideas.length, 3 + w.bundle.world.eventSeeds.regional.length, 'the world\'s own ideas follow');
+  const state = E.Engine.newGame(GEN.scenario(w, job));
+  const fuel = state.clocks.find((c) => c.id === 'fuel-runs-out');
+  E.Engine.fireClock(state, fuel, { events: [] });
+  assert.equal(state.clocks.find((c) => c.id === 'cold-sets-in').perHour, 0.2);
+  // Editable in the review like the pressure itself.
+  assert.ok(!GEN.setField(w, job, 'clock', 'cold-sets-in', 'max', 10).error);
+  assert.equal(job.steps.ties.clocks[0].then[0].max, 10);
 });
 
 test('minor people and groups: rooms checked, counts read, ids new', () => {

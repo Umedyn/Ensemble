@@ -85,6 +85,16 @@ test('mood is set with its turn and reason, cut at a word, and never for the pla
   assert.ok(r.rejected.some((x) => /the player's mood comes from the player/.test(x)));
 });
 
+test('a near-repeat of the current mood is rejected, so the turn it was set still counts', () => {
+  const { E, state } = newGame();
+  update(E, state, [{ target: 'char:okafor', field: 'mood', value: 'clipped and businesslike, eyes fixed on the weather relay' }], 2);
+  const r = update(E, state, [{ target: 'char:okafor', field: 'mood', value: 'clipped and fixed on the weather relay' }], 4);
+  assert.equal(state.characters.okafor.mood.turn, 2);
+  assert.ok(r.rejected.some((x) => /nearly the same as the current mood/.test(x)));
+  update(E, state, [{ target: 'char:okafor', field: 'mood', value: 'relieved, almost smiling' }], 5);
+  assert.equal(state.characters.okafor.mood.text, 'relieved, almost smiling');
+});
+
 test('a mood that gives away the secret is rejected (the card shows it to the player)', () => {
   const { E, state } = newGame();
   const r = update(E, state, [{ target: 'char:bauer', field: 'mood', value: 'guilty about running the recycler past its rated cycle' }]);

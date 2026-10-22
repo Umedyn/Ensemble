@@ -915,7 +915,7 @@ Reply with JSON only: ${CHAR_ASK[field][1]}`;
     }
     if (s.ties && step !== 'ties') {
       lines.push('Pressures:');
-      s.ties.clocks.forEach((c) => lines.push(`- ${c.name} (when it comes to a head: ${c.fireText})`));
+      s.ties.clocks.forEach((c) => lines.push(`- ${c.name} (when it comes to a head: ${c.fireText}${(c.then || []).map((t) => `; then ${t.name}`).join('')})`));
     }
     if (s.extras && step === 'opening') {
       s.extras.extras.forEach((x) => lines.push(`- minor person: ${x.name}, ${x.role}${x.location ? ` (in ${x.location})` : ''}`));
@@ -971,8 +971,9 @@ Reply with JSON only: {"people":[{"name":"Full Name",${SHEET(sc)}}]}
   GEN_TASKS.ties = ({ job }) => `=== TASK: TIES AND PRESSURES ===
 1. relations: how these people feel about each other and about the player at the start, from -50 (hostile) to 50 (close). Use the ids above ("${job.steps.player.character.id}" is the player). The player has only just met them unless the player's description or note says otherwise, so feelings toward the player are mild (-25 to 25). Only pairs that matter; leave out how the player feels.
 2. knows: one private thing each person knows that the others don't (about someone else, the place or the situation; not their own secret).
-3. pressures: 1 or 2 things getting worse over time that will force choices, like food running out or a deadline. "max" is how many steps until it comes to a head and "perHour" how many steps it grows each hour (max 8 with perHour 0.1 is about 80 hours); "fireText" is what happens then.
-Reply with JSON only: {"relations":[{"from":"id","to":"id","value":20}],"knows":[{"id":"id","text":"..."}],"pressures":[{"name":"...","max":8,"perHour":0.1,"fireText":"..."}]}`;
+3. pressures: 1 or 2 things getting worse over time that will force choices, like food running out or a deadline. "max" is how many steps until it comes to a head and "perHour" how many steps it grows each hour (max 8 with perHour 0.1 is about 80 hours); "fireText" is what happens then. Pressures are public: never about a secret. Optionally "then": the next pressure that starts once this one comes to a head (the power dies, then the cold sets in), in the same shape.
+4. events: up to 3 short ideas for things that could happen around this place later (weather, neighbours, a supply run going wrong). Public too.
+Reply with JSON only: {"relations":[{"from":"id","to":"id","value":20}],"knows":[{"id":"id","text":"..."}],"pressures":[{"name":"...","max":8,"perHour":0.1,"fireText":"...","then":{"name":"...","max":6,"perHour":0.2,"fireText":"..."}}],"events":["..."]}`;
   GEN_TASKS.extras = () => `=== TASK: MINOR PEOPLE AND GROUPS ===
 Add up to 4 minor people (neighbours, passers-by, a voice on the radio) and up to 2 unnamed groups (guards, a crowd, a few of the dead) that fit this place. Put each in one of the rooms, or "room": null for a minor person who is nowhere in particular. Notes are for the story engine and never shown to the player. Adding none is fine.
 Reply with JSON only: {"extras":[{"name":"...","role":"...","pronouns":"he/him","room":"room-id","note":"..."}],"groups":[{"label":"...","count":5,"room":"room-id","state":"calm|alert|hostile","note":"..."}]}`;

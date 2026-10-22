@@ -18,7 +18,7 @@
     { id: 'narrate', label: 'Narration' },
     { id: 'update', label: 'Memory updates' },
     { id: 'chapter', label: 'Chapter summaries' },
-    { id: 'worldbuild', label: 'World building (new characters)' },
+    { id: 'worldbuild', label: 'World building (characters, starts, sites)' },
   ];
 
   E.defaults = {

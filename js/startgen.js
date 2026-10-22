@@ -387,12 +387,26 @@
     const list = (Array.isArray(raw.pressures) ? raw.pressures : Array.isArray(raw.clocks) ? raw.clocks : []).filter(isObj);
     if (!list.length) return { error: 'add 1 or 2 "pressures"' };
     const used = new Set(ctx.taken.ids);
-    const clocks = list.slice(0, 2).map((p) => {
+    const clock = (p) => {
       const name = text(p.name, 40);
       let id = slug(name) || 'pressure';
       for (let n = 2; used.has(id); n++) id = `${slug(name) || 'pressure'}-${n}`;
       used.add(id);
       return { id, name, value: 0, max: E.clamp(Math.round(Number(p.max) || 8), 2, 24), perHour: E.clamp(Number(p.perHour) || 0.1, 0.01, 1), fireText: clip(p.fireText, 240) };
+    };
+    const clocks = list.slice(0, 2).map((p) => {
+      const c = clock(p);
+      // One follow-up each (task 4-2 leftover): starts when this one comes to a
+      // head. A bad follow-up is dropped, not a reason to redo the step.
+      const t = isObj(p.then) ? p.then : Array.isArray(p.then) && isObj(p.then[0]) ? p.then[0] : null;
+      if (t) {
+        const f = clock(t);
+        const who = f.name && f.fireText && GEN.pressureLeak(ctx.job, f.name + '. ' + f.fireText);
+        if (!f.name || !f.fireText) warnings.push(`follow-up to "${c.name}" left out (no name or fireText)`);
+        else if (who) warnings.push(`follow-up "${f.name}" left out: it gives away ${who.name}'s secret`);
+        else c.then = [f];
+      }
+      return c;
     });
     const bad = clocks.find((c) => !c.name || !c.fireText);
     if (bad) return { error: 'every pressure needs a "name" and a "fireText"' };
@@ -402,7 +416,17 @@
       const who = GEN.pressureLeak(ctx.job, c.name + '. ' + c.fireText);
       if (who) return { error: `the pressure "${c.name}" gives away ${who.name}'s secret; pressures are shown to the player, so keep them about things everyone can see` };
     }
-    return { relations, knows, clocks, warnings };
+    // Event ideas for this start's regional events; they steer public events,
+    // so the same leak check applies.
+    const events = [];
+    (Array.isArray(raw.events) ? raw.events : []).forEach((e) => {
+      const t = clip(isObj(e) ? e.text : e, 160);
+      if (!t) return;
+      const who = GEN.pressureLeak(ctx.job, t);
+      if (who) return warnings.push(`event idea left out: it gives away ${who.name}'s secret`);
+      if (events.length < 3) events.push(t);
+    });
+    return { relations, knows, clocks, events, warnings };
   };
 
   C.extras = function (raw, ctx) {
@@ -600,7 +624,7 @@
     const s = job.steps;
     if (kind === 'room') return s.rooms && s.rooms.rooms.find((r) => r.id === id);
     if (kind === 'person') return [GEN.player(job)].concat(GEN.people(job)).find((c) => c && c.id === id);
-    if (kind === 'clock') return s.ties && s.ties.clocks.find((c) => c.id === id);
+    if (kind === 'clock') return s.ties && GEN.clocks(job).find((c) => c.id === id);
     if (kind === 'opening') return s.opening;
     return null;
   };
@@ -658,6 +682,9 @@
     return { value: out };
   };
 
+  // Every pressure, follow-ups included.
+  GEN.clocks = (job) => ((job.steps.ties && job.steps.ties.clocks) || []).flatMap((c) => [c].concat(c.then || []));
+
   // Everything that would stop Play or Save, in words: the same validation
   // as an authored start, plus the leaks the steps check.
   GEN.reviewProblems = function (loaded, job) {
@@ -675,7 +702,7 @@
       if (leak) problems.push(`The opening gives away ${leak.name}'s secret.`);
       o.facts.forEach((f) => { const who = GEN.leak(job, f, 4); if (who) problems.push(`A public fact gives away ${who.name}'s secret.`); });
     }
-    ((job.steps.ties && job.steps.ties.clocks) || []).forEach((c) => {
+    GEN.clocks(job).forEach((c) => {
       const who = GEN.pressureLeak(job, c.name + '. ' + c.fireText);
       if (who) problems.push(`The pressure "${c.name}" gives away ${who.name}'s secret (pressures are shown to the player).`);
     });
@@ -774,6 +801,10 @@
       opening: s.opening.opening,
     };
     if (job.region) start.region = job.region;
+    // The start's regional ideas replace the world's (a shallow merge), so the
+    // world's own go after them.
+    const ideas = (s.ties.events || []).map((t) => (job.region ? { text: t, region: job.region } : t));
+    if (ideas.length) start.eventSeeds = { regional: ideas.concat(E.clone(((w.eventSeeds || {}).regional) || [])) };
     const characters = {};
     all.forEach((c) => { characters[c.id] = c; });
     return { start, characters };

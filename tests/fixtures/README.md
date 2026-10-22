@@ -41,7 +41,7 @@ Recordings of real (or mock) play sessions, replayed by `tests/replay.js` withou
 
 - `settings`: only what changes prompts, call limits or memory budgets. Never API keys or URLs; replay uses placeholder URLs.
 - `start`: the scenario travels inside the state, so a fixture keeps working when scenario files change.
-- `actions`, in order. `turn` is `Engine.runTurn(state, action, stepId, cutAt)`; `cutAt` is the beat the player stepped in after. `reroll` and `undo` are the Debug/scene buttons. `correct` is a feelings correction from a card: `{ "type": "correct", "id": "okafor", "delta": -5, "why": "..." }` (no dice, no calls).
+- `actions`, in order. `turn` is `Engine.runTurn(state, action, stepId, cutAt)`; `cutAt` is the beat the player stepped in after. `reroll` and `undo` are the Debug/scene buttons. `correct` is a feelings correction from a card: `{ "type": "correct", "id": "okafor", "delta": -5, "why": "..." }` (no dice, no calls). `pin` is the card's 📌 Pin: `{ "type": "pin", "id": "sorensen", "on": true }` (no dice, no calls).
 - `rng`: every `E.rng()` value the engine drew during the action, in order (the browser's random numbers can't be seeded, so the values themselves are kept).
 - `calls`: every model call in order. `kind` is the step name (`intent`, `narrate`, `narrate (retry)`, `update`, `chapter`, ...). A failed call has `error: { name, message }` instead of `response`.
 - `error` on an action: it failed when recorded (for example the model was unreachable), so the replay expects it to fail too.

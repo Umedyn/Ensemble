@@ -216,6 +216,20 @@ test('innocent dialogue is not mistaken for a leak', () => {
   assert.deepEqual(guardTypes(res), []);
 });
 
+// Playtest 2026-10-21 (DeepSeek, Ares Deep): Teo's deflection went in
+// "reveals" and passed on stress alone, so the narrator saw a non-secret
+// under REVEALS.
+test('a reveal that shares nothing with the secret is dropped, not passed on stress', () => {
+  const { E, state } = newGame();
+  const res = E.Engine.resolve(state, intentOf({ player: {}, intents: [{ id: 'bauer', action: 'shrugs at the readout', says: 'Probably just a bubble in the line.', reveals: 'probably just a bubble in the line' }] }), PRESENT, 'Ask Teo what is up with the pump.', 'hour');
+  const teo = res.outcomes.find((o) => o.id === 'bauer');
+  assert.equal(teo.reveals, null);
+  assert.equal(teo.says, 'Probably just a bubble in the line.', 'what he says stands; it just is not a reveal');
+  assert.deepEqual(guardTypes(res), ['reveal dropped']);
+  const user = E.Prompts.narrate(state, PRESENT, 'Ask Teo.', { startLoc: 'commons', startTime: 'Sol 214, 07:15', stepId: 'hour', stepLabel: 'about an hour', spanMinutes: 60 }, res);
+  assert.ok(!/REVEALS: /.test(user));
+});
+
 test('high-guard Okafor holds even when asked directly; a social success opens anyone', () => {
   const ask = (rng, intentPlayer) => {
     const g = newGame();

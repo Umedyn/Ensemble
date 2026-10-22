@@ -211,3 +211,47 @@ test('save migration v3→v4 gives everyone a tier, in the pending step-in copy 
   assert.equal(v4.characters.raman.lastSeen, 7);
   assert.equal(v4.pending.pre.characters.raman.tier, 'secondary');
 });
+
+// ---------- pinning from the card ----------
+
+test('pinning from the card brings someone to the foreground and keeps them there', () => {
+  const { E, state } = newGame();
+  assert.equal(tierOf(state, 'sorensen'), 'secondary');
+  const out = E.Engine.setPinned(state, 'sorensen', true);
+  assert.deepEqual({ pinned: out.pinned, note: out.note }, { pinned: true, note: 'Dr. Lev Sorensen → local (pinned)' });
+  assert.equal(tierOf(state, 'sorensen'), 'local');
+  E.Engine.updateTiers(state, 20, { here: [] });
+  assert.equal(tierOf(state, 'sorensen'), 'local', 'never demoted while pinned');
+  E.Engine.setPinned(state, 'sorensen', false);
+  E.Engine.updateTiers(state, 20, { here: [] });
+  assert.equal(tierOf(state, 'sorensen'), 'secondary', 'back to the usual rules');
+  assert.equal(E.Engine.setPinned(state, 'navarro', true).error, 'unknown person', 'not the player');
+  assert.equal(E.Engine.setPinned(state, 'nobody', true).error, 'unknown person');
+});
+
+test('pins are capped at maxLocal so the prompts still fit', () => {
+  const { E, state } = bigCast(8);
+  state.scenario.tiers = { maxLocal: 3 };
+  ['tech1', 'tech2', 'tech3'].forEach((id) => assert.ok(!E.Engine.setPinned(state, id, true).error));
+  assert.match(E.Engine.setPinned(state, 'tech4', true).error, /You can pin up to 3 people/);
+  assert.ok(!E.Engine.setPinned(state, 'tech1', false).error);
+  assert.ok(!E.Engine.setPinned(state, 'tech4', true).error);
+});
+
+test('a pin made while a turn is pending is kept through a step-in commit', async () => {
+  for (const cutAt of [null, 1]) {
+    const { E, state } = newGame();
+    mockLLM(E, ({ kind }) => {
+      if (kind.startsWith('intent')) return { player: { summary: 'asks' }, intents: [], events: [] };
+      if (kind.startsWith('narrate')) return '[+0m] You ask Teo. He shrugs.\n\n[+70m] Okafor heads for Ops.\n\n[+160m] Priya stomps in.';
+      if (kind.startsWith('update')) return { facts: [], state: [], relations: [] };
+      return { title: 'T', summary: 'S' };
+    });
+    await E.Engine.runTurn(state, 'Ask Teo about the rattle.', 'hours');
+    assert.ok(state.pending);
+    E.Engine.setPinned(state, 'sorensen', true);
+    await E.Engine.runTurn(state, 'Wait.', 'moment', null, cutAt);
+    assert.equal(state.characters.sorensen.pinned, true, `cutAt ${cutAt}: still pinned`);
+    assert.equal(tierOf(state, 'sorensen'), 'local');
+  }
+});

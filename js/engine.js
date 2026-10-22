@@ -1285,6 +1285,13 @@
     if (hits >= 3) return true;
     return hits >= 1 && /\b(admit|admits|admitted|confess|confesses|confessed|reveal|reveals|revealed|owns up|comes clean)\b/i.test(text);
   }
+  // True when a reveal shares at least one content word with what the
+  // character hides (their secret or private facts).
+  function touchesSecret(state, id, text) {
+    const c = state.characters[id];
+    const secretWords = contentWords([c.secret].concat(E.Memory.privateFacts(state, id).map((f) => f.text)).join(' '));
+    return [...contentWords(text)].some((w) => secretWords.has(w));
+  }
 
   Eng.resolve = function (state, intentObj, present, actionText, stepId, due) {
     const outcomes = [];
@@ -1346,13 +1353,25 @@
       if (it.moveCancelled) o.note = it.moveCancelled;
       // A reveal attempt is either the reveals field or a secret leaking into
       // the character's own action/dialogue. Unearned attempts become deflection.
-      const attempt = it.revealFlag || leaksSecret(state, it.id, `${o.action} ${o.says || ''}`);
+      const leaks = leaksSecret(state, it.id, `${o.action} ${o.says || ''}`);
+      let flagged = it.revealFlag;
+      // A reveal has to carry the secret (playtest 2026-10-21: Teo's deflection
+      // "probably just a bubble in the line" went in reveals and passed on stress).
+      if (flagged && !leaks && it.id !== state.player) {
+        const shown = o.reveals && !/^(true|yes)$/i.test(o.reveals) ? o.reveals : `${o.action} ${o.says || ''}`;
+        if (!touchesSecret(state, it.id, shown)) {
+          guard(res, 'resolve', 'reveal dropped', `${c.name}: "${shown.trim()}" isn't about what they hide`);
+          o.reveals = null;
+          flagged = false;
+        }
+      }
+      const attempt = flagged || leaks;
       if (it.id !== state.player && attempt) {
         if (revealAllowed(state, it.id, outcomes[0], actionText)) {
           if (!o.reveals) o.reveals = o.says || o.action;
         } else {
           o.note = 'reveal held back (not enough pressure yet)';
-          guard(res, 'resolve', it.revealFlag ? 'reveal blocked' : 'leak deflected', `${c.name}: ${o.reveals || `${o.action} ${o.says || ''}`}`);
+          guard(res, 'resolve', flagged ? 'reveal blocked' : 'leak deflected',`${c.name}: ${o.reveals || `${o.action} ${o.says || ''}`}`);
           o.reveals = null;
           o.action = 'is pressed about it but keeps the secret: deflects, makes an excuse or changes the subject';
           o.says = null;
@@ -1599,12 +1618,23 @@
     return gone;
   };
 
+  // Most of the shorter mood's content words are in the other one.
+  Eng.sameMood = function (a, b) {
+    const x = contentWords(a), y = contentWords(b);
+    const small = x.size <= y.size ? x : y, big = small === x ? y : x;
+    if (!small.size) return cleanPhrase(a).toLowerCase() === cleanPhrase(b).toLowerCase();
+    return [...small].filter((w) => big.has(w)).length / small.size >= 0.75;
+  };
   Eng.setMood = function (state, c, value, reason, turn) {
     let text = cleanPhrase(value);
     if (!text) return { error: 'empty mood' };
     if (text.length > 60) text = E.shorten(text, 60);
     if (leaksSecret(state, c.id, text)) return { error: 'the mood gives away their secret' };
-    c.mood = { text, turn, reason: cleanPhrase(reason).slice(0, 100) };
+    // A near-repeat keeps the turn the mood was set, so it can still go stale
+    // ("clipped and businesslike, eyes fixed on the weather relay" → "clipped
+    // and fixed on the weather relay").
+    if (c.mood && Eng.sameMood(c.mood.text, text)) return { error: `nearly the same as the current mood ("${c.mood.text}")` };
+    c.mood ={ text, turn, reason: cleanPhrase(reason).slice(0, 100) };
     return {};
   };
 
@@ -2191,6 +2221,7 @@
       if (p.playerMovedTo) state.characters[state.player].status.location = p.playerMovedTo;
       // Corrections the player made while this turn was pending still stand.
       (p.corrections || []).forEach((c) => applyCorrection(state, c));
+      (p.pins || []).forEach((x) => applyPin(state, x));
       endLoc = state.characters[state.player].status.location;
       Eng.advanceTime(state, minutes / 60, { events: [] }, !!p.routine);
       const entry = state.log.find((e) => e.turn === p.turn && e.type === 'scene');
@@ -2706,6 +2737,29 @@
     if (state.pending) (state.pending.corrections = state.pending.corrections || []).push({ id, delta: d, why: note });
     return { value: pc.relations[id], note: (pc.attitudeNotes || {})[id] || '' };
   };
+  // Pinning from the card: a pinned person stays local (full detail in every
+  // prompt) however long they're unseen. Capped at the world's maxLocal so the
+  // prompts still fit. Kept through a step-in commit like a correction.
+  Eng.setPinned = function (state, id, on) {
+    const c = state.characters[id];
+    if (!c || id === state.player || !Eng.cast(state).includes(id)) return { error: 'unknown person' };
+    const max = Eng.tierRules(state).maxLocal;
+    if (on && !c.pinned && Eng.cast(state, { includePlayer: false }).filter((x) => state.characters[x].pinned).length >= max) {
+      return { error: `You can pin up to ${max} people. Unpin someone first.` };
+    }
+    const rec = E.Recorder && E.Recorder.begin('pin', { id, on: !!on });
+    if (rec) rec.end();
+    const note = applyPin(state, { id, on: !!on });
+    if (state.pending) (state.pending.pins = state.pending.pins || []).push({ id, on: !!on });
+    return { pinned: !!c.pinned, note };
+  };
+  function applyPin(state, p) {
+    const c = state.characters[p.id];
+    c.pinned = p.on;
+    if (p.on && c.tier === 'secondary') { c.tier = 'local'; return `${c.name} → local (pinned)`; }
+    return `${c.name} ${p.on ? 'pinned' : 'unpinned'}`;
+  }
+
   function applyCorrection(state, c) {
     const pc = state.characters[state.player];
     pc.relations[c.id] = E.clamp((pc.relations[c.id] || 0) + c.delta, -100, 100);

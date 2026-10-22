@@ -21,7 +21,8 @@ function replies(over = {}) {
     person: (user) => SHEETS[/sheet for ([^,]+),/.exec(user)[1]],
     cast: { people: Object.entries(SHEETS).map(([name, s]) => Object.assign({ name }, s)) },
     ties: { relations: [{ from: 'Lena', to: 'owen-pruitt', value: 30 }, { from: 'kay-dunbar', to: 'player', value: 90 }, { from: 'player', to: 'Lena Marsh', value: 40 }, { from: 'nobody', to: 'kay-dunbar', value: 5 }],
-      knows: [{ id: 'Owen Pruitt', text: 'The radio in the booths still picks up the convoy at night.' }], pressures: [{ name: 'The fuel runs out', max: 8, perHour: 0.1, fireText: 'The generator dies and the lights go out.' }] },
+      knows: [{ id: 'Owen Pruitt', text: 'The radio in the booths still picks up the convoy at night.' }], pressures: [{ name: 'The fuel runs out', max: 8, perHour: 0.1, fireText: 'The generator dies and the lights go out.', then: { name: 'The cold sets in', max: 6, perHour: 0.2, fireText: 'Frost on the inside of the windows; nobody sleeps.' } }],
+      events: ['a convoy of strangers pulls into the lot', { text: 'the storm drain backs up into the kitchen' }, '', 'the radio picks up a voice nobody knows', 'a fourth idea past the limit'] },
     extras: { extras: [{ name: 'Father Abel', role: 'priest on the radio', room: null, note: 'calls every night at nine' }], groups: [{ label: 'the dead', count: 'a dozen', room: 'back-lot', state: 'alert' }, { label: 'raiders', count: 3, room: 'roof' }] },
     room: { name: 'Pantry', desc: 'Empty shelves and a smell of old onions.' },
     // Generated sites (task 4-4): the pharmacy on Main Street.

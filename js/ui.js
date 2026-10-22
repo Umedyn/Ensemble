@@ -597,6 +597,9 @@
       return `<label class="rv-field${o.cls ? ' ' + o.cls : ''}">${esc(o.label)}${input}<span class="fail small rv-err">${esc(errs[key] || '')}</span></label>`;
     };
     const reroll = (attr, label, title) => `<button type="button" class="small" ${attr}${off} title="${esc(title)}">↻ ${esc(label)}</button>`;
+    const clockFields = (c) => field('clock', c.id, 'name', c.name, { label: 'Name' }) +
+      `<div class="rv-row">${field('clock', c.id, 'max', c.max, { label: 'Steps until it comes to a head', type: 'number' })}${field('clock', c.id, 'perHour', c.perHour, { label: 'Steps per hour', type: 'number', step: '0.01' })}</div>` +
+      field('clock', c.id, 'fireText', c.fireText, { label: 'What happens then', rows: 2 });
     const roomName = (id) => (s.rooms.rooms.find((r) => r.id === id) || {}).name || id;
     const o = s.opening;
     const hidden = '<div class="muted small">Hidden. Turn on spoilers to see or edit it.</div>';
@@ -629,9 +632,9 @@
     };
     html += `<section class="rv-section"><div class="rv-head"><h4>People</h4></div>${person(s.player.character, true)}${s.cast.people.map((c) => person(c, false)).join('')}</section>`;
     html += `<section class="rv-section"><div class="rv-head"><h4>Pressures</h4>${reroll('data-rv-redo="ties"', 'Reroll', 'New pressures, feelings and private facts; the people stay')}</div>` +
-      s.ties.clocks.map((c) => `<div class="rv-card">${field('clock', c.id, 'name', c.name, { label: 'Name' })}` +
-        `<div class="rv-row">${field('clock', c.id, 'max', c.max, { label: 'Steps until it comes to a head', type: 'number' })}${field('clock', c.id, 'perHour', c.perHour, { label: 'Steps per hour', type: 'number', step: '0.01' })}</div>` +
-        field('clock', c.id, 'fireText', c.fireText, { label: 'What happens then', rows: 2 }) + '</div>').join('') + '</section>';
+      s.ties.clocks.map((c) => `<div class="rv-card">${clockFields(c)}` +
+        (c.then || []).map((t) => `<div class="rv-then"><div class="small muted">Then, once that happens:</div>${clockFields(t)}</div>`).join('') + '</div>').join('') +
+      ((s.ties.events || []).length ? `<div class="small muted">Ideas for later events here:</div><ul class="rv-list">${s.ties.events.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : '') + '</section>';
     const ex = s.extras;
     html += `<section class="rv-section"><div class="rv-head"><h4>Minor people and groups</h4>${reroll('data-rv-redo="extras"', 'Reroll', 'New minor people and groups')}</div>` +
       (ex.extras.length || ex.standees.length ? `<ul class="rv-list">${ex.extras.map((x) => `<li><b>${esc(x.name)}</b>, ${esc(x.role)}${x.location ? `, in ${esc(roomName(x.location))}` : ''}${gen.spoilers && x.note ? ` <span class="muted">${esc(x.note)}</span>` : ''}</li>`).join('')}` +
@@ -1725,7 +1728,7 @@
       rels = `<div class="rels"><div class="rel-${relW}" title="How they feel about you">them: ${relW} ${rel > 0 ? '+' : ''}${rel}</div>` +
         `<div class="rel-${myW}" title="${esc(why ? 'How you feel about them: ' + why : 'How you feel about them')}">you: ${myW} ${mine > 0 ? '+' : ''}${mine}</div></div>`;
     }
-    return `<div class="top">${portraitHtml(id)}<div class="who"><div class="nm">${esc(c.name)}${isPlayer ? ' (you)' : ''}</div><div class="role">${esc(c.role)}</div></div>${rels}${minButton(id, c, false)}</div>` +
+    return `<div class="top">${portraitHtml(id)}<div class="who"><div class="nm">${esc(c.name)}${isPlayer ? ' (you)' : ''}${c.pinned && !isPlayer ? ' <span title="Pinned" aria-label="pinned">📌</span>' : ''}</div><div class="role">${esc(c.role)}</div></div>${rels}${minButton(id, c, false)}</div>` +
       `<div class="meta">${esc(whereText(id, isPlayer, loc))}</div>`;
   }
   // Where the card says someone is (task 3-3): where you last saw them, so a
@@ -1775,11 +1778,16 @@
     const body = `<div class="small muted">${who}</div>` +
       (c.description ? `<p class="desc">${esc(c.description)}</p>` : '') +
       (c.appearance ? `<p class="desc"><span class="muted">Looks:</span> ${esc(c.appearance)}</p>` : '') +
-      (id !== state.player && !dead ? cardFeelings(id, c) : '') +
+      (id !== state.player && !dead ? cardPin(id, c) + cardFeelings(id, c) : '') +
       (id === state.player && state.scenario.madePlayer === id ? '<button type="button" class="small" data-save-char>Save this character</button>' : '') +
       cardNeeds(c, dead) +
       `<div class="known-head">What you know</div>${knownHtml}`;
     return `<details class="card-details" data-card="${esc(id)}"${openCards.has(id) ? ' open' : ''}><summary>Details</summary>${body}</details>`;
+  }
+  // Pin: they stay in the foreground (full detail every turn) even while unseen.
+  function cardPin(id, c) {
+    return `<div class="pin-row"><button type="button" class="small" data-pin="${esc(id)}" aria-pressed="${c.pinned ? 'true' : 'false'}">${c.pinned ? 'Unpin' : '📌 Pin'}</button>` +
+      `<span class="small muted">${c.pinned ? 'Pinned: the story keeps them in mind even when you haven\'t seen them for a while.' : 'Keep them in mind even when you haven\'t seen them for a while.'}</span></div>`;
   }
   // Your feelings toward them, with −/+ (5 a step) and an optional "why" that
   // replaces the note (task 1-8): for when the model misread your tone.
@@ -1797,6 +1805,15 @@
   }
   $('cast').addEventListener('click', (ev) => {
     if (ev.target.closest('button[data-save-char]') && state) return void download(state.player + '.json', E.CharMaker.toFile(state.characters[state.player]));
+    const pin = ev.target.closest('button[data-pin]');
+    if (pin && state && !busy) {
+      const id = pin.dataset.pin;
+      const out = E.Engine.setPinned(state, id, !state.characters[id].pinned);
+      if (out.error) return void alert(out.error);
+      notes.push({ kind: 'cast tier', summary: out.note, detail: out.pinned ? 'Pinned people stay local: full detail in every prompt, never moved to the background.' : 'They go back to the usual rules and drop to the background after a few turns unseen.' });
+      autosave();
+      return void renderAll();
+    }
     const btn = ev.target.closest('button[data-feel-step]');
     if (!btn || !state || busy) return;
     const box = btn.closest('[data-feel]');

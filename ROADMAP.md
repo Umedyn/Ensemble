@@ -36,10 +36,10 @@ Every later phase needs fast testing against a real model, and turns take 30–6
 - [x] **Turn telemetry in Debug.** Tokens in and out per call, cache reuse (cached tokens where the provider reports them; KoboldCpp's prompt processing time from its perf endpoint), seconds per step, and which guards fired.
 - [x] **Suggested actions** (task 0-5). A 💡 Suggest button asks for 3–4 ideas from what the player knows; clicking one fills the action box, and the player still acts.
 - [x] **Turn recorder and replay tests.** Export a session's raw model responses as a fixture, and add a fake backend that replays them so a real bad log becomes a regression test. Fixtures live in `tests/fixtures/`.
-- [ ] **Validation pass (carried over).** Play every time step on the reference setup; run several major-event skips in a row; compare Hybrid with all-local; tune reveal thresholds, event rates and scene lengths; play the zombie holdout end to end.
-- [ ] **Reveals must carry the secret.** Playtest 2026-10-21 (DeepSeek, Ares Deep): Teo's intent put his deflection ("probably just a bubble in the line") in `reveals`; the guard allowed it on stress alone, so prompts listed a non-secret under REVEALS. A reveal that shares no content words with the secret or private facts should become null (guard + test from the recording).
+- [ ] **Validation pass (carried over; needs the real model, task 0-4).** Play every time step on the reference setup; run several major-event skips in a row; compare Hybrid with all-local; tune reveal thresholds, event rates and scene lengths; play the zombie holdout end to end.
+- [x] **Reveals must carry the secret.** Playtest 2026-10-21 (DeepSeek, Ares Deep): Teo's intent put his deflection ("probably just a bubble in the line") in `reveals`; the guard allowed it on stress alone, so prompts listed a non-secret under REVEALS. A reveal that shares no content word with the secret or private facts is now dropped (`reveal dropped` guard; no recording was kept, so the test builds the turn by hand).
 - [x] **Flaky UI check.** "portraits, minimized cards and the details view" timed out about one run in five. Cause: New game loads the world asynchronously without going busy, so a test (or a player) could press Act before the game existed and the action was silently dropped. New game is now busy while it loads, and the UI tests wait for turn 0 before acting (`newGame()` in `tests/ui.smoke.mjs`).
-- [ ] **Mood repeats.** The update step re-sets a near-identical mood ("clipped and businesslike, eyes fixed on the weather relay" → "clipped and fixed on the weather relay") despite "only when it changed"; consider skipping a mood that shares most words with the current one, so the turn it was set stays meaningful.
+- [x] **Mood repeats.** The update step re-set near-identical moods ("clipped and businesslike, eyes fixed on the weather relay" → "clipped and fixed on the weather relay"). A mood sharing three quarters of the shorter one's content words with the current one is now rejected (`Eng.sameMood`), so the turn it was set stays meaningful.
 
 ## Phase 1: Foundations
 
@@ -62,7 +62,7 @@ The format change everything else builds on, plus visible improvements to the ch
 - [x] **Derived tags** come from engine numbers (stress ≥ 0.8 shows as "on edge", fatigue ≥ 0.8 as "exhausted", plus health). Thresholds are per scenario and have defaults.
 - [x] **Freeform tags and mood** are proposed by the update step and validated: at most 4 per character, a short phrase each, an expiry in turns, and a reason logged in Debug.
 - [x] Optional `portrait` on characters (a path inside the world folder). Characters without one get a stand-in from the world's `portraitSet`, chosen deterministically by id so it never changes, or a monogram.
-- [ ] **Bundled stand-in portrait set**: pick a CC0 (or similarly permissive) set with the owner, credit it in `CREDITS.md`, and use it when a world has no `portraitSet` (monograms until then; see the open question below).
+- [ ] **Bundled stand-in portrait set** (waiting on the owner's pick): pick a CC0 (or similarly permissive) set with the owner, credit it in `CREDITS.md`, and use it when a world has no `portraitSet` (monograms until then; see the open question below).
 - [x] Cards can be minimized (to a portrait, name and mood row), remembered per character in `localStorage` with the usual try/catch.
 - [x] **Character details:** description, appearance, pronouns, and what the player knows about them (player-known facts that name them).
 - [x] **Correct your feelings:** nudge your own attitude when the model misreads your tone.
@@ -80,7 +80,7 @@ Lets big casts fit in 8K and makes the world move without the player.
 - [x] **Local** characters (in the scene, named by the player, or flagged important) get the full simulation: an intent each turn, needs, and full presence in prompts.
 - [x] **Secondary** characters get a one-line brief and an **agenda**: a goal, its steps, progress and a pace. "Keep routine" is a valid agenda. The engine advances agendas between turns, like clocks; the model only writes a step when one completes, as a local or hidden event. (Tasks 2-1 and 2-2.)
 - [x] **Promotion and demotion** rules live in the engine: a character becomes local when they enter the scene, are named by the player, or their agenda brings them into contact. They drop back to secondary after N turns without appearing. Every change is shown in Debug. (Agenda contact steps since 2-2.)
-- [ ] **Pin from the card**: let the player pin someone so they stay local (today `pinned` is authored only).
+- [x] **Pin from the card**: 📌 Pin under a card's Details keeps someone local (`Eng.setPinned`, capped at `maxLocal`, kept through a step-in, recorded for replays).
 - [x] **Extras**: one-line stubs (name, role, location) with no sheet. When promoted, one generation call turns an extra into a full character, validated and kept from then on. (Task 2-3; a group, like a patrol or the herd, can be one extra and never promotes.)
 - [x] **Relationship web** (from the old Later list): a small graph of how people feel about each other, local characters first. (Task 2-4: feelings between others show only once a fact you know involves both.)
 
@@ -98,16 +98,13 @@ Pax Historia's map at personal scale: World → Regional → Local.
 - [x] Every character is a **token** on a location node, named characters and **standees** alike.
 - [x] **Standees** are unnamed groups such as gang members, guards or a mob: label, count, location, state (calm, alert, hostile, fled, down). The engine tracks them; the model can propose moves, count changes and state changes, and the engine validates and clamps them. A standee can be promoted to an extra or a named character when the player singles one out.
 - [x] **Guard posts and patrols**: standees can hold a post or follow a patrol route through the room graph; whether the player is seen depends on who is in or next to their room.
-- [ ] Later, possibly: positions inside a room (doorway, cover, back wall) for a more hands-on feel. The site layout below gives every room coordinates, so this becomes possible; decide after playing with tokens.
 
 **Site layouts: the model describes, the engine draws**
 - [x] **Site data**: rooms (size, purpose, features), links with a kind (`open`, `door`, `locked door`, `vent`, `hatch`, `window`, `stairs`), entrances from outside (watched or not), and stateful features the engine tracks (a door locked or open, a camera on or off). The model never draws: grids and ASCII from a 12B are unreliable, and a drawing can't be validated.
 - [x] **Layout styles** per site type in a DOM-free `js/layouts.js`: deterministic placement from sizes and links, so the same site always lays out the same way and survives saves. Built: `generic`, `hall` (warehouse, store), `corridor` (apartment floor, station ring).
-- [ ] More layout styles (`office floor`, `club`, `compound`, `sewer`, …) as generated sites need them (4-4).
 - [x] **SVG floor plan**: walls, door gaps, locked-door, vent and hatch symbols, labels and tokens, in theme colours (high visibility included), never generated art.
 - [x] **What the player has seen**: unknown rooms aren't drawn; a "?" marks where a known opening leads. A room shows once entered, seen or revealed (a floor plan bought from a fixer is a real advantage).
 - [x] **Detailed local maps with fog** (task 3-7): floor plans with walls, doors, windows, floors and furniture chosen by inferred room kind, still procedural SVG and deterministic. Rooms in view get full detail, remembered rooms structure only (no feature state the player didn't see), and unknown rooms aren't drawn. Decoration is visual only; only features from the data are gameplay. Includes a "Map detail: simple / detailed" setting.
-- [ ] Later, possibly: remember each feature's last-seen state (as `state.known` does for people), so a remembered room can show the cabinet as you left it. Today remembered rooms show features with no state, and doors out of sight show as plain doors.
 - [x] **Movement follows links**: you can only step into a room linked to the one you're in. Naming a farther room walks the route (`Eng.route`) through the rooms in between, and each one counts for time and for being seen; a locked link blocks the route until it's opened.
 - [x] **Authored features are the truth**: doors, windows, vents and objects a map maker placed are what exists, and the game goes off them.
 - [x] **Inferred features**: where the map is silent, the model may propose a plausible feature when the player tries to use one ("I climb out the window"). The engine accepts it only if it doesn't contradict the map: windows only on exterior walls (the layout knows which those are), never into a secure room, and never over a feature the author placed. Once accepted it's recorded on the site, so it's there next time and for everyone.
@@ -136,8 +133,8 @@ Make your own character and start, and have the engine fill in the world around 
   - **Call size depends on the backend**: a large API model can do the whole cast in one call; a local 12B gets one character per call. One pipeline, with a granularity setting.
   - Stage order: skeleton → places → characters (one per call) → relationships and secrets → clocks, follow-ups and event seeds → opening scene → engine validation → review screen. Each stage only depends on earlier ones, so any piece can be rerolled from the review screen.
   - The same pattern applies to lore research (phase 5): one source page per call.
-  - [ ] Left over from 4-2: the ties step makes simple pressures only; follow-up clocks (`then`) and start-specific event seeds are not generated yet.
-- [ ] **Real-place map import** (a `tools/` script or Claude Code skill, outside the game, like the lore research helper): builds a world's regions and locations from open data, for **open-world "make your own start" worlds** (the real world, the US, Mars). Story-driven worlds keep hand-made maps.
+  - [x] Left over from 4-2: the ties step now gives each pressure an optional follow-up (`then`) and up to 3 regional event ideas for the start (`eventSeeds.regional`, ahead of the world's), with the same leak check as pressures; both show in the review.
+- [ ] **Real-place map import** (task 4-5; a `tools/` script or Claude Code skill, outside the game, like the lore research helper): builds a world's regions and locations from open data, for **open-world "make your own start" worlds** (the real world, the US, Mars). Story-driven worlds keep hand-made maps.
   - **City maps** work at either scale. Inside a big world they're the regional level. For "live your life" worlds (a school slice-of-life, a zombie outbreak in one town) **the city is the world map**: districts and neighbourhoods are regions, and the local level is a building, a street or a block. The three map levels are relative, not fixed to planet → country → room.
   - Sources: Natural Earth (countries, provinces, cities; public domain), US Census boundaries and places (public domain), the IAU/USGS list of Mars features (public domain), Wikidata coordinates (CC0), and OpenStreetMap or city open-data portals for cities (OSM is ODbL: attribution required and shared extracts stay ODbL, so check before bundling anything in a paid build).
   - Steps: name the place and detail level → fetch → project onto the creator's image (or draw a plain base map from the boundaries, avoiding image licensing) → simplify borders → compute neighbours from shared borders → write region and location data with `credit` and `license` → check and adjust in the map editor (3-5).
@@ -145,12 +142,12 @@ Make your own character and start, and have the engine fill in the world around 
 - [x] **Generated sites**: on-the-fly local maps for places the story goes (a gang base, a corporate floor, a ruined farmhouse), with rooms, named characters, standees and loot. They're attached to a region and either kept or discarded after the visit. Triggered by the player's intent (`move_to` an unknown place) or by an event.
   - **Library first**: look for a matching authored site map (below) by type, tags and size. If one fits, use its layout and have the model fill in only the people, names and details. Otherwise generate the site data and let the layout styles draw it.
   - Generation produces the site data described in phase 3 (rooms, links with kinds, entrances, features, people with posts or patrols), validated before use; a bad piece is regenerated alone.
-- [ ] **Site map library**: authored maps (battlemaps, floor plans) that creators and modders draw and tag once, for reuse by any story that needs that kind of place.
+- [ ] **Site map library** (task 6-3, with the site map editor): authored maps (battlemaps, floor plans) that creators and modders draw and tag once, for reuse by any story that needs that kind of place.
   - A site map is an image plus data: room shapes drawn on it, doors and their kinds, entrances, spots (guard post, cover, hiding place, loot), and an optional grid scale for battlemaps. **Grids are for measurement only** (room sizes and distances the narrator can use: "the guard is thirty feet away"), never for movement: play stays free-form, not a tactics simulator.
   - Tags for matching: `type` (warehouse, tavern, starship deck…), genre and setting tags (cyberpunk, fantasy, modern), size and room count.
   - Sources, in order: the world's own `sites/` (done in 4-4, with matching by type and tags), then a shared library folder (bundled maps plus ones the player adds with Open folder). The pick among matches is deterministic, so a reload picks the same map.
   - Every map carries `credit` and `license`. Bundled maps are original or CC0; shared maps are their creators' responsibility (`MODDING.md`).
-- [ ] Generation is a routable pipeline step ("world building") so it can go to an API model when one is set up.
+- [x] Generation is a routable pipeline step ("world building") so it can go to an API model when one is set up. (Every start, site and flesh-out call is a `worldbuild (…)` kind, routed with Settings › World building.)
 
 ## Phase 5: Lore and canon
 
@@ -185,6 +182,7 @@ Everything a creator needs to build a world without touching JSON.
 
 - [ ] Two new original scenarios in very different genres, such as a resistance cell in an occupied city and a high-school slice-of-life. At least one uses a map image with regions, and one uses generated starts.
 - [ ] Fix whatever turns out to be survival-specific. Add a test named after each fix.
+- [ ] More layout styles (`office floor`, `club`, `compound`, `sewer`, …) for `js/layouts.js`, added when a new world's generated sites need them (from phase 3).
 - [ ] More room kinds for the detailed map (3-7), added with the new settings (worlds) that need them: sci-fi (engine room or reactor, cryo, hangar; "cargo"/"hold" as warehouse) and medieval (great hall, chapel, forge, stable, throne room, courtyard). Break ties with the world's genre tags first ("hall", "bridge", "keep" mean different rooms in different genres), with tests that pin those words per genre.
 
 ## Content settings
@@ -220,6 +218,8 @@ No phase dependency beyond mood tags (phase 1, done). Reuses StreamTTS pieces.
 - **Save slots and autosave**, and an in-game **journal** (what you know, by person, and the chapters).
 - **Endings**: optional win/loss/epilogue conditions on clocks, regions and timeline events, with a closing "what became of everyone" scene.
 - **Inventory and resources**, owned by the engine.
+- **Positions inside a room** (doorway, cover, back wall) for a more hands-on feel; site layouts already give every room coordinates. Decide after playing with tokens (from phase 3).
+- **Remembered feature state**: remember each feature's last-seen state (as `state.known` does for people), so a remembered room shows the cabinet as you left it. Today remembered rooms show features with no state, and doors out of sight show as plain doors (from phase 3).
 - **Promises ledger**: the engine tracks what the player committed to, with deadlines.
 - **Stream mode**: Twitch chat votes on the player's action.
 - **Installable app (PWA)** and optional save sync to the player's own cloud drive.
