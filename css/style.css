@@ -479,3 +479,21 @@ dialog { max-height: 90dvh; overflow-y: auto; }
   .settings label.mk-feel { grid-template-columns: 1fr 6.5em; }
   .mk-feel input[type=range] { grid-column: 1 / -1; grid-row: 2; }
 }
+
+/* generated starts (task 4-2) */
+#genDialog { width: min(40rem, 96vw); }
+.gen-resume { border: 1px dashed var(--line-strong); border-radius: 8px; padding: 6px 10px; font-size: 0.8125rem; }
+.gen-steps { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; font-size: 0.875rem; }
+.gen-step { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+.gen-step.done, .gen-step.running { color: var(--text); }
+.gen-step.failed { color: var(--bad); }
+.gen-step button { margin-left: auto; font-size: 0.75rem; }
+.gen-mark { width: 1.2em; text-align: center; font-weight: 600; }
+.gen-step.done .gen-mark { color: var(--good); }
+.gen-step.running .gen-mark { color: var(--accent); }
+.gen-done { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 0.875rem; }
+.gen-json > summary { cursor: pointer; font-size: 0.75rem; color: var(--muted); }
+.gen-json pre { max-height: 40dvh; overflow: auto; font-size: 0.6875rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 860px) {
+  #genDialog { width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 0; }
+}

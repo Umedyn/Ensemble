@@ -839,6 +839,126 @@ Reply with JSON only:
 ${CHAR_ASK[field][0]} Keep to the setting and to what the player has filled in.
 Reply with JSON only: ${CHAR_ASK[field][1]}`;
 
+  // ---------- generated starts (task 4-2) ----------
+  // System: the same header for every step of a job (setting, genre, rules,
+  // geography, groups, names already used), so KoboldCpp reuses it. User:
+  // where it starts, a short summary of what earlier steps made (one line per
+  // item, not their JSON) and the step's task. Secrets appear only in the
+  // ties step, which builds tensions from them.
+  P.layouts.genHeader = ['genIntro', 'setting', 'genre', 'genRules', 'regions', 'groups', 'genNames'];
+  P.genHeader = (sc, taken) => P.build('genHeader', { sc, taken });
+  B.genIntro = () => 'You are building the starting situation for an interactive, character-driven story set in the world below. The player plays one person; everyone else is simulated, each with their own wants, needs, secrets and feelings. Write grounded, specific material that fits the setting.';
+  B.genRules = ({ sc }) => ((sc.rules || []).length ? ['\n=== RULES ==='].concat(sc.rules.map((r) => '- ' + r)) : null);
+  B.genNames = ({ taken }) => {
+    const names = [...((taken && taken.names) || [])];
+    return names.length ? `\n=== NAMES ALREADY IN THE WORLD (don't reuse them) ===\n${names.join(', ')}` : null;
+  };
+
+  const GEN_TASKS = {};
+  P.genStep = (ctx, step, index) => P.build('gen', Object.assign({}, ctx, { step, index }));
+  P.layouts.gen = ['genPlace', 'genSoFar', 'genTask'];
+  B.genPlace = ({ sc, job }) => {
+    const r = (sc.regions || []).find((x) => x.id === job.region);
+    const lines = ['=== WHERE THIS STARTS ==='];
+    if (r) {
+      const holder = (sc.factions || []).find((f) => f.id === r.controller);
+      lines.push(`Region: ${r.name}${r.lore ? ` — ${r.lore}` : ''}`);
+      lines.push(`Held by: ${holder ? holder.name : 'no one'}.${r.status ? ` Right now: ${r.status}.` : ''}${(r.tags || []).length ? ` (${r.tags.join(', ')})` : ''}`);
+      const near = (r.neighbours || []).map((id) => ((sc.regions || []).find((x) => x.id === id) || {}).name).filter(Boolean);
+      if (near.length) lines.push(`Next to: ${near.join(', ')}.`);
+    }
+    const g = sc.start;
+    if (g) lines.push(`When: ${sc.timeLabel || 'Day'} ${g.day}, ${String(g.hour).padStart(2, '0')}:00.`);
+    if (job.note) lines.push(`What the player wants from this story: ${job.note}`);
+    return lines;
+  };
+  const sheetLine = (c, secrets, rooms) => {
+    const room = (rooms || []).find((r) => c.status && r.id === c.status.location);
+    return `- ${c.id}: ${c.name}${c.pronouns ? ` (${c.pronouns})` : ''}, ${c.role}${c.age ? ', ' + c.age : ''}${room ? `, in ${room.name}` : ''}. Traits: ${(c.traits || []).join(', ')}. Wants: ${c.want}.${secrets && c.secret ? ` Secret: ${c.secret}` : ''}`;
+  };
+  B.genSoFar = ({ job, step }) => {
+    const s = job.steps;
+    const lines = [];
+    const pc = s.player && s.player.character;
+    if (pc && step !== 'player') lines.push(`The player: ${pc.name}${pc.pronouns ? ` (${pc.pronouns})` : ''}, ${pc.role}${pc.age ? ', ' + pc.age : ''}. Traits: ${(pc.traits || []).join(', ')}. Wants: ${pc.want}.${pc.description ? ' ' + pc.description : ''}`);
+    if (s.rooms && step !== 'rooms') {
+      const here = s.rooms.rooms.find((r) => r.id === s.rooms.playerRoom);
+      lines.push(`Rooms (the player starts in ${here.name}):`);
+      s.rooms.rooms.forEach((r) => lines.push(`- ${r.id}: ${r.name} — ${r.desc} (connects: ${r.connects.join(', ')})`));
+    }
+    if (s.plan && step !== 'plan' && !s.cast) {
+      lines.push('People planned:');
+      s.plan.people.forEach((p) => lines.push(`- ${p.name}, ${p.role}${p.hook ? `: ${p.hook}` : ''}`));
+    }
+    const people = s.cast ? s.cast.people : (step === 'person' && job.partial.cast) || [];
+    if (people.length && step !== 'cast') {
+      lines.push(step === 'person' ? 'People already written:' : 'People:');
+      people.forEach((c) => lines.push(sheetLine(c, step === 'ties', s.rooms && s.rooms.rooms)));
+    }
+    if (s.ties && step !== 'ties') {
+      lines.push('Pressures:');
+      s.ties.clocks.forEach((c) => lines.push(`- ${c.name} (when it comes to a head: ${c.fireText})`));
+    }
+    if (s.extras && step === 'opening') {
+      s.extras.extras.forEach((x) => lines.push(`- minor person: ${x.name}, ${x.role}${x.location ? ` (in ${x.location})` : ''}`));
+      s.extras.standees.forEach((g) => lines.push(`- group: ${g.count} ${g.label} (in ${g.location}, ${g.state})`));
+    }
+    return lines.length ? ['\n=== MADE SO FAR ==='].concat(lines) : null;
+  };
+  B.genTask = (ctx) => '\n' + GEN_TASKS[ctx.step](ctx);
+
+  const skillJson = (sc, n) => `{${sc.skills.map((k) => `"${k}":${n}`).join(',')}}`;
+  GEN_TASKS.player = ({ sc, job, loaded }) => {
+    const g = loaded.bundle.world.generatedStarts;
+    const roles = (g.roles || []).map((r) => r.label);
+    return `=== TASK: THE PLAYER'S CHARACTER ===
+The player describes the character they want to play: "${job.line}"
+Write their character sheet. Keep to what they said and fill in the rest so it fits the setting.${roles.length ? ` Roles that fit here: ${roles.join(', ')} (or another).` : ''} Skills: up to ${g.skillPoints} points in all, each from 0 to ${g.maxSkill}.
+Reply with JSON only: {"name":"Full Name","pronouns":"she/her","age":30,"role":"short role","traits":["three","short","traits"],"want":"what they want, one phrase","secret":"something they hide, or null","guard":"low|medium|high","voice":"how they talk, one sentence","appearance":"one or two sentences, the first a good one-line look","description":"who they are, one or two sentences","skills":${skillJson(sc, 1)}}`;
+  };
+  GEN_TASKS.rooms = ({ sc, job }) => {
+    const r = (sc.regions || []).find((x) => x.id === job.region);
+    return `=== TASK: THE PLACE ===
+Invent where the story starts${r ? `, somewhere in ${r.name}` : ''}: 3 to 6 rooms or areas the player can walk between (inside one building, or a few spots close together outdoors). Each needs a short id (lowercase, dashes), a name, one sentence of description and the rooms it connects to. Every room must be reachable. Pick the room the player starts in.
+Reply with JSON only: {"rooms":[{"id":"back-room","name":"Back Room","desc":"One sentence.","connects":["shop-floor"],"outside":false}],"player_room":"back-room"}`;
+  };
+  GEN_TASKS.plan = ({ loaded }) => {
+    const [min, max] = loaded.bundle.world.generatedStarts.castSize || [3, 5];
+    return `=== TASK: WHO IS HERE ===
+Plan the ${min} to ${max} people (not counting the player) who are in or around these rooms when the story starts. Make them different from each other in age, background, temperament and what they want, and give each a hook: something about them that will cause trouble. Nobody is the player's relative or old friend: the player's past is theirs to tell. One line each.
+Reply with JSON only: {"people":[{"name":"Full Name","role":"short role","hook":"one line"}]}`;
+  };
+  const SHEET = (sc) => `"pronouns":"she/her","age":40,"traits":["three","short","traits"],"want":"what they want, one phrase","secret":"something they hide from the others","guard":"low|medium|high","voice":"how they talk, one sentence","appearance":"one or two sentences, the first a good one-line look","description":"who they are, one or two sentences","skills":${skillJson(sc, 1)},"room":"room-id"`;
+  GEN_TASKS.person = ({ sc, job, index }) => {
+    const p = job.steps.plan.people[index];
+    return `=== TASK: WRITE ONE PERSON ===
+Write the character sheet for ${p.name}, ${p.role}${p.hook ? ` (${p.hook})` : ''}. Keep the name and the role. Give them a want, and a secret they hide from the others (and how well they guard it: low, medium or high). Pick the room they are in at the start. Make them different from the people already written.
+Reply with JSON only: {${SHEET(sc)}}
+- skills from 0 to 4.`;
+  };
+  GEN_TASKS.cast = ({ sc, job }) => `=== TASK: WRITE THE PEOPLE ===
+People planned:
+${job.steps.plan.people.map((p) => `- ${p.name}, ${p.role}${p.hook ? `: ${p.hook}` : ''}`).join('\n')}
+Write a character sheet for each of them. Keep each name and role. Give each a want, and a secret they hide from the others (and how well they guard it: low, medium or high). Pick the room each is in at the start.
+Reply with JSON only: {"people":[{"name":"Full Name",${SHEET(sc)}}]}
+- skills from 0 to 4.`;
+  GEN_TASKS.ties = ({ job }) => `=== TASK: TIES AND PRESSURES ===
+1. relations: how these people feel about each other and about the player at the start, from -50 (hostile) to 50 (close). Use the ids above ("${job.steps.player.character.id}" is the player). The player has only just met them unless the player's description or note says otherwise, so feelings toward the player are mild (-25 to 25). Only pairs that matter; leave out how the player feels.
+2. knows: one private thing each person knows that the others don't (about someone else, the place or the situation; not their own secret).
+3. pressures: 1 or 2 things getting worse over time that will force choices, like food running out or a deadline. "max" is how many steps until it comes to a head and "perHour" how many steps it grows each hour (max 8 with perHour 0.1 is about 80 hours); "fireText" is what happens then.
+Reply with JSON only: {"relations":[{"from":"id","to":"id","value":20}],"knows":[{"id":"id","text":"..."}],"pressures":[{"name":"...","max":8,"perHour":0.1,"fireText":"..."}]}`;
+  GEN_TASKS.extras = () => `=== TASK: MINOR PEOPLE AND GROUPS ===
+Add up to 4 minor people (neighbours, passers-by, a voice on the radio) and up to 2 unnamed groups (guards, a crowd, a few of the dead) that fit this place. Put each in one of the rooms, or "room": null for a minor person who is nowhere in particular. Notes are for the story engine and never shown to the player. Adding none is fine.
+Reply with JSON only: {"extras":[{"name":"...","role":"...","pronouns":"he/him","room":"room-id","note":"..."}],"groups":[{"label":"...","count":5,"room":"room-id","state":"calm|alert|hostile","note":"..."}]}`;
+  GEN_TASKS.opening = ({ job }) => {
+    const here = job.steps.rooms.rooms.find((r) => r.id === job.steps.rooms.playerRoom);
+    return `=== TASK: THE OPENING ===
+Write the opening scene the player reads first: 2 to 4 short paragraphs in second person ("you"), present tense, in ${here.name}, showing who is there and what is going on, and ending on someone else's move or line. Never decide what the player does, says or feels. Don't reveal anyone's secret.
+List in "with_you" the ids of the people who are in ${here.name} with the player when it opens; they start there, whatever room their sheet gave them. People elsewhere can be heard or glimpsed at most.
+Also give the start a short title, a one-sentence summary for the player (second person: who they are and what's going on) and up to 3 public facts everyone here knows.
+Reply with JSON only: {"title":"...","summary":"You are ...","opening":"...","with_you":["id"],"facts":["..."]}`;
+  };
+
   // ---------- chapter ----------
   P.layouts.chapter = ['chapterEvents', 'chapterTask'];
   P.chapter = (state) => P.build('chapter', { state, pc: state.characters[state.player] });

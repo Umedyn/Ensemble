@@ -134,6 +134,13 @@ try { window.EnsembleAppearance((JSON.parse(localStorage.getItem('ensemble.setti
   </form>
 </dialog>
 
+<dialog id="genDialog" class="gen-dialog" aria-labelledby="genTitle">
+  <form id="genForm" class="settings gen">
+    <div class="row"><h3 id="genTitle">Make your own start</h3><div class="spacer"></div><button type="button" id="genClose" class="ghost" aria-label="Close (progress is kept)" title="Close (progress is kept)">✕</button></div>
+    <div id="genBody" class="maker-body"></div>
+  </form>
+</dialog>
+
 <dialog id="settings">
   <form method="dialog" class="settings">
     <div class="row"><h3>Settings</h3><div class="spacer"></div><button type="button" id="btnSetup" class="ghost small">Setup guide</button><button value="cancel" type="submit" class="ghost" aria-label="Close without saving" title="Close without saving">✕</button></div>
@@ -224,6 +231,7 @@ try { window.EnsembleAppearance((JSON.parse(localStorage.getItem('ensemble.setti
 <script src="js/engine.js"></script>
 <script src="js/scenario.js"></script>
 <script src="js/charmaker.js"></script>
+<script src="js/startgen.js"></script>
 <script src="js/layouts.js"></script>
 <script src="js/mapdraw.js"></script>
 <script src="js/ui.js"></script>

@@ -302,9 +302,10 @@ await check('pick a world, then a start, and play a turn', async (page) => {
   await page.reload();
   await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
   assert.equal(await page.inputValue('#startSelect'), 'garage');
-  // a world with one start skips the start step
+  // a world with one start skips the start step, unless it can also generate one (task 4-2)
   await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
-  assert.ok(!(await page.isVisible('#startSelect')), 'one start: no start picker');
+  assert.deepEqual(await page.locator('#startSelect option').evaluateAll((els) => els.map((e) => e.value)), ['herd', '__generate'], 'its start, or make one');
+  assert.equal(await page.inputValue('#startSelect'), 'herd');
   assert.match(await page.textContent('#pickInfo'), /Jordan Pike/);
 });
 
@@ -404,6 +405,88 @@ await check('phone: make my own character and play a turn', async (page) => {
   assert.equal(await page.locator('.mk-chip').count(), 1);
   assert.ok(await page.isVisible('#mkStart'), 'Start game stays in reach');
   await page.click('#mkStart');
+  await gameStarted(page);
+  await act(page, 'Look around.');
+  assert.equal(await page.locator('.entry.action').count(), 1);
+});
+
+// Task 4-2: generated starts.
+const genOpen = async (page) => {
+  await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+  await page.selectOption('#startSelect', '__generate');
+  await page.click('#btnNew');
+  await page.waitForSelector('#genDialog[open]');
+};
+const genDone = (page) => page.waitForSelector('#genPlay', { timeout: 20000 });
+
+await check('make my own start: generate a place and people, retry a failed step, and play', async (page) => {
+  // The first three replies for the rooms step are unusable: the step fails, then Retry works.
+  let bad = 3;
+  await page.route('http://localhost:5001/v1/chat/completions', async (route) => {
+    const body = route.request().postData() || '';
+    if (body.includes('TASK: THE PLACE') && bad-- > 0) {
+      return route.fulfill({ status: 200, headers: { 'Access-Control-Allow-Origin': '*' }, contentType: 'application/json',
+        body: JSON.stringify({ choices: [{ message: { role: 'assistant', content: '{"rooms":[]}' }, finish_reason: 'stop' }] }) });
+    }
+    return route.continue();
+  });
+  await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+  assert.ok(await page.isVisible('#startSelect'), 'the holdout now has a start to pick: its own, or make one');
+  await page.selectOption('#startSelect', '__generate');
+  assert.ok(!(await page.isVisible('#whoSelect')));
+  assert.match(await page.textContent('#pickInfo'), /Make my own start/);
+  await page.click('#btnNew');
+  await page.waitForSelector('#genDialog[open]');
+  assert.deepEqual(await page.locator('input[name="gen-region"]').evaluateAll((els) => els.map((e) => e.value)), ['main-street', 'residential', 'junction'], 'startable regions only');
+  await page.check('input[name="gen-region"][value="residential"]');
+  await page.fill('#genLine', 'a trucker who just wants to get to the coast');
+  await page.fill('#genNote', 'quiet and tense');
+  await page.click('#genGo');
+  await page.waitForSelector('#genRetry', { timeout: 20000 });
+  assert.match(await page.textContent('#genBody'), /rooms: make 3 to 6 rooms \(got 0\)/);
+  assert.equal(await page.locator('.gen-step.done').count(), 1, 'your character is kept');
+  await page.click('#genRetry');
+  await genDone(page);
+  assert.equal(await page.locator('.gen-step.done').count(), 7);
+  assert.match(await page.textContent('.gen-done'), /Day 23: the diner/);
+  assert.ok(!(await page.locator('.gen-json pre').isVisible()), 'the JSON (with secrets) is folded away');
+  await page.screenshot({ path: path.join(shots, 'generated-start.png') });
+  await page.click('#genPlay');
+  await gameStarted(page);
+  assert.match(await page.textContent('#sceneBar'), /Diner Counter/);
+  assert.match(await page.textContent('#cast'), /Lena Marsh/);
+  assert.match(await page.textContent('#log'), /Rain drums on the diner roof/);
+  await act(page, 'Look around.');
+  assert.equal(await page.locator('.entry.action').count(), 1);
+});
+
+await check('phone: make my own start with the character form, and resume it after a reload', async (page) => {
+  await genOpen(page);
+  await page.click('#genMake');
+  await page.waitForSelector('#makerDialog[open]');
+  assert.equal(await page.textContent('#mkStart'), 'Use this character');
+  assert.equal(await page.locator('.mk-feel').count(), 0, 'nobody to have feelings about yet');
+  await page.fill('[data-f="name"]', 'Ana Reyes');
+  await page.fill('[data-f="want"]', 'find my sister');
+  await page.fill('#mkTrait', 'stubborn');
+  await page.press('#mkTrait', 'Enter');
+  await page.click('#mkStart');
+  await page.waitForFunction(() => !document.getElementById('makerDialog').open);
+  assert.match(await page.textContent('#genBody'), /Ana Reyes, Local from town/);
+  const box = await page.locator('#genDialog').boundingBox();
+  assert.ok(box.width >= 380 && box.width <= 390, 'the generator fills the screen');
+  await page.click('#genGo');
+  await genDone(page);
+  assert.equal(await page.locator('.gen-step.done').count(), 7);
+  assert.equal(await page.locator('.gen-step').first().locator('[data-gen-redo]').count(), 0, 'the character you made is yours: no Redo, and no model call for it');
+  // closed without playing, and the page reloaded: the finished start waits
+  await page.click('#genClose');
+  await page.reload();
+  await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
+  await genOpen(page);
+  assert.match(await page.textContent('.gen-resume'), /finished start you haven't played/);
+  await page.click('#genResume');
+  await page.click('#genPlay');
   await gameStarted(page);
   await act(page, 'Look around.');
   assert.equal(await page.locator('.entry.action').count(), 1);

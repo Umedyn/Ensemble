@@ -13,11 +13,11 @@
 
   // ---------- field lists ----------
   // Start fields that are not world overrides.
-  const START_OWN = ['id', 'title', 'summary', 'start', 'player', 'cast', 'opening', 'castLabel', 'region', 'playerSlot'];
+  const START_OWN = ['id', 'title', 'summary', 'start', 'player', 'cast', 'opening', 'castLabel', 'region', 'playerSlot', 'generated'];
   // World fields a start may override (merge rules below).
   const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'tagThresholds', 'portraitSet', 'factions', 'world',
     'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'standees', 'site', 'localMap', 'map', 'entrances'];
-  const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'characters', 'starts', ...OVERRIDABLE];
+  const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'characters', 'starts', 'generatedStarts', ...OVERRIDABLE];
   const WORLD_RESERVED = ['lore', 'timeline'];
   const START_RESERVED = [];
   const CAST_FIELDS = ['id', 'status', 'needs', 'relations', 'knows', 'want', 'secret', 'guard', 'tags', 'tier', 'pinned', 'agenda'];
@@ -69,6 +69,14 @@
       (sc.locations || []).forEach((l) => { if (l && l.region == null) l.region = sc.region; });
     }
     S.groupsToStandees(sc);
+    // World-level extras and groups may stand in rooms only some starts have
+    // (Mrs. Albee at the holdout's dock). In a start without that room, an
+    // extra is nowhere in particular and a group is left out (validateWorld
+    // checks the room exists somewhere, so a typo still fails).
+    const own = new Set([].concat(start.extras || [], start.standees || []).map((x) => x && x.id));
+    const rooms = new Set((sc.locations || []).map((l) => l && l.id));
+    (sc.extras || []).forEach((x) => { if (x && !own.has(x.id) && x.location != null && !rooms.has(x.location)) x.location = null; });
+    if (Array.isArray(sc.standees)) sc.standees = sc.standees.filter((g) => !g || own.has(g.id) || rooms.has(g.location));
     const cast = start.cast || [];
     sc.characters = cast.map(castId);
     sc.characterData = cast.map((entry) => {
@@ -154,7 +162,9 @@
     const pool = world.characters || [];
     const startIds = world.starts || [];
     req(Array.isArray(pool) && pool.length, 'missing "characters" list');
-    req(Array.isArray(startIds) && startIds.length, 'missing "starts" list');
+    // A world with generated starts (task 4-2) may have no authored ones.
+    req(Array.isArray(startIds) && (startIds.length || world.generatedStarts != null), 'missing "starts" list');
+    if (world.generatedStarts != null) problems.push(...E.StartGen.configProblems(world));
     dupes(pool).forEach((id) => problems.push(`character "${id}" is listed twice`));
     dupes(startIds).forEach((id) => problems.push(`start "${id}" is listed twice`));
     ['locations', 'clocks', 'factions', 'regions'].forEach((k) =>
@@ -190,6 +200,11 @@
     // Regions the world map leaves out get an automatic point (task 3-4).
     if (isObj(world.map) && Array.isArray(world.regions)) world.regions.forEach((r) => {
       if (r && r.id && !(isObj(world.map.regions) && world.map.regions[r.id])) warnings.push(`world.json: region "${r.id}" is not on the map; it gets a point placed automatically`);
+    });
+    // World-level extras and groups stand in a room of the world or of some start.
+    const anyRoom = new Set([].concat(world.locations || [], ...startIds.map((sid) => (starts[sid] && starts[sid].locations) || [])).map((l) => l && l.id));
+    [].concat(Array.isArray(world.extras) ? world.extras : [], Array.isArray(world.standees) ? world.standees : []).forEach((x) => {
+      if (x && x.location != null && !anyRoom.has(x.location)) problems.push(`world.json: "${x.id}" stands in "${x.location}", which is not a room of the world or of any start`);
     });
     // Groups away from the rooms (task 3-2) are dropped when composing.
     [['world.json', world]].concat(startIds.map((sid) => [bundle.legacy ? 'scenario.json' : `starts/${sid}.json`, starts[sid]])).forEach(([where, src]) =>
@@ -232,6 +247,8 @@
     return {
       folder, id: w.id || folder, title: w.title, summary: w.summary || '', tags: w.tags || [],
       legacy: bundle.legacy, defaultStart: w.starts[0], warnings,
+      // Generated starts (task 4-2) compose from the raw files.
+      generate: w.generatedStarts != null, bundle: { world: w, characters: bundle.characters, starts: bundle.starts },
       starts: w.starts.map((id) => {
         const st = bundle.starts[id];
         const info = { id, title: st.title || w.title, summary: st.summary || '' };
@@ -402,6 +419,7 @@
         `${where}: "tags" must be a list of at most ${S.REGION_TAGS} short words or phrases (30 characters each)`);
       req(r.status == null || (typeof r.status === 'string' && r.status.length <= 120), `${where}: "status" must be text of at most 120 characters`);
       req(r.lore == null || (typeof r.lore === 'string' && r.lore.length <= 400), `${where}: "lore" must be text of at most 400 characters`);
+      req(r.startable == null || typeof r.startable === 'boolean', `${where}: "startable" must be true or false`);
       if (r.neighbours != null && !Array.isArray(r.neighbours)) return problems.push(`${where}: "neighbours" must be a list of region ids`);
       (r.neighbours || []).forEach((n) => req(ids.has(n) && n !== r.id, `${where}: unknown neighbour "${n}"`));
     });

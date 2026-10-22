@@ -64,14 +64,18 @@
   }
 
   // Fills the start select for the picked world. With one start (or none
-  // usable) it stays hidden and New game plays the default.
+  // usable) it stays hidden and New game plays the default. A world with
+  // generated starts (task 4-2) adds "Make my own start".
+  const GEN_OPTION = '__generate';
   function renderStarts(preferred, preferredWho) {
     const w = loaded.get($('scenarioSelect').value);
     const sel = $('startSelect');
     const starts = w && w.starts ? w.starts : [];
-    sel.innerHTML = starts.map((s) => `<option value="${esc(s.id)}">${esc(s.title)}${s.error ? ' (has errors)' : ''}</option>`).join('');
-    sel.value = starts.some((s) => s.id === preferred) ? preferred : (w && w.defaultStart) || '';
-    sel.classList.toggle('hidden', starts.length < 2);
+    const generate = !!(w && w.generate);
+    sel.innerHTML = starts.map((s) => `<option value="${esc(s.id)}">${esc(s.title)}${s.error ? ' (has errors)' : ''}</option>`).join('') +
+      (generate ? `<option value="${GEN_OPTION}">✦ Make my own start</option>` : '');
+    sel.value = starts.some((s) => s.id === preferred) || (generate && preferred === GEN_OPTION) ? preferred : (w && w.defaultStart) || (generate ? GEN_OPTION : '');
+    sel.classList.toggle('hidden', sel.options.length < 2);
     renderWho(preferredWho);
   }
 
@@ -101,7 +105,9 @@
     const st = w.starts.find((s) => s.id === $('startSelect').value);
     const tags = (w.tags || []).map((t) => `<span class="tag">${esc(t)}</span>`).join('');
     const summary = st && ((makingOwn() && st.slotSummary) || st.summary);
-    const start = !st ? '' : st.error
+    const start = $('startSelect').value === GEN_OPTION
+      ? '<br><b>Make my own start:</b> pick where and who you are; the story engine builds the place, the people and an opening.'
+      : !st ? '' : st.error
       ? `<br><span class="fail">This start can't be played: ${esc(st.error)}</span>`
       : summary ? `<br>${w.starts.length > 1 ? `<b>${esc(st.title)}:</b> ` : ''}${esc(summary)}` : '';
     $('pickInfo').innerHTML = `<b>${esc(w.title)}</b>${w.summary ? ' · ' + esc(w.summary) : ''}${tags}${start}`;
@@ -166,7 +172,7 @@
     const startId = $('startSelect').value || undefined;
     try {
       world = await resolveWorld($('scenarioSelect').value);
-      if (!makingOwn()) beginGame(world, E.Scenario.startScenario(world, startId));
+      if (startId === GEN_OPTION) { /* the generator below */ } else if (!makingOwn()) beginGame(world, E.Scenario.startScenario(world, startId));
     } catch (e) {
       world = null;
       alert(e.message);
@@ -174,6 +180,7 @@
       setBusy(false);
     }
     // Make my own (task 4-1): the game starts from the character form.
+    if (world && startId === GEN_OPTION) return openGenerator(world);
     if (world && makingOwn()) return openMaker(world, startId || world.defaultStart);
     if (state) renderAll();
     $('actionInput').focus();
@@ -204,17 +211,33 @@
   let maker = null; // { world, startId, sc, key, form, offers, pending, note, errors }
   const DRAFT_KEY = 'ensemble.makerDraft';
   const CM = E.CharMaker;
+  // A start's slot: Start game begins that start with the character.
   function openMaker(world, startId) {
     const st = world.starts.find((s) => s.id === startId);
-    const sc = st.scenario;
-    const key = `${world.folder}/${startId}`;
-    const form = CM.defaults(sc);
+    openCharacterForm({
+      sc: st.scenario, key: `${world.folder}/${startId}`, title: `Make your character: ${st.title}`, done: 'Start game',
+      onDone: (c) => {
+        let scenario;
+        try { scenario = E.Scenario.startScenario(world, startId, c); } catch (e) { return [e.message]; }
+        $('makerDialog').close();
+        beginGame(world, scenario);
+        renderAll();
+        $('actionInput').focus();
+        return null;
+      },
+    });
+  }
+  // opts: { sc (with a playerSlot), key (for the draft), title, done (the
+  // button's label), onDone(character) → null, or a list of errors to show }.
+  function openCharacterForm(opts) {
+    const form = CM.defaults(opts.sc);
     try {
       const d = JSON.parse(store.get(DRAFT_KEY));
-      if (d && d.key === key && d.form) Object.assign(form, d.form, { feelings: Object.assign(form.feelings, d.form.feelings) });
+      if (d && d.key === opts.key && d.form) Object.assign(form, d.form, { feelings: Object.assign(form.feelings, d.form.feelings) });
     } catch (e) { /* no draft */ }
-    maker = { world, startId, sc, key, form, offers: {}, pending: null, note: '', errors: [] };
-    $('makerTitle').textContent = `Make your character: ${st.title}`;
+    maker = { sc: opts.sc, key: opts.key, onDone: opts.onDone, form, offers: {}, pending: null, note: '', errors: [] };
+    $('makerTitle').textContent = opts.title;
+    $('mkStart').textContent = opts.done;
     renderMaker();
     $('makerDialog').showModal();
   }
@@ -382,18 +405,159 @@
   $('mkStart').addEventListener('click', () => {
     if (!maker) return;
     const out = CM.build(maker.sc, maker.form);
-    let scenario = null;
-    if (out.character) {
-      try { scenario = E.Scenario.startScenario(maker.world, maker.startId, out.character); }
-      catch (e) { out.errors = [e.message]; }
-    }
-    if (!scenario) { maker.errors = out.errors; renderMaker(); return; }
-    const world = maker.world;
-    $('makerDialog').close();
-    beginGame(world, scenario);
-    renderAll();
-    $('actionInput').focus();
+    const errors = out.errors || maker.onDone(out.character);
+    if (errors && maker) { maker.errors = errors; renderMaker(); }
   });
+
+  // ---------- generated starts (task 4-2) ----------
+  // E.StartGen runs and checks the steps; this draws the setup (region,
+  // character, note), the progress list and the result. The job is kept in
+  // this browser after every step, so a closed tab resumes where it stopped.
+  // gen: { world, key, job, mode, region, character, line, note, running, progress, error }
+  let gen = null;
+  const GEN = E.StartGen;
+  const JOB_KEY = 'ensemble.genJob';
+  function savedJob(key) {
+    try { const d = JSON.parse(store.get(JOB_KEY)); return d && d.key === key ? d.job : null; } catch (e) { return null; }
+  }
+  const saveJob = (job) => { if (gen) store.set(JOB_KEY, JSON.stringify({ key: gen.key, job })); };
+  const dropJob = () => store.set(JOB_KEY, '');
+
+  function openGenerator(world) {
+    const key = `${world.folder}/${world.id}`;
+    if (!gen || gen.key !== key) {
+      const regions = GEN.regions(world.bundle.world);
+      gen = { world, key, job: null, mode: 'form', region: regions.length ? regions[0].id : null, character: null, line: '', note: '', running: false, progress: null, error: '' };
+    }
+    gen.world = world;
+    renderGen();
+    $('genDialog').showModal();
+  }
+
+  function renderGen() {
+    if (!gen) return;
+    const w = gen.world.bundle.world;
+    const saved = !gen.job && savedJob(gen.key);
+    let html = '';
+    if (!gen.job) {
+      if (saved) {
+        const n = GEN.order(saved).filter((id) => saved.steps[id]).length;
+        html += `<div class="gen-resume"><b>${GEN.done(saved) ? 'You have a finished start you haven\'t played.' : `You have an unfinished start (${n} of ${GEN.order(saved).length} steps done).`}</b> <button type="button" id="genResume" class="primary small">${GEN.done(saved) ? 'Open it' : 'Resume'}</button> <button type="button" id="genDiscard" class="small ghost">Discard</button></div>`;
+      }
+      const regions = GEN.regions(w);
+      if (regions.length) {
+        html += `<fieldset class="mk-choices"><legend>Where</legend>${regions.map((r) => `<label class="mk-option"><input type="radio" name="gen-region" value="${esc(r.id)}"${gen.region === r.id ? ' checked' : ''}> <span><b>${esc(r.name)}</b>${r.lore ? ` <span class="muted">${esc(r.lore)}</span>` : ''}</span></label>`).join('')}</fieldset>`;
+      }
+      const c = gen.character;
+      html += '<fieldset class="mk-choices"><legend>You</legend>' +
+        `<label class="mk-option"><input type="radio" name="gen-mode" value="form"${gen.mode === 'form' ? ' checked' : ''}> <span><b>Make a character</b> ${c ? `<span class="muted">${esc(c.name)}, ${esc(c.role)}</span> ` : ''}<button type="button" id="genMake" class="small">${c ? 'Edit' : 'Make one'}</button></span></label>` +
+        `<label class="mk-option"><input type="radio" name="gen-mode" value="line"${gen.mode === 'line' ? ' checked' : ''}> <span><b>Describe one in a line</b> <input type="text" id="genLine" maxlength="300" value="${esc(gen.line)}" placeholder="a trucker who just wants to get to the coast" aria-label="Describe your character in a line"></span></label>` +
+        '</fieldset>' +
+        `<label>What kind of story (optional)<textarea id="genNote" maxlength="400" rows="2" placeholder="quiet and tense; someone here is lying">${esc(gen.note)}</textarea></label>` +
+        '<div class="muted small">The story engine writes the place, the people, their ties and an opening, one small step at a time (about 9 calls; several minutes on a local model). You can retry any step.</div>' +
+        '<div class="row end"><button type="button" id="genGo" class="primary">Generate</button></div>';
+    } else {
+      const job = gen.job;
+      const steps = GEN.order(job).map((id) => {
+        const label = GEN.STEPS.find((s) => s.id === id).label;
+        const running = gen.running && gen.progress && gen.progress.step === id;
+        const failed = !gen.running && job.failed === id;
+        const mark = job.steps[id] ? '✓' : running ? '…' : failed ? '✕' : '·';
+        const count = running && gen.progress.of ? ` ${gen.progress.index} of ${gen.progress.of}` : id === 'cast' && !job.steps.cast && (job.partial.cast || []).length ? ` (${job.partial.cast.length} done)` : '';
+        const redo = !gen.running && job.steps[id] && (id !== 'player' || job.line) ? ` <button type="button" class="small ghost" data-gen-redo="${id}" title="Make this again, and everything after it">Redo</button>` : '';
+        return `<li class="gen-step ${job.steps[id] ? 'done' : running ? 'running' : failed ? 'failed' : ''}"><span class="gen-mark" aria-hidden="true">${mark}</span> ${esc(label)}${count}${redo}</li>`;
+      }).join('');
+      html += `<ol class="gen-steps" aria-live="polite">${steps}</ol>`;
+      if (gen.error) html += `<div class="fail small">${esc(gen.error)}</div><div class="row"><button type="button" id="genRetry" class="primary">Retry this step</button></div>`;
+      if (GEN.done(job)) {
+        const o = job.steps.opening;
+        let preview = '';
+        try { preview = JSON.stringify(GEN.toStart(gen.world, job), null, 1); } catch (e) { preview = e.message; }
+        html += `<div class="gen-done"><b>${esc(o.title)}</b><div>${esc(o.summary)}</div></div>` +
+          `<details class="gen-json"><summary>Show it as JSON (spoilers: everyone's secrets)</summary><pre>${esc(preview)}</pre></details>`;
+      }
+      html += `<div class="row end"><button type="button" id="genOver" class="ghost"${gen.running ? ' disabled' : ''}>Start over</button>${GEN.done(job) ? '<button type="button" id="genPlay" class="primary">Play</button>' : ''}</div>`;
+    }
+    $('genBody').innerHTML = html;
+  }
+
+  async function runGen(fromStep) {
+    if (!gen || gen.running) return;
+    const g = gen;
+    if (fromStep) GEN.clearFrom(g.job, fromStep);
+    g.running = true;
+    g.error = '';
+    renderGen();
+    try {
+      await GEN.run(g.world, g.job, { save: saveJob, onProgress: (p) => { g.progress = p; if (gen === g) renderGen(); } });
+    } catch (e) {
+      g.error = e.message;
+    }
+    g.running = false;
+    g.progress = null;
+    if (gen === g) renderGen();
+  }
+
+  $('genBody').addEventListener('change', (ev) => {
+    if (!gen) return;
+    const t = ev.target;
+    if (t.name === 'gen-region') gen.region = t.value;
+    if (t.name === 'gen-mode') gen.mode = t.value;
+  });
+  $('genBody').addEventListener('input', (ev) => {
+    if (!gen) return;
+    if (ev.target.id === 'genLine') { gen.line = ev.target.value; gen.mode = 'line'; ev.target.closest('.mk-option').querySelector('input[type=radio]').checked = true; }
+    if (ev.target.id === 'genNote') gen.note = ev.target.value;
+  });
+  $('genBody').addEventListener('click', (ev) => {
+    if (!gen) return;
+    const b = ev.target.closest('button');
+    if (!b) return;
+    if (b.id === 'genMake') {
+      gen.mode = 'form';
+      const g = gen;
+      openCharacterForm({
+        sc: GEN.slotScenario(g.world, g.region), key: `${g.key}/generated`, title: `Make your character: ${g.world.title}`, done: 'Use this character',
+        onDone: (c) => { g.character = c; $('makerDialog').close(); renderGen(); return null; },
+      });
+    } else if (b.id === 'genGo') {
+      try {
+        gen.job = GEN.newJob(gen.world, { region: gen.region, note: gen.note, character: gen.mode === 'form' ? gen.character : null, line: gen.mode === 'line' ? gen.line : '' });
+      } catch (e) {
+        gen.error = '';
+        alert(e.message);
+        return;
+      }
+      saveJob(gen.job);
+      runGen();
+    } else if (b.id === 'genResume') {
+      gen.job = savedJob(gen.key);
+      renderGen();
+      if (!GEN.done(gen.job)) runGen();
+    } else if (b.id === 'genDiscard') {
+      dropJob();
+      renderGen();
+    } else if (b.id === 'genRetry') runGen();
+    else if (b.dataset.genRedo) runGen(b.dataset.genRedo);
+    else if (b.id === 'genOver') {
+      dropJob();
+      gen.job = null;
+      gen.error = '';
+      renderGen();
+    } else if (b.id === 'genPlay') {
+      let scenario;
+      try { scenario = GEN.scenario(gen.world, gen.job); } catch (e) { gen.error = e.message; renderGen(); return; }
+      const world = gen.world;
+      dropJob();
+      gen = null;
+      $('genDialog').close();
+      beginGame(world, scenario);
+      renderAll();
+      $('actionInput').focus();
+    }
+  });
+  $('genForm').addEventListener('submit', (ev) => ev.preventDefault());
+  $('genClose').addEventListener('click', () => $('genDialog').close());
 
   // File names: world and start titles, e.g. "ares-deep-sol-214-the-mule".
   function gameSlug(sc) {

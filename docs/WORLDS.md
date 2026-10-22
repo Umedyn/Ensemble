@@ -71,9 +71,10 @@ Static servers can't list directories, so `world.json` lists its starts and char
 | `inventExtras` | boolean | default false; true lets the model add minor people during play (one a turn, 30 in all). Leave it off for closed settings |
 | `facts` | string[] | public facts true everywhere |
 | `characters` | string[] | the character pool (ids in `characters/`) |
-| `starts` | string[] | start ids in `starts/`; the first is the default |
+| `starts` | string[] | start ids in `starts/`; the first is the default. May be empty when the world has `generatedStarts` |
+| `generatedStarts` | object | optional (task 4-2): lets players build a start. See [Generated starts](#generated-starts) |
 | `locations`, `clocks` | | optional world-wide ones (rare); usually per start. A location may set `region` (default: the start's `region`) |
-| `regions` | object[] | the map above the rooms (task 3-1): `{id, name, controller, tags, status, neighbours, lore}`. `controller` is a group id or `null`; `tags` up to 6 (30 characters each); `status` up to 120 characters; `lore` a summary up to 400 (no secrets or future events; full lore entries come in phase 5). Neighbour links are made two-way when validated. Starts change them by `id`. Once a world has regions, every start needs `region` and every location a known region |
+| `regions` | object[] | the map above the rooms (task 3-1): `{id, name, controller, tags, status, neighbours, lore}`. `controller` is a group id or `null`; `tags` up to 6 (30 characters each); `status` up to 120 characters; `lore` a summary up to 400 (no secrets or future events; full lore entries come in phase 5). `startable: true` marks the regions a generated start can begin in (none marked: all). Neighbour links are made two-way when validated. Starts change them by `id`. Once a world has regions, every start needs `region` and every location a known region |
 | `portraitSet` | string[] | optional; image paths in the world folder used as stand-ins for characters without a `portrait`, picked by a hash of the id (task 1-7). Without it, a monogram |
 | `map` | object | optional world map (task 3-4): `{image, width, height, regions: {id: {polygon: [[x, y], …]} or {point: [x, y]}}, locations: {roomId: [x, y]}}`, in image pixels. Polygons need 3+ points; every point inside the image; region ids must exist, and room ids must exist in the world or in some start (the map is the world's, rooms are usually a start's). A region left off gets a point placed automatically (with a warning). Without a map, the world view draws a node map from the regions' `neighbours` |
 | reserved | | `lore`, `timeline`: accepted and ignored until their phase |
@@ -153,7 +154,7 @@ Overridable per start: `status`, `needs`, `relations`, `knows`, `want`, `secret`
 4. **Lists of strings** (`rules`, `facts`, `tags`): world first, then the start's, without duplicates.
 5. **Plain objects** (`world`, `eventRates`, `eventSeeds`, `tiers`): shallow merge, with the start winning.
 6. `characters` = the start's cast ids in order; `characterData` = each pool file deep-merged with its cast entry (cast entry wins; plain objects such as `status`, `needs` and `relations` merge field by field, lists such as `knows` are replaced). Relations to pool characters who aren't in this start's cast are dropped (they're checked against the pool by `validateWorld` instead).
-7. When the result has `regions`, each location without a `region` gets the start's `region`. Group extras become standees (`S.groupsToStandees`).
+7. When the result has `regions`, each location without a `region` gets the start's `region`. Group extras become standees (`S.groupsToStandees`). World-level extras and standees placed in a room this start doesn't have are, respectively, nowhere in particular (`location: null`) and left out; `validateWorld` checks that their room exists in the world or in some start, so a typo still fails.
 8. The composed scenario gets `worldId`, `startId`, `folder` (the world folder) and `title` (`"<world title>: <start title>"` for display, or just the world title when the start has none, plus `worldTitle` and `startTitle` separately). `format` and `starts` are dropped. The prompt header's `SETTING:` line uses `worldTitle`, so start titles stay out of prompts.
 9. Then `S.validate(composed)`: today's checks, unchanged. `S.compose` itself doesn't validate; `S.prepareWorld` does both.
 
@@ -165,6 +166,18 @@ A folder with `scenario.json` and no `world.json` loads through `S.fromLegacy(sc
 
 The bundled `mars-station` and `zombie-holdout` folders were converted in task 1-2. Their old versions are frozen as `tests/fixtures/legacy-scenario/` (Ares Deep) and `tests/fixtures/legacy-zombie-holdout/`, and a test checks each converted default start begins the same game. Ares Deep has a second start, `garage` (Priya Raman), as the worked example of one world with several starts.
 
+## Generated starts
+
+Task 4-2. A world opts in with `generatedStarts`:
+
+```json
+"generatedStarts": { "roles": [{ "id": "trucker", "label": "Long-haul trucker", "skills": { "fighting": 2 } }], "skillPoints": 10, "maxSkill": 3, "castSize": [3, 5], "castLabel": "Group", "start": { "day": 23, "hour": 9 } }
+```
+
+`roles`, `skillPoints` and `maxSkill` work as in a `playerSlot` (freeform roles are always allowed); `castSize` is how many people to make besides the player (default `[3, 5]`, 1–8); `castLabel` the sidebar heading; `start` the date (default: the default start's). Leave it out for closed settings (Ares Deep has none: it is a five-person station).
+
+The player picks a region (`startable` ones), makes a character with the 4-1 form or describes one in a line, and may add a note on the kind of story. `js/startgen.js` then runs small `worldbuild` calls, each checked before the next: the player's sheet (only for a line), rooms, who is here (a one-line plan per person), the people (one call each on KoboldCpp, all in one call on an API model), ties and pressures, minor people and groups, and the opening with a title, summary and public facts. The result is an ordinary start with `"generated": true` plus a character file per new person; it goes through `validateWorld`, `compose` and `validate` like an authored start, and the save embeds it. Generated people are new: the world's character pool is not used, and their names and ids never clash with it.
+
 ## Saves
 
 - Bump the state `version` to `2`. New states store `scenario.worldId` and `scenario.startId`.
@@ -175,7 +188,8 @@ The bundled `mars-station` and `zombie-holdout` folders were converted in task 1
 
 1. **World**: title, summary and tags (`index.json` order; "Open folder" adds more).
 2. **Start**: title and summary for each start, the default selected. If a world has one start, this step is skipped.
-3. **Who you play** (task 4-1): a start with a `playerSlot` adds a third select, "Play as <name>" (when it has a `player`) or "Make my own". New game with "Make my own" opens the character form; Start game there begins the game. Generated starts (task 4-2) will add their own entry.
+3. **Make my own start** (task 4-2): a world with `generatedStarts` adds "✦ Make my own start" to the start select; New game then opens the generator.
+4. **Who you play** (task 4-1): a start with a `playerSlot` adds a third select, "Play as <name>" (when it has a `player`) or "Make my own". New game with "Make my own" opens the character form; Start game there begins the game. Generated starts (task 4-2) will add their own entry.
 
 Phone layout: two stacked selects, nothing more.
 

@@ -1231,6 +1231,7 @@
 
   const STOP = new Set('that this with from have been were they them their there what when where which would could should about after before into than then while your just only also very some more most other each such over under because being does doing having made make told tell said says hers his him she he'.split(' '));
   const contentWords = (t) => new Set(String(t || '').toLowerCase().replace(/[^a-z' ]+/g, ' ').split(/\s+/).map((w) => w.replace(/'s$/, '')).filter((w) => w.length >= 4 && !STOP.has(w)));
+  Eng.contentWords = contentWords;
 
   // True when a character's own words/action carry their secret or private
   // knowledge (3+ distinct content words in common, or a confession verb plus 1+).

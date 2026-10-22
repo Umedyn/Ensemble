@@ -136,7 +136,7 @@
   CM.slugId = function (sc, name) {
     const base = String(name || '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase()
       .replace(/^(dr|mr|mrs|ms|mx|prof)\.?\s+/, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24).replace(/-+$/, '') || 'me';
-    const taken = new Set([].concat(sc.characters || [], (sc.extras || []).map((x) => x && x.id), (sc.standees || []).map((x) => x && x.id),
+    const taken = new Set([].concat(sc.reservedIds || [], sc.characters || [], (sc.extras || []).map((x) => x && x.id), (sc.standees || []).map((x) => x && x.id),
       (sc.locations || []).map((l) => l && l.id), (sc.regions || []).map((r) => r && r.id), (sc.factions || []).map((f) => f && f.id)));
     let id = ID.test(base) ? base : 'me';
     for (let n = 2; taken.has(id); n++) id = `${base}-${n}`;

@@ -7,7 +7,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
-const { newGame, scenarioFolders } = require('./helpers');
+const { newGame, scenarioFolders, readWorld } = require('./helpers');
+const genMock = require('./genmock');
 
 const FILE = path.join(__dirname, 'fixtures', 'prompt-snapshots.json');
 
@@ -61,6 +62,40 @@ function promptsFor(folder) {
   out.narrateSkip = P.narrateSkip(state, 'Keep busy.', skipFrame, [{ after: '1d', text: 'Days pass.' }],
     npcs.filter((id) => id !== npcs[2]).map((id) => ({ id, doing: 'resting' })), skipRes, present);
   out.chapter = P.chapter(state);
+  Object.assign(out, genPrompts(E, folder));
+  return out;
+}
+
+// Generated starts (task 4-2): every step's prompt, each step filled from the
+// shared mock replies before the next. Empty for worlds without them.
+const GEN_KEYS = ['genHeader', 'genPlayer', 'genRooms', 'genPlan', 'genPerson1', 'genPerson2', 'genCastAll', 'genTies', 'genExtras', 'genOpening'];
+function genPrompts(E, folder) {
+  const w = readWorld(folder, E);
+  const out = {};
+  GEN_KEYS.forEach((k) => { out[k] = ''; });
+  if (!w.generate) return out;
+  const GEN = E.StartGen;
+  const r = genMock.replies();
+  const job = GEN.newJob(w, { region: GEN.regions(w.bundle.world)[0].id, line: 'a trucker who just wants to get to the coast', note: 'quiet and tense', onePass: false });
+  const ctx = GEN.context(w, job);
+  const P = E.Prompts;
+  out.genHeader = ctx.header;
+  out.genPlayer = P.genStep(ctx, 'player');
+  job.steps.player = GEN.check.player(r.player, ctx);
+  out.genRooms = P.genStep(ctx, 'rooms');
+  job.steps.rooms = GEN.check.rooms(r.rooms, ctx);
+  out.genPlan = P.genStep(ctx, 'plan');
+  job.steps.plan = GEN.check.plan(r.plan, ctx);
+  out.genPerson1 = P.genStep(ctx, 'person', 0);
+  job.partial.cast = [GEN.check.person(genMock.SHEETS['Lena Marsh'], ctx, 0).character];
+  out.genPerson2 = P.genStep(ctx, 'person', 1);
+  out.genCastAll = P.genStep(ctx, 'cast');
+  job.steps.cast = GEN.check.cast(r.cast, ctx);
+  out.genTies = P.genStep(ctx, 'ties');
+  job.steps.ties = GEN.check.ties(r.ties, ctx);
+  out.genExtras = P.genStep(ctx, 'extras');
+  job.steps.extras = GEN.check.extras(r.extras, ctx);
+  out.genOpening = P.genStep(ctx, 'opening');
   return out;
 }
 

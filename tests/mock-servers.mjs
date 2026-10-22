@@ -5,6 +5,7 @@ import http from 'node:http';
 import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import genMock from './genmock.js';
 
 const json = (res, code, obj) => {
   res.writeHead(code, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*' });
@@ -18,6 +19,12 @@ const reply = (res, content, prompt) => json(res, 200, {
 
 // Answers each pipeline step with plausible content, based on the prompt text.
 function answer(user) {
+  // Generated starts (task 4-2): the shared replies for Holdout at Harmon's.
+  const genStep = genMock.stepOf(user);
+  if (genStep) {
+    const v = genMock.replies()[genStep];
+    return JSON.stringify(typeof v === 'function' ? v(user) : v);
+  }
   if (user.includes('=== MAKING A CHARACTER ===')) {
     if (user.includes('personality traits')) return JSON.stringify({ traits: ['sharp-eyed', 'restless', 'loyal'] });
     if (user.includes('how this character talks')) return JSON.stringify({ voice: 'Quick and wry, trails off when nervous.' });

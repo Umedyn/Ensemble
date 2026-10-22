@@ -92,7 +92,8 @@
         "highway-strip",
         "residential"
       ],
-      "lore": "The old town centre: courthouse, pharmacy, church and the clinic where the first evacuation was organised and went wrong."
+      "lore": "The old town centre: courthouse, pharmacy, church and the clinic where the first evacuation was organised and went wrong.",
+      "startable": true
     },
     {
       "id": "residential",
@@ -106,7 +107,8 @@
         "highway-strip",
         "main-street"
       ],
-      "lore": "Streets of small houses and trailers behind Main Street. Some families left in a hurry; some never left."
+      "lore": "Streets of small houses and trailers behind Main Street. Some families left in a hurry; some never left.",
+      "startable": true
     },
     {
       "id": "junction",
@@ -120,7 +122,8 @@
         "highway-strip",
         "ridge-town"
       ],
-      "lore": "Where the two-lane highway meets the interstate, a few miles out. Anyone heading for the coast passes through here."
+      "lore": "Where the two-lane highway meets the interstate, a few miles out. Anyone heading for the coast passes through here.",
+      "startable": true
     },
     {
       "id": "ridge-town",
@@ -360,5 +363,63 @@
   ],
   "starts": [
     "herd"
-  ]
+  ],
+  "generatedStarts": {
+    "roles": [
+      {
+        "id": "local",
+        "label": "Local from town",
+        "desc": "Grew up five miles from here and knows who lived where, and what they kept in the garage.",
+        "skills": {
+          "scavenging": 2,
+          "persuasion": 2,
+          "stealth": 1
+        },
+        "suggestedTraits": [
+          "stubborn",
+          "nostalgic",
+          "resourceful"
+        ]
+      },
+      {
+        "id": "trucker",
+        "label": "Long-haul trucker",
+        "desc": "Was passing through on the highway when it all came apart, and never got the rig moving again.",
+        "skills": {
+          "fighting": 2,
+          "shooting": 1,
+          "mechanics": 1,
+          "scavenging": 1
+        },
+        "suggestedTraits": [
+          "blunt",
+          "tireless",
+          "wry"
+        ]
+      },
+      {
+        "id": "teacher",
+        "label": "Schoolteacher",
+        "desc": "Taught at the county middle school. Still counts heads out of habit.",
+        "skills": {
+          "persuasion": 2,
+          "medicine": 1,
+          "stealth": 1,
+          "scavenging": 1
+        },
+        "suggestedTraits": [
+          "patient",
+          "firm",
+          "haunted"
+        ]
+      }
+    ],
+    "skillPoints": 10,
+    "maxSkill": 3,
+    "castSize": [
+      3,
+      5
+    ],
+    "castLabel": "Group"
+  }
 }
