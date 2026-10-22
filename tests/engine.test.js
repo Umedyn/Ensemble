@@ -146,11 +146,26 @@ test('update facts are known only by the player, the people present and those in
     { about: ['ferris'], text: 'Gil counted the cans in his desk.', known_by: ['ferris'], weight: 2 },
   ] }, ['coleman', 'han'], { involved: ['ferris'] });
   const known = (re) => [...state.facts.find((f) => re.test(f.text)).known_by];
-  assert.deepEqual(known(/lumber/), ['coleman', 'han']);
+  assert.deepEqual(known(/lumber/), ['coleman', 'han', 'pike'], 'a fact only about the player: the player knows it too');
   assert.deepEqual(known(/cans/), ['ferris'], "Gil's hidden event");
   assert.deepEqual(known(/radio/), ['all']);
   assert.deepEqual(known(/heard everything/), ['pike', 'coleman', 'han'], 'nobody left: falls back to the witnesses');
   assert.ok(report.rejected.some((r) => /dropped ortiz, ferris: not in the scene/.test(r)));
+});
+
+// A fact only about the player is something they did, so they know it
+// (playtest-stragglers-sneak, playtest-office-window). One that also names
+// someone else can stay private ("Okafor suspects Kit").
+test('the player always knows facts that are only about themselves; private ones about them and others stay private', () => {
+  const { E, state } = newGame('zombie-holdout');
+  const report = E.Engine.applyUpdate(state, { facts: [
+    { about: ['pike'], text: 'Jordan knocked on the office door and asked to talk to Gil.', known_by: ['coleman', 'han'], weight: 2 },
+    { about: ['coleman', 'pike'], text: 'Dex suspects Jordan is hiding something from the group.', known_by: ['coleman'], weight: 2 },
+  ] }, ['coleman', 'han'], {});
+  const known = (re) => [...state.facts.find((f) => re.test(f.text)).known_by];
+  assert.deepEqual(known(/knocked/), ['coleman', 'han', 'pike']);
+  assert.deepEqual(known(/suspects/), ['coleman']);
+  assert.ok(report.applied.some((l) => /the player added: it is about their own action/.test(l)));
 });
 
 // Playtest 2026-10-19: "you cross the commons" on the way from Hydroponics to

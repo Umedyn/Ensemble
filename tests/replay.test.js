@@ -74,7 +74,7 @@ test('playtest: stepping outside without naming a room is caught, and Pike stays
 test('playtest: a scene fact is known only by the people who were there (Marlene and Gil were in other rooms)', async () => {
   const r = await replay('playtest-zombie-steps-outside');
   const fact = r.state.facts.find((f) => /scavenge lumber/.test(f.text));
-  assert.deepEqual([...fact.known_by], ['coleman', 'han']);
+  assert.deepEqual([...fact.known_by], ['coleman', 'han', 'pike'], 'Jordan was there: a fact about them is theirs too');
   const report = r.E.Engine.telemetry[r.E.Engine.telemetry.length - 1];
   assert.ok(report.guards.some((g) => g.type === 'update rejected' && /dropped ortiz, ferris: not in the scene/.test(g.detail)));
 });
@@ -262,6 +262,8 @@ test('playtest: sneaking past the stragglers next door engages them, seconds mar
   assert.ok(sneak.guards.some((g) => g.type === 'roll required'), '"I sneak around the side of the truck" with the dead next door');
   assert.deepEqual([sneak.outcomes[0].skill, sneak.outcomes[0].roll.dc], ['stealth', 14]);
   assert.equal(t3.standees.stragglers.state, 'alert');
+  const sneakFact = t3.facts.find((f) => /sneak past the stragglers/.test(f.text));
+  assert.ok(sneakFact.known_by.includes('pike'), 'the update gave it only to Dex and Ruth; Jordan knows what they did');
 });
 
 // NemoMix 12B, the task 3-6 check (2026-10-22): into Gil's office, then out "the stockroom's back window".

@@ -1665,6 +1665,12 @@
         known = known.filter((x) => couldKnow.has(x));
       }
       if (!known.length) known = witnesses.slice();
+      // A fact only about the player is about what they did: they know it
+      // (playtest-stragglers-sneak, playtest-office-window: "Jordan knocked on
+      // the office door" known only by Dex and Ruth). Facts that also name
+      // someone else ("Okafor suspects Kit…") stay as given.
+      let addedPlayer = false;
+      if (!known.includes('all') && about.length && about.every((x) => x === state.player) && !known.includes(state.player)) { known.push(state.player); addedPlayer = true; }
       const words = contentWords(f.text);
       const same = words.size >= 5 && state.facts.find((old) => {
         const ow = contentWords(old.text);
@@ -1681,7 +1687,7 @@
         state.extras[x].promote = true;
         report.extras.push(`${state.extras[x].name}: in a notable fact, will become a full character`);
       });
-      report.applied.push(`fact: ${fact.text} (w${fact.weight}, known by ${fact.known_by.join('/')})`);
+      report.applied.push(`fact: ${fact.text} (w${fact.weight}, known by ${fact.known_by.join('/')}${addedPlayer ? '; the player added: it is about their own action' : ''})`);
     });
 
     (Array.isArray(upd.state) ? upd.state : []).forEach((s) => {
