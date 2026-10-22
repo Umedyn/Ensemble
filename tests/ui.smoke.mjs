@@ -448,14 +448,60 @@ await check('make my own start: generate a place and people, retry a failed step
   await page.click('#genRetry');
   await genDone(page);
   assert.equal(await page.locator('.gen-step.done').count(), 7);
-  assert.match(await page.textContent('.gen-done'), /Day 23: the diner/);
-  assert.ok(!(await page.locator('.gen-json pre').isVisible()), 'the JSON (with secrets) is folded away');
+  assert.equal(await page.inputValue('[data-rv="opening||title"]'), 'Day 23: the diner', 'the review screen (task 4-3)');
   await page.screenshot({ path: path.join(shots, 'generated-start.png') });
   await page.click('#genPlay');
   await gameStarted(page);
   assert.match(await page.textContent('#sceneBar'), /Diner Counter/);
   assert.match(await page.textContent('#cast'), /Lena Marsh/);
   assert.match(await page.textContent('#log'), /Rain drums on the diner roof/);
+  await act(page, 'Look around.');
+  assert.equal(await page.locator('.entry.action').count(), 1);
+});
+
+// Task 4-3: the review screen.
+await check('review a generated start: spoilers, live checks, reroll one person, save as start, play', async (page) => {
+  await page.route('http://localhost:5001/v1/chat/completions', async (route) => {
+    const body = route.request().postData() || '';
+    if (!body.includes('fresh take on the same name and role')) return route.continue();
+    const sheet = { pronouns: 'he/him', age: 34, traits: ['rigid'], want: 'get his badge back', secret: 'He sold the station guns for a convoy seat.', guard: 'high', skills: {}, room: 'counter' };
+    return route.fulfill({ status: 200, headers: { 'Access-Control-Allow-Origin': '*' }, contentType: 'application/json',
+      body: JSON.stringify({ choices: [{ message: { role: 'assistant', content: JSON.stringify(sheet) }, finish_reason: 'stop' }] }) });
+  });
+  await genOpen(page);
+  await page.fill('#genLine', 'a trucker who just wants to get to the coast');
+  await page.click('#genGo');
+  await genDone(page);
+  assert.doesNotMatch(await page.textContent('#genBody'), /bitten on the hand/, 'secrets start hidden');
+  await page.check('#rvSpoil');
+  assert.match(await page.inputValue('[data-rv="person|kay-dunbar|secret"]'), /bitten on the hand/);
+  // a room edit shows on the map once the field is left
+  await page.fill('[data-rv="room|booths|name"]', 'Window Booths');
+  await page.press('[data-rv="room|booths|name"]', 'Tab');
+  assert.match(await page.textContent('#rvMap'), /Window Booths/);
+  // a bad edit is refused on the spot
+  await page.fill('[data-rv="room|kitchen|name"]', '');
+  assert.match(await page.locator('[data-rv="room|kitchen|name"] ~ .rv-err').textContent(), /can't be empty/);
+  // a secret in the opening stops Play and Save until it's gone
+  const opening = await page.inputValue('[data-rv="opening||opening"]');
+  await page.fill('[data-rv="opening||opening"]', opening + '\n\nKay was bitten on the hand two days ago and hides it in a glove.');
+  assert.match(await page.textContent('#rvProblems'), /gives away Kay Dunbar's secret/);
+  assert.ok(await page.locator('#genPlay').isDisabled() && await page.locator('#genSave').isDisabled());
+  await page.fill('[data-rv="opening||opening"]', opening);
+  assert.equal(await page.textContent('#rvProblems'), '');
+  assert.ok(!(await page.locator('#genPlay').isDisabled()));
+  // reroll one person: the others stay
+  await page.click('[data-rv-person="owen-pruitt"]');
+  await page.waitForSelector('.rv-note:has-text("written for the earlier Owen Pruitt")');
+  assert.equal(await page.inputValue('[data-rv="person|owen-pruitt|want"]'), 'get his badge back');
+  assert.equal(await page.inputValue('[data-rv="person|lena-marsh|want"]'), 'keep the diner open for whoever comes');
+  await page.screenshot({ path: path.join(shots, 'review.png') });
+  const download = page.waitForEvent('download');
+  await page.click('#genSave');
+  assert.match((await download).suggestedFilename(), /^zombie-holdout-gen-\w+\.zip$/);
+  await page.click('#genPlay');
+  await gameStarted(page);
+  assert.match(await page.textContent('#mapPane'), /Window Booths/, 'the edits are in the game');
   await act(page, 'Look around.');
   assert.equal(await page.locator('.entry.action').count(), 1);
 });
@@ -479,6 +525,8 @@ await check('phone: make my own start with the character form, and resume it aft
   await genDone(page);
   assert.equal(await page.locator('.gen-step.done').count(), 7);
   assert.equal(await page.locator('.gen-step').first().locator('[data-gen-redo]').count(), 0, 'the character you made is yours: no Redo, and no model call for it');
+  assert.ok(await page.evaluate(() => { const d = document.getElementById('genDialog'); return d.scrollWidth <= d.clientWidth; }), 'the review fits the screen: no sideways scrolling');
+  assert.ok(await page.isVisible('#genPlay'), 'Play stays in reach');
   // closed without playing, and the page reloaded: the finished start waits
   await page.click('#genClose');
   await page.reload();

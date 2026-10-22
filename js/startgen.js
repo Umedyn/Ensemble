@@ -577,6 +577,170 @@
     return job;
   };
 
+  // ---------- review (task 4-3) ----------
+  // Before playing, the player can edit any field and reroll one room, one
+  // person, the pressures or the opening. Edits go through setField (one
+  // field, checked now); reviewProblems checks the whole start the way Play
+  // and Save will.
+  const FIELDS = {
+    room: { name: ['text', 40, true], desc: ['prose', 240, true] },
+    person: {
+      name: ['text', 40, true], pronouns: ['text', 20, false], role: ['text', 60, true], age: ['age'], traits: ['traits'], want: ['prose', 160, true],
+      secret: ['prose', 300, false], guard: ['guard'], voice: ['prose', 160, false], appearance: ['prose', 400, false], description: ['prose', 600, false],
+    },
+    clock: { name: ['text', 40, true], max: ['int', 2, 24], perHour: ['num', 0.01, 1], fireText: ['prose', 240, true] },
+    opening: { title: ['text', 60, true], summary: ['prose', 300, true], opening: ['opening'], facts: ['facts'] },
+  };
+  GEN.FIELDS = FIELDS;
+  // The object an edit changes: a room, a person (the player too), a
+  // pressure, or the opening.
+  GEN.target = function (job, kind, id) {
+    const s = job.steps;
+    if (kind === 'room') return s.rooms && s.rooms.rooms.find((r) => r.id === id);
+    if (kind === 'person') return [GEN.player(job)].concat(GEN.people(job)).find((c) => c && c.id === id);
+    if (kind === 'clock') return s.ties && s.ties.clocks.find((c) => c.id === id);
+    if (kind === 'opening') return s.opening;
+    return null;
+  };
+  // One field → { value } (stored) or { error } (nothing changed).
+  GEN.setField = function (loaded, job, kind, id, field, value) {
+    const obj = GEN.target(job, kind, id);
+    const spec = FIELDS[kind] && FIELDS[kind][field];
+    if (!obj || !spec) return { error: `nothing to change at ${kind} ${id || ''} ${field}` };
+    const v = value == null ? '' : value;
+    const [type, a, b] = spec;
+    let out;
+    if (type === 'text' || type === 'prose') {
+      const t = String(v).replace(/\s+/g, ' ').trim();
+      if (b && !t) return { error: 'This can\'t be empty.' };
+      if (t.length > a) return { error: `At most ${a} characters (now ${t.length}).` };
+      out = t;
+    } else if (type === 'int' || type === 'num') {
+      const n = Number(v);
+      if (!Number.isFinite(n) || n < a || n > b || (type === 'int' && !Number.isInteger(n))) return { error: `A ${type === 'int' ? 'whole number' : 'number'} from ${a} to ${b}.` };
+      out = n;
+    } else if (type === 'age') {
+      if (String(v).trim() === '') out = null;
+      else { const n = Number(v); if (!Number.isInteger(n) || n < 1 || n > 129) return { error: 'A whole number from 1 to 129, or empty.' }; out = n; }
+    } else if (type === 'guard') {
+      if (!['low', 'medium', 'high'].includes(v)) return { error: 'low, medium or high' };
+      out = v;
+    } else if (type === 'traits') {
+      const list = [...new Set(String(v).split(',').map((t) => t.trim()).filter(Boolean))];
+      if (!list.length || list.length > 6) return { error: 'One to six traits, separated by commas.' };
+      if (list.some((t) => t.length > 30)) return { error: 'Each trait at most 30 characters.' };
+      out = list;
+    } else if (type === 'facts') {
+      const list = String(v).split(/\n+/).map((t) => t.replace(/\s+/g, ' ').trim()).filter(Boolean);
+      if (list.length > 3 || list.some((t) => t.length > 200)) return { error: 'Up to 3 facts, one per line, 200 characters each.' };
+      out = list;
+    } else if (type === 'opening') {
+      const t = String(v).replace(/\r/g, '').replace(/\n{3,}/g, '\n\n').trim();
+      if (t.split(/\s+/).filter(Boolean).length < 20) return { error: 'The opening needs at least a few sentences.' };
+      out = t;
+    }
+    // Names stay unique; a person in the cast keeps a secret (the engine needs one).
+    if (field === 'name' && kind === 'person') {
+      const others = [GEN.player(job)].concat(GEN.people(job)).filter((c) => c.id !== id).map((c) => norm(c.name));
+      if (others.includes(norm(out)) || GEN.taken(loaded).names.has(out)) return { error: 'Someone already has that name.' };
+    }
+    if (field === 'name' && kind === 'room' && job.steps.rooms.rooms.some((r) => r.id !== id && norm(r.name) === norm(out))) return { error: 'Another room has that name.' };
+    if (field === 'secret' && kind === 'person' && !out && id !== GEN.player(job).id) return { error: 'Everyone here keeps a secret; write one.' };
+    if (out === null || out === '') {
+      delete obj[field];
+      if (field === 'secret') delete obj.guard;
+    } else {
+      obj[field] = out;
+      if (field === 'secret' && !obj.guard) obj.guard = 'medium';
+    }
+    return { value: out };
+  };
+
+  // Everything that would stop Play or Save, in words: the same validation
+  // as an authored start, plus the leaks the steps check.
+  GEN.reviewProblems = function (loaded, job) {
+    const problems = [];
+    try { GEN.scenario(loaded, job); } catch (err) {
+      problems.push(...String(err.message).split('\n').filter((l) => l.startsWith('- ')).map((l) => l.slice(2)));
+      if (!problems.length) problems.push(err.message);
+    }
+    const ctx = { job, taken: GEN.taken(loaded) };
+    const o = job.steps.opening;
+    if (o) {
+      const away = GEN.namesSomeoneElse(ctx, [o.opening].concat(o.facts).join('\n\n'));
+      if (away) problems.push(`The opening or a fact names ${away}, who isn't in this start.`);
+      const leak = GEN.leak(job, o.opening, 4);
+      if (leak) problems.push(`The opening gives away ${leak.name}'s secret.`);
+      o.facts.forEach((f) => { const who = GEN.leak(job, f, 4); if (who) problems.push(`A public fact gives away ${who.name}'s secret.`); });
+    }
+    ((job.steps.ties && job.steps.ties.clocks) || []).forEach((c) => {
+      const who = GEN.pressureLeak(job, c.name + '. ' + c.fireText);
+      if (who) problems.push(`The pressure "${c.name}" gives away ${who.name}'s secret (pressures are shown to the player).`);
+    });
+    return [...new Set(problems)];
+  };
+
+  // Rerolls one person: the same name, role and id (so ties, minor people and
+  // the opening still point at them), a new sheet. Returns a note when the
+  // ties or opening may now be out of date.
+  GEN.rerollPerson = async function (loaded, job, id) {
+    const people = job.steps.cast.people;
+    const index = people.findIndex((c) => c.id === id);
+    if (index < 0) throw new Error(`No one with the id "${id}" to reroll.`);
+    const ctx = GEN.context(loaded, job);
+    const plan = job.steps.plan.people.find((p) => norm(p.name) === norm(people[index].name)) || { name: people[index].name, role: people[index].role, age: people[index].age };
+    const planIndex = job.steps.plan.people.indexOf(plan);
+    const user = E.Prompts.genStep(Object.assign({}, ctx, { reroll: id }), 'person', planIndex >= 0 ? planIndex : 0);
+    const others = new Set(people.filter((c) => c.id !== id).map((c) => c.id));
+    const out = await attempt(ctx, `worldbuild (start: reroll ${people[index].name})`, user, tokens.cast, (raw) => {
+      const r = GEN.cleanPerson(raw, plan, ctx, others);
+      if (r.character) r.character.id = id; // the same person, written again
+      return r;
+    });
+    people[index] = out.character;
+    return { character: out.character, note: `Ties, private facts and the opening were written for the earlier ${out.character.name}; reroll them too if they no longer fit.` };
+  };
+
+  // Rerolls one room's name and description; its id and connections stay.
+  GEN.rerollRoom = async function (loaded, job, roomId) {
+    const room = job.steps.rooms.rooms.find((r) => r.id === roomId);
+    if (!room) throw new Error(`No room "${roomId}" to reroll.`);
+    const ctx = GEN.context(loaded, job);
+    const out = await attempt(ctx, `worldbuild (start: reroll ${room.name})`, E.Prompts.genStep(ctx, 'room', roomId), tokens.extras, (raw) => C.room(raw, ctx, roomId));
+    room.name = out.name;
+    room.desc = out.desc;
+    if (out.outside) room.outside = true; else delete room.outside;
+    return room;
+  };
+  C.room = function (raw, ctx, roomId) {
+    if (!isObj(raw)) return { error: 'reply with one JSON object' };
+    const name = text(raw.name, 40);
+    const desc = clip(raw.desc, 240);
+    if (!name || !desc) return { error: 'give the room a "name" and a "desc"' };
+    if (ctx.job.steps.rooms.rooms.some((r) => r.id !== roomId && norm(r.name) === norm(name))) return { error: `another room is already called "${name}"` };
+    if (ctx.taken.names.has(name)) return { error: `"${name}" is already a place in this world` };
+    return { name, desc, outside: raw.outside === true };
+  };
+
+  // Redoes one step and keeps the rest (the pressures, or the opening).
+  GEN.redoOnly = async function (loaded, job, stepId) {
+    if (!['ties', 'extras', 'opening'].includes(stepId)) throw new Error(`"${stepId}" can't be redone on its own; use Redo, which redoes the steps after it too.`);
+    return GEN.runStep(loaded, job, stepId);
+  };
+
+  // The files "Save as start" writes, in the world format: world.json with
+  // the start and the new people added to its lists, the start, and a
+  // character file per new person.
+  GEN.files = function (loaded, job) {
+    const { start, characters } = GEN.toStart(loaded, job);
+    const world = E.clone(loaded.bundle.world);
+    world.starts = [...new Set((world.starts || []).concat(start.id))];
+    world.characters = [...new Set((world.characters || []).concat(Object.keys(characters)))];
+    const files = { 'world.json': world, [`starts/${start.id}.json`]: start };
+    Object.values(characters).forEach((c) => { files[`characters/${c.id}.json`] = c; });
+    return files;
+  };
+
   // ---------- the result ----------
   // A finished job → { start, characters } in the authored formats.
   GEN.toStart = function (loaded, job) {

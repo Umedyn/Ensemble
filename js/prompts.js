@@ -876,7 +876,7 @@ Reply with JSON only: ${CHAR_ASK[field][1]}`;
     const room = (rooms || []).find((r) => c.status && r.id === c.status.location);
     return `- ${c.id}: ${c.name}${c.pronouns ? ` (${c.pronouns})` : ''}, ${c.role}${c.age ? ', ' + c.age : ''}${room ? `, in ${room.name}` : ''}. Traits: ${(c.traits || []).join(', ')}. Wants: ${c.want}.${secrets && c.secret ? ` Secret: ${c.secret}` : ''}`;
   };
-  B.genSoFar = ({ job, step }) => {
+  B.genSoFar = ({ job, step, reroll }) => {
     const s = job.steps;
     const lines = [];
     const pc = s.player && s.player.character;
@@ -890,7 +890,8 @@ Reply with JSON only: ${CHAR_ASK[field][1]}`;
       lines.push('People planned:');
       s.plan.people.forEach((p) => lines.push(`- ${p.name}, ${p.role}${p.hook ? `: ${p.hook}` : ''}`));
     }
-    const people = s.cast ? s.cast.people : (step === 'person' && job.partial.cast) || [];
+    // Rerolling one person (task 4-3) shows the others, not the sheet being replaced.
+    const people = s.cast ? s.cast.people.filter((c) => c.id !== reroll) : (step === 'person' && job.partial.cast) || [];
     if (people.length && step !== 'cast') {
       lines.push(step === 'person' ? 'People already written:' : 'People:');
       people.forEach((c) => lines.push(sheetLine(c, step === 'ties', s.rooms && s.rooms.rooms)));
@@ -929,12 +930,20 @@ Plan the ${min} to ${max} people (not counting the player) who are in or around 
 Reply with JSON only: {"people":[{"name":"Full Name","role":"short role","hook":"one line"}]}`;
   };
   const SHEET = (sc) => `"pronouns":"she/her","age":40,"traits":["three","short","traits"],"want":"what they want, one phrase","secret":"something they hide from the others","guard":"low|medium|high","voice":"how they talk, one sentence","appearance":"one or two sentences, the first a good one-line look","description":"who they are, one or two sentences","skills":${skillJson(sc, 1)},"room":"room-id"`;
-  GEN_TASKS.person = ({ sc, job, index }) => {
+  GEN_TASKS.person = ({ sc, job, index, reroll }) => {
     const p = job.steps.plan.people[index];
     return `=== TASK: WRITE ONE PERSON ===
-Write the character sheet for ${p.name}, ${p.role}${p.hook ? ` (${p.hook})` : ''}. Keep the name and the role. Give them a want, and a secret they hide from the others (and how well they guard it: low, medium or high). Pick the room they are in at the start. Make them different from the people already written.
+Write the character sheet for ${p.name}, ${p.role}${p.hook ? ` (${p.hook})` : ''}. Keep the name and the role. Give them a want, and a secret they hide from the others (and how well they guard it: low, medium or high). Pick the room they are in at the start. Make them different from the people already written.${reroll ? ' This replaces an earlier sheet the player didn\'t like: write a fresh take on the same name and role.' : ''}
 Reply with JSON only: {${SHEET(sc)}}
 - skills from 0 to 4.`;
+  };
+  GEN_TASKS.room = ({ job, index }) => {
+    const rooms = job.steps.rooms.rooms;
+    const room = rooms.find((r) => r.id === index);
+    const names = room.connects.map((id) => rooms.find((r) => r.id === id).name);
+    return `=== TASK: REWRITE ONE ROOM ===
+The player wants a different take on ${room.name} (connects to ${names.join(', ') || 'nothing'}). Keep where it is and what it connects to; give it a new name and one sentence of description that fit with the other rooms.
+Reply with JSON only: {"name":"...","desc":"One sentence.","outside":false}`;
   };
   GEN_TASKS.cast = ({ sc, job }) => `=== TASK: WRITE THE PEOPLE ===
 People planned:

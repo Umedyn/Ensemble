@@ -481,7 +481,7 @@ dialog { max-height: 90dvh; overflow-y: auto; }
 }
 
 /* generated starts (task 4-2) */
-#genDialog { width: min(40rem, 96vw); }
+#genDialog { width: min(48rem, 96vw); }
 .gen-resume { border: 1px dashed var(--line-strong); border-radius: 8px; padding: 6px 10px; font-size: 0.8125rem; }
 .gen-steps { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; font-size: 0.875rem; }
 .gen-step { display: flex; align-items: center; gap: 8px; color: var(--muted); }
@@ -491,9 +491,27 @@ dialog { max-height: 90dvh; overflow-y: auto; }
 .gen-mark { width: 1.2em; text-align: center; font-weight: 600; }
 .gen-step.done .gen-mark { color: var(--good); }
 .gen-step.running .gen-mark { color: var(--accent); }
-.gen-done { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 0.875rem; }
-.gen-json > summary { cursor: pointer; font-size: 0.75rem; color: var(--muted); }
-.gen-json pre { max-height: 40dvh; overflow: auto; font-size: 0.6875rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.gen-steps-done > summary { cursor: pointer; font-size: 0.8125rem; color: var(--muted); }
+.gen-steps-done[open] > summary { margin-bottom: 6px; }
+.gen-foot { position: sticky; bottom: -1rem; background: var(--panel); padding: 6px 0 1rem; margin-bottom: -1rem; border-top: 1px solid var(--line); }
+/* review (task 4-3) */
+.rv-section { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--line); padding-top: 8px; }
+.rv-section h4 { margin: 0; font-size: 0.9375rem; }
+.rv-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rv-head > button { margin-left: auto; }
+.rv-card { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px 8px; display: flex; flex-direction: column; gap: 6px; }
+.settings label.rv-field { gap: 2px; }
+.rv-field textarea { resize: vertical; }
+.rv-err:empty { display: none; }
+.rv-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; }
+.rv-row > .rv-field { flex: 1 1 7rem; }
+.rv-row > .rv-grow { flex: 3 1 12rem; }
+.rv-row > .rv-age { flex: 0 1 5rem; }
+.rv-map { max-height: 22rem; overflow: auto; border: 1px solid var(--line); border-radius: 8px; padding: 4px; }
+.rv-list { margin: 0; padding-left: 18px; font-size: 0.8125rem; }
+.rv-list li { margin: 3px 0; }
+.rv-note { border: 1px dashed var(--line-strong); border-radius: 6px; padding: 4px 8px; }
+.settings label.rv-spoil { flex-direction: row; gap: 6px; align-items: center; }
 @media (max-width: 860px) {
   #genDialog { width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 0; }
 }

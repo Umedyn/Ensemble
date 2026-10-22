@@ -178,6 +178,8 @@ Task 4-2. A world opts in with `generatedStarts`:
 
 The player picks a region (`startable` ones), makes a character with the 4-1 form or describes one in a line, and may add a note on the kind of story. `js/startgen.js` then runs small `worldbuild` calls, each checked before the next: the player's sheet (only for a line), rooms, who is here (a one-line plan per person), the people (one call each on KoboldCpp, all in one call on an API model), ties and pressures, minor people and groups, and the opening with a title, summary and public facts. The result is an ordinary start with `"generated": true` plus a character file per new person; it goes through `validateWorld`, `compose` and `validate` like an authored start, and the save embeds it. Generated people are new: the world's character pool is not used, and their names and ids never clash with it.
 
+Before playing, a review (task 4-3) lets the player edit any field (`StartGen.setField`, checked per field), reroll one room (`rerollRoom`: same id and connections), one person (`rerollPerson`: same id, name and role), or the pressures, minor people or opening alone (`redoOnly`), with everything checked again (`reviewProblems`: the validation above plus secrets in public text). **Save as start** (`StartGen.files`) writes `starts/<id>.json`, `characters/<id>.json` for each new person and `world.json` with both added to its `starts` and `characters` lists, in a zip under the world's folder name; unzipped over the world folder, it loads as an authored start (it keeps `"generated": true`).
+
 ## Saves
 
 - Bump the state `version` to `2`. New states store `scenario.worldId` and `scenario.startId`.

@@ -467,18 +467,14 @@
         const redo = !gen.running && job.steps[id] && (id !== 'player' || job.line) ? ` <button type="button" class="small ghost" data-gen-redo="${id}" title="Make this again, and everything after it">Redo</button>` : '';
         return `<li class="gen-step ${job.steps[id] ? 'done' : running ? 'running' : failed ? 'failed' : ''}"><span class="gen-mark" aria-hidden="true">${mark}</span> ${esc(label)}${count}${redo}</li>`;
       }).join('');
-      html += `<ol class="gen-steps" aria-live="polite">${steps}</ol>`;
+      const list = `<ol class="gen-steps" aria-live="polite">${steps}</ol>`;
+      html += GEN.done(job) ? `<details class="gen-steps-done"><summary>All steps done${gen.running && gen.progress ? ` · ${esc(gen.progress.label)}…` : ''}</summary>${list}</details>` : list;
       if (gen.error) html += `<div class="fail small">${esc(gen.error)}</div><div class="row"><button type="button" id="genRetry" class="primary">Retry this step</button></div>`;
-      if (GEN.done(job)) {
-        const o = job.steps.opening;
-        let preview = '';
-        try { preview = JSON.stringify(GEN.toStart(gen.world, job), null, 1); } catch (e) { preview = e.message; }
-        html += `<div class="gen-done"><b>${esc(o.title)}</b><div>${esc(o.summary)}</div></div>` +
-          `<details class="gen-json"><summary>Show it as JSON (spoilers: everyone's secrets)</summary><pre>${esc(preview)}</pre></details>`;
-      }
-      html += `<div class="row end"><button type="button" id="genOver" class="ghost"${gen.running ? ' disabled' : ''}>Start over</button>${GEN.done(job) ? '<button type="button" id="genPlay" class="primary">Play</button>' : ''}</div>`;
+      if (GEN.done(job)) html += (gen.running && gen.progress ? `<div class="small rv-note">${esc(gen.progress.label)}…</div>` : '') + reviewHtml();
+      html += `<div class="row end gen-foot"><button type="button" id="genOver" class="ghost"${gen.running ? ' disabled' : ''}>Start over</button>${GEN.done(job) ? '<button type="button" id="genSave" title="Download the start and its people as a zip, ready to unzip over the world folder">Save as start</button><button type="button" id="genPlay" class="primary">Play</button>' : ''}</div>`;
     }
     $('genBody').innerHTML = html;
+    renderProblems();
   }
 
   async function runGen(fromStep) {
@@ -501,11 +497,25 @@
   $('genBody').addEventListener('change', (ev) => {
     if (!gen) return;
     const t = ev.target;
+    if (t.id === 'rvSpoil') { gen.spoilers = t.checked; renderGen(); return; }
+    // The map follows room edits once a field is left.
+    if (t.dataset.rv && $('rvMap')) { $('rvMap').innerHTML = previewMapHtml(); return; }
     if (t.name === 'gen-region') gen.region = t.value;
     if (t.name === 'gen-mode') gen.mode = t.value;
   });
   $('genBody').addEventListener('input', (ev) => {
     if (!gen) return;
+    // A review field: checked and stored now; the problems list follows.
+    if (ev.target.dataset.rv) {
+      const [kind, id, name] = ev.target.dataset.rv.split('|');
+      const out = GEN.setField(gen.world, gen.job, kind, id || null, name, ev.target.value);
+      gen.fieldErrors = gen.fieldErrors || {};
+      gen.fieldErrors[ev.target.dataset.rv] = out.error || '';
+      ev.target.parentElement.querySelector('.rv-err').textContent = out.error || '';
+      if (!out.error) saveJob(gen.job);
+      renderProblems();
+      return;
+    }
     if (ev.target.id === 'genLine') { gen.line = ev.target.value; gen.mode = 'line'; ev.target.closest('.mk-option').querySelector('input[type=radio]').checked = true; }
     if (ev.target.id === 'genNote') gen.note = ev.target.value;
   });
@@ -544,7 +554,19 @@
       gen.job = null;
       gen.error = '';
       renderGen();
+    } else if (b.dataset.rvPerson) {
+      const c = GEN.target(gen.job, 'person', b.dataset.rvPerson);
+      rerollRun(`Rerolling ${c.name}`, () => GEN.rerollPerson(gen.world, gen.job, c.id));
+    } else if (b.dataset.rvRoom) {
+      const r = GEN.target(gen.job, 'room', b.dataset.rvRoom);
+      rerollRun(`Rerolling ${r.name}`, () => GEN.rerollRoom(gen.world, gen.job, r.id));
+    } else if (b.dataset.rvRedo) {
+      const label = { opening: 'the opening', ties: 'the pressures', extras: 'the minor people' }[b.dataset.rvRedo];
+      rerollRun(`Rerolling ${label}`, () => GEN.redoOnly(gen.world, gen.job, b.dataset.rvRedo));
+    } else if (b.id === 'genSave') {
+      if (!GEN.reviewProblems(gen.world, gen.job).length) saveStart();
     } else if (b.id === 'genPlay') {
+      if (GEN.reviewProblems(gen.world, gen.job).length) return;
       let scenario;
       try { scenario = GEN.scenario(gen.world, gen.job); } catch (e) { gen.error = e.message; renderGen(); return; }
       const world = gen.world;
@@ -556,6 +578,108 @@
       $('actionInput').focus();
     }
   });
+  // ---------- review (task 4-3) ----------
+  // A finished start, before playing: every field editable and checked as
+  // it's typed (E.StartGen.setField), one room, one person, the pressures,
+  // the minor people or the opening rerollable, secrets behind a spoiler
+  // toggle, and Save as start. Play and Save wait until reviewProblems is empty.
+  function reviewHtml() {
+    const job = gen.job;
+    const s = job.steps;
+    const off = gen.running ? ' disabled' : '';
+    const errs = gen.fieldErrors || {};
+    const field = (kind, id, name, value, o = {}) => {
+      const key = `${kind}|${id || ''}|${name}`;
+      const v = esc(value == null ? '' : String(value));
+      const input = o.options ? `<select data-rv="${esc(key)}">${o.options.map((x) => `<option${x === value ? ' selected' : ''}>${x}</option>`).join('')}</select>`
+        : o.rows ? `<textarea data-rv="${esc(key)}" rows="${o.rows}">${v}</textarea>`
+          : `<input type="${o.type || 'text'}" data-rv="${esc(key)}" value="${v}"${o.step ? ` step="${o.step}"` : ''}>`;
+      return `<label class="rv-field${o.cls ? ' ' + o.cls : ''}">${esc(o.label)}${input}<span class="fail small rv-err">${esc(errs[key] || '')}</span></label>`;
+    };
+    const reroll = (attr, label, title) => `<button type="button" class="small" ${attr}${off} title="${esc(title)}">↻ ${esc(label)}</button>`;
+    const roomName = (id) => (s.rooms.rooms.find((r) => r.id === id) || {}).name || id;
+    const o = s.opening;
+    const hidden = '<div class="muted small">Hidden. Turn on spoilers to see or edit it.</div>';
+    let html = `<label class="web-toggle rv-spoil"><input type="checkbox" id="rvSpoil"${gen.spoilers ? ' checked' : ''}> Show spoilers (secrets, private facts, notes for the story engine)</label>`;
+    html += `<section class="rv-section"><div class="rv-head"><h4>Opening</h4>${reroll('data-rv-redo="opening"', 'Reroll', 'Write the opening again; everything else stays')}</div>` +
+      field('opening', '', 'title', o.title, { label: 'Title' }) +
+      field('opening', '', 'summary', o.summary, { label: 'Summary (shown in the picker)', rows: 2 }) +
+      field('opening', '', 'opening', o.opening, { label: 'Opening scene', rows: 8 }) +
+      field('opening', '', 'facts', (o.facts || []).join('\n'), { label: 'Facts everyone knows (one per line)', rows: 3 }) + '</section>';
+    html += '<section class="rv-section"><div class="rv-head"><h4>Places</h4></div>' +
+      `<div id="rvMap" class="rv-map">${previewMapHtml()}</div>` +
+      s.rooms.rooms.map((r) => `<div class="rv-card"><div class="rv-head"><b>${esc(r.name)}</b>${r.id === s.rooms.playerRoom ? ' <span class="tag">you start here</span>' : ''}${reroll(`data-rv-room="${esc(r.id)}"`, 'Reroll', 'A new name and description; it stays where it is')}</div>` +
+        field('room', r.id, 'name', r.name, { label: 'Name' }) + field('room', r.id, 'desc', r.desc, { label: 'Description', rows: 2 }) +
+        `<div class="muted small">Connects to ${esc(r.connects.map(roomName).join(', ') || 'nothing')}</div></div>`).join('') + '</section>';
+    const withYou = new Set(o.withYou || []);
+    const person = (c, you) => {
+      const where = you || withYou.has(c.id) ? s.rooms.playerRoom : c.status.location;
+      const secret = you || gen.spoilers
+        ? `<div class="rv-row">${field('person', c.id, 'secret', c.secret, { label: you ? 'Your secret (optional)' : 'Secret', rows: 2, cls: 'rv-grow' })}${c.secret ? field('person', c.id, 'guard', c.guard || 'medium', { label: 'Guard', options: ['low', 'medium', 'high'] }) : ''}</div>` +
+          (!you && (c.knows || []).length ? `<div class="known-head">Knows</div><ul class="known">${c.knows.map((k) => `<li>${esc(k)}</li>`).join('')}</ul>` : '')
+        : hidden;
+      return `<div class="rv-card"><div class="rv-head"><b>${esc(c.name)}</b> <span class="muted small">${you ? 'you · ' : ''}starts in ${esc(roomName(where))}</span>${you ? '' : reroll(`data-rv-person="${esc(c.id)}"`, 'Reroll', 'A new sheet for the same name and role; the others stay')}</div>` +
+        `<div class="rv-row">${field('person', c.id, 'name', c.name, { label: 'Name', cls: 'rv-grow' })}${field('person', c.id, 'pronouns', c.pronouns, { label: 'Pronouns' })}${field('person', c.id, 'age', c.age, { label: 'Age', type: 'number', cls: 'rv-age' })}</div>` +
+        field('person', c.id, 'role', c.role, { label: 'Role' }) +
+        field('person', c.id, 'traits', (c.traits || []).join(', '), { label: 'Traits (separated by commas)' }) +
+        field('person', c.id, 'want', c.want, { label: 'Wants' }) +
+        field('person', c.id, 'voice', c.voice, { label: 'Voice' }) +
+        field('person', c.id, 'appearance', c.appearance, { label: 'Appearance', rows: 2 }) +
+        field('person', c.id, 'description', c.description, { label: 'Who they are', rows: 2 }) + secret + '</div>';
+    };
+    html += `<section class="rv-section"><div class="rv-head"><h4>People</h4></div>${person(s.player.character, true)}${s.cast.people.map((c) => person(c, false)).join('')}</section>`;
+    html += `<section class="rv-section"><div class="rv-head"><h4>Pressures</h4>${reroll('data-rv-redo="ties"', 'Reroll', 'New pressures, feelings and private facts; the people stay')}</div>` +
+      s.ties.clocks.map((c) => `<div class="rv-card">${field('clock', c.id, 'name', c.name, { label: 'Name' })}` +
+        `<div class="rv-row">${field('clock', c.id, 'max', c.max, { label: 'Steps until it comes to a head', type: 'number' })}${field('clock', c.id, 'perHour', c.perHour, { label: 'Steps per hour', type: 'number', step: '0.01' })}</div>` +
+        field('clock', c.id, 'fireText', c.fireText, { label: 'What happens then', rows: 2 }) + '</div>').join('') + '</section>';
+    const ex = s.extras;
+    html += `<section class="rv-section"><div class="rv-head"><h4>Minor people and groups</h4>${reroll('data-rv-redo="extras"', 'Reroll', 'New minor people and groups')}</div>` +
+      (ex.extras.length || ex.standees.length ? `<ul class="rv-list">${ex.extras.map((x) => `<li><b>${esc(x.name)}</b>, ${esc(x.role)}${x.location ? `, in ${esc(roomName(x.location))}` : ''}${gen.spoilers && x.note ? ` <span class="muted">${esc(x.note)}</span>` : ''}</li>`).join('')}` +
+        `${ex.standees.map((g) => `<li><b>${g.count} ${esc(g.label)}</b>, ${esc(g.state)}, in ${esc(roomName(g.location))}${gen.spoilers && g.note ? ` <span class="muted">${esc(g.note)}</span>` : ''}</li>`).join('')}</ul>` : '<div class="muted small">None.</div>') + '</section>';
+    if (gen.rvNote) html += `<div class="small rv-note">${esc(gen.rvNote)}</div>`;
+    html += '<ul id="rvProblems" class="maker-errors fail" aria-live="polite"></ul>';
+    return html;
+  }
+  // The start's local map, drawn by the game's own map code against a
+  // throwaway game of this start (localMapHtml reads the page's state, so it
+  // is swapped for the call and put back).
+  function previewMapHtml() {
+    let preview;
+    try { preview = E.Engine.newGame(GEN.scenario(gen.world, gen.job)); } catch (e) { return '<div class="muted small">Fix the problems below to see the map.</div>'; }
+    const saved = state;
+    state = preview;
+    try { return localMapHtml().replace(' id="mapList"', ''); } finally { state = saved; }
+  }
+  function renderProblems() {
+    if (!gen || !gen.job || !GEN.done(gen.job) || !$('rvProblems')) return;
+    const problems = GEN.reviewProblems(gen.world, gen.job);
+    $('rvProblems').innerHTML = problems.map((p) => `<li>${esc(p)}</li>`).join('');
+    ['genPlay', 'genSave'].forEach((id) => { if ($(id)) $(id).disabled = gen.running || problems.length > 0; });
+  }
+  async function rerollRun(label, fn) {
+    if (!gen || gen.running) return;
+    const g = gen;
+    g.running = true;
+    g.rvNote = '';
+    g.progress = { label };
+    renderGen();
+    try {
+      const out = await fn();
+      g.rvNote = (out && out.note) || '';
+    } catch (e) {
+      g.rvNote = e.message;
+    }
+    g.running = false;
+    g.progress = null;
+    saveJob(g.job);
+    if (gen === g) renderGen();
+  }
+  function saveStart() {
+    const files = GEN.files(gen.world, gen.job);
+    const folder = gen.world.folder;
+    const entries = Object.entries(files).map(([p, obj]) => ({ name: `${folder}/${p}`, data: E.Zip.utf8(JSON.stringify(obj, null, 2) + '\n') }));
+    download(`${folder}-${gen.job.id}.zip`, new Blob([E.Zip.build(entries)], { type: 'application/zip' }));
+  }
   $('genForm').addEventListener('submit', (ev) => ev.preventDefault());
   $('genClose').addEventListener('click', () => $('genDialog').close());
 
@@ -567,8 +691,9 @@
 
   function autosave() { if (state) store.set('ensemble.autosave', JSON.stringify(state)); }
 
+  // obj: a Blob as it is, or anything else as JSON.
   function download(name, obj) {
-    const blob = new Blob([JSON.stringify(obj, null, 1)], { type: 'application/json' });
+    const blob = obj instanceof Blob ? obj : new Blob([JSON.stringify(obj, null, 1)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = name;
