@@ -5,7 +5,7 @@ const path = require('path');
 const vm = require('vm');
 
 const ROOT = path.join(__dirname, '..');
-const ENGINE_FILES = ['util', 'llm', 'recorder', 'memory', 'genres', 'prompts', 'engine', 'scenario', 'charmaker', 'startgen', 'layouts', 'mapdraw', 'zip', 'mapedit'];
+const ENGINE_FILES = ['util', 'llm', 'recorder', 'memory', 'genres', 'prompts', 'engine', 'scenario', 'charmaker', 'startgen', 'sites', 'layouts', 'mapdraw', 'zip', 'mapedit'];
 
 // extraGlobals lets a test provide browser objects such as localStorage.
 function loadEngine(extraGlobals = {}) {
@@ -29,7 +29,7 @@ function worldFiles(folder) {
   const files = { [rootName]: read(rootName) };
   const needed = legacy
     ? (files[rootName].characters || []).map((id) => `characters/${id}.json`)
-    : [...(files[rootName].starts || []).map((id) => `starts/${id}.json`), ...(files[rootName].characters || []).map((id) => `characters/${id}.json`)];
+    : [...(files[rootName].starts || []).map((id) => `starts/${id}.json`), ...(files[rootName].characters || []).map((id) => `characters/${id}.json`), ...(files[rootName].sites || []).map((id) => `sites/${id}.json`)];
   needed.forEach((rel) => { if (fs.existsSync(path.join(dir, rel))) files[rel] = read(rel); });
   return files;
 }

@@ -1,0 +1,17 @@
+{
+  "id": "juno",
+  "name": "Juno Park",
+  "pronouns": "she/her",
+  "role": "fixer",
+  "age": 38,
+  "traits": ["charming", "greedy", "quick"],
+  "want": "close the ledger deal and keep the buyer happy",
+  "secret": "The buyer is Kessler, and Juno promised them the crew's names as part of the deal.",
+  "guard": "high",
+  "voice": "Warm and fast, calls everyone 'friend'.",
+  "description": "Knows everyone on the Strip and owes half of them.",
+  "appearance": "Sharp suit gone shiny at the elbows, a gold tooth and three phones.",
+  "skills": { "hacking": 1, "shooting": 1, "stealth": 1, "talk": 4, "tech": 0, "athletics": 1 },
+  "relations": { "rook": 10, "mags": 0 },
+  "agenda": null
+}

@@ -540,6 +540,27 @@ await check('phone: make my own start with the character form, and resume it aft
   assert.equal(await page.locator('.entry.action').count(), 1);
 });
 
+// Task 4-4: generated sites.
+await check('go somewhere new: the engine builds the place, the map shows it, Debug says why', async (page) => {
+  await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+  await page.selectOption('#startSelect', 'herd');
+  await newGame(page);
+  await act(page, 'I head to the pharmacy on Main Street for antibiotics.');
+  assert.match(await page.textContent('#sceneBar'), /Pharmacy Storefront/, 'arrived at the entry');
+  assert.match(await page.textContent('#mapList'), /Pharmacy Storefront \(you are here\)/);
+  assert.doesNotMatch(await page.textContent('#mapList'), /Sales Floor/, 'the map shows the place you are in');
+  assert.match(await page.textContent('.map-routes'), /↗ Parking Lot/);
+  await page.click('.map-route');
+  assert.equal(await page.inputValue('#actionInput'), 'Go to Parking Lot.');
+  await page.screenshot({ path: path.join(shots, 'generated-site.png') });
+  await page.click('#btnDebug');
+  assert.match(await page.textContent('#debugBody'), /Places made during the story \(1\)/);
+  assert.match(await page.textContent('#debugBody'), /site built/);
+  await page.click('#btnDebugClose');
+  await act(page, 'Look around the storefront.');
+  assert.equal(await page.locator('.entry.action').count(), 2, 'play goes on in the new place (route moves are covered by tests/sites.test.js)');
+});
+
 await check('phone: pick a world and a start, and play a turn', async (page) => {
   const world = await page.locator('#scenarioSelect').boundingBox();
   const start = await page.locator('#startSelect').boundingBox();

@@ -1,0 +1,14 @@
+{
+  "id": "rook",
+  "name": "Rook",
+  "pronouns": "they/them",
+  "role": "the crew's planner",
+  "age": 31,
+  "traits": ["careful", "dry", "stubborn"],
+  "want": "pull off one clean job and get out of debt",
+  "voice": "Quiet and precise; plans out loud.",
+  "description": "Grew up on the Strip and learned early that the best plan is the one nobody notices.",
+  "appearance": "Thin, in a long waterproof coat, with a cheap cyber-eye that glows faintly blue.",
+  "skills": { "hacking": 2, "shooting": 1, "stealth": 3, "talk": 2, "tech": 1, "athletics": 1 },
+  "relations": { "juno": 20, "mags": 30 }
+}

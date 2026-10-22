@@ -515,3 +515,6 @@ dialog { max-height: 90dvh; overflow-y: auto; }
 @media (max-width: 860px) {
   #genDialog { width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 0; }
 }
+
+/* generated sites (task 4-4) */
+.map-routes { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; font-size: 0.8125rem; color: var(--muted); }

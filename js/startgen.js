@@ -502,6 +502,8 @@
 
   // One call (with up to TRIES attempts) → checked data. A failed check is
   // named in the next attempt; every attempt is logged on the job.
+  // Also used by generated sites (task 4-4).
+  GEN.attempt = (...a) => attempt(...a);
   async function attempt(ctx, kind, user, maxTokens, check) {
     let problem = null;
     for (let i = 1; i <= GEN.TRIES; i++) {
@@ -787,6 +789,6 @@
     world.characters = (world.characters || []).concat(Object.keys(characters));
     const bundle = { world, starts: Object.assign({}, b.starts, { [start.id]: start }), characters: Object.assign({}, b.characters, characters), legacy: loaded.legacy, folder: loaded.folder };
     E.Scenario.validateWorld(bundle);
-    return E.Scenario.validate(E.Scenario.compose(world, start, bundle.characters, loaded.folder));
+    return E.Scenario.validate(E.Scenario.compose(world, start, bundle.characters, loaded.folder, b.siteMaps));
   };
 })(typeof window !== 'undefined' ? window : globalThis);

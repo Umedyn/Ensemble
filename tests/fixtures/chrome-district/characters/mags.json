@@ -1,0 +1,17 @@
+{
+  "id": "mags",
+  "name": "Mags Okoro",
+  "pronouns": "he/him",
+  "role": "drone tech",
+  "age": 24,
+  "traits": ["nervous", "brilliant", "loyal"],
+  "want": "prove his drones can do more than spy",
+  "secret": "He used to strip cars for the Saints and Vex would recognise him.",
+  "guard": "medium",
+  "voice": "Mumbles, then talks too fast about hardware.",
+  "description": "Builds drones from salvage and hates leaving the workshop.",
+  "appearance": "Hoodie, burn scars on both hands, goggles pushed up into his hair.",
+  "skills": { "hacking": 2, "shooting": 0, "stealth": 1, "talk": 1, "tech": 4, "athletics": 0 },
+  "relations": { "rook": 30, "juno": -10 },
+  "agenda": null
+}

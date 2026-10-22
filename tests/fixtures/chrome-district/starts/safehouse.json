@@ -1,0 +1,21 @@
+{
+  "id": "safehouse",
+  "title": "Day 1: the job",
+  "summary": "You are Rook, the crew's planner. Juno has a buyer for the Saints' ledger, and the Saints keep it in their chop shop on the docks.",
+  "start": { "day": 1, "hour": 21 },
+  "player": "rook",
+  "region": "the-strip",
+  "castLabel": "Crew",
+  "cast": [
+    { "id": "rook", "status": { "location": "main-room" } },
+    { "id": "juno", "status": { "location": "main-room" } },
+    { "id": "mags", "status": { "location": "workshop" } }
+  ],
+  "locations": [
+    { "id": "main-room", "name": "Main Room", "desc": "Mismatched couches, a wall of monitors and rain on the window.", "connects": ["workshop", "back-alley"], "links": [{ "to": "back-alley", "kind": "door" }] },
+    { "id": "workshop", "name": "Workshop", "desc": "Mags's bench, half-built drones and the smell of solder.", "connects": ["main-room"] },
+    { "id": "back-alley", "name": "Back Alley", "desc": "A wet alley behind the laundromat, the van parked under a dead sign.", "connects": ["main-room"], "outside": true }
+  ],
+  "facts": ["The buyer pays on delivery, tomorrow night."],
+  "opening": "Rain needles the window. On the monitors, a grainy drone shot of a docks warehouse loops: roller door, two Saints smoking under a light, a camera blinking red.\n\nJuno taps the screen. \"Ledger's in there. Vex keeps it in his office, behind a locked door, and the buyer wants it by tomorrow night.\"\n\nFrom the workshop, Mags calls out without looking up. \"I can get a drone onto the roof. Getting you through the door is your problem.\""
+}

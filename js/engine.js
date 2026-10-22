@@ -34,6 +34,7 @@
       tierLast: {},
       news: [],
       regions: {},
+      sites: {}, // generated places (task 4-4)
     };
     // Regions (task 3-1): what changes in play; the definition stays in the scenario.
     (sc.regions || []).forEach((r) => { state.regions[r.id] = { controller: r.controller ?? null, tags: (r.tags || []).slice(), status: r.status || '' }; });
@@ -80,7 +81,7 @@
 
   // Saves and autosaves from older versions are upgraded one step at a time
   // when loaded. Each step takes a state at version n and returns n + 1.
-  Eng.STATE_VERSION = 11;
+  Eng.STATE_VERSION = 12;
   Eng.migrations = {
     // Worlds and starts (docs/WORLDS.md): the scenario records where it came from.
     1: (state) => {
@@ -173,6 +174,13 @@
       Eng.initSite(state);
       if (state.pending && state.pending.pre && state.pending.pre.locations) Eng.initSite(state.pending.pre);
       state.version = 11;
+      return state;
+    },
+    // Generated sites (task 4-4): older saves have none (every room is home).
+    11: (state) => {
+      if (!state.sites) state.sites = {};
+      if (state.pending && state.pending.pre && !state.pending.pre.sites) state.pending.pre.sites = {};
+      state.version = 12;
       return state;
     },
   };
@@ -347,6 +355,7 @@
     if (!dest) return 'unknown location';
     if (dest === g.location) return 'already there';
     if (!linked(state, g.location, dest)) return `${dest} is not linked to ${g.location}`;
+    if ((Eng.linkInfo(state, g.location, dest) || {}).kind === 'route') return 'groups stay in their own place';
     if (!Eng.passable(state, g.location, dest, g.id)) return `the way to ${dest} is locked`;
     if (g.post && g.state !== 'hostile') return `holds its post in ${g.post}`;
     return null;
@@ -371,9 +380,9 @@
     const route = it.moveTo ? Eng.route(state, here, it.moveTo, { who: state.player }) : [here];
     const onRoute = route.length ? route : [here];
     const eyes = Eng.STEALTH_SKILLS.includes(it.skill) ? onRoute.flatMap((r) => Eng.features(state, r).filter((f) => /camera/i.test(f.name) && f.state === 'on').map((f) => `${f.name} in ${state.locations[r].name}`))
-      .concat((state.scenario.entrances || []).filter((e) => e.watched && onRoute.includes(e.room)).map((e) => `watched ${e.kind || 'entrance'} in ${state.locations[e.room].name}`)) : [];
+      .concat(E.Sites.entrances(state).filter((e) => e.watched && onRoute.includes(e.room)).map((e) => `watched ${e.kind || 'entrance'} in ${state.locations[e.room].name}`)) : [];
     // Worlds with watchers of any kind (groups, cameras, watched entrances).
-    const watchful = Object.keys(state.standees || {}).length || (state.scenario.entrances || []).some((e) => e.watched) ||
+    const watchful = Object.keys(state.standees || {}).length || E.Sites.entrances(state).some((e) => e.watched) ||
       Object.keys(state.locations).some((r) => Eng.features(state, r).some((f) => /camera/i.test(f.name)));
     if (Eng.STEALTH_SKILLS.includes(it.skill) && watchful) {
       const rooms = new Set(onRoute.flatMap((r) => [r].concat(Eng.linkedRooms(state, r))));
@@ -436,8 +445,11 @@
       const steps = Math.floor(g.patrolHours);
       if (!steps) return;
       g.patrolHours -= steps;
-      const i = Math.max(0, g.patrol.indexOf(g.location));
-      g.location = g.patrol[(i + steps) % g.patrol.length];
+      // The place in the loop, so an out-and-back patrol (a, b, c, b) comes
+      // back to a instead of bouncing between b and c.
+      const i = g.patrolAt != null && g.patrol[g.patrolAt] === g.location ? g.patrolAt : Math.max(0, g.patrol.indexOf(g.location));
+      g.patrolAt = (i + steps) % g.patrol.length;
+      g.location = g.patrol[g.patrolAt];
     });
   }
   // The player singles one member out ("I grab the nearest straggler"): only
@@ -544,8 +556,11 @@
   // room. Returns { note } or { error }.
   Eng.FEATURES_MAX = 8;
   const planCache = new WeakMap();
-  Eng.sitePlan = function (state) {
+  Eng.sitePlan = function (state, room) {
     const sc = state.scenario;
+    // A generated site (task 4-4) is planned from its own rooms.
+    const site = room ? E.Sites.siteOf(state, room) : E.Sites.HOME;
+    if (site !== E.Sites.HOME) return E.Layouts.plan(E.Sites.rooms(state, site).map((l) => Object.assign({}, l, { links: (l.links || []).filter((k) => k.kind !== 'route') })), { seed: `${sc.worldId}:${site}` });
     if (!planCache.has(sc)) planCache.set(sc, E.Layouts.plan(sc.locations || [], { type: sc.site && sc.site.type, seed: `${sc.worldId}:${sc.startId}` }));
     return planCache.get(sc);
   };
@@ -573,7 +588,7 @@
       const target = state.locations[to];
       if (room.secure || target.secure) return { error: `a secure room never gets another way in (${room.secure ? room.name : target.name})` };
       if (Eng.linkInfo(state, here, to)) return { error: `there is already a way to ${target.name}` };
-      const plan = Eng.sitePlan(state);
+      const plan = Eng.sitePlan(state, here);
       if (!E.Layouts.hasOutsideWall(plan, here)) return { error: `${room.name} has no outside wall for "${name}"` };
       const shared = plan.rooms[here] && plan.rooms[to] && E.Layouts.sharesWall(plan.rooms[here], plan.rooms[to]);
       if (!target.outside && !shared) return { error: `${target.name} is not on the other side of a wall of ${room.name}` };
@@ -912,6 +927,16 @@
     return null;
   };
 
+  // Words that say someone goes with the player ("comes along", "rides with
+  // you", "follows Rook"), unless negated ("refuses to come along").
+  Eng.comesAlong = function (state, text) {
+    const pc = state.characters[state.player];
+    const who = ['you', 'them', 'him', 'her', 'the crew', 'the group'].concat(nameTokens(pc)).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+    const re = new RegExp(`\\b(?:come|comes|coming|tags?|tagging)\\s+along\\b|\\b(?:ride|rides|riding|go|goes|going|head|heads|come|comes)\\s+(?:along\\s+)?with\\s+(?:${who})\\b|\\bfollows?\\s+(?:${who})\\b|\\bjoins?\\s+(?:${who})\\b`, 'i');
+    const m = re.exec(String(text || ''));
+    if (!m) return false;
+    return !/\b(?:refus\w*|won't|will not|doesn't|does not|not|never|instead of)\b[^.!?]{0,25}$/i.test(String(text).slice(0, m.index));
+  };
   function cleanIntent(state, raw, id) {
     const sc = state.scenario;
     const skill = sc.skills.includes(raw && raw.skill) ? raw.skill : null;
@@ -1055,6 +1080,21 @@
           fireText: String(nc.fireText || `${nc.name} comes to a head.`).slice(0, 220), fired: false, from: scope,
         });
         return `new pressure: ${nc.name}`;
+      },
+    },
+    // Generated sites (task 4-4): a place the story now knows of, built on
+    // the player's first visit.
+    new_site: {
+      apply(state, s) {
+        if (!E.Sites.enabled(state.scenario)) return reject('this world doesn\'t build new places');
+        const name = String(s.name || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+        if (!name) return reject('new place has no name');
+        if (E.Sites.byName(state, name) || Eng.resolveLocation(state, name, false)) return reject(`"${name}" is already a place`);
+        if (Object.keys(state.sites || {}).length >= E.Sites.config(state.scenario).maxSites) return reject(`too many places already for "${name}"`);
+        const regions = state.scenario.regions || [];
+        if (regions.length && !regions.some((r) => r.id === s.region)) return reject(`unknown region "${s.region}" for "${name}"`);
+        const st = E.Sites.addStub(state, { name, kind: String(s.kind || name).slice(0, 40), region: regions.length ? s.region : null, from: 'event', why: String(s.why || '').slice(0, 200) });
+        return `new place: ${st.name}${st.region ? ` (${st.region})` : ''}`;
       },
     },
     // Regions (task 3-1).
@@ -1350,6 +1390,14 @@
         guard(res, 'resolve', verb === 'lock' ? 'locked' : 'unlocked', `${c.name}: the way between ${state.locations[c.status.location].name} and ${state.locations[to].name}`);
         o.action += ` [${verb}s the way to ${state.locations[to].name}]`;
       });
+      // Coming along (playtest-api-chop-shop: Juno "pulls on her coat to come
+      // along" with no move, so the frame kept her home and the narrator took
+      // her anyway): someone present who says they go with the player, and
+      // sets no move of their own, goes where the player went.
+      if (it.id !== state.player && !it.moveTo && outcomes[0] && outcomes[0].moved && Eng.comesAlong(state, `${it.action} ${it.says || ''}`)) {
+        it.moveTo = outcomes[0].moved;
+        guard(res, 'resolve', 'came along', `${c.name} goes with ${state.characters[state.player].name}`);
+      }
       if (it.moveTo && it.moveTo !== c.status.location && !failed) {
         // Movement follows links (task 3-6): no way through, no move.
         const why = Eng.moveProblem(state, it.id, c.status.location, it.moveTo);
@@ -2163,10 +2211,14 @@
       const expired = Eng.expireTags(state, p.turn);
       const before = {};
       Eng.cast(state, { includePlayer: false }).forEach((id) => (before[id] = state.characters[id].status.location));
+      const factsBefore = state.facts.length;
       report = Eng.applyUpdate(state, upd, p.present, { startLoc: p.frame.startLoc, endLoc, keptProse: cut ? prose : null, involved: p.res.involved, turn: p.turn, extrasPresent: p.extrasPresent || [], engaged: p.res.engaged || [] });
       report.rejected.forEach((r) => guard(p.res, 'memory', 'update rejected', r));
       expired.concat(report.tags).forEach((t) => guard(p.res, 'memory', 'tags & mood', t));
       report.extras.forEach((t) => guard(p.res, 'memory', 'extras', t));
+      const kept = [];
+      E.Sites.noteFacts(state, factsBefore, [p.frame.startLoc, endLoc], kept);
+      kept.forEach((t) => guard(p.res, 'memory', 'site kept', t));
       // People the update step moved were seen leaving or arriving.
       Object.entries(before).forEach(([id, loc]) => {
         const now = state.characters[id] && state.characters[id].status.location;
@@ -2598,11 +2650,18 @@
     });
 
     const frame = { startTime: E.fmtTime(state), startLoc: state.characters[state.player].status.location, stepId: step.id, stepLabel: step.label, words: step.words, spanMinutes: Math.round(step.hours * 60) };
+    // A new place the player is heading for (task 4-4), built before the
+    // moves are resolved; the start-of-turn copy gets it too.
+    const siteNotes = [];
+    await E.Sites.forIntent(state, intentObj, action, pre, phase, siteNotes);
     const res = Eng.resolve(state, intentObj, present, action, step.id, due);
     tierChanges.forEach((t) => guard(res, 'resolve', 'cast tier', t));
     extraNotes.forEach((t) => guard(res, 'resolve', 'extras', t));
+    siteNotes.forEach((n) => guard(res, 'resolve', n.type, n.detail));
     const before = timeSnapshot(state);
     Eng.advanceTime(state, step.hours, res);
+    E.Sites.noteVisit(state, frame.startLoc);
+    E.Sites.fade(state).forEach((t) => guard(res, 'resolve', 'site faded', t));
 
     // Everything Reroll needs to write this scene again from the same resolution.
     const narration = { system, step, before, after: timeSnapshot(state) };

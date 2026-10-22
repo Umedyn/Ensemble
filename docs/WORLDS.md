@@ -73,6 +73,8 @@ Static servers can't list directories, so `world.json` lists its starts and char
 | `characters` | string[] | the character pool (ids in `characters/`) |
 | `starts` | string[] | start ids in `starts/`; the first is the default. May be empty when the world has `generatedStarts` |
 | `generatedStarts` | object | optional (task 4-2): lets players build a start. See [Generated starts](#generated-starts) |
+| `generatedSites` | object | optional (task 4-4): `{maxSites, keepDays}` (defaults 8 and 3; 1–30 and 1–60): the engine builds places the story goes that the map doesn't have. See [Generated sites](#generated-sites) |
+| `sites` | string[] | optional: library site maps in `sites/<id>.json`, used first when a new place fits one (task 4-4) |
 | `locations`, `clocks` | | optional world-wide ones (rare); usually per start. A location may set `region` (default: the start's `region`) |
 | `regions` | object[] | the map above the rooms (task 3-1): `{id, name, controller, tags, status, neighbours, lore}`. `controller` is a group id or `null`; `tags` up to 6 (30 characters each); `status` up to 120 characters; `lore` a summary up to 400 (no secrets or future events; full lore entries come in phase 5). `startable: true` marks the regions a generated start can begin in (none marked: all). Neighbour links are made two-way when validated. Starts change them by `id`. Once a world has regions, every start needs `region` and every location a known region |
 | `portraitSet` | string[] | optional; image paths in the world folder used as stand-ins for characters without a `portrait`, picked by a hash of the id (task 1-7). Without it, a monogram |
@@ -180,11 +182,35 @@ The player picks a region (`startable` ones), makes a character with the 4-1 for
 
 Before playing, a review (task 4-3) lets the player edit any field (`StartGen.setField`, checked per field), reroll one room (`rerollRoom`: same id and connections), one person (`rerollPerson`: same id, name and role), or the pressures, minor people or opening alone (`redoOnly`), with everything checked again (`reviewProblems`: the validation above plus secrets in public text). **Save as start** (`StartGen.files`) writes `starts/<id>.json`, `characters/<id>.json` for each new person and `world.json` with both added to its `starts` and `characters` lists, in a zip under the world's folder name; unzipped over the world folder, it loads as an authored start (it keeps `"generated": true`).
 
+## Generated sites
+
+Task 4-4. In a world with `generatedSites`, the intent step may propose `new_place: {name, kind, region}` when the player's action heads somewhere that is none of the rooms. The engine decides: the player's words must name it, the region must be theirs or a neighbour, the way out of where they stand must be open (rule 4: a locked door stops the trip before any call is made), and the world must be under `maxSites`. A regional event may add `effects.new_site` (a **stub**: a known place with no rooms yet, built on the first visit).
+
+Building takes up to two `worldbuild` calls, each checked and retried with the problem named (`js/sites.js`):
+
+1. **Layout** (skipped when a library map fits): 2–6 rooms with link kinds, features, `outside` and `secure`, an entry room and entrances. Cut-off rooms get a door to the entry; a `secure` room with more than one way in loses the flag.
+2. **Who is there**: up to 2 named people (as extras, so promotion can make them characters), up to 3 groups (with a faction, a post or a patrol loop of linked rooms) and a note of what there is to find, for the story engine only. With a library map the model may also rename its rooms, keeping their ids.
+
+The rooms join the game with `site` (the site id) and the region; a **route** link (an engine-only kind) joins the entry room to open ground at street level in the site the player left (or to the room they left from). Routes are never locked, don't let anyone see through, take whatever the time step is, and groups never cross them. The local map shows only the place the player is in, with routes as "Ways to other places".
+
+Sites **fade unless something happened there**: a fact of weight 2+ recorded while the player was there, a second visit, or one of its people joining the cast keeps a site; otherwise, `keepDays` after the last visit, with the player and the cast elsewhere, its rooms, links, extras and groups are removed and it becomes a stub again (name, kind, region and a line about the visit, which the next build sees).
+
+### sites/&lt;id&gt;.json (library maps)
+
+```json
+{ "id": "chop-shop", "name": "Chop shop", "type": "warehouse", "tags": ["chop shop", "gang"], "credit": "...", "license": "CC0-1.0",
+  "entry": "loading-bay", "rooms": [{ "id": "loading-bay", "name": "Loading Bay", "desc": "...", "features": [{ "name": "camera", "state": "on" }], "links": [{ "to": "garage-floor", "kind": "open" }] }],
+  "entrances": [{ "room": "loading-bay", "kind": "roller door", "watched": true }] }
+```
+
+Rooms use the start room format (task 3-3). `type`, `credit` and `license` are required. A new place uses a map when a word of its kind matches the map's `type` or a tag; among several, the pick is seeded by the site id, so it is the same every time. Ids that clash with the game's are renamed. The maps travel in the composed scenario (`siteMaps`), so saves keep them. The shared cross-world library comes with task 6-3. `tests/fixtures/chrome-district/` is the worked example (the Saints' chop shop).
+
 ## Saves
 
 - Bump the state `version` to `2`. New states store `scenario.worldId` and `scenario.startId`.
 - `Engine.migrate(state)` runs when a game is loaded (from browser storage or a file). For version 1 it sets `worldId = scenario.folder || scenario.id`, `startId = 'default'`, and `version = 2`. Nothing else changes, because the composed scenario has the same shape. A state with no `version` counts as 1.
 - Migration is a chain (`Engine.migrations[n]` takes version n to n + 1; `Engine.STATE_VERSION` is the current one), each step tested. The undo copy inside a state is migrated too. A save from a newer version is refused with a message. Replay fixtures are migrated before they play.
+- Later tasks added steps the same way; task 4-4 took it to `12` (`sites`, and `site` on generated rooms; older saves get `sites: {}`).
 
 ## The picker
 

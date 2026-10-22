@@ -1,0 +1,41 @@
+{
+  "format": 2,
+  "id": "chrome-district",
+  "title": "Chrome District",
+  "summary": "A small crew of fixers in a rain-soaked neon district, squeezed between a street gang and a corporation. Test world for generated sites (task 4-4).",
+  "tags": ["intrigue", "grim"],
+  "toneNote": "Wet neon, cheap tech, everyone owes someone. Street-level cyberpunk: no chrome gods, just people getting by.",
+  "setting": "The Chrome District is twelve blocks of rain, noodle stalls and repair shops wedged between the old docks and Kessler Corporation's towers. The Chrome Saints run the streets and the chop shops; Kessler runs everything else. Your crew works out of a safehouse above a closed laundromat, taking jobs that nobody with a badge would touch.",
+  "rules": [
+    "Near-future tech: cyberware is common but crude, the net is everywhere and mostly ads. No AI overlords, no magic.",
+    "Guns are loud and the Saints answer noise fast. Getting caught on a job means a beating or worse.",
+    "Kessler security is slow to arrive but thorough when it does."
+  ],
+  "timeLabel": "Day",
+  "wakeHour": 10,
+  "skills": ["hacking", "shooting", "stealth", "talk", "tech", "athletics"],
+  "needs": [
+    { "id": "fatigue", "label": "Fatigue", "perHour": 0.03 },
+    { "id": "stress", "label": "Stress", "perHour": 0.01 }
+  ],
+  "world": {
+    "heat": "low: nobody is looking for the crew",
+    "weather": "steady rain"
+  },
+  "factions": [
+    { "id": "saints", "name": "The Chrome Saints", "desc": "A street gang that runs the chop shops and protection rackets on the docks side.", "stance": "suspicious of the crew", "color": 1 },
+    { "id": "kessler", "name": "Kessler Corporation", "desc": "The corporation that owns the towers, the power grid and most of the police.", "stance": "unaware of the crew", "color": 2 }
+  ],
+  "regions": [
+    { "id": "the-strip", "name": "The Strip", "controller": null, "tags": ["neon"], "status": "busy all night", "neighbours": ["docks", "uptown"], "lore": "Bars, noodle stalls, clinics and repair shops under a canopy of signs. Neutral ground, mostly." },
+    { "id": "docks", "name": "The Docks", "controller": "saints", "tags": ["gang turf"], "status": "Saints on every corner", "neighbours": ["the-strip"], "lore": "Warehouses, container stacks and the Saints' chop shops, where stolen cars and cyberware are stripped for parts." },
+    { "id": "uptown", "name": "Uptown", "controller": "kessler", "tags": ["corporate"], "status": "drones overhead", "neighbours": ["the-strip"], "lore": "Kessler's towers and the clean streets around them. Cameras everywhere; security answers in minutes." }
+  ],
+  "eventRates": { "regional": 30, "world": 0 },
+  "eventSeeds": { "regional": ["the Saints shake down a shop on the Strip", "a Kessler drone sweep"] },
+  "generatedSites": { "maxSites": 8, "keepDays": 3 },
+  "sites": ["chop-shop"],
+  "facts": ["Vex runs the Saints' chop shop on the docks and keeps the books himself."],
+  "characters": ["rook", "juno", "mags"],
+  "starts": ["safehouse"]
+}

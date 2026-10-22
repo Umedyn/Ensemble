@@ -1,0 +1,1163 @@
+{
+ "format": "ensemble-recording",
+ "version": 1,
+ "recorded": "2026-10-22T04:59:17.961Z",
+ "note": "",
+ "settings": {
+  "narrateTokens": 320,
+  "temperature": 0.8,
+  "chapterLength": 5,
+  "memoryCap": 32768,
+  "routing": {
+   "intent": "external",
+   "narrate": "external",
+   "update": "external",
+   "chapter": "external",
+   "worldbuild": "external"
+  },
+  "backends": {
+   "local": {
+    "preset": "kobold-local",
+    "model": "koboldcpp",
+    "context": 8192
+   },
+   "external": {
+    "preset": "openrouter",
+    "model": "deepseek/deepseek-v4.1-flash-1017",
+    "context": 1048576
+   }
+  }
+ },
+ "start": {
+  "version": 12,
+  "scenario": {
+   "id": "chrome-district",
+   "title": "Chrome District: Day 1: the job",
+   "summary": "A small crew of fixers in a rain-soaked neon district, squeezed between a street gang and a corporation. Test world for generated sites (task 4-4).",
+   "tags": [
+    "intrigue",
+    "grim"
+   ],
+   "toneNote": "Wet neon, cheap tech, everyone owes someone. Street-level cyberpunk: no chrome gods, just people getting by.",
+   "setting": "The Chrome District is twelve blocks of rain, noodle stalls and repair shops wedged between the old docks and Kessler Corporation's towers. The Chrome Saints run the streets and the chop shops; Kessler runs everything else. Your crew works out of a safehouse above a closed laundromat, taking jobs that nobody with a badge would touch.",
+   "rules": [
+    "Near-future tech: cyberware is common but crude, the net is everywhere and mostly ads. No AI overlords, no magic.",
+    "Guns are loud and the Saints answer noise fast. Getting caught on a job means a beating or worse.",
+    "Kessler security is slow to arrive but thorough when it does."
+   ],
+   "timeLabel": "Day",
+   "wakeHour": 10,
+   "skills": [
+    "hacking",
+    "shooting",
+    "stealth",
+    "talk",
+    "tech",
+    "athletics"
+   ],
+   "needs": [
+    {
+     "id": "fatigue",
+     "label": "Fatigue",
+     "perHour": 0.03
+    },
+    {
+     "id": "stress",
+     "label": "Stress",
+     "perHour": 0.01
+    }
+   ],
+   "world": {
+    "heat": "low: nobody is looking for the crew",
+    "weather": "steady rain"
+   },
+   "factions": [
+    {
+     "id": "saints",
+     "name": "The Chrome Saints",
+     "desc": "A street gang that runs the chop shops and protection rackets on the docks side.",
+     "stance": "suspicious of the crew",
+     "color": 1
+    },
+    {
+     "id": "kessler",
+     "name": "Kessler Corporation",
+     "desc": "The corporation that owns the towers, the power grid and most of the police.",
+     "stance": "unaware of the crew",
+     "color": 2
+    }
+   ],
+   "regions": [
+    {
+     "id": "the-strip",
+     "name": "The Strip",
+     "controller": null,
+     "tags": [
+      "neon"
+     ],
+     "status": "busy all night",
+     "neighbours": [
+      "docks",
+      "uptown"
+     ],
+     "lore": "Bars, noodle stalls, clinics and repair shops under a canopy of signs. Neutral ground, mostly."
+    },
+    {
+     "id": "docks",
+     "name": "The Docks",
+     "controller": "saints",
+     "tags": [
+      "gang turf"
+     ],
+     "status": "Saints on every corner",
+     "neighbours": [
+      "the-strip"
+     ],
+     "lore": "Warehouses, container stacks and the Saints' chop shops, where stolen cars and cyberware are stripped for parts."
+    },
+    {
+     "id": "uptown",
+     "name": "Uptown",
+     "controller": "kessler",
+     "tags": [
+      "corporate"
+     ],
+     "status": "drones overhead",
+     "neighbours": [
+      "the-strip"
+     ],
+     "lore": "Kessler's towers and the clean streets around them. Cameras everywhere; security answers in minutes."
+    }
+   ],
+   "eventRates": {
+    "regional": 30,
+    "world": 0
+   },
+   "eventSeeds": {
+    "regional": [
+     "the Saints shake down a shop on the Strip",
+     "a Kessler drone sweep"
+    ]
+   },
+   "generatedSites": {
+    "maxSites": 8,
+    "keepDays": 3
+   },
+   "sites": [
+    "chop-shop"
+   ],
+   "facts": [
+    "Vex runs the Saints' chop shop on the docks and keeps the books himself.",
+    "The buyer pays on delivery, tomorrow night."
+   ],
+   "characters": [
+    "rook",
+    "juno",
+    "mags"
+   ],
+   "start": {
+    "day": 1,
+    "hour": 21
+   },
+   "player": "rook",
+   "region": "the-strip",
+   "castLabel": "Crew",
+   "locations": [
+    {
+     "id": "main-room",
+     "name": "Main Room",
+     "desc": "Mismatched couches, a wall of monitors and rain on the window.",
+     "connects": [
+      "workshop",
+      "back-alley"
+     ],
+     "links": [
+      {
+       "to": "back-alley",
+       "kind": "door"
+      }
+     ],
+     "region": "the-strip"
+    },
+    {
+     "id": "workshop",
+     "name": "Workshop",
+     "desc": "Mags's bench, half-built drones and the smell of solder.",
+     "connects": [
+      "main-room"
+     ],
+     "region": "the-strip"
+    },
+    {
+     "id": "back-alley",
+     "name": "Back Alley",
+     "desc": "A wet alley behind the laundromat, the van parked under a dead sign.",
+     "connects": [
+      "main-room"
+     ],
+     "outside": true,
+     "region": "the-strip"
+    }
+   ],
+   "opening": "Rain needles the window. On the monitors, a grainy drone shot of a docks warehouse loops: roller door, two Saints smoking under a light, a camera blinking red.\n\nJuno taps the screen. \"Ledger's in there. Vex keeps it in his office, behind a locked door, and the buyer wants it by tomorrow night.\"\n\nFrom the workshop, Mags calls out without looking up. \"I can get a drone onto the roof. Getting you through the door is your problem.\"",
+   "characterData": [
+    {
+     "id": "rook",
+     "name": "Rook",
+     "pronouns": "they/them",
+     "role": "the crew's planner",
+     "age": 31,
+     "traits": [
+      "careful",
+      "dry",
+      "stubborn"
+     ],
+     "want": "pull off one clean job and get out of debt",
+     "voice": "Quiet and precise; plans out loud.",
+     "description": "Grew up on the Strip and learned early that the best plan is the one nobody notices.",
+     "appearance": "Thin, in a long waterproof coat, with a cheap cyber-eye that glows faintly blue.",
+     "skills": {
+      "hacking": 2,
+      "shooting": 1,
+      "stealth": 3,
+      "talk": 2,
+      "tech": 1,
+      "athletics": 1
+     },
+     "relations": {
+      "juno": 20,
+      "mags": 30
+     },
+     "status": {
+      "location": "main-room"
+     }
+    },
+    {
+     "id": "juno",
+     "name": "Juno Park",
+     "pronouns": "she/her",
+     "role": "fixer",
+     "age": 38,
+     "traits": [
+      "charming",
+      "greedy",
+      "quick"
+     ],
+     "want": "close the ledger deal and keep the buyer happy",
+     "secret": "The buyer is Kessler, and Juno promised them the crew's names as part of the deal.",
+     "guard": "high",
+     "voice": "Warm and fast, calls everyone 'friend'.",
+     "description": "Knows everyone on the Strip and owes half of them.",
+     "appearance": "Sharp suit gone shiny at the elbows, a gold tooth and three phones.",
+     "skills": {
+      "hacking": 1,
+      "shooting": 1,
+      "stealth": 1,
+      "talk": 4,
+      "tech": 0,
+      "athletics": 1
+     },
+     "relations": {
+      "rook": 10,
+      "mags": 0
+     },
+     "agenda": null,
+     "status": {
+      "location": "main-room"
+     }
+    },
+    {
+     "id": "mags",
+     "name": "Mags Okoro",
+     "pronouns": "he/him",
+     "role": "drone tech",
+     "age": 24,
+     "traits": [
+      "nervous",
+      "brilliant",
+      "loyal"
+     ],
+     "want": "prove his drones can do more than spy",
+     "secret": "He used to strip cars for the Saints and Vex would recognise him.",
+     "guard": "medium",
+     "voice": "Mumbles, then talks too fast about hardware.",
+     "description": "Builds drones from salvage and hates leaving the workshop.",
+     "appearance": "Hoodie, burn scars on both hands, goggles pushed up into his hair.",
+     "skills": {
+      "hacking": 2,
+      "shooting": 0,
+      "stealth": 1,
+      "talk": 1,
+      "tech": 4,
+      "athletics": 0
+     },
+     "relations": {
+      "rook": 30,
+      "juno": -10
+     },
+     "agenda": null,
+     "status": {
+      "location": "workshop"
+     }
+    }
+   ],
+   "siteMaps": {
+    "chop-shop": {
+     "id": "chop-shop",
+     "name": "Chop shop",
+     "type": "warehouse",
+     "tags": [
+      "chop shop",
+      "gang",
+      "garage",
+      "industrial"
+     ],
+     "credit": "Ensemble (original, the worked example from task 4-4)",
+     "license": "CC0-1.0",
+     "entry": "loading-bay",
+     "rooms": [
+      {
+       "id": "loading-bay",
+       "name": "Loading Bay",
+       "desc": "A concrete bay under a buzzing light, the roller door half up.",
+       "size": "medium",
+       "features": [
+        {
+         "name": "camera",
+         "state": "on"
+        }
+       ],
+       "links": [
+        {
+         "to": "garage-floor",
+         "kind": "open"
+        }
+       ]
+      },
+      {
+       "id": "garage-floor",
+       "name": "Garage Floor",
+       "desc": "Stripped car shells on lifts and stacks of crates.",
+       "size": "large",
+       "features": [
+        "crates"
+       ],
+       "links": [
+        {
+         "to": "office",
+         "kind": "locked door"
+        },
+        {
+         "to": "crew-lounge",
+         "kind": "door"
+        }
+       ]
+      },
+      {
+       "id": "office",
+       "name": "Office",
+       "desc": "A glass-walled office over the floor, papers everywhere.",
+       "size": "small",
+       "features": [
+        "ledger terminal"
+       ],
+       "links": [
+        {
+         "to": "stash-cage",
+         "kind": "locked door"
+        }
+       ]
+      },
+      {
+       "id": "stash-cage",
+       "name": "Stash Cage",
+       "desc": "A wire cage full of boxed cyberware.",
+       "size": "small",
+       "secure": true
+      },
+      {
+       "id": "crew-lounge",
+       "name": "Crew Lounge",
+       "desc": "Couches, a fridge and a card table, the back door to the alley.",
+       "size": "medium"
+      },
+      {
+       "id": "roof",
+       "name": "Roof",
+       "desc": "Wet tar, puddles and a rusted fire escape.",
+       "size": "large",
+       "level": 1,
+       "outside": true,
+       "links": [
+        {
+         "to": "garage-floor",
+         "kind": "hatch"
+        },
+        {
+         "to": "office",
+         "kind": "vent"
+        }
+       ]
+      }
+     ],
+     "entrances": [
+      {
+       "room": "loading-bay",
+       "kind": "roller door",
+       "watched": true
+      },
+      {
+       "room": "crew-lounge",
+       "kind": "back door",
+       "watched": false
+      },
+      {
+       "room": "roof",
+       "kind": "fire escape",
+       "watched": false
+      }
+     ]
+    }
+   },
+   "worldId": "chrome-district",
+   "startId": "safehouse",
+   "worldTitle": "Chrome District",
+   "startTitle": "Day 1: the job",
+   "folder": "chrome-district"
+  },
+  "player": "rook",
+  "order": [
+   "rook",
+   "juno",
+   "mags"
+  ],
+  "characters": {
+   "rook": {
+    "id": "rook",
+    "name": "Rook",
+    "pronouns": "they/them",
+    "role": "the crew's planner",
+    "age": 31,
+    "traits": [
+     "careful",
+     "dry",
+     "stubborn"
+    ],
+    "want": "pull off one clean job and get out of debt",
+    "voice": "Quiet and precise; plans out loud.",
+    "description": "Grew up on the Strip and learned early that the best plan is the one nobody notices.",
+    "appearance": "Thin, in a long waterproof coat, with a cheap cyber-eye that glows faintly blue.",
+    "skills": {
+     "hacking": 2,
+     "shooting": 1,
+     "stealth": 3,
+     "talk": 2,
+     "tech": 1,
+     "athletics": 1
+    },
+    "relations": {
+     "juno": 20,
+     "mags": 30
+    },
+    "status": {
+     "health": "ok",
+     "location": "main-room"
+    },
+    "needs": {
+     "fatigue": 0.2,
+     "stress": 0.2
+    },
+    "tags": [],
+    "lastSeen": 0,
+    "tier": "local"
+   },
+   "juno": {
+    "id": "juno",
+    "name": "Juno Park",
+    "pronouns": "she/her",
+    "role": "fixer",
+    "age": 38,
+    "traits": [
+     "charming",
+     "greedy",
+     "quick"
+    ],
+    "want": "close the ledger deal and keep the buyer happy",
+    "secret": "The buyer is Kessler, and Juno promised them the crew's names as part of the deal.",
+    "guard": "high",
+    "voice": "Warm and fast, calls everyone 'friend'.",
+    "description": "Knows everyone on the Strip and owes half of them.",
+    "appearance": "Sharp suit gone shiny at the elbows, a gold tooth and three phones.",
+    "skills": {
+     "hacking": 1,
+     "shooting": 1,
+     "stealth": 1,
+     "talk": 4,
+     "tech": 0,
+     "athletics": 1
+    },
+    "relations": {
+     "rook": 10,
+     "mags": 0
+    },
+    "agenda": null,
+    "status": {
+     "health": "ok",
+     "location": "main-room"
+    },
+    "needs": {
+     "fatigue": 0.2,
+     "stress": 0.2
+    },
+    "tags": [],
+    "lastSeen": 0,
+    "tier": "local"
+   },
+   "mags": {
+    "id": "mags",
+    "name": "Mags Okoro",
+    "pronouns": "he/him",
+    "role": "drone tech",
+    "age": 24,
+    "traits": [
+     "nervous",
+     "brilliant",
+     "loyal"
+    ],
+    "want": "prove his drones can do more than spy",
+    "secret": "He used to strip cars for the Saints and Vex would recognise him.",
+    "guard": "medium",
+    "voice": "Mumbles, then talks too fast about hardware.",
+    "description": "Builds drones from salvage and hates leaving the workshop.",
+    "appearance": "Hoodie, burn scars on both hands, goggles pushed up into his hair.",
+    "skills": {
+     "hacking": 2,
+     "shooting": 0,
+     "stealth": 1,
+     "talk": 1,
+     "tech": 4,
+     "athletics": 0
+    },
+    "relations": {
+     "rook": 30,
+     "juno": -10
+    },
+    "agenda": null,
+    "status": {
+     "health": "ok",
+     "location": "workshop"
+    },
+    "needs": {
+     "fatigue": 0.2,
+     "stress": 0.2
+    },
+    "tags": [],
+    "lastSeen": 0,
+    "tier": "secondary"
+   }
+  },
+  "locations": {
+   "main-room": {
+    "connects": [
+     "workshop",
+     "back-alley"
+    ],
+    "id": "main-room",
+    "name": "Main Room",
+    "desc": "Mismatched couches, a wall of monitors and rain on the window.",
+    "links": [
+     {
+      "to": "back-alley",
+      "kind": "door"
+     }
+    ],
+    "region": "the-strip"
+   },
+   "workshop": {
+    "connects": [
+     "main-room"
+    ],
+    "id": "workshop",
+    "name": "Workshop",
+    "desc": "Mags's bench, half-built drones and the smell of solder.",
+    "region": "the-strip"
+   },
+   "back-alley": {
+    "connects": [
+     "main-room"
+    ],
+    "id": "back-alley",
+    "name": "Back Alley",
+    "desc": "A wet alley behind the laundromat, the van parked under a dead sign.",
+    "outside": true,
+    "region": "the-strip"
+   }
+  },
+  "world": {
+   "heat": "low: nobody is looking for the crew",
+   "weather": "steady rain"
+  },
+  "factions": [
+   {
+    "id": "saints",
+    "name": "The Chrome Saints",
+    "desc": "A street gang that runs the chop shops and protection rackets on the docks side.",
+    "stance": "suspicious of the crew",
+    "color": 1
+   },
+   {
+    "id": "kessler",
+    "name": "Kessler Corporation",
+    "desc": "The corporation that owns the towers, the power grid and most of the police.",
+    "stance": "unaware of the crew",
+    "color": 2
+   }
+  ],
+  "clocks": [],
+  "time": {
+   "day": 1,
+   "hour": 21
+  },
+  "turn": 0,
+  "chapter": 1,
+  "chapterStartTurn": 1,
+  "facts": [
+   {
+    "id": "f1",
+    "turn": 0,
+    "chapter": 1,
+    "about": [],
+    "text": "Vex runs the Saints' chop shop on the docks and keeps the books himself.",
+    "known_by": [
+     "all"
+    ],
+    "weight": 2
+   },
+   {
+    "id": "f2",
+    "turn": 0,
+    "chapter": 1,
+    "about": [],
+    "text": "The buyer pays on delivery, tomorrow night.",
+    "known_by": [
+     "all"
+    ],
+    "weight": 2
+   }
+  ],
+  "nextFactId": 3,
+  "chapters": [],
+  "recent": [
+   {
+    "turn": 0,
+    "action": null,
+    "text": "Rain needles the window. On the monitors, a grainy drone shot of a docks warehouse loops: roller door, two Saints smoking under a light, a camera blinking red.\n\nJuno taps the screen. \"Ledger's in there. Vex keeps it in his office, behind a locked door, and the buyer wants it by tomorrow night.\"\n\nFrom the workshop, Mags calls out without looking up. \"I can get a drone onto the roof. Getting you through the door is your problem.\""
+   }
+  ],
+  "log": [
+   {
+    "turn": 0,
+    "type": "scene",
+    "text": "Rain needles the window. On the monitors, a grainy drone shot of a docks warehouse loops: roller door, two Saints smoking under a light, a camera blinking red.\n\nJuno taps the screen. \"Ledger's in there. Vex keeps it in his office, behind a locked door, and the buyer wants it by tomorrow night.\"\n\nFrom the workshop, Mags calls out without looking up. \"I can get a drone onto the roof. Getting you through the door is your problem.\""
+   }
+  ],
+  "flags": {
+   "chapterWorthy": false,
+   "gameOver": false
+  },
+  "tierLast": {},
+  "news": [],
+  "regions": {
+   "the-strip": {
+    "controller": null,
+    "tags": [
+     "neon"
+    ],
+    "status": "busy all night"
+   },
+   "docks": {
+    "controller": "saints",
+    "tags": [
+     "gang turf"
+    ],
+    "status": "Saints on every corner"
+   },
+   "uptown": {
+    "controller": "kessler",
+    "tags": [
+     "corporate"
+    ],
+    "status": "drones overhead"
+   }
+  },
+  "sites": {},
+  "regionChanged": {},
+  "extras": {},
+  "standees": {},
+  "seenRooms": [
+   "main-room",
+   "workshop",
+   "back-alley"
+  ],
+  "links": {
+   "back-alley|main-room": {
+    "locked": false,
+    "open": false
+   }
+  },
+  "features": {},
+  "known": {
+   "juno": {
+    "loc": "main-room",
+    "turn": 0
+   },
+   "mags": {
+    "loc": "workshop",
+    "turn": 0
+   }
+  }
+ },
+ "actions": [
+  {
+   "type": "turn",
+   "action": "We hit the Saints' chop shop tonight. Mags puts a drone on the roof and I go in through the vent.",
+   "stepId": "hour",
+   "cutAt": null,
+   "rng": [
+    0.21198839895864463
+   ],
+   "calls": [
+    {
+     "kind": "intent",
+     "backend": "external",
+     "request": {
+      "system": "You are the simulation engine and narrator for an interactive, character-driven story.\n\n=== SETTING: Chrome District ===\nThe Chrome District is twelve blocks of rain, noodle stalls and repair shops wedged between the old docks and Kessler Corporation's towers. The Chrome Saints run the streets and the chop shops; Kessler runs everything else. Your crew works out of a safehouse above a closed laundromat, taking jobs that nobody with a badge would touch.\n\n=== GENRE AND TONE ===\nThis story is: intrigue, grim. Blend them; where they pull apart, the first leads.\n- intrigue: Secrets, leverage and divided loyalties; people say less than they know.\n- grim: Hard choices without good options; kindness costs something, and losses stay lost.\nA major event here means: a secret exposed, a betrayal, or a shift in who holds power.\nDanger is real. People can be badly hurt, but death is rare and meaningful.\nTone: Wet neon, cheap tech, everyone owes someone. Street-level cyberpunk: no chrome gods, just people getting by.\n\n=== RULES ===\n- The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. The player commands no faction.\n- The player controls only Rook (id: rook). Never decide Rook's choices, words or feelings beyond what the player's action states.\n- Outcomes marked RESOLVED are final. Failures have real consequences. Injuries last; death is rare and permanent.\n- Characters act from their own personality, wants, needs, secrets and feelings, not to serve the player.\n- Near-future tech: cyberware is common but crude, the net is everywhere and mostly ads. No AI overlords, no magic.\n- Guns are loud and the Saints answer noise fast. Getting caught on a job means a beating or worse.\n- Kessler security is slow to arrive but thorough when it does.\n\n=== LOCATIONS ===\n- main-room: Main Room — Mismatched couches, a wall of monitors and rain on the window. (connects: workshop, back-alley)\n- workshop: Workshop — Mags's bench, half-built drones and the smell of solder. (connects: main-room)\n- back-alley: Back Alley — A wet alley behind the laundromat, the van parked under a dead sign. (connects: main-room)\n\n=== REGIONS ===\n- the-strip: The Strip — Bars, noodle stalls, clinics and repair shops under a canopy of signs. Neutral ground, mostly. (neighbours: docks, uptown)\n- docks: The Docks — Warehouses, container stacks and the Saints' chop shops, where stolen cars and cyberware are stripped for parts. (neighbours: the-strip)\n- uptown: Uptown — Kessler's towers and the clean streets around them. Cameras everywhere; security answers in minutes. (neighbours: the-strip)\n\n=== GROUPS ===\n- saints: The Chrome Saints — A street gang that runs the chop shops and protection rackets on the docks side.\n- kessler: Kessler Corporation — The corporation that owns the towers, the power grid and most of the police.\n\n=== CAST ===\n- rook (PLAYER): Rook (they/them), the crew's planner, 31. Traits: careful, dry, stubborn. Voice: Quiet and precise; plans out loud.\n- juno: Juno Park (she/her), fixer, 38. Traits: charming, greedy, quick. Wants: close the ledger deal and keep the buyer happy. Voice: Warm and fast, calls everyone 'friend'.\n- mags: Mags Okoro (he/him), drone tech, 24. Traits: nervous, brilliant, loyal. Wants: prove his drones can do more than spy. Voice: Mumbles, then talks too fast about hardware.\n\n=== ESTABLISHED FACTS (known to the player) ===\n- [T0] Vex runs the Saints' chop shop on the docks and keeps the books himself.\n- [T0] The buyer pays on delivery, tomorrow night.",
+      "user": "=== NOW: Day 1, 21:00 ===\nRook is in Main Room.\nWorld: heat: low: nobody is looking for the crew; weather: steady rain\nPressures: none\nGroups: The Chrome Saints: suspicious of the crew; Kessler Corporation: unaware of the crew\nRegion: The Strip (the-strip): held by no one; tags: neon; busy all night\nNearby: The Docks (docks): held by The Chrome Saints; tags: gang turf; Saints on every corner | Uptown (uptown): held by Kessler Corporation; tags: corporate; drones overhead\nPresent with Rook: Juno Park\nWays from here: Workshop, Back Alley (door, shut)\nElsewhere: Mags Okoro (Workshop)\n\n=== STATUS ===\n- Rook (they/them) [rook]: health unhurt; fatigue low, stress low; feels toward: Juno Park friendly (20)\n- Juno Park (she/her) [juno]: health unhurt; fatigue low, stress low; feels toward Rook: neutral (10)\n\n=== PLACES ===\nNo other places yet beyond these rooms.\nIf the player's action clearly heads somewhere that is none of these rooms (another building, a part of town, a hideout), set \"new_place\" to {\"name\":\"short name\",\"kind\":\"what kind of place\",\"region\":\"region id\"} and leave move_to null; for a place listed above, use its name. The engine decides whether to build it.\n\n=== PRIVATE (each item is known ONLY to the character named) ===\n- Juno Park's secret: The buyer is Kessler, and Juno promised them the crew's names as part of the deal. (guard: high; very hard to crack)\n\n=== OFFSTAGE (not with the player; for events only) ===\n- mags (Mags Okoro), in Workshop: wants prove his drones can do more than spy; secret: He used to strip cars for the Saints and Vex would recognise him.\n\n=== LAST SCENE ===\nRain needles the window. On the monitors, a grainy drone shot of a docks warehouse loops: roller door, two Saints smoking under a light, a camera blinking red.\n\nJuno taps the screen. \"Ledger's in there. Vex keeps it in his office, behind a locked door, and the buyer wants it by tomorrow night.\"\n\nFrom the workshop, Mags calls out without looking up. \"I can get a drone onto the roof. Getting you through the door is your problem.\"\n\n=== PLAYER ACTION (time passing: about an hour) ===\n\"We hit the Saints' chop shop tonight. Mags puts a drone on the roof and I go in through the vent.\"\nThe player's action takes up this whole span. Others act during the same span.\n\n=== TASK ===\n1. Judge the player's action. If it is risky, contested or depends on skill, set needs_roll to true and choose a skill (one of: hacking, shooting, stealth, talk, tech, athletics) and a difficulty (easy, normal, hard). Talking, looking around and simple tasks need no roll. Everyone listed as present is in the same room as Rook right now, so an action about them needs no move. Only if the action clearly takes Rook somewhere else, set move_to to that location id (or to a character id to go where that character is).\n2. You MUST give exactly one intent for EACH present character: juno. Decide what each actually tries to do during this time, driven by their personality, wants, needs, secrets and feelings. They may help, argue, refuse, lie, deflect, pursue their own goals, or leave (move_to). Set visible to false if they act covertly so the player would not notice.\n3. \"says\": the gist of anything they say aloud this turn (or null).\n4. \"reveals\": almost always null. Only fill it if the character deliberately says their secret or private knowledge out loud this turn, and that matches their \"says\". Being asked once, or being nervous, is not enough: people deflect, make excuses or lie first.\n5. \"events\": things that happen during this span outside the player's control, to keep the world moving: offstage characters pursuing their wants and secrets, groups making moves that affect the people here, someone arriving, a call or message, something breaking down, the pressures above getting closer. How many: 0 or 1. Each event has:\n   - \"text\": one sentence, with names.\n   - \"who\": character ids involved (not the player).\n   - \"where\": location id where it happens.\n   - \"visibility\": \"seen\" (happens in the player's room), \"heard\" (the player gets a sound, call or message about it) or \"hidden\" (the player has no idea).\n   - \"moves\": [{\"id\":\"character_id\",\"to\":\"location_id\"}] for offstage characters who go somewhere because of it, else [].\n   - \"scope\": \"local\" for these.\n   If the player's action uses something not listed for their room (a window, a vent, a fire extinguisher), set the player's \"new_feature\": {\"name\":\"short name\",\"to\":null or the room id it leads to}.\n   No regional or world events this turn; keep events local.\nReply with JSON only, exactly in this shape:\n{\"player\":{\"summary\":\"the player's action restated as a concrete attempt\",\"needs_roll\":false,\"skill\":null,\"difficulty\":\"normal\",\"move_to\":null,\"new_place\":null,\"new_feature\":null},\n \"intents\":[\n  {\"id\":\"juno\",\"action\":\"one sentence\",\"says\":null,\"reveals\":null,\"visible\":true,\"needs_roll\":false,\"skill\":null,\"difficulty\":\"normal\",\"move_to\":null}\n ],\n \"events\":[{\"text\":\"one sentence\",\"scope\":\"local\",\"who\":[\"character_id\"],\"where\":\"location_id\",\"visibility\":\"heard\",\"moves\":[]}]}",
+      "max_tokens": 10000,
+      "temperature": 0.7
+     },
+     "response": {
+      "text": "{\"player\":{\"summary\":\"Rook lays out the plan to hit the Saints' chop shop tonight — Mags puts a drone on the roof, Rook enters through the vent — and spends the hour working the details out loud.\",\"needs_roll\":false,\"skill\":null,\"difficulty\":\"normal\",\"move_to\":null,\"new_place\":null,\"new_feature\":null},\n \"intents\":[\n  {\"id\":\"juno\",\"action\":\"Juno listens to the plan, then pushes back — arguing tonight is too soon and too loud, that Vex keeps Saints on the roof and a vent job gives them one exit and no cover, all while steering toward a quieter, later approach she can still control.\",\"says\":\"Tonight? Friend, Vex has two smokers under that light and a camera that blinks red because someone's watching it. A vent gives you one way in and one way to get cooked. Give me a day to shake the tree first — the ledger isn't going anywhere.\",\"reveals\":null,\"visible\":true,\"needs_roll\":false,\"skill\":null,\"difficulty\":\"normal\",\"move_to\":null}\n ],\n \"events\":[{\"text\":\"In the workshop, Mags spins up the roof drone's lift rotor and it screams against the bench clamp loud enough to rattle the floorboards.\",\"scope\":\"local\",\"who\":[\"mags\"],\"where\":\"workshop\",\"visibility\":\"heard\",\"moves\":[]}]}",
+      "finish": "stop",
+      "usage": {
+       "prompt_tokens": 2201,
+       "completion_tokens": 838,
+       "total_tokens": 3039,
+       "cost": 0.001056732,
+       "is_byok": false,
+       "prompt_tokens_details": {
+        "cached_tokens": 2072,
+        "cache_write_tokens": 0,
+        "audio_tokens": 0,
+        "video_tokens": 0
+       },
+       "cost_details": {
+        "upstream_inference_cost": 0.001056732,
+        "upstream_inference_prompt_cost": 0.000051132,
+        "upstream_inference_completions_cost": 0.0010056
+       },
+       "completion_tokens_details": {
+        "reasoning_tokens": 533,
+        "image_tokens": 0,
+        "audio_tokens": 0
+       }
+      }
+     }
+    },
+    {
+     "kind": "narrate",
+     "backend": "external",
+     "request": {
+      "system": "You are the simulation engine and narrator for an interactive, character-driven story.\n\n=== SETTING: Chrome District ===\nThe Chrome District is twelve blocks of rain, noodle stalls and repair shops wedged between the old docks and Kessler Corporation's towers. The Chrome Saints run the streets and the chop shops; Kessler runs everything else. Your crew works out of a safehouse above a closed laundromat, taking jobs that nobody with a badge would touch.\n\n=== GENRE AND TONE ===\nThis story is: intrigue, grim. Blend them; where they pull apart, the first leads.\n- intrigue: Secrets, leverage and divided loyalties; people say less than they know.\n- grim: Hard choices without good options; kindness costs something, and losses stay lost.\nA major event here means: a secret exposed, a betrayal, or a shift in who holds power.\nDanger is real. People can be badly hurt, but death is rare and meaningful.\nTone: Wet neon, cheap tech, everyone owes someone. Street-level cyberpunk: no chrome gods, just people getting by.\n\n=== RULES ===\n- The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. The player commands no faction.\n- The player controls only Rook (id: rook). Never decide Rook's choices, words or feelings beyond what the player's action states.\n- Outcomes marked RESOLVED are final. Failures have real consequences. Injuries last; death is rare and permanent.\n- Characters act from their own personality, wants, needs, secrets and feelings, not to serve the player.\n- Near-future tech: cyberware is common but crude, the net is everywhere and mostly ads. No AI overlords, no magic.\n- Guns are loud and the Saints answer noise fast. Getting caught on a job means a beating or worse.\n- Kessler security is slow to arrive but thorough when it does.\n\n=== LOCATIONS ===\n- main-room: Main Room — Mismatched couches, a wall of monitors and rain on the window. (connects: workshop, back-alley)\n- workshop: Workshop — Mags's bench, half-built drones and the smell of solder. (connects: main-room)\n- back-alley: Back Alley — A wet alley behind the laundromat, the van parked under a dead sign. (connects: main-room)\n\n=== REGIONS ===\n- the-strip: The Strip — Bars, noodle stalls, clinics and repair shops under a canopy of signs. Neutral ground, mostly. (neighbours: docks, uptown)\n- docks: The Docks — Warehouses, container stacks and the Saints' chop shops, where stolen cars and cyberware are stripped for parts. (neighbours: the-strip)\n- uptown: Uptown — Kessler's towers and the clean streets around them. Cameras everywhere; security answers in minutes. (neighbours: the-strip)\n\n=== GROUPS ===\n- saints: The Chrome Saints — A street gang that runs the chop shops and protection rackets on the docks side.\n- kessler: Kessler Corporation — The corporation that owns the towers, the power grid and most of the police.\n\n=== CAST ===\n- rook (PLAYER): Rook (they/them), the crew's planner, 31. Traits: careful, dry, stubborn. Voice: Quiet and precise; plans out loud.\n- juno: Juno Park (she/her), fixer, 38. Traits: charming, greedy, quick. Wants: close the ledger deal and keep the buyer happy. Voice: Warm and fast, calls everyone 'friend'.\n- mags: Mags Okoro (he/him), drone tech, 24. Traits: nervous, brilliant, loyal. Wants: prove his drones can do more than spy. Voice: Mumbles, then talks too fast about hardware.\n\n=== ESTABLISHED FACTS (known to the player) ===\n- [T0] Vex runs the Saints' chop shop on the docks and keeps the books himself.\n- [T0] The buyer pays on delivery, tomorrow night.",
+      "user": "=== SCENE FRAME ===\nStarts: Day 1, 21:00, in Main Room, with Juno Park.\nEnds: Day 1, 22:00, Rook still in Main Room.\nWorld: heat: low: nobody is looking for the crew; weather: steady rain\nPressures: none\nGroups: The Chrome Saints: suspicious of the crew; Kessler Corporation: unaware of the crew\nRegion: The Strip (the-strip): held by no one; tags: neon; busy all night\nNearby: The Docks (docks): held by The Chrome Saints; tags: gang turf; Saints on every corner | Uptown (uptown): held by Kessler Corporation; tags: corporate; drones overhead\n\n=== STATUS ===\n- Rook (they/them): health unhurt; looks: Thin, in a long waterproof coat, with a cheap cyber-eye that glows faintly blue; feels toward: Juno Park friendly (20)\n- Juno Park (she/her): health unhurt; looks: Sharp suit gone shiny at the elbows, a gold tooth and three phones\n\n=== LAST SCENE ===\nRain needles the window. On the monitors, a grainy drone shot of a docks warehouse loops: roller door, two Saints smoking under a light, a camera blinking red.\n\nJuno taps the screen. \"Ledger's in there. Vex keeps it in his office, behind a locked door, and the buyer wants it by tomorrow night.\"\n\nFrom the workshop, Mags calls out without looking up. \"I can get a drone onto the roof. Getting you through the door is your problem.\"\n\n=== PLAYER ACTION (time span: about an hour) ===\n\"We hit the Saints' chop shop tonight. Mags puts a drone on the roof and I go in through the vent.\"\n\n=== RESOLVED (final — narrate these faithfully) ===\n- You (Rook): Rook lays out the plan to hit the Saints' chop shop tonight — Mags puts a drone on the roof, Rook enters through the vent — and spends the hour working the details out loud. → happens (no roll needed)\n- Juno Park: Juno listens to the plan, then pushes back — arguing tonight is too soon and too loud, that Vex keeps Saints on the roof and a vent job gives them one exit and no cover, all while steering toward a quieter, later approach she can still cont → happens (no roll needed)\n    says (gist): Tonight? Friend, Vex has two smokers under that light and a camera that blinks red because someone's watching it. A vent gives you one way in and one way to get cooked. Give me a day to shake the tree first — the ledger isn't going anywhere\n- EVENT: (heard from elsewhere; only a sound, call or message reaches the player) In the workshop, Mags spins up the roof drone's lift rotor and it screams against the bench clamp loud enough to rattle the floorboards.\n\n=== TASK ===\nWrite the next scene in second person, present tense (\"you\" is Rook), 100–200 words. Bring the characters to life through dialogue and small actions in their own voices.\nTime: This covers about an hour, all spent on the stated action. Play the key exchange as a live scene and compress the rest of the hour with a line or two (\"For the next forty minutes…\"). You may show how it naturally unfolds, but the player character starts no new activities and goes nowhere else. Their manner toward others matches the feelings listed in STATUS.\nBeats: 2 or 3 beats. Start each beat on its own line with a time marker in brackets: minutes since the scene started, like [+0m], [+25m], [+50m] (use hours for long spans, like [+5h]). The last marker is at most [+60m]. Spread the beats across the whole span: the last one starts around [+45m]. End each beat on something the player could react to, since the player may step in between beats.\nStructure:\n1. The scene is set in Main Room. Open with Rook's action, carried out in the first paragraph.\n2. Then show how the others react to it and what they do, in the order that makes sense.\n3. End on the others' latest move: a reply, a look, a question or a new problem the player can respond to. The final paragraph must NEVER be Rook's own line or action; leave Rook's response open for the player.\nHard rules:\n- Narrate ONLY the resolved outcomes above, faithfully. Failures should cost something.\n- Play Rook naturally, in character (voice: Quiet and precise; plans out loud.). If the action is vague, fill it in the way Rook would: small gestures, a line or two of dialogue, how they go about it.\n- Do not make big choices for Rook: no agreeing to plans, making promises, starting new tasks, revealing what Rook knows beyond the action, or deciding what to do next. When a real choice comes up, stop there and leave it to the player.\n- Rook never leaves Main Room. Do not take Rook anywhere else.\n- Only the characters in the frame appear. Anyone \"out of your sight\" is NOT seen doing it; at most a sound or a hint.\n- Characters may leave or arrive when it fits the outcomes and events; anyone who leaves is seen leaving, not followed.\n- EVENTs tagged [regional] or [world] reach the scene the way they realistically would (a tremor, an alarm, a message or news report), and the present characters react to them in character.\n- Use each character's pronouns exactly as given in STATUS (e.g. he/him means \"he\", never \"they\").\n- Characters reveal only what is listed under REVEALS. Anything else they keep to themselves: they deflect, stall, joke or lie.\n- Do not invent new events, confessions or discoveries.\n- Stop at the end of these outcomes, on a moment that invites the player's response. Do not continue past it.\nReply with the scene text only.",
+      "max_tokens": 1408,
+      "temperature": 0.8
+     },
+     "response": {
+      "text": "[+0m] You spread the warehouse drone loop across the monitors and start talking, quiet and precise — roof access at the north corner, Mags's lift rotor to hold the vent cover, you in and out before the roller door cycles. \"One body, no door work, no noise.\"\n\nJuno lets you finish. Then she leans on the desk, gold tooth catching the screen light. \"Tonight? Friend, Vex has two smokers under that light and a camera that blinks red because someone's watching it.\" She taps the vent shaft on the frame. \"A vent gives you one way in and one way to get cooked. Give me a day to shake the tree first — the ledger isn't going anywhere.\"\n\n[+25m] You keep working the details out loud anyway, tracing the duct run with a finger. Juno doesn't argue again; she just watches you, one phone already in her hand, thumb moving.\n\n[+45m] From the workshop comes a shriek of metal — Mags spinning the lift rotor against the bench clamp, hard enough to rattle the floorboards. \"Sorry! Sorry. Testing the load,\" he calls, then, too fast, \"but she'll hold, she'll hold — she's rated for twice your weight, Rook, if that's the plan.\"",
+      "finish": "stop",
+      "usage": {
+       "prompt_tokens": 2198,
+       "completion_tokens": 322,
+       "total_tokens": 2520,
+       "cost": 0.000310072,
+       "is_byok": false,
+       "prompt_tokens_details": {
+        "cached_tokens": 0,
+        "cache_write_tokens": 0,
+        "audio_tokens": 0,
+        "video_tokens": 0
+       },
+       "cost_details": {
+        "upstream_inference_cost": 0.000310072,
+        "upstream_inference_prompt_cost": 0.000215404,
+        "upstream_inference_completions_cost": 0.000094668
+       },
+       "completion_tokens_details": {
+        "reasoning_tokens": 49,
+        "image_tokens": 0,
+        "audio_tokens": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "type": "turn",
+   "action": "enact the plan",
+   "stepId": "hour",
+   "cutAt": null,
+   "rng": [
+    0.3916875208834303,
+    0.7591132457102355
+   ],
+   "calls": [
+    {
+     "kind": "update",
+     "backend": "external",
+     "request": {
+      "system": "You are the simulation engine and narrator for an interactive, character-driven story.\n\n=== SETTING: Chrome District ===\nThe Chrome District is twelve blocks of rain, noodle stalls and repair shops wedged between the old docks and Kessler Corporation's towers. The Chrome Saints run the streets and the chop shops; Kessler runs everything else. Your crew works out of a safehouse above a closed laundromat, taking jobs that nobody with a badge would touch.\n\n=== GENRE AND TONE ===\nThis story is: intrigue, grim. Blend them; where they pull apart, the first leads.\n- intrigue: Secrets, leverage and divided loyalties; people say less than they know.\n- grim: Hard choices without good options; kindness costs something, and losses stay lost.\nA major event here means: a secret exposed, a betrayal, or a shift in who holds power.\nDanger is real. People can be badly hurt, but death is rare and meaningful.\nTone: Wet neon, cheap tech, everyone owes someone. Street-level cyberpunk: no chrome gods, just people getting by.\n\n=== RULES ===\n- The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. The player commands no faction.\n- The player controls only Rook (id: rook). Never decide Rook's choices, words or feelings beyond what the player's action states.\n- Outcomes marked RESOLVED are final. Failures have real consequences. Injuries last; death is rare and permanent.\n- Characters act from their own personality, wants, needs, secrets and feelings, not to serve the player.\n- Near-future tech: cyberware is common but crude, the net is everywhere and mostly ads. No AI overlords, no magic.\n- Guns are loud and the Saints answer noise fast. Getting caught on a job means a beating or worse.\n- Kessler security is slow to arrive but thorough when it does.\n\n=== LOCATIONS ===\n- main-room: Main Room — Mismatched couches, a wall of monitors and rain on the window. (connects: workshop, back-alley)\n- workshop: Workshop — Mags's bench, half-built drones and the smell of solder. (connects: main-room)\n- back-alley: Back Alley — A wet alley behind the laundromat, the van parked under a dead sign. (connects: main-room)\n\n=== REGIONS ===\n- the-strip: The Strip — Bars, noodle stalls, clinics and repair shops under a canopy of signs. Neutral ground, mostly. (neighbours: docks, uptown)\n- docks: The Docks — Warehouses, container stacks and the Saints' chop shops, where stolen cars and cyberware are stripped for parts. (neighbours: the-strip)\n- uptown: Uptown — Kessler's towers and the clean streets around them. Cameras everywhere; security answers in minutes. (neighbours: the-strip)\n\n=== GROUPS ===\n- saints: The Chrome Saints — A street gang that runs the chop shops and protection rackets on the docks side.\n- kessler: Kessler Corporation — The corporation that owns the towers, the power grid and most of the police.\n\n=== CAST ===\n- rook (PLAYER): Rook (they/them), the crew's planner, 31. Traits: careful, dry, stubborn. Voice: Quiet and precise; plans out loud.\n- juno: Juno Park (she/her), fixer, 38. Traits: charming, greedy, quick. Wants: close the ledger deal and keep the buyer happy. Voice: Warm and fast, calls everyone 'friend'.\n- mags: Mags Okoro (he/him), drone tech, 24. Traits: nervous, brilliant, loyal. Wants: prove his drones can do more than spy. Voice: Mumbles, then talks too fast about hardware.\n\n=== ESTABLISHED FACTS (known to the player) ===\n- [T0] Vex runs the Saints' chop shop on the docks and keeps the books himself.\n- [T0] The buyer pays on delivery, tomorrow night.",
+      "user": "=== VALID IDS ===\ncharacters: rook, juno, mags\nlocations: main-room, workshop, back-alley\nworld keys: heat, weather\ngroups: saints, kessler\nclocks: (none)\nways here (open or shut): back-alley|main-room (door, shut)\nneeds: fatigue, stress\npresent this turn: rook, juno\n\n=== WHAT HAPPENED THIS TURN (full truth, including hidden actions) ===\nPlayer action: \"We hit the Saints' chop shop tonight. Mags puts a drone on the roof and I go in through the vent.\"\n- You (Rook): Rook lays out the plan to hit the Saints' chop shop tonight — Mags puts a drone on the roof, Rook enters through the vent — and spends the hour working the details out loud. → happens (no roll needed)\n- Juno Park: Juno listens to the plan, then pushes back — arguing tonight is too soon and too loud, that Vex keeps Saints on the roof and a vent job gives them one exit and no cover, all while steering toward a quieter, later approach she can still cont → happens (no roll needed)\n    says (gist): Tonight? Friend, Vex has two smokers under that light and a camera that blinks red because someone's watching it. A vent gives you one way in and one way to get cooked. Give me a day to shake the tree first — the ledger isn't going anywhere\n- EVENT: (heard from elsewhere; only a sound, call or message reaches the player) In the workshop, Mags spins up the roof drone's lift rotor and it screams against the bench clamp loud enough to rattle the floorboards.\n\n=== SCENE AS NARRATED ===\nYou spread the warehouse drone loop across the monitors and start talking, quiet and precise — roof access at the north corner, Mags's lift rotor to hold the vent cover, you in and out before the roller door cycles. \"One body, no door work, no noise.\"\n\nJuno lets you finish. Then she leans on the desk, gold tooth catching the screen light. \"Tonight? Friend, Vex has two smokers under that light and a camera that blinks red because someone's watching it.\" She taps the vent shaft on the frame. \"A vent gives you one way in and one way to get cooked. Give me a day to shake the tree first — the ledger isn't going anywhere.\"\n\nYou keep working the details out loud anyway, tracing the duct run with a finger. Juno doesn't argue again; she just watches you, one phone already in her hand, thumb moving.\n\nFrom the workshop comes a shriek of metal — Mags spinning the lift rotor against the bench clamp, hard enough to rattle the floorboards. \"Sorry! Sorry. Testing the load,\" he calls, then, too fast, \"but she'll hold, she'll hold — she's rated for twice your weight, Rook, if that's the plan.\"\n\n=== TASK ===\nRecord what changed this turn. Reply with JSON only, exactly in this shape:\n{\"facts\":[{\"about\":[\"character_id\"],\"text\":\"one short sentence using names, not pronouns\",\"known_by\":[\"character_id\"],\"weight\":2}],\n \"state\":[{\"target\":\"char:character_id\",\"field\":\"health\",\"value\":\"ok|hurt|badly_hurt|dead\"},\n          {\"target\":\"char:character_id\",\"field\":\"location\",\"value\":\"location_id\"},\n          {\"target\":\"char:character_id\",\"field\":\"add_tag\",\"value\":\"short visible state\",\"turns\":6,\"reason\":\"why\"},\n          {\"target\":\"char:character_id\",\"field\":\"remove_tag\",\"value\":\"existing tag\"},\n          {\"target\":\"char:character_id\",\"field\":\"mood\",\"value\":\"how they come across now\",\"reason\":\"why\"},\n          {\"target\":\"char:character_id\",\"field\":\"need\",\"need\":\"need_id\",\"delta\":-0.5},\n          {\"target\":\"link:room_a|room_b\",\"field\":\"open\",\"value\":true},\n          {\"target\":\"world:key\",\"value\":\"new short description\"},\n          {\"target\":\"faction:group_id\",\"value\":\"new short stance\"},\n          {\"target\":\"clock:clock_id\",\"delta\":-2}],\n \"relations\":[{\"from\":\"character_id\",\"to\":\"character_id\",\"delta\":5,\"reason\":\"short reason\"}],\n \"player_attitude\":[{\"to\":\"character_id\",\"delta\":-5,\"reason\":\"short reason in past tense\"}],\n \"chapter_worthy\":false}\nGuidelines:\n- 1 to 5 facts. Only things that actually happened or were revealed. Skip trivia.\n- known_by lists who witnessed or was told. Use [\"all\"] only when everyone at the location would know. Hidden actions are known only by the actor and anyone who caught them.\n- What Rook knows is limited to what they could see or hear in the narrated scene. Other characters' motives, plans and secrets are NOT known by Rook unless explicitly revealed; record those as known only by that character.\n- weight: 1 minor detail, 2 notable, 3 major turning point (injury, death, betrayal, discovery, confession).\n- Anything listed under REVEALS should become a fact known by the revealer and whoever was told.\n- state: only real changes. Eating or resting lowers needs (negative delta). Repairs or sabotage can move clocks (negative delta delays, positive hastens). location: only for other characters who were seen leaving or arriving in the scene (where they went or came from). Never for Rook.\n- groups: update a group's stance only when this turn's events would realistically change how that group sees things.\n- world values are short factual status (e.g. \"degraded, about 70% output\"). Only change one when that status actually changed this turn.\n- tags: short visible states or situations (e.g. \"sprained ankle\", \"covered in dust\", \"on night shift\"), at most 5 words, with \"turns\" for how long they last (default 6). Remove tags that no longer fit. Not feelings; fatigue and stress are tracked as needs.\n- mood: for each non-player character present, at most one short line on how they come across right now, as others could read it (e.g. \"short with everyone, avoiding Okafor\"). Only when it changed. Never for Rook, and never hint at anyone's secret.\n- relations: how this turn changed how non-player characters feel about others (never Rook's own feelings), delta between -15 and 15. Leave empty if nothing changed.\n- player_attitude: how Rook's own feelings toward someone shifted, judged ONLY from the player action as quoted above (their words and tone), never from how the narrator embellished it. Snapping, mocking or threatening lowers it; thanking, helping, joking warmly or confiding raises it. Delta between -10 and 10. Leave empty if the action was neutral.\n- chapter_worthy: true only for a major turning point.\n- the place: a door, hatch or window is opened or shut only when the scene shows it, and a locked one never opens here.\nUse [] for any list with nothing to record.",
+      "max_tokens": 10000,
+      "temperature": 0.3
+     },
+     "response": {
+      "text": "{\"facts\":[{\"about\":[\"juno\"],\"text\":\"Juno argues tonight is too soon: Vex keeps two smokers under the roof light and a camera someone is actively watching.\",\"known_by\":[\"rook\",\"juno\"],\"weight\":2},{\"about\":[\"mags\"],\"text\":\"Mags tested the roof drone's lift rotor against the bench clamp and says it will hold twice Rook's weight.\",\"known_by\":[\"rook\",\"juno\",\"mags\"],\"weight\":1}],\"state\":[{\"target\":\"char:juno\",\"field\":\"mood\",\"value\":\"watchful, steering toward delay without arguing\",\"reason\":\"Rook keeps pushing the tonight plan\"},{\"target\":\"char:mags\",\"field\":\"mood\",\"value\":\"anxious and eager to be useful\",\"reason\":\"testing the rotor while the plan is debated\"}],\"relations\":[],\"player_attitude\":[],\"chapter_worthy\":false}",
+      "finish": "stop",
+      "usage": {
+       "prompt_tokens": 2430,
+       "completion_tokens": 355,
+       "total_tokens": 2785,
+       "cost": 0.00025733624,
+       "is_byok": false,
+       "prompt_tokens_details": {
+        "cached_tokens": 896,
+        "cache_write_tokens": 0,
+        "audio_tokens": 0,
+        "video_tokens": 0
+       },
+       "cost_details": {
+        "upstream_inference_cost": 0.00025733624,
+        "upstream_inference_prompt_cost": 0.00015296624,
+        "upstream_inference_completions_cost": 0.00010437
+       },
+       "completion_tokens_details": {
+        "reasoning_tokens": 161,
+        "image_tokens": 0,
+        "audio_tokens": 0
+       }
+      }
+     }
+    },
+    {
+     "kind": "intent",
+     "backend": "external",
+     "request": {
+      "system": "You are the simulation engine and narrator for an interactive, character-driven story.\n\n=== SETTING: Chrome District ===\nThe Chrome District is twelve blocks of rain, noodle stalls and repair shops wedged between the old docks and Kessler Corporation's towers. The Chrome Saints run the streets and the chop shops; Kessler runs everything else. Your crew works out of a safehouse above a closed laundromat, taking jobs that nobody with a badge would touch.\n\n=== GENRE AND TONE ===\nThis story is: intrigue, grim. Blend them; where they pull apart, the first leads.\n- intrigue: Secrets, leverage and divided loyalties; people say less than they know.\n- grim: Hard choices without good options; kindness costs something, and losses stay lost.\nA major event here means: a secret exposed, a betrayal, or a shift in who holds power.\nDanger is real. People can be badly hurt, but death is rare and meaningful.\nTone: Wet neon, cheap tech, everyone owes someone. Street-level cyberpunk: no chrome gods, just people getting by.\n\n=== RULES ===\n- The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. The player commands no faction.\n- The player controls only Rook (id: rook). Never decide Rook's choices, words or feelings beyond what the player's action states.\n- Outcomes marked RESOLVED are final. Failures have real consequences. Injuries last; death is rare and permanent.\n- Characters act from their own personality, wants, needs, secrets and feelings, not to serve the player.\n- Near-future tech: cyberware is common but crude, the net is everywhere and mostly ads. No AI overlords, no magic.\n- Guns are loud and the Saints answer noise fast. Getting caught on a job means a beating or worse.\n- Kessler security is slow to arrive but thorough when it does.\n\n=== LOCATIONS ===\n- main-room: Main Room — Mismatched couches, a wall of monitors and rain on the window. (connects: workshop, back-alley)\n- workshop: Workshop — Mags's bench, half-built drones and the smell of solder. (connects: main-room)\n- back-alley: Back Alley — A wet alley behind the laundromat, the van parked under a dead sign. (connects: main-room)\n\n=== REGIONS ===\n- the-strip: The Strip — Bars, noodle stalls, clinics and repair shops under a canopy of signs. Neutral ground, mostly. (neighbours: docks, uptown)\n- docks: The Docks — Warehouses, container stacks and the Saints' chop shops, where stolen cars and cyberware are stripped for parts. (neighbours: the-strip)\n- uptown: Uptown — Kessler's towers and the clean streets around them. Cameras everywhere; security answers in minutes. (neighbours: the-strip)\n\n=== GROUPS ===\n- saints: The Chrome Saints — A street gang that runs the chop shops and protection rackets on the docks side.\n- kessler: Kessler Corporation — The corporation that owns the towers, the power grid and most of the police.\n\n=== CAST ===\n- rook (PLAYER): Rook (they/them), the crew's planner, 31. Traits: careful, dry, stubborn. Voice: Quiet and precise; plans out loud.\n- juno: Juno Park (she/her), fixer, 38. Traits: charming, greedy, quick. Wants: close the ledger deal and keep the buyer happy. Voice: Warm and fast, calls everyone 'friend'.\n- mags: Mags Okoro (he/him), drone tech, 24. Traits: nervous, brilliant, loyal. Wants: prove his drones can do more than spy. Voice: Mumbles, then talks too fast about hardware.\n\n=== ESTABLISHED FACTS (known to the player) ===\n- [T0] Vex runs the Saints' chop shop on the docks and keeps the books himself.\n- [T0] The buyer pays on delivery, tomorrow night.\n- [T1] Juno argues tonight is too soon: Vex keeps two smokers under the roof light and a camera someone is actively watching.\n- [T1] Mags tested the roof drone's lift rotor against the bench clamp and says it will hold twice Rook's weight.",
+      "user": "=== NOW: Day 1, 21:51 ===\nRook is in Main Room.\nWorld: heat: low: nobody is looking for the crew; weather: steady rain\nPressures: none\nGroups: The Chrome Saints: suspicious of the crew; Kessler Corporation: unaware of the crew\nRegion: The Strip (the-strip): held by no one; tags: neon; busy all night\nNearby: The Docks (docks): held by The Chrome Saints; tags: gang turf; Saints on every corner | Uptown (uptown): held by Kessler Corporation; tags: corporate; drones overhead\nPresent with Rook: Juno Park\nWays from here: Workshop, Back Alley (door, shut)\nElsewhere: Mags Okoro (Workshop)\n\n=== STATUS ===\n- Rook (they/them) [rook]: health unhurt; fatigue low, stress low; feels toward: Juno Park friendly (20)\n- Juno Park (she/her) [juno]: health unhurt; mood: watchful, steering toward delay without arguing; fatigue low, stress low; feels toward Rook: neutral (10)\n\n=== PLACES ===\nNo other places yet beyond these rooms.\nIf the player's action clearly heads somewhere that is none of these rooms (another building, a part of town, a hideout), set \"new_place\" to {\"name\":\"short name\",\"kind\":\"what kind of place\",\"region\":\"region id\"} and leave move_to null; for a place listed above, use its name. The engine decides whether to build it.\n\n=== PRIVATE (each item is known ONLY to the character named) ===\n- Juno Park's secret: The buyer is Kessler, and Juno promised them the crew's names as part of the deal. (guard: high; very hard to crack)\n\n=== OFFSTAGE (not with the player; for events only) ===\n- mags (Mags Okoro), in Workshop: wants prove his drones can do more than spy; secret: He used to strip cars for the Saints and Vex would recognise him.\n\n=== LAST SCENE ===\nYou spread the warehouse drone loop across the monitors and start talking, quiet and precise — roof access at the north corner, Mags's lift rotor to hold the vent cover, you in and out before the roller door cycles. \"One body, no door work, no noise.\"\n\nJuno lets you finish. Then she leans on the desk, gold tooth catching the screen light. \"Tonight? Friend, Vex has two smokers under that light and a camera that blinks red because someone's watching it.\" She taps the vent shaft on the frame. \"A vent gives you one way in and one way to get cooked. Give me a day to shake the tree first — the ledger isn't going anywhere.\"\n\nYou keep working the details out loud anyway, tracing the duct run with a finger. Juno doesn't argue again; she just watches you, one phone already in her hand, thumb moving.\n\nFrom the workshop comes a shriek of metal — Mags spinning the lift rotor against the bench clamp, hard enough to rattle the floorboards. \"Sorry! Sorry. Testing the load,\" he calls, then, too fast, \"but she'll hold, she'll hold — she's rated for twice your weight, Rook, if that's the plan.\"\n\n=== PLAYER ACTION (time passing: about an hour) ===\n\"enact the plan\"\nThe player's action takes up this whole span. Others act during the same span.\n\n=== TASK ===\n1. Judge the player's action. If it is risky, contested or depends on skill, set needs_roll to true and choose a skill (one of: hacking, shooting, stealth, talk, tech, athletics) and a difficulty (easy, normal, hard). Talking, looking around and simple tasks need no roll. Everyone listed as present is in the same room as Rook right now, so an action about them needs no move. Only if the action clearly takes Rook somewhere else, set move_to to that location id (or to a character id to go where that character is).\n2. You MUST give exactly one intent for EACH present character: juno. Decide what each actually tries to do during this time, driven by their personality, wants, needs, secrets and feelings. They may help, argue, refuse, lie, deflect, pursue their own goals, or leave (move_to). Set visible to false if they act covertly so the player would not notice.\n3. \"says\": the gist of anything they say aloud this turn (or null).\n4. \"reveals\": almost always null. Only fill it if the character deliberately says their secret or private knowledge out loud this turn, and that matches their \"says\". Being asked once, or being nervous, is not enough: people deflect, make excuses or lie first.\n5. \"events\": things that happen during this span outside the player's control, to keep the world moving: offstage characters pursuing their wants and secrets, groups making moves that affect the people here, someone arriving, a call or message, something breaking down, the pressures above getting closer. How many: 0 or 1. Each event has:\n   - \"text\": one sentence, with names.\n   - \"who\": character ids involved (not the player).\n   - \"where\": location id where it happens.\n   - \"visibility\": \"seen\" (happens in the player's room), \"heard\" (the player gets a sound, call or message about it) or \"hidden\" (the player has no idea).\n   - \"moves\": [{\"id\":\"character_id\",\"to\":\"location_id\"}] for offstage characters who go somewhere because of it, else [].\n   - \"scope\": \"local\" for these.\n   If the player's action uses something not listed for their room (a window, a vent, a fire extinguisher), set the player's \"new_feature\": {\"name\":\"short name\",\"to\":null or the room id it leads to}.\n   No regional or world events this turn; keep events local.\nReply with JSON only, exactly in this shape:\n{\"player\":{\"summary\":\"the player's action restated as a concrete attempt\",\"needs_roll\":false,\"skill\":null,\"difficulty\":\"normal\",\"move_to\":null,\"new_place\":null,\"new_feature\":null},\n \"intents\":[\n  {\"id\":\"juno\",\"action\":\"one sentence\",\"says\":null,\"reveals\":null,\"visible\":true,\"needs_roll\":false,\"skill\":null,\"difficulty\":\"normal\",\"move_to\":null}\n ],\n \"events\":[{\"text\":\"one sentence\",\"scope\":\"local\",\"who\":[\"character_id\"],\"where\":\"location_id\",\"visibility\":\"heard\",\"moves\":[]}]}",
+      "max_tokens": 10000,
+      "temperature": 0.7
+     },
+     "response": {
+      "text": "{\"player\":{\"summary\":\"Rook stops talking and starts moving — gathering gear to run the warehouse job tonight: out the back to the van, across the Strip to the docks, up the north corner to the vent shaft.\",\"needs_roll\":true,\"skill\":\"stealth\",\"difficulty\":\"hard\",\"move_to\":null,\"new_place\":{\"name\":\"North Corner Warehouse\",\"kind\":\"warehouse roof and vent shaft\",\"region\":\"docks\"},\"new_feature\":null},\"intents\":[{\"id\":\"juno\",\"action\":\"Juno stops pushing back, offers to ride along as street cover — and while Rook is pulling gear together she steps into the stairwell and sends the buyer a short message that the crew moves tonight.\",\"says\":\"Alright, friend. Tonight, then. I'll ride with you — a fixer on the street is worth two in the van.\",\"reveals\":null,\"visible\":true,\"needs_roll\":false,\"skill\":null,\"difficulty\":\"normal\",\"move_to\":null}],\"events\":[{\"text\":\"Mags hauls the roof drone down the back stairs and loads it into the van himself, muttering measurements at nobody.\",\"scope\":\"local\",\"who\":[\"mags\"],\"where\":\"back-alley\",\"visibility\":\"heard\",\"moves\":[{\"id\":\"mags\",\"to\":\"back-alley\"}]}]}",
+      "finish": "stop",
+      "usage": {
+       "prompt_tokens": 2407,
+       "completion_tokens": 1241,
+       "total_tokens": 3648,
+       "cost": 0.00127414,
+       "is_byok": false,
+       "prompt_tokens_details": {
+        "cached_tokens": 0,
+        "cache_write_tokens": 0,
+        "audio_tokens": 0,
+        "video_tokens": 0
+       },
+       "cost_details": {
+        "upstream_inference_cost": 0.00127414,
+        "upstream_inference_prompt_cost": 0.00052954,
+        "upstream_inference_completions_cost": 0.0007446
+       },
+       "completion_tokens_details": {
+        "reasoning_tokens": 955,
+        "image_tokens": 0,
+        "audio_tokens": 0
+       }
+      }
+     }
+    },
+    {
+     "kind": "narrate",
+     "backend": "external",
+     "request": {
+      "system": "You are the simulation engine and narrator for an interactive, character-driven story.\n\n=== SETTING: Chrome District ===\nThe Chrome District is twelve blocks of rain, noodle stalls and repair shops wedged between the old docks and Kessler Corporation's towers. The Chrome Saints run the streets and the chop shops; Kessler runs everything else. Your crew works out of a safehouse above a closed laundromat, taking jobs that nobody with a badge would touch.\n\n=== GENRE AND TONE ===\nThis story is: intrigue, grim. Blend them; where they pull apart, the first leads.\n- intrigue: Secrets, leverage and divided loyalties; people say less than they know.\n- grim: Hard choices without good options; kindness costs something, and losses stay lost.\nA major event here means: a secret exposed, a betrayal, or a shift in who holds power.\nDanger is real. People can be badly hurt, but death is rare and meaningful.\nTone: Wet neon, cheap tech, everyone owes someone. Street-level cyberpunk: no chrome gods, just people getting by.\n\n=== RULES ===\n- The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. The player commands no faction.\n- The player controls only Rook (id: rook). Never decide Rook's choices, words or feelings beyond what the player's action states.\n- Outcomes marked RESOLVED are final. Failures have real consequences. Injuries last; death is rare and permanent.\n- Characters act from their own personality, wants, needs, secrets and feelings, not to serve the player.\n- Near-future tech: cyberware is common but crude, the net is everywhere and mostly ads. No AI overlords, no magic.\n- Guns are loud and the Saints answer noise fast. Getting caught on a job means a beating or worse.\n- Kessler security is slow to arrive but thorough when it does.\n\n=== LOCATIONS ===\n- main-room: Main Room — Mismatched couches, a wall of monitors and rain on the window. (connects: workshop, back-alley)\n- workshop: Workshop — Mags's bench, half-built drones and the smell of solder. (connects: main-room)\n- back-alley: Back Alley — A wet alley behind the laundromat, the van parked under a dead sign. (connects: main-room)\n\n=== REGIONS ===\n- the-strip: The Strip — Bars, noodle stalls, clinics and repair shops under a canopy of signs. Neutral ground, mostly. (neighbours: docks, uptown)\n- docks: The Docks — Warehouses, container stacks and the Saints' chop shops, where stolen cars and cyberware are stripped for parts. (neighbours: the-strip)\n- uptown: Uptown — Kessler's towers and the clean streets around them. Cameras everywhere; security answers in minutes. (neighbours: the-strip)\n\n=== GROUPS ===\n- saints: The Chrome Saints — A street gang that runs the chop shops and protection rackets on the docks side.\n- kessler: Kessler Corporation — The corporation that owns the towers, the power grid and most of the police.\n\n=== CAST ===\n- rook (PLAYER): Rook (they/them), the crew's planner, 31. Traits: careful, dry, stubborn. Voice: Quiet and precise; plans out loud.\n- juno: Juno Park (she/her), fixer, 38. Traits: charming, greedy, quick. Wants: close the ledger deal and keep the buyer happy. Voice: Warm and fast, calls everyone 'friend'.\n- mags: Mags Okoro (he/him), drone tech, 24. Traits: nervous, brilliant, loyal. Wants: prove his drones can do more than spy. Voice: Mumbles, then talks too fast about hardware.\n\n=== ESTABLISHED FACTS (known to the player) ===\n- [T0] Vex runs the Saints' chop shop on the docks and keeps the books himself.\n- [T0] The buyer pays on delivery, tomorrow night.\n- [T1] Juno argues tonight is too soon: Vex keeps two smokers under the roof light and a camera someone is actively watching.\n- [T1] Mags tested the roof drone's lift rotor against the bench clamp and says it will hold twice Rook's weight.",
+      "user": "=== SCENE FRAME ===\nStarts: Day 1, 21:51, in Main Room, with Juno Park.\nEnds: Day 1, 22:51, Rook still in Main Room.\nWorld: heat: low: nobody is looking for the crew; weather: steady rain\nPressures: none\nGroups: The Chrome Saints: suspicious of the crew; Kessler Corporation: unaware of the crew\nRegion: The Strip (the-strip): held by no one; tags: neon; busy all night\nNearby: The Docks (docks): held by The Chrome Saints; tags: gang turf; Saints on every corner | Uptown (uptown): held by Kessler Corporation; tags: corporate; drones overhead\n\n=== STATUS ===\n- Rook (they/them): health unhurt; looks: Thin, in a long waterproof coat, with a cheap cyber-eye that glows faintly blue; feels toward: Juno Park friendly (20)\n- Juno Park (she/her): health unhurt; looks: Sharp suit gone shiny at the elbows, a gold tooth and three phones; mood: watchful, steering toward delay without arguing\n\n=== LAST SCENE ===\nYou spread the warehouse drone loop across the monitors and start talking, quiet and precise — roof access at the north corner, Mags's lift rotor to hold the vent cover, you in and out before the roller door cycles. \"One body, no door work, no noise.\"\n\nJuno lets you finish. Then she leans on the desk, gold tooth catching the screen light. \"Tonight? Friend, Vex has two smokers under that light and a camera that blinks red because someone's watching it.\" She taps the vent shaft on the frame. \"A vent gives you one way in and one way to get cooked. Give me a day to shake the tree first — the ledger isn't going anywhere.\"\n\nYou keep working the details out loud anyway, tracing the duct run with a finger. Juno doesn't argue again; she just watches you, one phone already in her hand, thumb moving.\n\nFrom the workshop comes a shriek of metal — Mags spinning the lift rotor against the bench clamp, hard enough to rattle the floorboards. \"Sorry! Sorry. Testing the load,\" he calls, then, too fast, \"but she'll hold, she'll hold — she's rated for twice your weight, Rook, if that's the plan.\"\n\n=== PLAYER ACTION (time span: about an hour) ===\n\"enact the plan\"\n\n=== RESOLVED (final — narrate these faithfully) ===\n- You (Rook): Rook stops talking and starts moving — gathering gear to run the warehouse job tonight: out the back to the van, across the Strip to the docks, up the north corner to the vent shaft. → SUCCESS (stealth check: rolled 22 vs 16)\n- Juno Park: is pressed about it but keeps the secret: deflects, makes an excuse or changes the subject → happens (no roll needed)\n- EVENT: (heard from elsewhere; only a sound, call or message reaches the player) Mags hauls the roof drone down the back stairs and loads it into the van himself, muttering measurements at nobody.\n\n=== TASK ===\nWrite the next scene in second person, present tense (\"you\" is Rook), 100–200 words. Bring the characters to life through dialogue and small actions in their own voices.\nTime: This covers about an hour, all spent on the stated action. Play the key exchange as a live scene and compress the rest of the hour with a line or two (\"For the next forty minutes…\"). You may show how it naturally unfolds, but the player character starts no new activities and goes nowhere else. Their manner toward others matches the feelings listed in STATUS.\nBeats: 2 or 3 beats. Start each beat on its own line with a time marker in brackets: minutes since the scene started, like [+0m], [+25m], [+50m] (use hours for long spans, like [+5h]). The last marker is at most [+60m]. Spread the beats across the whole span: the last one starts around [+45m]. End each beat on something the player could react to, since the player may step in between beats.\nStructure:\n1. The scene is set in Main Room. Open with Rook's action, carried out in the first paragraph.\n2. Then show how the others react to it and what they do, in the order that makes sense.\n3. End on the others' latest move: a reply, a look, a question or a new problem the player can respond to. The final paragraph must NEVER be Rook's own line or action; leave Rook's response open for the player.\nHard rules:\n- Narrate ONLY the resolved outcomes above, faithfully. Failures should cost something.\n- Play Rook naturally, in character (voice: Quiet and precise; plans out loud.). If the action is vague, fill it in the way Rook would: small gestures, a line or two of dialogue, how they go about it.\n- Do not make big choices for Rook: no agreeing to plans, making promises, starting new tasks, revealing what Rook knows beyond the action, or deciding what to do next. When a real choice comes up, stop there and leave it to the player.\n- Rook never leaves Main Room. Do not take Rook anywhere else.\n- Only the characters in the frame appear. Anyone \"out of your sight\" is NOT seen doing it; at most a sound or a hint.\n- Characters may leave or arrive when it fits the outcomes and events; anyone who leaves is seen leaving, not followed.\n- EVENTs tagged [regional] or [world] reach the scene the way they realistically would (a tremor, an alarm, a message or news report), and the present characters react to them in character.\n- Use each character's pronouns exactly as given in STATUS (e.g. he/him means \"he\", never \"they\").\n- Characters reveal only what is listed under REVEALS. Anything else they keep to themselves: they deflect, stall, joke or lie.\n- Do not invent new events, confessions or discoveries.\n- Stop at the end of these outcomes, on a moment that invites the player's response. Do not continue past it.\nReply with the scene text only.",
+      "max_tokens": 1408,
+      "temperature": 0.8
+     },
+     "response": {
+      "text": "[+0m] You stop mid-sentence, cap the stylus, and haul the gear bag out from under the desk",
+      "finish": "length",
+      "usage": {
+       "prompt_tokens": 2310,
+       "completion_tokens": 1408,
+       "total_tokens": 3718,
+       "cost": 0.00044451,
+       "is_byok": false,
+       "prompt_tokens_details": {
+        "cached_tokens": 0,
+        "cache_write_tokens": 0,
+        "audio_tokens": 0,
+        "video_tokens": 0
+       },
+       "cost_details": {
+        "upstream_inference_cost": 0.00044451,
+        "upstream_inference_prompt_cost": 0.00023331,
+        "upstream_inference_completions_cost": 0.0002112
+       },
+       "completion_tokens_details": {
+        "reasoning_tokens": 1382,
+        "image_tokens": 0,
+        "audio_tokens": 0
+       }
+      }
+     }
+    },
+    {
+     "kind": "narrate (continue)",
+     "backend": "external",
+     "request": {
+      "system": "You are the simulation engine and narrator for an interactive, character-driven story.\n\n=== SETTING: Chrome District ===\nThe Chrome District is twelve blocks of rain, noodle stalls and repair shops wedged between the old docks and Kessler Corporation's towers. The Chrome Saints run the streets and the chop shops; Kessler runs everything else. Your crew works out of a safehouse above a closed laundromat, taking jobs that nobody with a badge would touch.\n\n=== GENRE AND TONE ===\nThis story is: intrigue, grim. Blend them; where they pull apart, the first leads.\n- intrigue: Secrets, leverage and divided loyalties; people say less than they know.\n- grim: Hard choices without good options; kindness costs something, and losses stay lost.\nA major event here means: a secret exposed, a betrayal, or a shift in who holds power.\nDanger is real. People can be badly hurt, but death is rare and meaningful.\nTone: Wet neon, cheap tech, everyone owes someone. Street-level cyberpunk: no chrome gods, just people getting by.\n\n=== RULES ===\n- The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. The player commands no faction.\n- The player controls only Rook (id: rook). Never decide Rook's choices, words or feelings beyond what the player's action states.\n- Outcomes marked RESOLVED are final. Failures have real consequences. Injuries last; death is rare and permanent.\n- Characters act from their own personality, wants, needs, secrets and feelings, not to serve the player.\n- Near-future tech: cyberware is common but crude, the net is everywhere and mostly ads. No AI overlords, no magic.\n- Guns are loud and the Saints answer noise fast. Getting caught on a job means a beating or worse.\n- Kessler security is slow to arrive but thorough when it does.\n\n=== LOCATIONS ===\n- main-room: Main Room — Mismatched couches, a wall of monitors and rain on the window. (connects: workshop, back-alley)\n- workshop: Workshop — Mags's bench, half-built drones and the smell of solder. (connects: main-room)\n- back-alley: Back Alley — A wet alley behind the laundromat, the van parked under a dead sign. (connects: main-room)\n\n=== REGIONS ===\n- the-strip: The Strip — Bars, noodle stalls, clinics and repair shops under a canopy of signs. Neutral ground, mostly. (neighbours: docks, uptown)\n- docks: The Docks — Warehouses, container stacks and the Saints' chop shops, where stolen cars and cyberware are stripped for parts. (neighbours: the-strip)\n- uptown: Uptown — Kessler's towers and the clean streets around them. Cameras everywhere; security answers in minutes. (neighbours: the-strip)\n\n=== GROUPS ===\n- saints: The Chrome Saints — A street gang that runs the chop shops and protection rackets on the docks side.\n- kessler: Kessler Corporation — The corporation that owns the towers, the power grid and most of the police.\n\n=== CAST ===\n- rook (PLAYER): Rook (they/them), the crew's planner, 31. Traits: careful, dry, stubborn. Voice: Quiet and precise; plans out loud.\n- juno: Juno Park (she/her), fixer, 38. Traits: charming, greedy, quick. Wants: close the ledger deal and keep the buyer happy. Voice: Warm and fast, calls everyone 'friend'.\n- mags: Mags Okoro (he/him), drone tech, 24. Traits: nervous, brilliant, loyal. Wants: prove his drones can do more than spy. Voice: Mumbles, then talks too fast about hardware.\n\n=== ESTABLISHED FACTS (known to the player) ===\n- [T0] Vex runs the Saints' chop shop on the docks and keeps the books himself.\n- [T0] The buyer pays on delivery, tomorrow night.\n- [T1] Juno argues tonight is too soon: Vex keeps two smokers under the roof light and a camera someone is actively watching.\n- [T1] Mags tested the roof drone's lift rotor against the bench clamp and says it will hold twice Rook's weight.",
+      "user": "=== SCENE FRAME ===\nStarts: Day 1, 21:51, in Main Room, with Juno Park.\nEnds: Day 1, 22:51, Rook still in Main Room.\nWorld: heat: low: nobody is looking for the crew; weather: steady rain\nPressures: none\nGroups: The Chrome Saints: suspicious of the crew; Kessler Corporation: unaware of the crew\nRegion: The Strip (the-strip): held by no one; tags: neon; busy all night\nNearby: The Docks (docks): held by The Chrome Saints; tags: gang turf; Saints on every corner | Uptown (uptown): held by Kessler Corporation; tags: corporate; drones overhead\n\n=== STATUS ===\n- Rook (they/them): health unhurt; looks: Thin, in a long waterproof coat, with a cheap cyber-eye that glows faintly blue; feels toward: Juno Park friendly (20)\n- Juno Park (she/her): health unhurt; looks: Sharp suit gone shiny at the elbows, a gold tooth and three phones; mood: watchful, steering toward delay without arguing\n\n=== LAST SCENE ===\nYou spread the warehouse drone loop across the monitors and start talking, quiet and precise — roof access at the north corner, Mags's lift rotor to hold the vent cover, you in and out before the roller door cycles. \"One body, no door work, no noise.\"\n\nJuno lets you finish. Then she leans on the desk, gold tooth catching the screen light. \"Tonight? Friend, Vex has two smokers under that light and a camera that blinks red because someone's watching it.\" She taps the vent shaft on the frame. \"A vent gives you one way in and one way to get cooked. Give me a day to shake the tree first — the ledger isn't going anywhere.\"\n\nYou keep working the details out loud anyway, tracing the duct run with a finger. Juno doesn't argue again; she just watches you, one phone already in her hand, thumb moving.\n\nFrom the workshop comes a shriek of metal — Mags spinning the lift rotor against the bench clamp, hard enough to rattle the floorboards. \"Sorry! Sorry. Testing the load,\" he calls, then, too fast, \"but she'll hold, she'll hold — she's rated for twice your weight, Rook, if that's the plan.\"\n\n=== PLAYER ACTION (time span: about an hour) ===\n\"enact the plan\"\n\n=== RESOLVED (final — narrate these faithfully) ===\n- You (Rook): Rook stops talking and starts moving — gathering gear to run the warehouse job tonight: out the back to the van, across the Strip to the docks, up the north corner to the vent shaft. → SUCCESS (stealth check: rolled 22 vs 16)\n- Juno Park: is pressed about it but keeps the secret: deflects, makes an excuse or changes the subject → happens (no roll needed)\n- EVENT: (heard from elsewhere; only a sound, call or message reaches the player) Mags hauls the roof drone down the back stairs and loads it into the van himself, muttering measurements at nobody.\n\n=== SCENE SO FAR ===\n[+0m] You stop mid-sentence, cap the stylus, and haul the gear bag out from under the desk\n\n=== TASK ===\nContinue the scene above. It stops at [+0m], but this turn covers about an hour (60 minutes). Write 1 or 2 more beats, 40–100 words in total, in second person, present tense (\"you\" is Rook). Start each beat on its own line with a time marker counted from the start of the scene, later than [+0m]; the last one around [+51m] and at most [+60m].\nTime: This covers about an hour, all spent on the stated action. Play the key exchange as a live scene and compress the rest of the hour with a line or two (\"For the next forty minutes…\"). You may show how it naturally unfolds, but the player character starts no new activities and goes nowhere else. Their manner toward others matches the feelings listed in STATUS. Compress the routine part (\"For the next half hour…\").\nHard rules:\n- Carry on from where the scene stops. Do not repeat or rewrite it.\n- Do not make big choices for Rook: no agreeing to plans, making promises, starting new tasks or deciding what to do next.\n- Rook never leaves Main Room.\n- Use each character's pronouns exactly as given in STATUS.\n- No new events, confessions, reveals or discoveries beyond what the scene already shows.\n- End on the others' latest move. The final paragraph must NEVER be Rook's own line or action.\nReply with the new beats only.",
+      "max_tokens": 1280,
+      "temperature": 0.8
+     },
+     "response": {
+      "text": "[+12m] You lay the gear out on the couch — harness, cutter, the vent map — and press Juno on the camera watcher. She smiles, gold tooth, and slides it: \"Friend, I'll know more when I know more,\" already thumbing a different phone.\n\n[+51m] For the next half hour you check and recheck the rig while Juno talks around the job without touching it. Then the back stairs creak: Mags, hauling the roof drone down himself, muttering measurements at nobody, and the van's rear door thumps shut on it.",
+      "finish": "stop",
+      "usage": {
+       "prompt_tokens": 1991,
+       "completion_tokens": 391,
+       "total_tokens": 2382,
+       "cost": 0.00022489824,
+       "is_byok": false,
+       "prompt_tokens_details": {
+        "cached_tokens": 896,
+        "cache_write_tokens": 0,
+        "audio_tokens": 0,
+        "video_tokens": 0
+       },
+       "cost_details": {
+        "upstream_inference_cost": 0.00022489824,
+        "upstream_inference_prompt_cost": 0.00010994424,
+        "upstream_inference_completions_cost": 0.000114954
+       },
+       "completion_tokens_details": {
+        "reasoning_tokens": 264,
+        "image_tokens": 0,
+        "audio_tokens": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "type": "turn",
+   "action": "Go to the chop shop.",
+   "stepId": "hour",
+   "cutAt": null,
+   "rng": [
+    0.7824199786426915
+   ],
+   "calls": [
+    {
+     "kind": "update",
+     "backend": "external",
+     "request": {
+      "system": "You are the simulation engine and narrator for an interactive, character-driven story.\n\n=== SETTING: Chrome District ===\nThe Chrome District is twelve blocks of rain, noodle stalls and repair shops wedged between the old docks and Kessler Corporation's towers. The Chrome Saints run the streets and the chop shops; Kessler runs everything else. Your crew works out of a safehouse above a closed laundromat, taking jobs that nobody with a badge would touch.\n\n=== GENRE AND TONE ===\nThis story is: intrigue, grim. Blend them; where they pull apart, the first leads.\n- intrigue: Secrets, leverage and divided loyalties; people say less than they know.\n- grim: Hard choices without good options; kindness costs something, and losses stay lost.\nA major event here means: a secret exposed, a betrayal, or a shift in who holds power.\nDanger is real. People can be badly hurt, but death is rare and meaningful.\nTone: Wet neon, cheap tech, everyone owes someone. Street-level cyberpunk: no chrome gods, just people getting by.\n\n=== RULES ===\n- The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. The player commands no faction.\n- The player controls only Rook (id: rook). Never decide Rook's choices, words or feelings beyond what the player's action states.\n- Outcomes marked RESOLVED are final. Failures have real consequences. Injuries last; death is rare and permanent.\n- Characters act from their own personality, wants, needs, secrets and feelings, not to serve the player.\n- Near-future tech: cyberware is common but crude, the net is everywhere and mostly ads. No AI overlords, no magic.\n- Guns are loud and the Saints answer noise fast. Getting caught on a job means a beating or worse.\n- Kessler security is slow to arrive but thorough when it does.\n\n=== LOCATIONS ===\n- main-room: Main Room — Mismatched couches, a wall of monitors and rain on the window. (connects: workshop, back-alley)\n- workshop: Workshop — Mags's bench, half-built drones and the smell of solder. (connects: main-room)\n- back-alley: Back Alley — A wet alley behind the laundromat, the van parked under a dead sign. (connects: main-room)\n\n=== REGIONS ===\n- the-strip: The Strip — Bars, noodle stalls, clinics and repair shops under a canopy of signs. Neutral ground, mostly. (neighbours: docks, uptown)\n- docks: The Docks — Warehouses, container stacks and the Saints' chop shops, where stolen cars and cyberware are stripped for parts. (neighbours: the-strip)\n- uptown: Uptown — Kessler's towers and the clean streets around them. Cameras everywhere; security answers in minutes. (neighbours: the-strip)\n\n=== GROUPS ===\n- saints: The Chrome Saints — A street gang that runs the chop shops and protection rackets on the docks side.\n- kessler: Kessler Corporation — The corporation that owns the towers, the power grid and most of the police.\n\n=== CAST ===\n- rook (PLAYER): Rook (they/them), the crew's planner, 31. Traits: careful, dry, stubborn. Voice: Quiet and precise; plans out loud.\n- juno: Juno Park (she/her), fixer, 38. Traits: charming, greedy, quick. Wants: close the ledger deal and keep the buyer happy. Voice: Warm and fast, calls everyone 'friend'.\n- mags: Mags Okoro (he/him), drone tech, 24. Traits: nervous, brilliant, loyal. Wants: prove his drones can do more than spy. Voice: Mumbles, then talks too fast about hardware.\n\n=== ESTABLISHED FACTS (known to the player) ===\n- [T0] Vex runs the Saints' chop shop on the docks and keeps the books himself.\n- [T0] The buyer pays on delivery, tomorrow night.\n- [T1] Juno argues tonight is too soon: Vex keeps two smokers under the roof light and a camera someone is actively watching.\n- [T1] Mags tested the roof drone's lift rotor against the bench clamp and says it will hold twice Rook's weight.",
+      "user": "=== VALID IDS ===\ncharacters: rook, juno, mags\nlocations: main-room, workshop, back-alley\nworld keys: heat, weather\ngroups: saints, kessler\nclocks: (none)\nways here (open or shut): back-alley|main-room (door, shut)\nneeds: fatigue, stress\npresent this turn: rook, juno\n\n=== WHAT HAPPENED THIS TURN (full truth, including hidden actions) ===\nPlayer action: \"enact the plan\"\n- You (Rook): Rook stops talking and starts moving — gathering gear to run the warehouse job tonight: out the back to the van, across the Strip to the docks, up the north corner to the vent shaft. → SUCCESS (stealth check: rolled 22 vs 16)\n- Juno Park: is pressed about it but keeps the secret: deflects, makes an excuse or changes the subject → happens (no roll needed)\n- EVENT: (heard from elsewhere; only a sound, call or message reaches the player) Mags hauls the roof drone down the back stairs and loads it into the van himself, muttering measurements at nobody.\n\n=== SCENE AS NARRATED ===\nYou stop mid-sentence, cap the stylus, and haul the gear bag out from under the desk\n\nYou lay the gear out on the couch — harness, cutter, the vent map — and press Juno on the camera watcher. She smiles, gold tooth, and slides it: \"Friend, I'll know more when I know more,\" already thumbing a different phone.\n\nFor the next half hour you check and recheck the rig while Juno talks around the job without touching it. Then the back stairs creak: Mags, hauling the roof drone down himself, muttering measurements at nobody, and the van's rear door thumps shut on it.\n\n=== TASK ===\nRecord what changed this turn. Reply with JSON only, exactly in this shape:\n{\"facts\":[{\"about\":[\"character_id\"],\"text\":\"one short sentence using names, not pronouns\",\"known_by\":[\"character_id\"],\"weight\":2}],\n \"state\":[{\"target\":\"char:character_id\",\"field\":\"health\",\"value\":\"ok|hurt|badly_hurt|dead\"},\n          {\"target\":\"char:character_id\",\"field\":\"location\",\"value\":\"location_id\"},\n          {\"target\":\"char:character_id\",\"field\":\"add_tag\",\"value\":\"short visible state\",\"turns\":6,\"reason\":\"why\"},\n          {\"target\":\"char:character_id\",\"field\":\"remove_tag\",\"value\":\"existing tag\"},\n          {\"target\":\"char:character_id\",\"field\":\"mood\",\"value\":\"how they come across now\",\"reason\":\"why\"},\n          {\"target\":\"char:character_id\",\"field\":\"need\",\"need\":\"need_id\",\"delta\":-0.5},\n          {\"target\":\"link:room_a|room_b\",\"field\":\"open\",\"value\":true},\n          {\"target\":\"world:key\",\"value\":\"new short description\"},\n          {\"target\":\"faction:group_id\",\"value\":\"new short stance\"},\n          {\"target\":\"clock:clock_id\",\"delta\":-2}],\n \"relations\":[{\"from\":\"character_id\",\"to\":\"character_id\",\"delta\":5,\"reason\":\"short reason\"}],\n \"player_attitude\":[{\"to\":\"character_id\",\"delta\":-5,\"reason\":\"short reason in past tense\"}],\n \"chapter_worthy\":false}\nGuidelines:\n- 1 to 5 facts. Only things that actually happened or were revealed. Skip trivia.\n- known_by lists who witnessed or was told. Use [\"all\"] only when everyone at the location would know. Hidden actions are known only by the actor and anyone who caught them.\n- What Rook knows is limited to what they could see or hear in the narrated scene. Other characters' motives, plans and secrets are NOT known by Rook unless explicitly revealed; record those as known only by that character.\n- weight: 1 minor detail, 2 notable, 3 major turning point (injury, death, betrayal, discovery, confession).\n- Anything listed under REVEALS should become a fact known by the revealer and whoever was told.\n- state: only real changes. Eating or resting lowers needs (negative delta). Repairs or sabotage can move clocks (negative delta delays, positive hastens). location: only for other characters who were seen leaving or arriving in the scene (where they went or came from). Never for Rook.\n- groups: update a group's stance only when this turn's events would realistically change how that group sees things.\n- world values are short factual status (e.g. \"degraded, about 70% output\"). Only change one when that status actually changed this turn.\n- tags: short visible states or situations (e.g. \"sprained ankle\", \"covered in dust\", \"on night shift\"), at most 5 words, with \"turns\" for how long they last (default 6). Remove tags that no longer fit. Not feelings; fatigue and stress are tracked as needs.\n- mood: for each non-player character present, at most one short line on how they come across right now, as others could read it (e.g. \"short with everyone, avoiding Okafor\"). Only when it changed. Never for Rook, and never hint at anyone's secret.\n- relations: how this turn changed how non-player characters feel about others (never Rook's own feelings), delta between -15 and 15. Leave empty if nothing changed.\n- player_attitude: how Rook's own feelings toward someone shifted, judged ONLY from the player action as quoted above (their words and tone), never from how the narrator embellished it. Snapping, mocking or threatening lowers it; thanking, helping, joking warmly or confiding raises it. Delta between -10 and 10. Leave empty if the action was neutral.\n- chapter_worthy: true only for a major turning point.\n- the place: a door, hatch or window is opened or shut only when the scene shows it, and a locked one never opens here.\nUse [] for any list with nothing to record.",
+      "max_tokens": 10000,
+      "temperature": 0.3
+     },
+     "response": {
+      "text": "{\"facts\":[{\"about\":[\"rook\"],\"text\":\"Rook laid out the harness, cutter and vent map and is running the warehouse job tonight.\",\"known_by\":[\"rook\",\"juno\",\"mags\"],\"weight\":2},{\"about\":[\"juno\"],\"text\":\"Juno deflected Rook's questions about who is watching Vex's camera instead of answering.\",\"known_by\":[\"rook\",\"juno\"],\"weight\":2},{\"about\":[\"mags\"],\"text\":\"Mags hauled the roof drone down the back stairs and loaded it into the van himself.\",\"known_by\":[\"rook\",\"juno\",\"mags\"],\"weight\":2}],\"state\":[{\"target\":\"char:mags\",\"field\":\"location\",\"value\":\"back-alley\"},{\"target\":\"char:juno\",\"field\":\"mood\",\"value\":\"breezy and evasive, steering every question sideways\",\"reason\":\"pressed about the camera watcher and refusing to answer\"},{\"target\":\"char:mags\",\"field\":\"mood\",\"value\":\"locked in, muttering numbers at the drone\",\"reason\":\"loading the drone alone without being asked\"}],\"relations\":[{\"from\":\"mags\",\"to\":\"rook\",\"delta\":3,\"reason\":\"Rook committing to the job Mags built for\"}],\"player_attitude\":[{\"to\":\"juno\",\"delta\":-3,\"reason\":\"pressed Juno for an answer and got a smile and a dodge\"}],\"chapter_worthy\":false}",
+      "finish": "stop",
+      "usage": {
+       "prompt_tokens": 2256,
+       "completion_tokens": 586,
+       "total_tokens": 2842,
+       "cost": 0.00069,
+       "is_byok": false,
+       "prompt_tokens_details": {
+        "cached_tokens": 0,
+        "cache_write_tokens": 0,
+        "audio_tokens": 0,
+        "video_tokens": 0
+       },
+       "cost_details": {
+        "upstream_inference_cost": 0.00069,
+        "upstream_inference_prompt_cost": 0.0003384,
+        "upstream_inference_completions_cost": 0.0003516
+       },
+       "completion_tokens_details": {
+        "reasoning_tokens": 279,
+        "image_tokens": 0,
+        "audio_tokens": 0
+       }
+      }
+     }
+    },
+    {
+     "kind": "intent",
+     "backend": "external",
+     "request": {
+      "system": "You are the simulation engine and narrator for an interactive, character-driven story.\n\n=== SETTING: Chrome District ===\nThe Chrome District is twelve blocks of rain, noodle stalls and repair shops wedged between the old docks and Kessler Corporation's towers. The Chrome Saints run the streets and the chop shops; Kessler runs everything else. Your crew works out of a safehouse above a closed laundromat, taking jobs that nobody with a badge would touch.\n\n=== GENRE AND TONE ===\nThis story is: intrigue, grim. Blend them; where they pull apart, the first leads.\n- intrigue: Secrets, leverage and divided loyalties; people say less than they know.\n- grim: Hard choices without good options; kindness costs something, and losses stay lost.\nA major event here means: a secret exposed, a betrayal, or a shift in who holds power.\nDanger is real. People can be badly hurt, but death is rare and meaningful.\nTone: Wet neon, cheap tech, everyone owes someone. Street-level cyberpunk: no chrome gods, just people getting by.\n\n=== RULES ===\n- The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. The player commands no faction.\n- The player controls only Rook (id: rook). Never decide Rook's choices, words or feelings beyond what the player's action states.\n- Outcomes marked RESOLVED are final. Failures have real consequences. Injuries last; death is rare and permanent.\n- Characters act from their own personality, wants, needs, secrets and feelings, not to serve the player.\n- Near-future tech: cyberware is common but crude, the net is everywhere and mostly ads. No AI overlords, no magic.\n- Guns are loud and the Saints answer noise fast. Getting caught on a job means a beating or worse.\n- Kessler security is slow to arrive but thorough when it does.\n\n=== LOCATIONS ===\n- main-room: Main Room — Mismatched couches, a wall of monitors and rain on the window. (connects: workshop, back-alley)\n- workshop: Workshop — Mags's bench, half-built drones and the smell of solder. (connects: main-room)\n- back-alley: Back Alley — A wet alley behind the laundromat, the van parked under a dead sign. (connects: main-room)\n\n=== REGIONS ===\n- the-strip: The Strip — Bars, noodle stalls, clinics and repair shops under a canopy of signs. Neutral ground, mostly. (neighbours: docks, uptown)\n- docks: The Docks — Warehouses, container stacks and the Saints' chop shops, where stolen cars and cyberware are stripped for parts. (neighbours: the-strip)\n- uptown: Uptown — Kessler's towers and the clean streets around them. Cameras everywhere; security answers in minutes. (neighbours: the-strip)\n\n=== GROUPS ===\n- saints: The Chrome Saints — A street gang that runs the chop shops and protection rackets on the docks side.\n- kessler: Kessler Corporation — The corporation that owns the towers, the power grid and most of the police.\n\n=== CAST ===\n- rook (PLAYER): Rook (they/them), the crew's planner, 31. Traits: careful, dry, stubborn. Voice: Quiet and precise; plans out loud.\n- juno: Juno Park (she/her), fixer, 38. Traits: charming, greedy, quick. Wants: close the ledger deal and keep the buyer happy. Voice: Warm and fast, calls everyone 'friend'.\n- mags: Mags Okoro (he/him), drone tech, 24. Traits: nervous, brilliant, loyal. Wants: prove his drones can do more than spy. Voice: Mumbles, then talks too fast about hardware.\n\n=== ESTABLISHED FACTS (known to the player) ===\n- [T0] Vex runs the Saints' chop shop on the docks and keeps the books himself.\n- [T0] The buyer pays on delivery, tomorrow night.\n- [T1] Juno argues tonight is too soon: Vex keeps two smokers under the roof light and a camera someone is actively watching.\n- [T1] Mags tested the roof drone's lift rotor against the bench clamp and says it will hold twice Rook's weight.\n- [T2] Rook laid out the harness, cutter and vent map and is running the warehouse job tonight.\n- [T2] Juno deflected Rook's questions about who is watching Vex's camera instead of answering.\n- [T2] Mags hauled the roof drone down the back stairs and loaded it into the van himself.",
+      "user": "=== NOW: Day 1, 22:48 ===\nRook is in Main Room.\nWorld: heat: low: nobody is looking for the crew; weather: steady rain\nPressures: none\nGroups: The Chrome Saints: suspicious of the crew; Kessler Corporation: unaware of the crew\nRegion: The Strip (the-strip): held by no one; tags: neon; busy all night\nNearby: The Docks (docks): held by The Chrome Saints; tags: gang turf; Saints on every corner | Uptown (uptown): held by Kessler Corporation; tags: corporate; drones overhead\nPresent with Rook: Juno Park\nWays from here: Workshop, Back Alley (door, shut)\nElsewhere: Mags Okoro (Back Alley)\n\n=== STATUS ===\n- Rook (they/them) [rook]: health unhurt; fatigue low, stress low; feels toward: Juno Park friendly (17; pressed Juno for an answer and got a smile and a dodge)\n- Juno Park (she/her) [juno]: health unhurt; mood: breezy and evasive, steering every question sideways; fatigue low, stress low; feels toward Rook: neutral (10)\n\n=== PLACES ===\nNo other places yet beyond these rooms.\nIf the player's action clearly heads somewhere that is none of these rooms (another building, a part of town, a hideout), set \"new_place\" to {\"name\":\"short name\",\"kind\":\"what kind of place\",\"region\":\"region id\"} and leave move_to null; for a place listed above, use its name. The engine decides whether to build it.\n\n=== PRIVATE (each item is known ONLY to the character named) ===\n- Juno Park's secret: The buyer is Kessler, and Juno promised them the crew's names as part of the deal. (guard: high; very hard to crack)\n\n=== OFFSTAGE (not with the player; for events only) ===\n- mags (Mags Okoro), in Back Alley: wants prove his drones can do more than spy; secret: He used to strip cars for the Saints and Vex would recognise him.\n\n=== LAST SCENE ===\nYou stop mid-sentence, cap the stylus, and haul the gear bag out from under the desk\n\nYou lay the gear out on the couch — harness, cutter, the vent map — and press Juno on the camera watcher. She smiles, gold tooth, and slides it: \"Friend, I'll know more when I know more,\" already thumbing a different phone.\n\nFor the next half hour you check and recheck the rig while Juno talks around the job without touching it. Then the back stairs creak: Mags, hauling the roof drone down himself, muttering measurements at nobody, and the van's rear door thumps shut on it.\n\n=== PLAYER ACTION (time passing: about an hour) ===\n\"Go to the chop shop.\"\nThe player's action takes up this whole span. Others act during the same span.\n\n=== TASK ===\n1. Judge the player's action. If it is risky, contested or depends on skill, set needs_roll to true and choose a skill (one of: hacking, shooting, stealth, talk, tech, athletics) and a difficulty (easy, normal, hard). Talking, looking around and simple tasks need no roll. Everyone listed as present is in the same room as Rook right now, so an action about them needs no move. Only if the action clearly takes Rook somewhere else, set move_to to that location id (or to a character id to go where that character is).\n2. You MUST give exactly one intent for EACH present character: juno. Decide what each actually tries to do during this time, driven by their personality, wants, needs, secrets and feelings. They may help, argue, refuse, lie, deflect, pursue their own goals, or leave (move_to). Set visible to false if they act covertly so the player would not notice.\n3. \"says\": the gist of anything they say aloud this turn (or null).\n4. \"reveals\": almost always null. Only fill it if the character deliberately says their secret or private knowledge out loud this turn, and that matches their \"says\". Being asked once, or being nervous, is not enough: people deflect, make excuses or lie first.\n5. \"events\": things that happen during this span outside the player's control, to keep the world moving: offstage characters pursuing their wants and secrets, groups making moves that affect the people here, someone arriving, a call or message, something breaking down, the pressures above getting closer. How many: 0 or 1. Each event has:\n   - \"text\": one sentence, with names.\n   - \"who\": character ids involved (not the player).\n   - \"where\": location id where it happens.\n   - \"visibility\": \"seen\" (happens in the player's room), \"heard\" (the player gets a sound, call or message about it) or \"hidden\" (the player has no idea).\n   - \"moves\": [{\"id\":\"character_id\",\"to\":\"location_id\"}] for offstage characters who go somewhere because of it, else [].\n   - \"scope\": \"local\" for these.\n   If the player's action uses something not listed for their room (a window, a vent, a fire extinguisher), set the player's \"new_feature\": {\"name\":\"short name\",\"to\":null or the room id it leads to}.\n   No regional or world events this turn; keep events local.\nReply with JSON only, exactly in this shape:\n{\"player\":{\"summary\":\"the player's action restated as a concrete attempt\",\"needs_roll\":false,\"skill\":null,\"difficulty\":\"normal\",\"move_to\":null,\"new_place\":null,\"new_feature\":null},\n \"intents\":[\n  {\"id\":\"juno\",\"action\":\"one sentence\",\"says\":null,\"reveals\":null,\"visible\":true,\"needs_roll\":false,\"skill\":null,\"difficulty\":\"normal\",\"move_to\":null}\n ],\n \"events\":[{\"text\":\"one sentence\",\"scope\":\"local\",\"who\":[\"character_id\"],\"where\":\"location_id\",\"visibility\":\"heard\",\"moves\":[]}]}",
+      "max_tokens": 10000,
+      "temperature": 0.7
+     },
+     "response": {
+      "text": "{\"player\":{\"summary\":\"Rook decides to go to the Saints' chop shop on the docks, in person, tonight.\",\"needs_roll\":false,\"skill\":null,\"difficulty\":\"normal\",\"move_to\":null,\"new_place\":{\"name\":\"Vex's Chop Shop\",\"kind\":\"chop shop under a warehouse roof\",\"region\":\"docks\"},\"new_feature\":null},\n \"intents\":[\n  {\"id\":\"juno\",\"action\":\"Tries hard to talk Rook out of walking into the chop shop, then gives up and pulls on her coat to come along, thumbing a message to her buyer on the way down the stairs.\",\"says\":\"Tonight? Friend, tonight was the warehouse. Vex doesn't do surprise visits, and he definitely doesn't do them from us. ...Fine. Fine. But I do the talking.\",\"reveals\":null,\"visible\":true,\"needs_roll\":false,\"skill\":null,\"difficulty\":\"normal\",\"move_to\":null}\n ],\n \"events\":[{\"text\":\"Mags Okoro comes up the back stairs, catches the tail of the plan, and goes still — Vex would know his face the second he walked in.\",\"scope\":\"local\",\"who\":[\"mags\"],\"where\":\"main-room\",\"visibility\":\"seen\",\"moves\":[{\"id\":\"mags\",\"to\":\"main-room\"}]}]}",
+      "finish": "stop",
+      "usage": {
+       "prompt_tokens": 2379,
+       "completion_tokens": 829,
+       "total_tokens": 3208,
+       "cost": 0.00102078,
+       "is_byok": false,
+       "prompt_tokens_details": {
+        "cached_tokens": 0,
+        "cache_write_tokens": 0,
+        "audio_tokens": 0,
+        "video_tokens": 0
+       },
+       "cost_details": {
+        "upstream_inference_cost": 0.00102078,
+        "upstream_inference_prompt_cost": 0.00052338,
+        "upstream_inference_completions_cost": 0.0004974
+       },
+       "completion_tokens_details": {
+        "reasoning_tokens": 541,
+        "image_tokens": 0,
+        "audio_tokens": 0
+       }
+      }
+     }
+    },
+    {
+     "kind": "worldbuild (site people: Vex's Chop Shop)",
+     "backend": "external",
+     "request": {
+      "system": "You are the simulation engine and narrator for an interactive, character-driven story.\n\n=== SETTING: Chrome District ===\nThe Chrome District is twelve blocks of rain, noodle stalls and repair shops wedged between the old docks and Kessler Corporation's towers. The Chrome Saints run the streets and the chop shops; Kessler runs everything else. Your crew works out of a safehouse above a closed laundromat, taking jobs that nobody with a badge would touch.\n\n=== GENRE AND TONE ===\nThis story is: intrigue, grim. Blend them; where they pull apart, the first leads.\n- intrigue: Secrets, leverage and divided loyalties; people say less than they know.\n- grim: Hard choices without good options; kindness costs something, and losses stay lost.\nA major event here means: a secret exposed, a betrayal, or a shift in who holds power.\nDanger is real. People can be badly hurt, but death is rare and meaningful.\nTone: Wet neon, cheap tech, everyone owes someone. Street-level cyberpunk: no chrome gods, just people getting by.\n\n=== RULES ===\n- The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. The player commands no faction.\n- The player controls only Rook (id: rook). Never decide Rook's choices, words or feelings beyond what the player's action states.\n- Outcomes marked RESOLVED are final. Failures have real consequences. Injuries last; death is rare and permanent.\n- Characters act from their own personality, wants, needs, secrets and feelings, not to serve the player.\n- Near-future tech: cyberware is common but crude, the net is everywhere and mostly ads. No AI overlords, no magic.\n- Guns are loud and the Saints answer noise fast. Getting caught on a job means a beating or worse.\n- Kessler security is slow to arrive but thorough when it does.\n\n=== LOCATIONS ===\n- main-room: Main Room — Mismatched couches, a wall of monitors and rain on the window. (connects: workshop, back-alley)\n- workshop: Workshop — Mags's bench, half-built drones and the smell of solder. (connects: main-room)\n- back-alley: Back Alley — A wet alley behind the laundromat, the van parked under a dead sign. (connects: main-room)\n\n=== REGIONS ===\n- the-strip: The Strip — Bars, noodle stalls, clinics and repair shops under a canopy of signs. Neutral ground, mostly. (neighbours: docks, uptown)\n- docks: The Docks — Warehouses, container stacks and the Saints' chop shops, where stolen cars and cyberware are stripped for parts. (neighbours: the-strip)\n- uptown: Uptown — Kessler's towers and the clean streets around them. Cameras everywhere; security answers in minutes. (neighbours: the-strip)\n\n=== GROUPS ===\n- saints: The Chrome Saints — A street gang that runs the chop shops and protection rackets on the docks side.\n- kessler: Kessler Corporation — The corporation that owns the towers, the power grid and most of the police.\n\n=== CAST ===\n- rook (PLAYER): Rook (they/them), the crew's planner, 31. Traits: careful, dry, stubborn. Voice: Quiet and precise; plans out loud.\n- juno: Juno Park (she/her), fixer, 38. Traits: charming, greedy, quick. Wants: close the ledger deal and keep the buyer happy. Voice: Warm and fast, calls everyone 'friend'.\n- mags: Mags Okoro (he/him), drone tech, 24. Traits: nervous, brilliant, loyal. Wants: prove his drones can do more than spy. Voice: Mumbles, then talks too fast about hardware.\n\n=== ESTABLISHED FACTS (known to the player) ===\n- [T0] Vex runs the Saints' chop shop on the docks and keeps the books himself.\n- [T0] The buyer pays on delivery, tomorrow night.\n- [T1] Juno argues tonight is too soon: Vex keeps two smokers under the roof light and a camera someone is actively watching.\n- [T1] Mags tested the roof drone's lift rotor against the bench clamp and says it will hold twice Rook's weight.\n- [T2] Rook laid out the harness, cutter and vent map and is running the warehouse job tonight.\n- [T2] Juno deflected Rook's questions about who is watching Vex's camera instead of answering.\n- [T2] Mags hauled the roof drone down the back stairs and loaded it into the van himself.",
+      "user": "=== A NEW PLACE ===\nVex's Chop Shop (chop shop under a warehouse roof), in The Docks — Warehouses, container stacks and the Saints' chop shops, where stolen cars and cyberware are stripped for parts.\nHeld by: The Chrome Saints (saints). Right now: Saints on every corner.\nThe player is coming from Main Room, Day 1, 22:48.\nWhy it matters: Go to the chop shop.\n\n=== ROOMS ===\n- loading-bay: Loading Bay — A concrete bay under a buzzing light, the roller door half up. (open to garage-floor) [camera] (the way in)\n- garage-floor: Garage Floor — Stripped car shells on lifts and stacks of crates. (locked door to office, door to crew-lounge, open to loading-bay, open to roof) [crates]\n- office: Office — A glass-walled office over the floor, papers everywhere. (locked door to stash-cage, open to garage-floor, open to roof) [ledger terminal]\n- stash-cage: Stash Cage — A wire cage full of boxed cyberware. (open to office)\n- crew-lounge: Crew Lounge — Couches, a fridge and a card table, the back door to the alley. (open to garage-floor)\n- roof: Roof — Wet tar, puddles and a rusted fire escape. (hatch to garage-floor, vent to office)\n\n=== TASK: WHO AND WHAT IS HERE ===\nWho is in this place when the player arrives: up to 2 named people (with a role, the room they're in and a note for the story engine: what they want here, what they know) and up to 3 unnamed groups (guards, a crowd, a few of the dead) with how many, the room, their state (calm, alert, hostile), the group they belong to (saints, kessler) if any, and \"post\": true if they hold that room or \"patrol\": a loop of linked room ids. Add a short note of what there is to find or do here (never shown to the player). An empty place is fine. The rooms come from a map: you may rename them to fit (\"rooms\": [{\"id\",\"name\",\"desc\"}]); keep the ids.\nReply with JSON only: {\"people\":[{\"name\":\"...\",\"role\":\"...\",\"pronouns\":\"she/her\",\"room\":\"room-id\",\"note\":\"...\"}],\"groups\":[{\"label\":\"...\",\"count\":3,\"room\":\"room-id\",\"state\":\"alert\",\"faction\":null,\"post\":true}],\"note\":\"...\",\"rooms\":[]}",
+      "max_tokens": 10000,
+      "temperature": 0.8
+     },
+     "response": {
+      "text": "{\"people\":[{\"name\":\"Vex\",\"role\":\"Chop shop boss, keeps the books himself\",\"pronouns\":\"he/him\",\"room\":\"office\",\"note\":\"Sitting in the glass office with the door locked and the blinds half drawn, running the ledger terminal. Wants the night's shipment counted and the buyer's name kept off anything written down. Knows who the buyer is and what the Saints would do to him if the deal soured — will bargain before he'll fight, and lie about the camera before he'll admit who watches it.\"},{\"name\":\"Pike\",\"role\":\"Saints wheelman, off-shift\",\"pronouns\":\"he/him\",\"room\":\"crew-lounge\",\"note\":\"Slouched on a couch with a cold noodle box and one eye on the back door. Wants to finish his shift without being blamed for stock that walks. Knows the smokers' rotation and that Vex has been jumpy all week, and will talk if it costs him nothing.\"}],\"groups\":[{\"label\":\"Roof-light smokers\",\"count\":2,\"room\":\"garage-floor\",\"state\":\"calm\",\"faction\":\"saints\",\"post\":true},{\"label\":\"Corner patrol\",\"count\":2,\"room\":\"loading-bay\",\"state\":\"alert\",\"faction\":\"saints\",\"post\":\"patrol\",\"patrol\":[\"loading-bay\",\"garage-floor\",\"crew-lounge\"]}],\"note\":\"The camera on the loading bay is live and someone off-site is watching it — Juno knows who and won't say. The office door is locked; the ledger terminal holds the buyer's name and the shipment count. The stash cage behind the office is where the boxed cyberware actually is. The roof vent drops straight into the office, and the fire escape is rusted but climbable. The two smokers under the roof light smoke in the same spot every twenty minutes, and the patrol loops the bay, floor and lounge on a slow clock.\",\"rooms\":[{\"id\":\"loading-bay\",\"name\":\"Loading Bay\",\"desc\":\"A concrete bay under a buzzing light, the roller door half up.\"},{\"id\":\"garage-floor\",\"name\":\"Garage Floor\",\"desc\":\"Stripped car shells on lifts and stacks of crates.\"},{\"id\":\"office\",\"name\":\"Office\",\"desc\":\"A glass-walled office over the floor, papers everywhere.\"},{\"id\":\"stash-cage\",\"name\":\"Stash Cage\",\"desc\":\"A wire cage full of boxed cyberware.\"},{\"id\":\"crew-lounge\",\"name\":\"Crew Lounge\",\"desc\":\"Couches, a fridge and a card table, the back door to the alley.\"},{\"id\":\"roof\",\"name\":\"Roof\",\"desc\":\"Wet tar, puddles and a rusted fire escape.\"}]}",
+      "finish": "stop",
+      "usage": {
+       "prompt_tokens": 1608,
+       "completion_tokens": 878,
+       "total_tokens": 2486,
+       "cost": 0.001304916,
+       "is_byok": false,
+       "prompt_tokens_details": {
+        "cached_tokens": 786,
+        "cache_write_tokens": 0,
+        "audio_tokens": 0,
+        "video_tokens": 0
+       },
+       "cost_details": {
+        "upstream_inference_cost": 0.001304916,
+        "upstream_inference_prompt_cost": 0.000251316,
+        "upstream_inference_completions_cost": 0.0010536
+       },
+       "completion_tokens_details": {
+        "reasoning_tokens": 305,
+        "image_tokens": 0,
+        "audio_tokens": 0
+       }
+      }
+     }
+    },
+    {
+     "kind": "narrate",
+     "backend": "external",
+     "request": {
+      "system": "You are the simulation engine and narrator for an interactive, character-driven story.\n\n=== SETTING: Chrome District ===\nThe Chrome District is twelve blocks of rain, noodle stalls and repair shops wedged between the old docks and Kessler Corporation's towers. The Chrome Saints run the streets and the chop shops; Kessler runs everything else. Your crew works out of a safehouse above a closed laundromat, taking jobs that nobody with a badge would touch.\n\n=== GENRE AND TONE ===\nThis story is: intrigue, grim. Blend them; where they pull apart, the first leads.\n- intrigue: Secrets, leverage and divided loyalties; people say less than they know.\n- grim: Hard choices without good options; kindness costs something, and losses stay lost.\nA major event here means: a secret exposed, a betrayal, or a shift in who holds power.\nDanger is real. People can be badly hurt, but death is rare and meaningful.\nTone: Wet neon, cheap tech, everyone owes someone. Street-level cyberpunk: no chrome gods, just people getting by.\n\n=== RULES ===\n- The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. The player commands no faction.\n- The player controls only Rook (id: rook). Never decide Rook's choices, words or feelings beyond what the player's action states.\n- Outcomes marked RESOLVED are final. Failures have real consequences. Injuries last; death is rare and permanent.\n- Characters act from their own personality, wants, needs, secrets and feelings, not to serve the player.\n- Near-future tech: cyberware is common but crude, the net is everywhere and mostly ads. No AI overlords, no magic.\n- Guns are loud and the Saints answer noise fast. Getting caught on a job means a beating or worse.\n- Kessler security is slow to arrive but thorough when it does.\n\n=== LOCATIONS ===\n- main-room: Main Room — Mismatched couches, a wall of monitors and rain on the window. (connects: workshop, back-alley)\n- workshop: Workshop — Mags's bench, half-built drones and the smell of solder. (connects: main-room)\n- back-alley: Back Alley — A wet alley behind the laundromat, the van parked under a dead sign. (connects: main-room)\n\n=== REGIONS ===\n- the-strip: The Strip — Bars, noodle stalls, clinics and repair shops under a canopy of signs. Neutral ground, mostly. (neighbours: docks, uptown)\n- docks: The Docks — Warehouses, container stacks and the Saints' chop shops, where stolen cars and cyberware are stripped for parts. (neighbours: the-strip)\n- uptown: Uptown — Kessler's towers and the clean streets around them. Cameras everywhere; security answers in minutes. (neighbours: the-strip)\n\n=== GROUPS ===\n- saints: The Chrome Saints — A street gang that runs the chop shops and protection rackets on the docks side.\n- kessler: Kessler Corporation — The corporation that owns the towers, the power grid and most of the police.\n\n=== CAST ===\n- rook (PLAYER): Rook (they/them), the crew's planner, 31. Traits: careful, dry, stubborn. Voice: Quiet and precise; plans out loud.\n- juno: Juno Park (she/her), fixer, 38. Traits: charming, greedy, quick. Wants: close the ledger deal and keep the buyer happy. Voice: Warm and fast, calls everyone 'friend'.\n- mags: Mags Okoro (he/him), drone tech, 24. Traits: nervous, brilliant, loyal. Wants: prove his drones can do more than spy. Voice: Mumbles, then talks too fast about hardware.\n\n=== ESTABLISHED FACTS (known to the player) ===\n- [T0] Vex runs the Saints' chop shop on the docks and keeps the books himself.\n- [T0] The buyer pays on delivery, tomorrow night.\n- [T1] Juno argues tonight is too soon: Vex keeps two smokers under the roof light and a camera someone is actively watching.\n- [T1] Mags tested the roof drone's lift rotor against the bench clamp and says it will hold twice Rook's weight.\n- [T2] Rook laid out the harness, cutter and vent map and is running the warehouse job tonight.\n- [T2] Juno deflected Rook's questions about who is watching Vex's camera instead of answering.\n- [T2] Mags hauled the roof drone down the back stairs and loaded it into the van himself.",
+      "user": "=== SCENE FRAME ===\nStarts: Day 1, 22:48, in Main Room, with Juno Park.\nEnds: Day 1, 23:48, Rook now in Loading Bay.\nDuring the scene, Juno Park stays behind in Main Room.\nUnnamed groups around (exactly these, no more): Corner patrol (2, alert, The Chrome Saints) in Loading Bay.\nWorld: heat: low: nobody is looking for the crew; weather: steady rain\nPressures: none\nGroups: The Chrome Saints: suspicious of the crew; Kessler Corporation: unaware of the crew\nRegion: The Docks (docks): held by The Chrome Saints; tags: gang turf; Saints on every corner\nNearby: The Strip (the-strip): held by no one; tags: neon; busy all night\n\n=== STATUS ===\n- Rook (they/them): health unhurt; looks: Thin, in a long waterproof coat, with a cheap cyber-eye that glows faintly blue; feels toward: Juno Park friendly (17; pressed Juno for an answer and got a smile and a dodge)\n- Juno Park (she/her): health unhurt; looks: Sharp suit gone shiny at the elbows, a gold tooth and three phones; mood: breezy and evasive, steering every question sideways\n\n=== LAST SCENE ===\nYou stop mid-sentence, cap the stylus, and haul the gear bag out from under the desk\n\nYou lay the gear out on the couch — harness, cutter, the vent map — and press Juno on the camera watcher. She smiles, gold tooth, and slides it: \"Friend, I'll know more when I know more,\" already thumbing a different phone.\n\nFor the next half hour you check and recheck the rig while Juno talks around the job without touching it. Then the back stairs creak: Mags, hauling the roof drone down himself, muttering measurements at nobody, and the van's rear door thumps shut on it.\n\n=== PLAYER ACTION (time span: about an hour) ===\n\"Go to the chop shop.\"\n\n=== RESOLVED (final — narrate these faithfully) ===\n- You (Rook): Rook decides to go to the Saints' chop shop on the docks, in person, tonight. → happens (no roll needed) [moves to Loading Bay, through Back Alley]\n- Juno Park: Tries hard to talk Rook out of walking into the chop shop, then gives up and pulls on her coat to come along, thumbing a message to her buyer on the way down the stairs. → happens (no roll needed)\n    says (gist): Tonight? Friend, tonight was the warehouse. Vex doesn't do surprise visits, and he definitely doesn't do them from us. ...Fine. Fine. But I do the talking.\n- EVENT: (heard from elsewhere; only a sound, call or message reaches the player) Mags Okoro comes up the back stairs, catches the tail of the plan, and goes still — Vex would know his face the second he walked in.\n\n=== TASK ===\nWrite the next scene in second person, present tense (\"you\" is Rook), 100–200 words. Bring the characters to life through dialogue and small actions in their own voices.\nTime: This covers about an hour, all spent on the stated action. Play the key exchange as a live scene and compress the rest of the hour with a line or two (\"For the next forty minutes…\"). You may show how it naturally unfolds, but the player character starts no new activities and goes nowhere else. Their manner toward others matches the feelings listed in STATUS.\nBeats: 2 or 3 beats. Start each beat on its own line with a time marker in brackets: minutes since the scene started, like [+0m], [+25m], [+50m] (use hours for long spans, like [+5h]). The last marker is at most [+60m]. Spread the beats across the whole span: the last one starts around [+45m]. End each beat on something the player could react to, since the player may step in between beats.\nStructure:\n1. The scene is set in Main Room, then Loading Bay. Open with Rook's action, carried out in the first paragraph.\n2. Then show how the others react to it and what they do, in the order that makes sense.\n3. End on the others' latest move: a reply, a look, a question or a new problem the player can respond to. The final paragraph must NEVER be Rook's own line or action; leave Rook's response open for the player.\nHard rules:\n- Narrate ONLY the resolved outcomes above, faithfully. Failures should cost something.\n- Play Rook naturally, in character (voice: Quiet and precise; plans out loud.). If the action is vague, fill it in the way Rook would: small gestures, a line or two of dialogue, how they go about it.\n- Do not make big choices for Rook: no agreeing to plans, making promises, starting new tasks, revealing what Rook knows beyond the action, or deciding what to do next. When a real choice comes up, stop there and leave it to the player.\n- Rook goes only to Loading Bay. Do not take Rook anywhere else.\n- Only the characters in the frame appear. Anyone \"out of your sight\" is NOT seen doing it; at most a sound or a hint.\n- Characters may leave or arrive when it fits the outcomes and events; anyone who leaves is seen leaving, not followed.\n- EVENTs tagged [regional] or [world] reach the scene the way they realistically would (a tremor, an alarm, a message or news report), and the present characters react to them in character.\n- Use each character's pronouns exactly as given in STATUS (e.g. he/him means \"he\", never \"they\").\n- Characters reveal only what is listed under REVEALS. Anything else they keep to themselves: they deflect, stall, joke or lie.\n- Do not invent new events, confessions or discoveries.\n- Stop at the end of these outcomes, on a moment that invites the player's response. Do not continue past it.\nReply with the scene text only.",
+      "max_tokens": 1408,
+      "temperature": 0.8
+     },
+     "response": {
+      "text": "[+0m] You pull your coat off the hook and say it plainly: you're going to the chop shop. Juno's smile holds for exactly one second. \"Tonight? Friend, tonight was the warehouse.\" She's up, hands out, pacing the monitors. \"Vex doesn't do surprise visits, and he definitely doesn't do them from us.\" You keep pulling on your boots. She watches, sighs through her teeth, and hauls her coat on. \"Fine. Fine. But I do the talking.\" Her thumb moves over a phone as she heads for the stairs.\n\n[+20m] The van noses through the docks, rain drumming the roof, and Juno talks the whole way about nothing. The loading bay's roof light smears orange across the wet concrete. Two Saints under it, alert, watching the street. Then the back stairs creak behind you — Mags, halfway up, catching the tail of the plan. He goes still. \"Vex would know my face the second I walked in,\" he says, quiet, and doesn't come any further down.",
+      "finish": "stop",
+      "usage": {
+       "prompt_tokens": 2363,
+       "completion_tokens": 247,
+       "total_tokens": 2610,
+       "cost": 0.000776758,
+       "is_byok": false,
+       "prompt_tokens_details": {
+        "cached_tokens": 0,
+        "cache_write_tokens": 0,
+        "audio_tokens": 0,
+        "video_tokens": 0
+       },
+       "cost_details": {
+        "upstream_inference_cost": 0.000776758,
+        "upstream_inference_prompt_cost": 0.000628558,
+        "upstream_inference_completions_cost": 0.0001482
+       },
+       "completion_tokens_details": {
+        "reasoning_tokens": 20,
+        "image_tokens": 0,
+        "audio_tokens": 0
+       }
+      }
+     }
+    },
+    {
+     "kind": "narrate (continue)",
+     "backend": "external",
+     "request": {
+      "system": "You are the simulation engine and narrator for an interactive, character-driven story.\n\n=== SETTING: Chrome District ===\nThe Chrome District is twelve blocks of rain, noodle stalls and repair shops wedged between the old docks and Kessler Corporation's towers. The Chrome Saints run the streets and the chop shops; Kessler runs everything else. Your crew works out of a safehouse above a closed laundromat, taking jobs that nobody with a badge would touch.\n\n=== GENRE AND TONE ===\nThis story is: intrigue, grim. Blend them; where they pull apart, the first leads.\n- intrigue: Secrets, leverage and divided loyalties; people say less than they know.\n- grim: Hard choices without good options; kindness costs something, and losses stay lost.\nA major event here means: a secret exposed, a betrayal, or a shift in who holds power.\nDanger is real. People can be badly hurt, but death is rare and meaningful.\nTone: Wet neon, cheap tech, everyone owes someone. Street-level cyberpunk: no chrome gods, just people getting by.\n\n=== RULES ===\n- The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. The player commands no faction.\n- The player controls only Rook (id: rook). Never decide Rook's choices, words or feelings beyond what the player's action states.\n- Outcomes marked RESOLVED are final. Failures have real consequences. Injuries last; death is rare and permanent.\n- Characters act from their own personality, wants, needs, secrets and feelings, not to serve the player.\n- Near-future tech: cyberware is common but crude, the net is everywhere and mostly ads. No AI overlords, no magic.\n- Guns are loud and the Saints answer noise fast. Getting caught on a job means a beating or worse.\n- Kessler security is slow to arrive but thorough when it does.\n\n=== LOCATIONS ===\n- main-room: Main Room — Mismatched couches, a wall of monitors and rain on the window. (connects: workshop, back-alley)\n- workshop: Workshop — Mags's bench, half-built drones and the smell of solder. (connects: main-room)\n- back-alley: Back Alley — A wet alley behind the laundromat, the van parked under a dead sign. (connects: main-room)\n\n=== REGIONS ===\n- the-strip: The Strip — Bars, noodle stalls, clinics and repair shops under a canopy of signs. Neutral ground, mostly. (neighbours: docks, uptown)\n- docks: The Docks — Warehouses, container stacks and the Saints' chop shops, where stolen cars and cyberware are stripped for parts. (neighbours: the-strip)\n- uptown: Uptown — Kessler's towers and the clean streets around them. Cameras everywhere; security answers in minutes. (neighbours: the-strip)\n\n=== GROUPS ===\n- saints: The Chrome Saints — A street gang that runs the chop shops and protection rackets on the docks side.\n- kessler: Kessler Corporation — The corporation that owns the towers, the power grid and most of the police.\n\n=== CAST ===\n- rook (PLAYER): Rook (they/them), the crew's planner, 31. Traits: careful, dry, stubborn. Voice: Quiet and precise; plans out loud.\n- juno: Juno Park (she/her), fixer, 38. Traits: charming, greedy, quick. Wants: close the ledger deal and keep the buyer happy. Voice: Warm and fast, calls everyone 'friend'.\n- mags: Mags Okoro (he/him), drone tech, 24. Traits: nervous, brilliant, loyal. Wants: prove his drones can do more than spy. Voice: Mumbles, then talks too fast about hardware.\n\n=== ESTABLISHED FACTS (known to the player) ===\n- [T0] Vex runs the Saints' chop shop on the docks and keeps the books himself.\n- [T0] The buyer pays on delivery, tomorrow night.\n- [T1] Juno argues tonight is too soon: Vex keeps two smokers under the roof light and a camera someone is actively watching.\n- [T1] Mags tested the roof drone's lift rotor against the bench clamp and says it will hold twice Rook's weight.\n- [T2] Rook laid out the harness, cutter and vent map and is running the warehouse job tonight.\n- [T2] Juno deflected Rook's questions about who is watching Vex's camera instead of answering.\n- [T2] Mags hauled the roof drone down the back stairs and loaded it into the van himself.",
+      "user": "=== SCENE FRAME ===\nStarts: Day 1, 22:48, in Main Room, with Juno Park.\nEnds: Day 1, 23:48, Rook now in Loading Bay.\nDuring the scene, Juno Park stays behind in Main Room.\nUnnamed groups around (exactly these, no more): Corner patrol (2, alert, The Chrome Saints) in Loading Bay.\nWorld: heat: low: nobody is looking for the crew; weather: steady rain\nPressures: none\nGroups: The Chrome Saints: suspicious of the crew; Kessler Corporation: unaware of the crew\nRegion: The Docks (docks): held by The Chrome Saints; tags: gang turf; Saints on every corner\nNearby: The Strip (the-strip): held by no one; tags: neon; busy all night\n\n=== STATUS ===\n- Rook (they/them): health unhurt; looks: Thin, in a long waterproof coat, with a cheap cyber-eye that glows faintly blue; feels toward: Juno Park friendly (17; pressed Juno for an answer and got a smile and a dodge)\n- Juno Park (she/her): health unhurt; looks: Sharp suit gone shiny at the elbows, a gold tooth and three phones; mood: breezy and evasive, steering every question sideways\n\n=== LAST SCENE ===\nYou stop mid-sentence, cap the stylus, and haul the gear bag out from under the desk\n\nYou lay the gear out on the couch — harness, cutter, the vent map — and press Juno on the camera watcher. She smiles, gold tooth, and slides it: \"Friend, I'll know more when I know more,\" already thumbing a different phone.\n\nFor the next half hour you check and recheck the rig while Juno talks around the job without touching it. Then the back stairs creak: Mags, hauling the roof drone down himself, muttering measurements at nobody, and the van's rear door thumps shut on it.\n\n=== PLAYER ACTION (time span: about an hour) ===\n\"Go to the chop shop.\"\n\n=== RESOLVED (final — narrate these faithfully) ===\n- You (Rook): Rook decides to go to the Saints' chop shop on the docks, in person, tonight. → happens (no roll needed) [moves to Loading Bay, through Back Alley]\n- Juno Park: Tries hard to talk Rook out of walking into the chop shop, then gives up and pulls on her coat to come along, thumbing a message to her buyer on the way down the stairs. → happens (no roll needed)\n    says (gist): Tonight? Friend, tonight was the warehouse. Vex doesn't do surprise visits, and he definitely doesn't do them from us. ...Fine. Fine. But I do the talking.\n- EVENT: (heard from elsewhere; only a sound, call or message reaches the player) Mags Okoro comes up the back stairs, catches the tail of the plan, and goes still — Vex would know his face the second he walked in.\n\n=== SCENE SO FAR ===\n[+0m] You pull your coat off the hook and say it plainly: you're going to the chop shop. Juno's smile holds for exactly one second. \"Tonight? Friend, tonight was the warehouse.\" She's up, hands out, pacing the monitors. \"Vex doesn't do surprise visits, and he definitely doesn't do them from us.\" You keep pulling on your boots. She watches, sighs through her teeth, and hauls her coat on. \"Fine. Fine. But I do the talking.\" Her thumb moves over a phone as she heads for the stairs.\n\n[+20m] The van noses through the docks, rain drumming the roof, and Juno talks the whole way about nothing. The loading bay's roof light smears orange across the wet concrete. Two Saints under it, alert, watching the street. Then the back stairs creak behind you — Mags, halfway up, catching the tail of the plan. He goes still. \"Vex would know my face the second I walked in,\" he says, quiet, and doesn't come any further down.\n\n=== TASK ===\nContinue the scene above. It stops at [+20m], but this turn covers about an hour (60 minutes). Write 1 or 2 more beats, 40–100 words in total, in second person, present tense (\"you\" is Rook). Start each beat on its own line with a time marker counted from the start of the scene, later than [+20m]; the last one around [+51m] and at most [+60m].\nTime: This covers about an hour, all spent on the stated action. Play the key exchange as a live scene and compress the rest of the hour with a line or two (\"For the next forty minutes…\"). You may show how it naturally unfolds, but the player character starts no new activities and goes nowhere else. Their manner toward others matches the feelings listed in STATUS. Compress the routine part (\"For the next half hour…\").\nHard rules:\n- Carry on from where the scene stops. Do not repeat or rewrite it.\n- Do not make big choices for Rook: no agreeing to plans, making promises, starting new tasks or deciding what to do next.\n- Rook stays in Loading Bay.\n- Use each character's pronouns exactly as given in STATUS.\n- No new events, confessions, reveals or discoveries beyond what the scene already shows.\n- End on the others' latest move. The final paragraph must NEVER be Rook's own line or action.\nReply with the new beats only.",
+      "max_tokens": 1280,
+      "temperature": 0.8
+     },
+     "response": {
+      "text": "[+34m] Juno steps out first, collar up, and crosses the wet concrete to the two Saints with her hands where they can see them. \"Evening, friends,\" she says, warm as a heater. Mags stays by the van, door half shut, drone between his knees.\n\n[+51m] For the next twenty minutes Juno does the talking, easy and fast, while the Saints listen without blinking. One of them thumbs the radio at his shoulder and mutters into it, eyes still on her.",
+      "finish": "stop",
+      "usage": {
+       "prompt_tokens": 2238,
+       "completion_tokens": 828,
+       "total_tokens": 3066,
+       "cost": 0.000843276,
+       "is_byok": false,
+       "prompt_tokens_details": {
+        "cached_tokens": 1024,
+        "cache_write_tokens": 0,
+        "audio_tokens": 0,
+        "video_tokens": 0
+       },
+       "cost_details": {
+        "upstream_inference_cost": 0.000843276,
+        "upstream_inference_prompt_cost": 0.000346476,
+        "upstream_inference_completions_cost": 0.0004968
+       },
+       "completion_tokens_details": {
+        "reasoning_tokens": 719,
+        "image_tokens": 0,
+        "audio_tokens": 0
+       }
+      }
+     }
+    }
+   ]
+  }
+ ]
+}

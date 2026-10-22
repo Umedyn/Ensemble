@@ -1139,9 +1139,13 @@
     const sc = state.scenario;
     // Rooms placed from the authored ones (the map never moves); links drawn
     // from the live rooms, so an inferred window shows (task 3-6).
-    const key = `${sc.worldId}|${sc.startId}|${Object.values(state.locations).map((l) => l.id + ':' + (l.connects || []).join('+')).join(',')}`;
-    const authored = sc.locations && sc.locations.length ? sc.locations : Object.values(state.locations);
-    if (planCache.key !== key) planCache = { key, plan: E.Layouts.plan(authored, { type: sc.site && sc.site.type, seed: `${sc.worldId}:${sc.startId}`, linkLocs: state.locations }) };
+    // Only the place the player is in (task 4-4): the start's rooms, or a
+    // generated site's. Routes to other places are listed under the map.
+    const site = E.Sites.playerSite(state);
+    const key = `${sc.worldId}|${sc.startId}|${site}|${Object.values(state.locations).map((l) => l.id + ':' + (l.connects || []).join('+')).join(',')}`;
+    const home = site === E.Sites.HOME;
+    const authored = home ? (sc.locations && sc.locations.length ? sc.locations : Object.values(state.locations).filter((l) => !l.site)) : E.Sites.rooms(state, site);
+    if (planCache.key !== key) planCache = { key, plan: E.Layouts.plan(authored, { type: home && sc.site ? sc.site.type : null, seed: `${sc.worldId}:${home ? sc.startId : site}`, linkLocs: state.locations }) };
     return planCache.plan;
   }
   // Tokens by room, as the player knows them.
@@ -1217,7 +1221,8 @@
     const tokens = mapTokens();
     const seen = (id) => state.seenRooms.includes(id);
     const roomName = (id) => (seen(id) ? state.locations[id].name : 'unknown room');
-    const lm = state.scenario.localMap;
+    const site = E.Sites.playerSite(state);
+    const lm = site === E.Sites.HOME ? state.scenario.localMap : null;
     let svg;
     if (lm) {
       const url = portraitUrl(lm.image);
@@ -1250,8 +1255,11 @@
       // Never smaller than about three quarters of full size (the pane scrolls).
       svg = `<svg class="map-svg" viewBox="-4 -4 ${W + 8} ${H + 8}" style="min-width:${Math.round(W * 0.75)}px" role="img" aria-label="Map">${remote}${rooms}${marks}${levels}</svg>`;
     }
+    // Ways to other places (routes, task 4-4): clicking one fills in the action box.
+    const routes = E.Sites.routes(state, site);
+    if (routes.length) svg += `<div class="map-routes">Ways to other places: ${routes.map((r) => `<button type="button" class="small map-route" data-name="${esc(r.name)}" title="From ${esc(state.locations[r.from].name)}">↗ ${esc(r.name)}</button>`).join(' ')}</div>`;
     // The same in words, for screen readers.
-    const list = Object.keys(state.locations).filter(seen).map((id) => {
+    const list = Object.keys(state.locations).filter((id) => seen(id) && E.Sites.siteOf(state, id) === site).map((id) => {
       const who = (tokens[id] || []).map((t) => (t.player ? 'you' : t.kind === 'standee' ? `${t.count} ${t.label}` : t.label) + (t.now ? '' : ' (last seen)'));
       return `<li>${esc(state.locations[id].name)}${id === here ? ' (you are here)' : ''}: ${esc(who.join(', ') || 'no one you know of')}</li>`;
     }).join('');
@@ -1317,9 +1325,12 @@
     if (r.lore) html += `<div class="muted">${esc(r.lore)}</div>`;
     if (view === 'region' && id === E.Engine.playerRegion(state)) {
       const placed = (state.scenario.map && state.scenario.map.locations) || {};
-      const rest = Object.values(state.locations).filter((l) => l.region === id && !placed[l.id] && state.seenRooms.includes(l.id)).map((l) => l.name);
+      const rest = Object.values(state.locations).filter((l) => l.region === id && !l.site && !placed[l.id] && state.seenRooms.includes(l.id)).map((l) => l.name);
       if (rest.length) html += `<div class="muted">Rooms here: ${esc(rest.join(', '))}</div>`;
     }
+    // Places made during the story (task 4-4), in this region.
+    const places = Object.values(state.sites || {}).filter((s) => s.region === id);
+    if (places.length) html += `<div class="muted">Places: ${places.map((s) => esc(s.name) + (s.stub ? (s.visits ? ' (been there)' : ' (not visited yet)') : '')).join(', ')}</div>`;
     return html + '</div>';
   }
   function renderMap() {
@@ -1429,6 +1440,8 @@
       const who = tok.dataset.kind === 'extra' ? state.extras[id] : state.characters[id];
       return fillAction(`Talk to ${who ? (tok.dataset.kind === 'extra' ? who.name : E.Engine.shortName(who)) : id}.`);
     }
+    const route = el.closest('.map-route');
+    if (route) return fillAction(`Go to ${route.dataset.name}.`);
     const room = el.closest('.map-room');
     if (!room) return;
     const id = room.dataset.room;
@@ -1774,6 +1787,15 @@
   }
 
   // ---------- debug ----------
+  // Generated sites (task 4-4), for Debug: everything, notes included.
+  function sitesDebug() {
+    return Object.values(state.sites).map((s) => [
+      `${s.name} [${s.id}] · ${s.kind} · ${s.region || 'no region'} · ${s.stub ? 'stub (not built)' : `entry ${s.entry}`} · from ${s.from}${s.map ? ` (library map ${s.map})` : ''}`,
+      `  why: ${s.why || '-'}`,
+      s.stub ? `  summary: ${s.summary || '-'}` : `  rooms: ${s.rooms.join(', ')}; visits ${s.visits}; ${s.kept ? `kept (${s.keptWhy})` : 'fades if nothing happens there'}`,
+      s.note ? `  note: ${s.note}` : null,
+    ].filter(Boolean).join('\n')).join('\n\n');
+  }
   function renderDebug() {
     renderRecorder();
     if ($('debug').classList.contains('hidden')) return;
@@ -1783,6 +1805,7 @@
       renderTelemetry() +
       (state ? `<details><summary>Fact store (${state.facts.length})</summary><pre>${esc(facts)}</pre></details>` : '') +
       (state ? `<details><summary>Characters: needs, tiers, mood and tags</summary><pre>${esc(characterDebug())}</pre></details>` : '') +
+      (state && Object.keys(state.sites || {}).length ? `<details><summary>Places made during the story (${Object.keys(state.sites).length})</summary><pre>${esc(sitesDebug())}</pre></details>` : '') +
       notes.slice().reverse().map((n) => `<details class="note"><summary><b>${esc(n.kind)}</b> · ${esc(n.summary)}</summary><pre>${esc(n.detail)}</pre></details>`).join('') +
       calls.map((c) => `<details><summary><b>${esc(c.kind)}</b> · ${esc(c.backend || '')} · ${c.ms} ms · ~${c.estTokens} tokens${c.overBudget ? ' <span class="fail">over context!</span>' : ''}${c.finish === 'length' ? ' <span class="fail">cut off at the token limit</span>' : ''}${c.salvaged ? ' <span class="fail">salvaged: kept the complete part</span>' : ''}${c.error ? ' <span class="fail">' + esc(c.error) + '</span>' : ''}</summary>
         <div class="muted">System (shared prefix)</div><pre>${esc(c.system)}</pre>

@@ -1,0 +1,22 @@
+{
+  "id": "chop-shop",
+  "name": "Chop shop",
+  "type": "warehouse",
+  "tags": ["chop shop", "gang", "garage", "industrial"],
+  "credit": "Ensemble (original, the worked example from task 4-4)",
+  "license": "CC0-1.0",
+  "entry": "loading-bay",
+  "rooms": [
+    { "id": "loading-bay", "name": "Loading Bay", "desc": "A concrete bay under a buzzing light, the roller door half up.", "size": "medium", "features": [{ "name": "camera", "state": "on" }], "links": [{ "to": "garage-floor", "kind": "open" }] },
+    { "id": "garage-floor", "name": "Garage Floor", "desc": "Stripped car shells on lifts and stacks of crates.", "size": "large", "features": ["crates"], "links": [{ "to": "office", "kind": "locked door" }, { "to": "crew-lounge", "kind": "door" }] },
+    { "id": "office", "name": "Office", "desc": "A glass-walled office over the floor, papers everywhere.", "size": "small", "features": ["ledger terminal"], "links": [{ "to": "stash-cage", "kind": "locked door" }] },
+    { "id": "stash-cage", "name": "Stash Cage", "desc": "A wire cage full of boxed cyberware.", "size": "small", "secure": true },
+    { "id": "crew-lounge", "name": "Crew Lounge", "desc": "Couches, a fridge and a card table, the back door to the alley.", "size": "medium" },
+    { "id": "roof", "name": "Roof", "desc": "Wet tar, puddles and a rusted fire escape.", "size": "large", "level": 1, "outside": true, "links": [{ "to": "garage-floor", "kind": "hatch" }, { "to": "office", "kind": "vent" }] }
+  ],
+  "entrances": [
+    { "room": "loading-bay", "kind": "roller door", "watched": true },
+    { "room": "crew-lounge", "kind": "back door", "watched": false },
+    { "room": "roof", "kind": "fire escape", "watched": false }
+  ]
+}

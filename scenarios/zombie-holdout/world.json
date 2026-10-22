@@ -421,5 +421,9 @@
       5
     ],
     "castLabel": "Group"
+  },
+  "generatedSites": {
+    "maxSites": 8,
+    "keepDays": 3
   }
 }

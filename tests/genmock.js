@@ -24,6 +24,14 @@ function replies(over = {}) {
       knows: [{ id: 'Owen Pruitt', text: 'The radio in the booths still picks up the convoy at night.' }], pressures: [{ name: 'The fuel runs out', max: 8, perHour: 0.1, fireText: 'The generator dies and the lights go out.' }] },
     extras: { extras: [{ name: 'Father Abel', role: 'priest on the radio', room: null, note: 'calls every night at nine' }], groups: [{ label: 'the dead', count: 'a dozen', room: 'back-lot', state: 'alert' }, { label: 'raiders', count: 3, room: 'roof' }] },
     room: { name: 'Pantry', desc: 'Empty shelves and a smell of old onions.' },
+    // Generated sites (task 4-4): the pharmacy on Main Street.
+    siteLayout: { rooms: [
+      { id: 'storefront', name: 'Pharmacy Storefront', desc: 'Shattered display window, aisles of empty racks.', links: [{ to: 'behind-counter', kind: 'door' }], features: ['shattered window'] },
+      { id: 'behind-counter', name: 'Behind the Counter', desc: 'Prescription shelves, mostly bare, and a till on the floor.', links: [{ to: 'drug-room', kind: 'locked door' }] },
+      { id: 'drug-room', name: 'Drug Room', desc: 'A windowless room with a steel door and locked cabinets.', secure: true },
+    ], entry: 'storefront', entrances: [{ room: 'storefront', kind: 'front door', watched: false }] },
+    siteOccupants: { people: [{ name: 'Dale Ruiz', role: 'pharmacist hiding out', pronouns: 'he/him', room: 'Behind the Counter', note: 'has the cabinet keys and trusts no one' }],
+      groups: [{ label: 'the dead', count: 'four', room: 'storefront', state: 'calm', note: 'shuffling between the racks' }], note: 'Antibiotics in the drug room cabinets.' },
     opening: { title: 'Day 23: the diner', summary: 'You are a trucker sheltering in a highway diner.', facts: ['The town clinic burned on the first night.'],
       opening: 'Rain drums on the diner roof, steady and close. The coffee machine is dead, but Lena pours you a cup of cold tea anyway and slides it down the counter without a word.\n\nOwen stands by the window with his hat in his hands, watching the road like it owes him something.\n\nKay sits in the far booth, one gloved hand in her lap. "Are we staying here tonight?" she asks.' },
   };
@@ -31,7 +39,7 @@ function replies(over = {}) {
 }
 const STEP_OF = [
   ["THE PLAYER'S CHARACTER", 'player'], ['TASK: THE PLACE', 'rooms'], ['TASK: WHO IS HERE', 'plan'], ['TASK: WRITE ONE PERSON', 'person'],
-  ['TASK: WRITE THE PEOPLE', 'cast'], ['TASK: REWRITE ONE ROOM', 'room'], ['TASK: TIES AND PRESSURES', 'ties'], ['TASK: MINOR PEOPLE AND GROUPS', 'extras'], ['TASK: THE OPENING', 'opening'],
+  ['TASK: WRITE THE PEOPLE', 'cast'], ['TASK: REWRITE ONE ROOM', 'room'], ['TASK: THE LAYOUT', 'siteLayout'], ['TASK: WHO AND WHAT IS HERE', 'siteOccupants'], ['TASK: TIES AND PRESSURES', 'ties'], ['TASK: MINOR PEOPLE AND GROUPS', 'extras'], ['TASK: THE OPENING', 'opening'],
 ];
 const stepOf = (user) => (STEP_OF.find(([k]) => user.includes(k)) || [])[1];
 

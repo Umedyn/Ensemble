@@ -17,7 +17,7 @@
   // World fields a start may override (merge rules below).
   const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'tagThresholds', 'portraitSet', 'factions', 'world',
     'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'standees', 'site', 'localMap', 'map', 'entrances'];
-  const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'characters', 'starts', 'generatedStarts', ...OVERRIDABLE];
+  const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'characters', 'starts', 'generatedStarts', 'generatedSites', 'sites', ...OVERRIDABLE];
   const WORLD_RESERVED = ['lore', 'timeline'];
   const START_RESERVED = [];
   const CAST_FIELDS = ['id', 'status', 'needs', 'relations', 'knows', 'want', 'secret', 'guard', 'tags', 'tier', 'pinned', 'agenda'];
@@ -53,7 +53,9 @@
   // world + start → today's flat scenario shape, plus worldId/startId. Not
   // validated here: run S.validate on the result (S.prepareWorld does both).
   // characters is the pool ({id: data}); folder is the world folder.
-  S.compose = function (world, start, characters, folder) {
+  // siteMaps: the world's library maps ({id: data}, task 4-4), carried in the
+  // scenario so saves keep them.
+  S.compose = function (world, start, characters, folder, siteMaps) {
     const sc = E.clone(world);
     delete sc.format;
     delete sc.starts;
@@ -88,6 +90,7 @@
       if (c.relations) Object.keys(c.relations).forEach((k) => { if (!sc.characters.includes(k)) delete c.relations[k]; });
       return c;
     });
+    if (siteMaps && Object.keys(siteMaps).length) sc.siteMaps = E.clone(siteMaps);
     sc.worldId = world.id || folder;
     sc.startId = start.id;
     sc.worldTitle = world.title;
@@ -165,6 +168,14 @@
     // A world with generated starts (task 4-2) may have no authored ones.
     req(Array.isArray(startIds) && (startIds.length || world.generatedStarts != null), 'missing "starts" list');
     if (world.generatedStarts != null) problems.push(...E.StartGen.configProblems(world));
+    // Generated sites and library maps (task 4-4).
+    problems.push(...E.Sites.configProblems(world));
+    if (world.sites != null && !Array.isArray(world.sites)) problems.push('"sites" must be a list of site map ids (files in sites/)');
+    (Array.isArray(world.sites) ? world.sites : []).forEach((id) => {
+      const m = (bundle.siteMaps || {})[id];
+      if (!m) problems.push(`missing sites/${id}.json`);
+      else problems.push(...E.Sites.mapProblems(m, id));
+    });
     dupes(pool).forEach((id) => problems.push(`character "${id}" is listed twice`));
     dupes(startIds).forEach((id) => problems.push(`start "${id}" is listed twice`));
     ['locations', 'clocks', 'factions', 'regions'].forEach((k) =>
@@ -218,7 +229,8 @@
   // Which files a world (or legacy scenario) needs besides its root file.
   S.neededFiles = function (rootJson, legacy) {
     const chars = (rootJson.characters || []).map((id) => `characters/${id}.json`);
-    return legacy ? chars : [...(rootJson.starts || []).map((id) => `starts/${id}.json`), ...chars];
+    const sites = (Array.isArray(rootJson.sites) ? rootJson.sites : []).map((id) => `sites/${id}.json`);
+    return legacy ? chars.concat(sites) : [...(rootJson.starts || []).map((id) => `starts/${id}.json`), ...chars, ...sites];
   };
 
   // folder + {relative path: parsed JSON} → a loaded world: { folder, id,
@@ -233,7 +245,9 @@
       const characters = {};
       (world.starts || []).forEach((id) => { if (files[`starts/${id}.json`]) starts[id] = files[`starts/${id}.json`]; });
       (world.characters || []).forEach((id) => { if (files[`characters/${id}.json`]) characters[id] = files[`characters/${id}.json`]; });
-      bundle = { world, starts, characters, legacy: false };
+      const siteMaps = {};
+      (Array.isArray(world.sites) ? world.sites : []).forEach((id) => { if (files[`sites/${id}.json`]) siteMaps[id] = files[`sites/${id}.json`]; });
+      bundle = { world, starts, characters, siteMaps, legacy: false };
     } else if (files['scenario.json']) {
       bundle = S.fromLegacy(Object.assign({}, files['scenario.json'], {
         characterData: (files['scenario.json'].characters || []).map((id) => files[`characters/${id}.json`] || null),
@@ -248,12 +262,12 @@
       folder, id: w.id || folder, title: w.title, summary: w.summary || '', tags: w.tags || [],
       legacy: bundle.legacy, defaultStart: w.starts[0], warnings,
       // Generated starts (task 4-2) compose from the raw files.
-      generate: w.generatedStarts != null, bundle: { world: w, characters: bundle.characters, starts: bundle.starts },
+      generate: w.generatedStarts != null, bundle: { world: w, characters: bundle.characters, starts: bundle.starts, siteMaps: bundle.siteMaps || {} },
       starts: w.starts.map((id) => {
         const st = bundle.starts[id];
         const info = { id, title: st.title || w.title, summary: st.summary || '' };
         try {
-          info.scenario = S.validate(S.compose(w, st, bundle.characters, folder));
+          info.scenario = S.validate(S.compose(w, st, bundle.characters, folder, bundle.siteMaps));
           // Character creator (task 4-1): who you can play, and a sample made
           // character, so a slot that can't produce a playable game shows here.
           const sc = info.scenario;

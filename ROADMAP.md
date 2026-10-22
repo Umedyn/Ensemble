@@ -140,13 +140,13 @@ Make your own character and start, and have the engine fill in the world around 
   - Sources: Natural Earth (countries, provinces, cities; public domain), US Census boundaries and places (public domain), the IAU/USGS list of Mars features (public domain), Wikidata coordinates (CC0), and OpenStreetMap or city open-data portals for cities (OSM is ODbL: attribution required and shared extracts stay ODbL, so check before bundling anything in a paid build).
   - Steps: name the place and detail level → fetch → project onto the creator's image (or draw a plain base map from the boundaries, avoiding image licensing) → simplify borders → compute neighbours from shared borders → write region and location data with `credit` and `license` → check and adjust in the map editor (3-5).
 - [x] **Review screen**: edit or reroll any generated room or character before starting. The result can be saved as a reusable start.
-- [ ] **Generated sites**: on-the-fly local maps for places the story goes (a gang base, a corporate floor, a ruined farmhouse), with rooms, named characters, standees and loot. They're attached to a region and either kept or discarded after the visit. Triggered by the player's intent (`move_to` an unknown place) or by an event.
+- [x] **Generated sites**: on-the-fly local maps for places the story goes (a gang base, a corporate floor, a ruined farmhouse), with rooms, named characters, standees and loot. They're attached to a region and either kept or discarded after the visit. Triggered by the player's intent (`move_to` an unknown place) or by an event.
   - **Library first**: look for a matching authored site map (below) by type, tags and size. If one fits, use its layout and have the model fill in only the people, names and details. Otherwise generate the site data and let the layout styles draw it.
   - Generation produces the site data described in phase 3 (rooms, links with kinds, entrances, features, people with posts or patrols), validated before use; a bad piece is regenerated alone.
 - [ ] **Site map library**: authored maps (battlemaps, floor plans) that creators and modders draw and tag once, for reuse by any story that needs that kind of place.
   - A site map is an image plus data: room shapes drawn on it, doors and their kinds, entrances, spots (guard post, cover, hiding place, loot), and an optional grid scale for battlemaps. **Grids are for measurement only** (room sizes and distances the narrator can use: "the guard is thirty feet away"), never for movement: play stays free-form, not a tactics simulator.
   - Tags for matching: `type` (warehouse, tavern, starship deck…), genre and setting tags (cyberpunk, fantasy, modern), size and room count.
-  - Sources, in order: the world's own `sites/`, then a shared library folder (bundled maps plus ones the player adds with Open folder). The pick among matches is deterministic, so a reload picks the same map.
+  - Sources, in order: the world's own `sites/` (done in 4-4, with matching by type and tags), then a shared library folder (bundled maps plus ones the player adds with Open folder). The pick among matches is deterministic, so a reload picks the same map.
   - Every map carries `credit` and `license`. Bundled maps are original or CC0; shared maps are their creators' responsibility (`MODDING.md`).
 - [ ] Generation is a routable pipeline step ("world building") so it can go to an API model when one is set up.
 
@@ -226,7 +226,7 @@ No phase dependency beyond mood tags (phase 1, done). Reuses StreamTTS pieces.
 
 - Should random major events have a minimum delay, or is "anything can happen" the right feel? (Current answer: anything goes; the skip means "let's see what happens".)
 - Standees: is room-level placement enough, or does the local level need positions inside rooms? Decide after phase 3 playtesting.
-- Generated sites: keep them on the map permanently, or let them fade unless revisited?
+- ~~Generated sites: keep them on the map permanently, or let them fade unless revisited?~~ Answered in 4-4: they fade unless something notable happened there (a weight-2 fact, a second visit, someone from there joining the cast), back to a stub that a return rebuilds.
 - Canon `diverge`: how much freedom does the model get when rewriting a broken canon event?
 - Stand-in portraits: which CC0 set, how many, and how to cover a range of genres (modern, historical, sci-fi, fantasy)?
 - Recommended API models for narration quality vs cost.

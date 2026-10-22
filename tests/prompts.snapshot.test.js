@@ -62,7 +62,7 @@ function promptsFor(folder) {
   out.narrateSkip = P.narrateSkip(state, 'Keep busy.', skipFrame, [{ after: '1d', text: 'Days pass.' }],
     npcs.filter((id) => id !== npcs[2]).map((id) => ({ id, doing: 'resting' })), skipRes, present);
   out.chapter = P.chapter(state);
-  Object.assign(out, genPrompts(E, folder));
+  Object.assign(out, genPrompts(E, folder), sitePrompts(E, state));
   return out;
 }
 
@@ -96,6 +96,17 @@ function genPrompts(E, folder) {
   out.genExtras = P.genStep(ctx, 'extras');
   job.steps.extras = GEN.check.extras(r.extras, ctx);
   out.genOpening = P.genStep(ctx, 'opening');
+  return out;
+}
+
+// Generated sites (task 4-4): the layout and occupant prompts for one
+// request, in worlds that build places.
+function sitePrompts(E, state) {
+  const out = { siteLayout: '', siteOccupants: '' };
+  if (!E.Sites.enabled(state.scenario)) return out;
+  const req = { name: 'the pharmacy', kind: 'pharmacy', region: (state.scenario.regions || [])[1] ? state.scenario.regions[1].id : null, why: 'I head to the pharmacy for antibiotics.' };
+  out.siteLayout = E.Prompts.siteLayout(state, req);
+  out.siteOccupants = E.Prompts.siteOccupants(state, req, E.Sites.checkLayout(state, genMock.replies().siteLayout, 'pharmacy'), false);
   return out;
 }
 

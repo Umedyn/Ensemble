@@ -117,6 +117,8 @@
   function wayText(state, from, to) {
     const k = Eng().linkInfo(state, from, to);
     if (!k || k.kind === 'open') return state.locations[to].name;
+    // A route to another place (task 4-4): a journey, not a door.
+    if (k.kind === 'route') return `${state.locations[to].name} (the way to ${((state.sites || {})[E.Sites.siteOf(state, to)] || state.locations[to]).name})`;
     const st = k.kind === 'locked door' && k.locked ? 'locked' : k.open ? 'open' : 'shut';
     return `${state.locations[to].name} (${k.kind === 'locked door' ? 'door' : k.kind}, ${st})`;
   }
@@ -163,7 +165,8 @@
     const region = Object.keys(state.regions || {}).length
       ? ',"control":[{"region":"region_id","to":"group_id or null"}],"add_tag":[{"region":"region_id","tag":"short tag"}],"remove_tag":[{"region":"region_id","tag":"existing tag"}],"region_status":[{"region":"region_id","status":"new status"}]'
       : '';
-    return `{"world":[{"key":"world_key","value":"new status"}],"groups":[{"id":"group_id","stance":"new stance"}],"clocks":[{"id":"clock_id","delta":2}],"new_clock":null${region}}`;
+    const site = E.Sites.enabled(state.scenario) ? ',"new_site":null' : '';
+    return `{"world":[{"key":"world_key","value":"new status"}],"groups":[{"id":"group_id","stance":"new stance"}],"clocks":[{"id":"clock_id","delta":2}],"new_clock":null${region}${site}}`;
   }
   // Valid ids for effects. Every region, not just nearby ones: the world can
   // shift far from the player (their current state stays nearby-only).
@@ -258,7 +261,21 @@
   };
 
   // ---------- intent ----------
-  P.layouts.intent = ['now', 'private', 'extrasHere', 'standees', 'offstage', 'background', 'agendaDue', 'lastScene', 'intentAction', 'intentTask'];
+  P.layouts.intent = ['now', 'knownPlaces', 'private', 'extrasHere', 'standees', 'offstage', 'background', 'agendaDue', 'lastScene', 'intentAction', 'intentTask'];
+  // Places beyond the start's rooms (task 4-4): the rooms of the place the
+  // player is in (made during the story, so not in the header) and the
+  // places the story knows of. Only in worlds that build new places.
+  B.knownPlaces = ({ state }) => {
+    const ST = E.Sites;
+    if (!ST.enabled(state.scenario)) return null;
+    const lines = ['\n=== PLACES ==='];
+    const here = ST.playerSite(state);
+    if (here !== ST.HOME) lines.push(`${state.sites[here].name} has these rooms: ${ST.rooms(state, here).map((l) => `${l.id} (${l.name})`).join(', ')}.`);
+    const known = Object.values(state.sites || {}).filter((s) => s.id !== here);
+    lines.push(known.length ? `Places the story knows of: ${known.map((s) => `${s.name} (${s.kind}${s.region ? `, ${s.region}` : ''}${s.stub ? s.summary ? `; ${s.summary}` : '; not visited yet' : ''})`).join('; ')}.` : 'No other places yet beyond these rooms.');
+    lines.push('If the player\'s action clearly heads somewhere that is none of these rooms (another building, a part of town, a hideout), set "new_place" to {"name":"the place in the player\'s own words (like \"the chop shop\")","kind":"what kind of place","region":"region id"} and leave move_to null; for a place listed above, use its name. The engine decides whether to build it.');
+    return lines;
+  };
   P.intent = (state, present, action, stepLabel, stepId, due) =>
     P.build('intent', { state, sc: state.scenario, present, forNarrator: false, action, stepLabel, stepId, due: due || {} });
 
@@ -407,7 +424,7 @@ ${intentExample(state, present, action)}`;
     const site = hasSite(state) ? `${lockedHere(state).length ? ',"unlock":null' : ''},"new_feature":null` : '';
     return `{"player":{"summary":"the player's action restated as a concrete attempt","needs_roll":false,"skill":null,"difficulty":"normal","move_to":null${anyGroups ? ',"against":null,"single_out":null' : ''}${site}},
  "intents":[${intents.length ? '\n' + intents.join(',\n') + '\n ' : ''}],${groups.length ? `\n "group_intents":[\n${groups.join(',\n')}\n ],` : ''}
- "events":[{"text":"one sentence","scope":"local","who":["character_id"],"where":"location_id","visibility":"heard","moves":[]}]${state.scenario.inventExtras ? ',\n "new_extras":[]' : ''}}`;
+ "events":[{"text":"one sentence","scope":"local","who":["character_id"],"where":"location_id","visibility":"heard","moves":[]}]${state.scenario.inventExtras ? ',\n "new_extras":[]' : ''}}`.replace('"move_to":null', E.Sites.enabled(state.scenario) ? '"move_to":null,"new_place":null' : '"move_to":null');
   }
 
   function outcomeLines(state, res, forNarrator) {
@@ -966,6 +983,47 @@ Write the opening scene the player reads first: 2 to 4 short paragraphs in secon
 List in "with_you" the ids of the people who are in ${here.name} with the player when it opens; they start there, whatever room their sheet gave them. People elsewhere can be heard or glimpsed at most.
 Also give the start a short title, a one-sentence summary for the player (second person: who they are and what's going on) and up to 3 public facts everyone here knows.
 Reply with JSON only: {"title":"...","summary":"You are ...","opening":"...","with_you":["id"],"facts":["..."]}`;
+  };
+
+  // ---------- generated sites (task 4-4) ----------
+  // Building a place mid-turn. System: the turn's header (the same prefix,
+  // so the cache holds). User: the request, the region, where the player is
+  // coming from and the task. The layout and the people are separate calls,
+  // each checked (js/sites.js).
+  P.layouts.siteLayout = ['siteRequest', 'siteLayoutTask'];
+  P.siteLayout = (state, req) => P.build('siteLayout', { state, req });
+  P.layouts.siteOccupants = ['siteRequest', 'siteRooms', 'siteOccupantsTask'];
+  P.siteOccupants = (state, req, layout, library) => P.build('siteOccupants', { state, req, layout, library });
+  B.siteRequest = ({ state, req }) => {
+    const sc = state.scenario;
+    const r = (sc.regions || []).find((x) => x.id === req.region);
+    const live = r && state.regions[r.id];
+    const holder = live && (sc.factions || []).find((f) => f.id === live.controller);
+    const from = state.locations[state.characters[state.player].status.location];
+    const lines = ['=== A NEW PLACE ===', `${req.name} (${req.kind})${r ? `, in ${r.name}${r.lore ? ` — ${r.lore.replace(/\.$/, '')}` : ''}` : ''}.`];
+    if (r) lines.push(`Held by: ${holder ? `${holder.name} (${holder.id})` : 'no one'}.${live.status ? ` Right now: ${live.status}.` : ''}`);
+    lines.push(`The player is coming from ${from ? from.name : 'nearby'}, ${E.fmtTime(state)}.`);
+    if (req.why) lines.push(`Why it matters: ${req.why}`);
+    if (req.stub && req.stub.summary) lines.push(`The player has been here before: ${req.stub.summary}.`);
+    return lines;
+  };
+  B.siteLayoutTask = () => `
+=== TASK: THE LAYOUT ===
+Lay out this place: 2 to 6 rooms or areas, with one short sentence each. Give each room an id (lowercase, dashes), its links to other rooms with a kind (open, door, locked door, vent, hatch, window, stairs), up to 3 features (things that matter: "camera", "crates", "ledger terminal"), "outside": true for open ground, and "secure": true for a vault, cell or armory (one way in only). Name the entry room the player arrives in, and the ways in from outside ("entrances", "watched": true if guarded or covered by a camera).
+Reply with JSON only: {"rooms":[{"id":"loading-bay","name":"Loading Bay","desc":"One sentence.","links":[{"to":"office","kind":"door"}],"features":["camera"],"outside":false,"secure":false}],"entry":"loading-bay","entrances":[{"room":"loading-bay","kind":"roller door","watched":true}]}`;
+  B.siteRooms = ({ state, layout }) => ['\n=== ROOMS ==='].concat(layout.rooms.map((r) => {
+    // Each link's kind from whichever side declared it (playtest-api-kessler-lobby).
+    const kindTo = (c) => ((r.links || []).find((k) => k.to === c) || ((layout.rooms.find((o) => o.id === c) || {}).links || []).find((k) => k.to === r.id) || { kind: 'open' }).kind;
+    const links = r.connects.filter((c) => layout.rooms.some((o) => o.id === c)).map((c) => `${kindTo(c)} to ${c}`);
+    const feats = (r.features || []).map((f) => (typeof f === 'string' ? f : f.name));
+    return `- ${r.id}: ${r.name} — ${r.desc}${links.length ? ` (${links.join(', ')})` : ''}${feats.length ? ` [${feats.join(', ')}]` : ''}${r.id === layout.entry ? ' (the way in)' : ''}`;
+  }));
+  B.siteOccupantsTask = ({ state, library }) => {
+    const groups = (state.scenario.factions || []).map((f) => f.id).join(', ');
+    return `
+=== TASK: WHO AND WHAT IS HERE ===
+Who is in this place when the player arrives: up to 2 named people (with a role, the room they're in and a note for the story engine: what they want here, what they know) and up to 3 unnamed groups (guards, a crowd, a few of the dead) with how many, the room, their state (calm, alert, hostile)${groups ? `, the group they belong to (${groups}) if any` : ''}, and "post": true if they hold that room or "patrol": a loop of linked room ids. Add a short note of what there is to find or do here (never shown to the player). An empty place is fine.${library ? ' The rooms come from a map: you may rename them to fit ("rooms": [{"id","name","desc"}]); keep the ids.' : ''}
+Reply with JSON only: {"people":[{"name":"...","role":"...","pronouns":"she/her","room":"room-id","note":"..."}],"groups":[{"label":"...","count":3,"room":"room-id","state":"alert","faction":null,"post":true}],"note":"..."${library ? ',"rooms":[]' : ''}}`;
   };
 
   // ---------- chapter ----------
