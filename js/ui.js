@@ -620,8 +620,11 @@
   let planCache = { key: null, plan: null };
   function mapPlan() {
     const sc = state.scenario;
-    const key = `${sc.worldId}|${sc.startId}|${Object.keys(state.locations).join(',')}`;
-    if (planCache.key !== key) planCache = { key, plan: E.Layouts.plan(state.locations, { type: sc.site && sc.site.type, seed: `${sc.worldId}:${sc.startId}` }) };
+    // Rooms placed from the authored ones (the map never moves); links drawn
+    // from the live rooms, so an inferred window shows (task 3-6).
+    const key = `${sc.worldId}|${sc.startId}|${Object.values(state.locations).map((l) => l.id + ':' + (l.connects || []).join('+')).join(',')}`;
+    const authored = sc.locations && sc.locations.length ? sc.locations : Object.values(state.locations);
+    if (planCache.key !== key) planCache = { key, plan: E.Layouts.plan(authored, { type: sc.site && sc.site.type, seed: `${sc.worldId}:${sc.startId}`, linkLocs: state.locations }) };
     return planCache.plan;
   }
   // Tokens by room, as the player knows them.
@@ -712,7 +715,8 @@
         const x = r.x * CELL, y = r.y * CELL, w = r.w * CELL, h = r.h * CELL;
         const cls = `map-room${l.outside ? ' outside' : ''}${id === here ? ' here' : ''}${seen(id) ? '' : ' unseen'}`;
         const label = seen(id) ? `<text class="map-label" x="${x + 5}" y="${y + 13}">${esc(E.shorten(l.name, Math.floor((w - 8) / 6.5)))}</text>` : `<text class="map-feat" x="${x + w / 2}" y="${y + h / 2 + 3}" text-anchor="middle">?</text>`;
-        const feats = seen(id) && (l.features || []).length ? `<text class="map-feat" x="${x + 5}" y="${y + h - 5}">${esc(E.shorten(l.features.join(' · '), Math.floor(w / 5)))}</text>` : '';
+        const fl = E.Engine.features(state, id).map((f) => f.name + (f.state ? ` (${f.state})` : ''));
+        const feats = seen(id) && fl.length ? `<text class="map-feat" x="${x + 5}" y="${y + h - 5}">${esc(E.shorten(fl.join(' · '), Math.floor(w / 5)))}</text>` : '';
         // Ways to another level: a note in the room.
         const up = plan.links.filter((k) => k.remote && (k.a === id || k.b === id) && plan.rooms[k.a].level !== plan.rooms[k.b].level)
           .map((k) => { const o = k.a === id ? k.b : k.a; return `${KIND_WORD[k.kind]} to ${roomName(o)}`; });
@@ -724,7 +728,8 @@
         const a = plan.rooms[k.a], b = plan.rooms[k.b];
         return `<line class="map-remote" x1="${(a.x + a.w / 2) * CELL}" y1="${(a.y + a.h / 2) * CELL}" x2="${(b.x + b.w / 2) * CELL}" y2="${(b.y + b.h / 2) * CELL}"/>`;
       }).join('');
-      const marks = plan.links.filter((k) => !k.remote).map(linkMark).join('');
+      // Doors as they are now: unlocked, open or shut (task 3-6).
+      const marks = plan.links.filter((k) => !k.remote).map((k) => linkMark(Object.assign({}, k, { kind: E.Engine.linkShown(state, k.a, k.b) || k.kind }))).join('');
       // Never smaller than about three quarters of full size (the pane scrolls).
       svg = `<svg class="map-svg" viewBox="-4 -4 ${W + 8} ${H + 8}" style="min-width:${Math.round(W * 0.75)}px" role="img" aria-label="Map">${remote}${rooms}${marks}${levels}</svg>`;
     }

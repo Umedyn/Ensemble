@@ -60,6 +60,7 @@
     (sc.standees || []).forEach((g) => { state.standees[g.id] = Eng.newStandee(g); });
     // The local map (task 3-3): rooms the player knows, and where they last saw everyone.
     state.seenRooms = Object.values(state.locations).filter((l) => l.seen !== false).map((l) => l.id);
+    Eng.initSite(state);
     state.known = {};
     Eng.knowAll(state, 0);
     Eng.noteSeen(state, null, 0);
@@ -79,7 +80,7 @@
 
   // Saves and autosaves from older versions are upgraded one step at a time
   // when loaded. Each step takes a state at version n and returns n + 1.
-  Eng.STATE_VERSION = 10;
+  Eng.STATE_VERSION = 11;
   Eng.migrations = {
     // Worlds and starts (docs/WORLDS.md): the scenario records where it came from.
     1: (state) => {
@@ -165,6 +166,13 @@
       if (!state.regionChanged) state.regionChanged = {};
       if (state.pending && state.pending.pre && !state.pending.pre.regionChanged) state.pending.pre.regionChanged = {};
       state.version = 10;
+      return state;
+    },
+    // Site rules (task 3-6): link and feature state from the authored rooms.
+    10: (state) => {
+      Eng.initSite(state);
+      if (state.pending && state.pending.pre && state.pending.pre.locations) Eng.initSite(state.pending.pre);
+      state.version = 11;
       return state;
     },
   };
@@ -339,6 +347,7 @@
     if (!dest) return 'unknown location';
     if (dest === g.location) return 'already there';
     if (!linked(state, g.location, dest)) return `${dest} is not linked to ${g.location}`;
+    if (!Eng.passable(state, g.location, dest, g.id)) return `the way to ${dest} is locked`;
     if (g.post && g.state !== 'hostile') return `holds its post in ${g.post}`;
     return null;
   }
@@ -357,11 +366,21 @@
       const m = (STATE_DC[target.state] || 0) + sizeDC(target.count);
       if (m) { mod += m; why.push(`${target.count} ${target.state} ${target.label} +${m}`); }
     }
-    if (Eng.STEALTH_SKILLS.includes(it.skill) && Object.keys(state.standees || {}).length) {
-      const rooms = new Set([here].concat(Eng.linkedRooms(state, here), it.moveTo ? [it.moveTo] : []));
-      const watchers = Object.values(state.standees).filter((g) => rooms.has(g.location) && Eng.standeeActive(g));
+    // Every room on the way (task 3-6) and the rooms next to them; cameras
+    // that are on and watched entrances on the way count too.
+    const route = it.moveTo ? Eng.route(state, here, it.moveTo, { who: state.player }) : [here];
+    const onRoute = route.length ? route : [here];
+    const eyes = Eng.STEALTH_SKILLS.includes(it.skill) ? onRoute.flatMap((r) => Eng.features(state, r).filter((f) => /camera/i.test(f.name) && f.state === 'on').map((f) => `${f.name} in ${state.locations[r].name}`))
+      .concat((state.scenario.entrances || []).filter((e) => e.watched && onRoute.includes(e.room)).map((e) => `watched ${e.kind || 'entrance'} in ${state.locations[e.room].name}`)) : [];
+    // Worlds with watchers of any kind (groups, cameras, watched entrances).
+    const watchful = Object.keys(state.standees || {}).length || (state.scenario.entrances || []).some((e) => e.watched) ||
+      Object.keys(state.locations).some((r) => Eng.features(state, r).some((f) => /camera/i.test(f.name)));
+    if (Eng.STEALTH_SKILLS.includes(it.skill) && watchful) {
+      const rooms = new Set(onRoute.flatMap((r) => [r].concat(Eng.linkedRooms(state, r))));
+      const watchers = Object.values(state.standees || {}).filter((g) => rooms.has(g.location) && Eng.standeeActive(g));
       const sharp = watchers.filter((g) => g.state !== 'calm' && g !== target);
-      if (sharp.length) { const m = Math.min(4, 2 * sharp.length); mod += m; why.push(`watched by ${sharp.map((g) => g.label).join(', ')} +${m}`); }
+      const seenBy = sharp.map((g) => g.label).concat(eyes);
+      if (seenBy.length) { const m = Math.min(4, 2 * seenBy.length); mod += m; why.push(`watched by ${seenBy.join(', ')} +${m}`); }
       else if (!watchers.length) { mod -= 2; why.push('nobody on the route −2'); }
     }
     return { mod, why };
@@ -443,6 +462,143 @@
     return { id, note: `${name} singled out from ${g.label} (${id}); ${g.label} now ${Math.max(0, g.count)}${gone}` };
   };
 
+  // ---------- site rules (task 3-6) ----------
+  // The engine plays by the map: state.links["a|b"] = { locked, open } for
+  // every link that isn't an open way (a locked door starts locked; doors,
+  // hatches, windows and vents start shut), and state.features["room|name"]
+  // = state for features with a state (a camera "on"). Shut links block
+  // sight; locked ones block movement, except for whoever holds the key.
+  Eng.linkKey = (a, b) => [a, b].sort().join('|');
+  const featName = (f) => (typeof f === 'string' ? f : f && f.name) || '';
+  Eng.featName = featName;
+  Eng.initSite = function (st) {
+    st.links = st.links || {};
+    E.Layouts.links(Object.values(st.locations || {})).forEach((k) => {
+      if (k.kind === 'open' || st.links[Eng.linkKey(k.a, k.b)]) return;
+      st.links[Eng.linkKey(k.a, k.b)] = { locked: k.kind === 'locked door', open: false };
+    });
+    st.features = st.features || {};
+    Object.values(st.locations || {}).forEach((l) => (l.features || []).forEach((f) => {
+      if (f && typeof f === 'object' && f.state != null && st.features[`${l.id}|${f.name}`] == null) st.features[`${l.id}|${f.name}`] = String(f.state);
+    }));
+  };
+  // A link between two rooms as it is now: { kind, locked, open, key } or null.
+  Eng.linkInfo = function (state, a, b) {
+    const la = state.locations[a], lb = state.locations[b];
+    if (!la || !lb || !((la.connects || []).includes(b) || (lb.connects || []).includes(a))) return null;
+    const auth = (la.links || []).find((k) => k.to === b) || (lb.links || []).find((k) => k.to === a) || { kind: 'open' };
+    const live = (state.links || {})[Eng.linkKey(a, b)];
+    if (auth.kind === 'open' || !live) return { kind: auth.kind, locked: false, open: true, key: [] };
+    return { kind: auth.kind, locked: !!live.locked, open: !!live.open, key: auth.key || [] };
+  };
+  // How the map should draw a link now: an unlocked "locked door" is a door,
+  // an open door is a gap.
+  Eng.linkShown = function (state, a, b) {
+    const k = Eng.linkInfo(state, a, b);
+    if (!k) return null;
+    if (k.kind === 'open' || k.open) return 'open';
+    return k.kind === 'locked door' && !k.locked ? 'door' : k.kind;
+  };
+  Eng.passable = function (state, a, b, who) {
+    const k = Eng.linkInfo(state, a, b);
+    return !!k && (!k.locked || (who != null && k.key.includes(who)));
+  };
+  // The first locked link on the way from one room to another (ignoring
+  // locks), for "the way is blocked" messages: { a, b } or null.
+  Eng.blockedBy = function (state, from, to, who) {
+    const path = Eng.route(state, from, to);
+    for (let i = 0; i + 1 < path.length; i++) if (!Eng.passable(state, path[i], path[i + 1], who)) return { a: path[i], b: path[i + 1] };
+    return null;
+  };
+  const blockText = (state, b) => {
+    const k = Eng.linkInfo(state, b.a, b.b);
+    return `the ${k ? (k.kind === 'locked door' ? 'door' : k.kind) : 'way'} between ${state.locations[b.a].name} and ${state.locations[b.b].name} is locked`;
+  };
+  // Can someone get from one room to another (through unlocked ways, or ones
+  // they hold the key to)? Returns null, or why not.
+  Eng.moveProblem = function (state, who, from, to) {
+    if (!from || !to || from === to) return null;
+    if (Eng.route(state, from, to, { who }).length) return null;
+    const b = Eng.blockedBy(state, from, to, who);
+    return b ? blockText(state, b) : `there is no way from ${state.locations[from] ? state.locations[from].name : from} to ${state.locations[to] ? state.locations[to].name : to}`;
+  };
+  // Locking and unlocking (intent step): the person must be on one side.
+  function setLock(state, who, here, to, lock) {
+    const k = Eng.linkInfo(state, here, to);
+    if (!k) return `${state.locations[to] ? state.locations[to].name : to} is not next to ${state.locations[here].name}`;
+    if (k.kind !== 'locked door') return `the way to ${state.locations[to].name} has no lock`;
+    if (k.locked === lock) return `it is already ${lock ? 'locked' : 'unlocked'}`;
+    state.links[Eng.linkKey(here, to)].locked = lock;
+    if (lock) state.links[Eng.linkKey(here, to)].open = false;
+    return null;
+  }
+  // Features as they are now: [{ name, state, inferred }].
+  Eng.features = (state, room) => ((state.locations[room] || {}).features || []).map((f) => ({
+    name: featName(f), state: (state.features || {})[`${room}|${featName(f)}`] ?? null, inferred: !!(f && f.inferred),
+  }));
+  // Inferred features (intent step: "new_feature"): something the map is
+  // silent about that the player's own action uses. Accepted only if nothing
+  // contradicts it: the player's room, not over an authored feature, a way
+  // out only through an outside wall (from the layout, placed from authored
+  // rooms) to a neighbouring or outside room, never into or out of a secure
+  // room. Returns { note } or { error }.
+  Eng.FEATURES_MAX = 8;
+  const planCache = new WeakMap();
+  Eng.sitePlan = function (state) {
+    const sc = state.scenario;
+    if (!planCache.has(sc)) planCache.set(sc, E.Layouts.plan(sc.locations || [], { type: sc.site && sc.site.type, seed: `${sc.worldId}:${sc.startId}` }));
+    return planCache.get(sc);
+  };
+  // A way out ("to") may be in a room on the player's way this turn (the
+  // stockroom's back window, from the office; playtest-office-window): the
+  // player walks there first. Anything else only in the player's room.
+  Eng.inferFeature = function (state, raw, actionText) {
+    const at = state.characters[state.player].status.location;
+    if (!raw || typeof raw !== 'object') return { error: 'not an object' };
+    const asked = raw.room != null && raw.room !== '' ? Eng.resolveLocation(state, raw.room, false) : at;
+    const reachable = asked && raw.to != null && raw.to !== '' && Eng.route(state, at, asked, { who: state.player }).length;
+    if (asked !== at && !reachable) return { error: `only in the player's room (${state.locations[at].name})` };
+    const here = asked;
+    const room = state.locations[here];
+    const name = typeof raw.name === 'string' ? raw.name.replace(/\s+/g, ' ').trim().toLowerCase().slice(0, 30) : '';
+    if (!name) return { error: 'no name' };
+    const words = String(actionText || '').toLowerCase().split(/[^a-z0-9]+/);
+    if (!name.split(/[^a-z0-9]+/).some((w) => w.length >= 3 && words.includes(w))) return { error: `the player's action doesn't use "${name}"` };
+    if (Eng.features(state, here).some((f) => f.name.toLowerCase() === name)) return { error: `${room.name} already has "${name}"` };
+    if ((room.features || []).length >= Eng.FEATURES_MAX) return { error: `${room.name} already has ${Eng.FEATURES_MAX} features` };
+    let to = null;
+    if (raw.to != null && raw.to !== '') {
+      to = Eng.resolveLocation(state, raw.to, false);
+      if (!to || to === here) return { error: `"${name}" leads nowhere known` };
+      const target = state.locations[to];
+      if (room.secure || target.secure) return { error: `a secure room never gets another way in (${room.secure ? room.name : target.name})` };
+      if (Eng.linkInfo(state, here, to)) return { error: `there is already a way to ${target.name}` };
+      const plan = Eng.sitePlan(state);
+      if (!E.Layouts.hasOutsideWall(plan, here)) return { error: `${room.name} has no outside wall for "${name}"` };
+      const shared = plan.rooms[here] && plan.rooms[to] && E.Layouts.sharesWall(plan.rooms[here], plan.rooms[to]);
+      if (!target.outside && !shared) return { error: `${target.name} is not on the other side of a wall of ${room.name}` };
+    }
+    room.features = (room.features || []).concat([{ name, inferred: true }]);
+    if (to) {
+      const kind = /vent|duct/.test(name) ? 'vent' : /hatch/.test(name) ? 'hatch' : /door/.test(name) ? 'door' : 'window';
+      room.links = (room.links || []).concat([{ to, kind, inferred: true }]);
+      room.connects = (room.connects || []).concat([to]);
+      state.links[Eng.linkKey(here, to)] = { locked: false, open: false };
+    }
+    return { to, room: here, note: `${room.name}: + ${name}${to ? ` (a way to ${state.locations[to].name})` : ''}` };
+  };
+  // The engine's own reading when the model leaves "new_feature" out but the
+  // player's words name a way out and the model moved them: the way, in the
+  // room the words name (else the player's room), to where they went.
+  const WAY_OUT = /\b((?:back|side|front|rear|broken|small|open|bathroom|office|kitchen)\s+)?(window|air vent|vent|duct|skylight|hatch|fire escape|crawlspace)\b/i;
+  Eng.wayFromWords = function (state, actionText, moveTo) {
+    const m = WAY_OUT.exec(String(actionText || ''));
+    if (!m || !moveTo) return null;
+    const words = String(actionText).toLowerCase().replace(/'s\b/g, '');
+    const named = Object.values(state.locations).find((l) => l.id !== moveTo && (new RegExp(`\\b${l.id}\\b`).test(words) || words.includes(l.name.toLowerCase())));
+    return { name: (m[1] || '') + m[2], room: named ? named.id : null, to: moveTo };
+  };
+
   // ---------- what the player knows of the map (task 3-3) ----------
   // state.seenRooms: rooms the player has been in or seen into (unseen rooms
   // are drawn dark). state.known[id] = { loc, turn }: where the player last
@@ -457,11 +613,7 @@
   Eng.visibleRooms = function (state) {
     const here = state.characters[state.player].status.location;
     const l = state.locations[here];
-    const open = (a, b) => {
-      const k = ((state.locations[a] || {}).links || []).find((x) => x.to === b) || ((state.locations[b] || {}).links || []).find((x) => x.to === a);
-      return !k || k.kind === 'open';
-    };
-    return [here].concat(l ? Eng.linkedRooms(state, here).filter((o) => open(here, o)) : []);
+    return [here].concat(l ? Eng.linkedRooms(state, here).filter((o) => Eng.linkShown(state, here, o) === 'open') : []);
   };
   // Records what the player can see now: the rooms in view, everyone in the
   // player's room, groups in view, and (when res is given) visible moves and
@@ -778,6 +930,9 @@
       moveTo: raw ? Eng.resolveLocation(state, raw.move_to, true) : null,
       against: id === state.player && raw && typeof raw.against === 'string' ? raw.against : null,
       singleOut: id === state.player && raw && raw.single_out && typeof raw.single_out === 'object' ? raw.single_out : null,
+      unlock: raw && raw.unlock ? Eng.resolveLocation(state, raw.unlock, false) || String(raw.unlock) : null,
+      lock: raw && raw.lock ? Eng.resolveLocation(state, raw.lock, false) || String(raw.lock) : null,
+      newFeature: id === state.player && raw && raw.new_feature && typeof raw.new_feature === 'object' ? raw.new_feature : null,
     };
   }
 
@@ -1040,6 +1195,8 @@
         if (m && isExtra(state, m.id)) {
           const to = Eng.resolveLocation(state, m.to, false);
           if (!to) return;
+          const why = Eng.moveProblem(state, m.id, state.extras[m.id].location, to);
+          if (why && state.extras[m.id].location) return guard(res, 'resolve', 'move blocked', `${state.extras[m.id].name} → ${to}: ${why}`);
           state.extras[m.id].location = to;
           moved.push(`${state.extras[m.id].name} → ${state.locations[to].name}`);
           return;
@@ -1047,6 +1204,8 @@
         if (!m || !state.characters[m.id] || m.id === state.player || present.includes(m.id)) return;
         const to = Eng.resolveLocation(state, m.to, false);
         if (!to || !Eng.alive(state, m.id)) return;
+        const why = Eng.moveProblem(state, m.id, state.characters[m.id].status.location, to);
+        if (why) return guard(res, 'resolve', 'move blocked', `${state.characters[m.id].name} → ${to}: ${why}`);
         state.characters[m.id].status.location = to;
         moved.push(`${state.characters[m.id].name} → ${state.locations[to].name}`);
       });
@@ -1098,6 +1257,30 @@
     const p = list[0];
     // Standees (task 3-2): who the player can deal with, and sneaking always rolls.
     res.engaged = Eng.engagedStandees(state, actionText).map((g) => g.id);
+    const here0 = state.characters[state.player].status.location;
+    // Site rules (task 3-6): something the map is silent about, first, so a
+    // window the player climbs out of exists before the move.
+    const ownWay = !p.newFeature && Eng.wayFromWords(state, actionText, p.moveTo);
+    const wayExists = ownWay && Eng.features(state, ownWay.room || here0).some((f) => f.name.toLowerCase().includes(ownWay.name.split(' ').pop()));
+    const feature = p.newFeature || (ownWay && !wayExists ? ownWay : null);
+    if (feature) {
+      const out = Eng.inferFeature(state, feature, actionText);
+      if (out.error) guard(res, 'resolve', 'feature rejected', out.error);
+      else {
+        guard(res, 'resolve', 'feature added', out.note + (p.newFeature ? '' : " (from the player's words)"));
+        // Out through it: walk to that room, then through the new way.
+        if (out.to && out.to === p.moveTo && out.room !== here0) p.viaRoom = out.room;
+      }
+    }
+    // Picking a lock always rolls, unless the player holds the key.
+    if (p.unlock && !p.needsRoll) {
+      const k = Eng.linkInfo(state, here0, p.unlock);
+      if (k && k.locked && !k.key.includes(state.player)) {
+        const sk = state.scenario.skills;
+        Object.assign(p, { needsRoll: true, skill: sk.includes('mechanics') ? 'mechanics' : sk.includes('technical') ? 'technical' : sk[0], difficulty: 'normal' });
+        guard(res, 'resolve', 'roll required', `unlocking the way to ${state.locations[p.unlock] ? state.locations[p.unlock].name : p.unlock}`);
+      }
+    }
     if (!p.needsRoll && state.scenario.skills.includes('stealth') && Eng.sneakNeedsRoll(state, actionText)) {
       Object.assign(p, { needsRoll: true, skill: 'stealth', difficulty: 'normal' });
       guard(res, 'resolve', 'roll required', 'the player sneaks with a group close by: stealth roll');
@@ -1153,9 +1336,33 @@
         const seen = Eng.standeesNotice(state, it);
         if (seen.length) { res.standeeChanges = (res.standeeChanges || []).concat(seen); seen.forEach((l) => guard(res, 'resolve', 'noticed', l)); }
       }
+      // Locks: the player unlocks on a success (or with the key); others only with the key.
+      ['unlock', 'lock'].forEach((verb) => {
+        const to = it[verb];
+        if (!to) return;
+        const k = Eng.linkInfo(state, c.status.location, to);
+        const holder = k && k.key.includes(it.id);
+        if (!holder && (it.id !== state.player || verb === 'lock')) return guard(res, 'resolve', 'lock rejected', `${c.name} has no key to ${verb} the way to ${state.locations[to] ? state.locations[to].name : to}`);
+        if (!holder && failed) return;
+        const why = setLock(state, it.id, c.status.location, to, verb === 'lock');
+        if (why) return guard(res, 'resolve', 'lock rejected', `${c.name} ${verb}: ${why}`);
+        guard(res, 'resolve', verb === 'lock' ? 'locked' : 'unlocked', `${c.name}: the way between ${state.locations[c.status.location].name} and ${state.locations[to].name}`);
+        o.action += ` [${verb}s the way to ${state.locations[to].name}]`;
+      });
       if (it.moveTo && it.moveTo !== c.status.location && !failed) {
-        c.status.location = it.moveTo;
-        o.moved = it.moveTo;
+        // Movement follows links (task 3-6): no way through, no move.
+        const why = Eng.moveProblem(state, it.id, c.status.location, it.moveTo);
+        if (why) {
+          guard(res, 'resolve', 'move blocked', `${c.name} → ${it.moveTo}: ${why}`);
+          o.action += ` (but ${why}, so ${it.id === state.player ? 'you stay' : 'they stay'} in ${state.locations[c.status.location].name})`;
+        } else {
+          let path = Eng.route(state, c.status.location, it.moveTo, { who: it.id });
+          // Through a way the player named in another room (the stockroom window).
+          if (it.viaRoom) { const leg = Eng.route(state, c.status.location, it.viaRoom, { who: it.id }); if (leg.length) path = leg.concat([it.moveTo]); }
+          if (path.length > 2) o.via = path.slice(1, -1);
+          c.status.location = it.moveTo;
+          o.moved = it.moveTo;
+        }
       }
       outcomes.push(o);
     });
@@ -1489,6 +1696,8 @@
         if (!dest) return reject(label, 'unknown location');
         if (![ctx.startLoc, ctx.endLoc].includes(x.location) && dest !== ctx.endLoc) return reject(label, 'nobody in the scene could have seen that move');
         if (ctx.keptProse != null && !Eng.seenLeaving(ctx.keptProse, x)) return reject(label, 'the player stepped in before they left');
+        const blocked = x.location && Eng.moveProblem(state, key, x.location, dest);
+        if (blocked) return reject(label, blocked);
         x.location = dest;
       } else if (kind === 'char') {
         const c = state.characters[key];
@@ -1508,6 +1717,8 @@
           if (!inScene) return reject(label, 'nobody in the scene could have seen that move');
           // After a step-in, a planned exit only happened if the kept scene shows it.
           if (ctx.keptProse != null && !Eng.seenLeaving(ctx.keptProse, c)) return reject(label, 'the player stepped in before they left');
+          const blocked = Eng.moveProblem(state, key, c.status.location, dest);
+          if (blocked) return reject(label, blocked);
           c.status.location = dest;
         } else if (s.field === 'add_tag' || s.field === 'add_condition') {
           // add_condition: the name before tags (task 1-6); recordings still use it.
@@ -1550,6 +1761,26 @@
           if (ctx.keptProse != null && !Eng.seenLeaving(ctx.keptProse, { id: g.id, name: g.label })) return reject(label, 'the player stepped in before they left');
           g.location = dest;
         } else return reject(label, 'groups have only count, state and location');
+      } else if (kind === 'link') {
+        // Site rules (task 3-6): a door opened or shut in the scene.
+        const [a, b] = String(key || '').split('|');
+        const k = a && b && Eng.linkInfo(state, a, b);
+        if (!k || k.kind === 'open') return reject(label, 'no door, hatch or window there');
+        if (s.field !== 'open' || typeof s.value !== 'boolean') return reject(label, 'a way can only be opened or shut ("open": true or false)');
+        if (![ctx.startLoc, ctx.endLoc].some((r) => r === a || r === b)) return reject(label, 'nobody in the scene was there');
+        if (s.value && k.locked) return reject(label, 'it is locked');
+        state.links[Eng.linkKey(a, b)].open = s.value;
+      } else if (kind === 'feature') {
+        const i = String(key || '').indexOf('|');
+        const room = String(key).slice(0, i), name = String(key).slice(i + 1);
+        if (!state.locations[room] || state.features[`${room}|${name}`] == null) return reject(label, 'no feature with a state there');
+        if (s.field !== 'state' || typeof s.value !== 'string' || !s.value.trim()) return reject(label, 'a feature only changes its "state"');
+        if (![ctx.startLoc, ctx.endLoc].includes(room)) return reject(label, 'nobody in the scene was there');
+        state.features[`${room}|${name}`] = s.value.trim().toLowerCase().slice(0, 20);
+      } else if (kind === 'room') {
+        if (!state.locations[key]) return reject(label, 'unknown room');
+        if (s.field !== 'seen' || s.value !== true) return reject(label, 'a room can only be revealed ("seen": true)');
+        if (!state.seenRooms.includes(key)) state.seenRooms.push(key);
       } else if (kind === 'world') {
         if (!(key in state.world)) return reject(label, 'unknown world key');
         const lock = (state.worldSetBy || {})[key];
@@ -1665,10 +1896,21 @@
 
   // Detects narration that walks the player into a room they never moved to,
   // e.g. "You head to hydroponics". Returns the location or null.
-  Eng.findRelocation = function (state, prose, startLoc) {
+  // via: the rooms the player actually passed through this turn, if known.
+  Eng.findRelocation = function (state, prose, startLoc, via) {
     const endLoc = state.characters[state.player].status.location;
     // Rooms passed through on the way are fine ("you cross the commons to the med bay").
-    const allowed = new Set([startLoc, endLoc].concat(Eng.route(state, startLoc, endLoc)));
+    const allowed = new Set([startLoc, endLoc].concat(via && via.length ? via : Eng.route(state, startLoc, endLoc)));
+    // After a move, walking back out of the room they moved to (task 3-6;
+    // playtest-office-window: "You slip out of the office, leaving it
+    // unlocked. Ruth is waiting for you" while Jordan stayed in the office).
+    if (startLoc !== endLoc && state.locations[endLoc]) {
+      const end = state.locations[endLoc];
+      const words = [end.name, end.id, end.name.split(/\s+/).pop()].filter((n) => n && n.length > 3).map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+      const names = `(?:the\\s+)?(?:[\\w']+\\s+)?(?:${[...new Set(words)].join('|')})`;
+      const out = new RegExp(`\\byou\\b[^.!?\\n]{0,30}\\b(?:slip|slips|step|steps|walk|walks|head|heads|go|goes|come|comes|get|gets|duck|ducks|hurry|hurries|climb|climbs|back|edge|edges)\\s+(?:back\\s+)?out\\s+of\\s+${names}\\b|\\byou\\b[^.!?\\n]{0,30}\\b(?:leave|leaves|exit|exits)\\s+${names}\\b`, 'i');
+      if (out.test(prose)) return { id: null, name: end.name, to: `back out of ${end.name}` };
+    }
     const verbs = "head|heads|heading|walk|walks|go|goes|step|steps|stepping|make your way|enter|enters|duck|ducks|push open|pushes open|slip|slips|hurry|hurries|return|returns|wander|wanders|move|moves|cross|crosses";
     // Going outside names no room (playtest-zombie-steps-outside: "You nod, then
     // step outside into the cool morning air"). Only when the player isn't moving:
@@ -1685,20 +1927,39 @@
         if (re.test(prose)) return l;
       }
     }
+    // A feature only another room has (task 3-6; playtest-stragglers-sneak:
+    // "You're almost to the abandoned pickup" while Jordan stayed on the dock).
+    const bare = (n) => n.toLowerCase().replace(/^(the|a|an)\s+/, '').replace(/'s\b.*$/, '');
+    const mine = new Set([...allowed].flatMap((r) => Eng.features(state, r).map((f) => bare(f.name))));
+    const reach = `${verbs}|reach|reaches|get to|gets to|make it to|crouch(?:es)? (?:behind|by|beside)|hide(?:s)? behind`;
+    for (const l of Object.values(state.locations)) {
+      if (allowed.has(l.id)) continue;
+      for (const f of Eng.features(state, l.id)) {
+        const n = bare(f.name);
+        if (n.length < 4 || mine.has(n)) continue;
+        const esc = n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const re = new RegExp(`\\byou(?:'re| are)?\\b[^.!?\\n]{0,30}(?:\\b(?:${reach})\\b|\\b(?:almost|nearly|right) (?:to|at|by|beside|behind)\\b)[^.!?\\n]{0,30}\\b${esc}\\b`, 'i');
+        if (re.test(prose)) return l;
+      }
+    }
     return null;
   };
 
   // Shortest path between two locations through `connects`, both ends included.
   // Empty when either is unknown or there is no way through.
-  Eng.route = function (state, from, to) {
+  // opts.who (task 3-6): only through ways that person can pass (locked
+  // doors block unless they hold the key). Without opts every link counts.
+  Eng.route = function (state, from, to, opts) {
     if (!state.locations[from] || !state.locations[to]) return [];
     if (from === to) return [from];
     const prev = { [from]: null };
     const queue = [from];
+    const nexts = (id) => (opts ? Eng.linkedRooms(state, id) : state.locations[id].connects || []);
     while (queue.length) {
       const id = queue.shift();
-      for (const next of state.locations[id].connects || []) {
+      for (const next of nexts(id)) {
         if (!state.locations[next] || next in prev) continue;
+        if (opts && !Eng.passable(state, id, next, opts.who)) continue;
         prev[next] = id;
         if (next === to) {
           const path = [to];
@@ -1720,7 +1981,10 @@
   Eng.trimPlayerEnding = function (prose) {
     const paras = String(prose || '').split(/\n\s*\n/);
     let dropped = 0;
-    while (paras.length > 1 && dropped < 2 && /^\s*(\[[^\]]*\]\s*)?(you|your)\b/i.test(paras[paras.length - 1])) {
+    // Also the player's own quoted line ("Just looking," you say…;
+    // playtest-office-window).
+    const mine = (p) => /^\s*(\[[^\]]*\]\s*)?(you|your)\b/i.test(p) || /^\s*(\[[^\]]*\]\s*)?["“][^"”]*["”],?\s*you\s+(?:say|said|ask|asked|reply|replied|tell|told|answer|answered|add|added|murmur|mutter|whisper|call|shrug)\b/i.test(p);
+    while (paras.length > 1 && dropped < 2 && mine(paras[paras.length - 1])) {
       if (dropped && /^\s*\[\s*\+/.test(paras[paras.length - 1])) break;
       paras.pop();
       dropped++;
@@ -2086,7 +2350,10 @@
     (Array.isArray(obj.positions) ? obj.positions : []).forEach((p) => {
       const c = p && state.characters[p.id];
       const loc = c && Eng.resolveLocation(state, p.where, false);
-      if (c && loc && Eng.alive(state, p.id)) c.status.location = loc;
+      if (!c || !loc || !Eng.alive(state, p.id)) return;
+      const why = Eng.moveProblem(state, p.id, c.status.location, loc);
+      if (why) return guard(res, 'resolve', 'move blocked', `${c.name} → ${loc}: ${why}`);
+      c.status.location = loc;
     });
     // The player ends up somewhere else only if their plan names it (rule 3;
     // playtest-agenda-skips: "keep to routine" put Kit outside as the storm hit).
@@ -2150,7 +2417,9 @@
       maxTokens: Math.round(E.settings.narrateTokens * (step.lengthMult || 1)),
     }), res, state);
     let prose = await narrateOnce();
-    const strayed = Eng.findRelocation(state, prose, frame.startLoc);
+    const playerOut = res.outcomes && res.outcomes.find((o) => o.id === state.player);
+    const via = playerOut && playerOut.via ? [frame.startLoc].concat(playerOut.via) : null;
+    const strayed = Eng.findRelocation(state, prose, frame.startLoc, via);
     if (strayed) {
       const where = strayed.to || `to ${strayed.name}`;
       guard(res, 'scene', 'relocation regenerated', `first draft took the player ${where}`);
@@ -2172,7 +2441,7 @@
           kind: 'narrate (continue)', system, user: E.Prompts.narrateMore(state, present, action, frame, res, markedBeats(beats), lastAt),
           maxTokens: Math.round(E.settings.narrateTokens * 0.8),
         }), res, state);
-        const away = more && Eng.findRelocation(state, more, frame.startLoc);
+        const away = more && Eng.findRelocation(state, more, frame.startLoc, via);
         if (away) guard(res, 'scene', 'continuation dropped', `it took the player ${away.to || `to ${away.name}`}`);
         else if (more) {
           beats = Eng.parseBeats(Eng.trimPlayerEnding(Eng.cleanProse(markedBeats(beats) + '\n\n' + more)), frame.spanMinutes);

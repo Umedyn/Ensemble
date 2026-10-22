@@ -112,10 +112,10 @@ test('a covert move never shows: the card and map keep the last place you saw th
   const { E, state } = newGame('zombie-holdout');
   assert.deepEqual(plain(E.Engine.knownWhere(state, 'ferris')), { loc: 'office', turn: 0, now: false }, 'everyone starts known; Gil is out of sight');
   assert.equal(E.Engine.knownWhere(state, 'coleman').now, true, 'Dex is with you');
-  const res = E.Engine.resolve(state, intentOf({ intents: [{ id: 'coleman', action: 'slips away to the roof', visible: false, move_to: 'office' }, { id: 'han', action: 'heads to the dock', visible: true, move_to: 'dock' }] }),
+  const res = E.Engine.resolve(state, intentOf({ intents: [{ id: 'coleman', action: 'slips away to the stockroom', visible: false, move_to: 'stockroom' }, { id: 'han', action: 'heads to the dock', visible: true, move_to: 'dock' }] }),
     E.Engine.present(state), 'Look at the windows.', 'moment');
   E.Engine.noteSeen(state, res, 1);
-  assert.equal(state.characters.coleman.status.location, 'office');
+  assert.equal(state.characters.coleman.status.location, 'stockroom');
   assert.deepEqual([E.Engine.knownWhere(state, 'coleman').loc, E.Engine.knownWhere(state, 'coleman').now], ['floor', false], 'Dex slipped away unseen: still on the floor as far as you know');
   assert.deepEqual([E.Engine.knownWhere(state, 'han').loc, E.Engine.knownWhere(state, 'han').turn], ['dock', 1], 'seen leaving for the dock');
 });

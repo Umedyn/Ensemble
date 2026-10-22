@@ -218,7 +218,25 @@
     return out;
   };
 
-  // locs: the locations (list or object); opts: { type, seed }.
+  // Do two placed rooms share a stretch of wall? (task 3-6)
+  L.sharesWall = (a, b) => door(Object.assign({}, a, { level: a.level || 0 }), Object.assign({}, b, { level: b.level || 0 })).remote !== true;
+  // Does a room have wall that no other room on its level covers? Windows and
+  // vents to the outside need one (task 3-6).
+  L.hasOutsideWall = function (plan, id) {
+    const r = plan.rooms[id];
+    if (!r) return false;
+    const others = Object.entries(plan.rooms).filter(([o, x]) => o !== id && x.level === r.level).map(([, x]) => x);
+    const covered = (cells) => cells.every(([x, y]) => others.some((o) => x >= o.x && x < o.x + o.w && y >= o.y && y < o.y + o.h));
+    const sides = [
+      Array.from({ length: r.w }, (_, i) => [r.x + i, r.y - 1]), Array.from({ length: r.w }, (_, i) => [r.x + i, r.y + r.h]),
+      Array.from({ length: r.h }, (_, i) => [r.x - 1, r.y + i]), Array.from({ length: r.h }, (_, i) => [r.x + r.w, r.y + i]),
+    ];
+    return sides.some((cells) => !covered(cells));
+  };
+
+  // locs: the locations (list or object); opts: { type, seed, linkLocs }.
+  // linkLocs (task 3-6): rooms are placed from locs (the authored ones, so
+  // the map never moves), links drawn from linkLocs (with inferred ones).
   // → { style, width, height, levels: [{level, x, y, w, h}], rooms: {id: {x, y, w, h, level}}, links: [{a, b, kind, x, y, orient} | {a, b, kind, remote}] }
   L.plan = function (locs, opts) {
     const list = (Array.isArray(locs) ? locs : Object.values(locs || {})).slice().sort((a, b) => (a.id < b.id ? -1 : 1));
@@ -251,7 +269,8 @@
       height: Math.max(0, y0 - LEVEL_GAP),
       levels: blocks,
       rooms,
-      links: links.map((k) => Object.assign(k, door(rooms[k.a], rooms[k.b]))),
+      links: (opts && opts.linkLocs ? L.links(Array.isArray(opts.linkLocs) ? opts.linkLocs : Object.values(opts.linkLocs)) : links)
+        .filter((k) => rooms[k.a] && rooms[k.b]).map((k) => Object.assign(k, door(rooms[k.a], rooms[k.b]))),
     };
   };
 })(typeof window !== 'undefined' ? window : globalThis);

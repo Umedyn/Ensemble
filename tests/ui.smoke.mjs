@@ -555,6 +555,8 @@ await check('world and regional views: regions by who holds them, the info strip
   await page.screenshot({ path: path.join(shots, 'map-region.png') });
   await page.click('[data-mapview="local"]');
   assert.ok(await page.locator('#mapPane .map-room').count(), 'back to the rooms');
+  assert.equal(await page.locator('#mapPane .map-lock').count(), 1, "the office door is locked (task 3-6)");
+  assert.match(await page.textContent('#mapPane'), /forklift/);
   // Ares Deep has no map image: a node map from the neighbours.
   await page.selectOption('#scenarioSelect', 'server:mars-station');
   await newGame(page);

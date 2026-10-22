@@ -16,7 +16,7 @@
   const START_OWN = ['id', 'title', 'summary', 'start', 'player', 'cast', 'opening', 'castLabel', 'region'];
   // World fields a start may override (merge rules below).
   const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'tagThresholds', 'portraitSet', 'factions', 'world',
-    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'standees', 'site', 'localMap', 'map'];
+    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'standees', 'site', 'localMap', 'map', 'entrances'];
   const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'characters', 'starts', ...OVERRIDABLE];
   const WORLD_RESERVED = ['lore', 'timeline'];
   const START_RESERVED = ['playerSlot'];
@@ -468,14 +468,18 @@
       req(l.outside == null || typeof l.outside === 'boolean', `${where}: "outside" must be true or false`);
       req(l.secure == null || typeof l.secure === 'boolean', `${where}: "secure" must be true or false`);
       req(l.seen == null || typeof l.seen === 'boolean', `${where}: "seen" must be true or false`);
-      req(l.features == null || (Array.isArray(l.features) && l.features.length <= 6 && l.features.every((f) => typeof f === 'string' && f.trim() && f.length <= 30)),
-        `${where}: "features" must be a list of at most 6 short names (30 characters each)`);
+      // A feature is a short name, or { name, state } for one the engine tracks (task 3-6).
+      const featOk = (f) => (typeof f === 'string' && f.trim() && f.length <= 30) || (isObj(f) && typeof f.name === 'string' && f.name.trim() && f.name.length <= 30 && (f.state == null || (typeof f.state === 'string' && f.state.length <= 20)));
+      req(l.features == null || (Array.isArray(l.features) && l.features.length <= 6 && l.features.every(featOk)),
+        `${where}: "features" must be a list of at most 6 short names (30 characters each), or {name, state}`);
       if (l.links == null) return;
       if (!Array.isArray(l.links)) return problems.push(`${where}: "links" must be a list of {to, kind}`);
       l.links.forEach((k) => {
         const ok = k && locIds.has(k.to) && k.to !== l.id;
         req(ok, `${where}: link to unknown room "${k && k.to}"`);
         req(k && S.LINK_KINDS.includes(k.kind), `${where}: link to "${k && k.to}" needs a kind: ${S.LINK_KINDS.join(', ')}`);
+        // Who holds the key to a locked door (task 3-6): characters in this start.
+        req(!k || k.key == null || (Array.isArray(k.key) && k.key.every((id) => (sc.characters || []).includes(id))), `${where}: link to "${k && k.to}" has a "key" for someone not in the cast`);
         if (ok) { l.connects = l.connects || []; if (!l.connects.includes(k.to)) l.connects.push(k.to); }
       });
     });
@@ -483,6 +487,13 @@
     locs.filter((l) => l.secure).forEach((l) => {
       const ways = new Set((l.connects || []).concat(locs.filter((o) => (o.connects || []).includes(l.id)).map((o) => o.id)));
       req(ways.size === 1, `location "${l.id}" is secure, so it needs exactly one way in (it has ${ways.size})`);
+    });
+    // Ways in from outside (task 3-6); watched ones count when sneaking.
+    (sc.entrances == null ? [] : Array.isArray(sc.entrances) ? sc.entrances : [null]).forEach((e) => {
+      if (!isObj(e)) return problems.push('"entrances" must be a list of {room, kind, watched}');
+      req(locIds.has(e.room), `entrance in unknown room "${e.room}"`);
+      req(e.kind == null || (typeof e.kind === 'string' && e.kind.length <= 30), `entrance in "${e.room}": "kind" must be a short phrase`);
+      req(e.watched == null || typeof e.watched === 'boolean', `entrance in "${e.room}": "watched" must be true or false`);
     });
     if (sc.site != null) {
       req(isObj(sc.site) && (sc.site.type == null || S.SITE_TYPES.includes(sc.site.type)), `"site" must be {type}, with type ${S.SITE_TYPES.join(', ')}`);

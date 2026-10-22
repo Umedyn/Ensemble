@@ -100,6 +100,15 @@
         "tool aisles",
         "boarded windows",
         "generator"
+      ],
+      "links": [
+        {
+          "to": "office",
+          "kind": "locked door",
+          "key": [
+            "ferris"
+          ]
+        }
       ]
     },
     {
@@ -191,6 +200,18 @@
   "site": {
     "type": "hall"
   },
+  "entrances": [
+    {
+      "room": "dock",
+      "kind": "roller door",
+      "watched": false
+    },
+    {
+      "room": "lot",
+      "kind": "open lot",
+      "watched": false
+    }
+  ],
   "clocks": [
     {
       "id": "horde",

@@ -263,3 +263,24 @@ test('playtest: sneaking past the stragglers next door engages them, seconds mar
   assert.deepEqual([sneak.outcomes[0].skill, sneak.outcomes[0].roll.dc], ['stealth', 14]);
   assert.equal(t3.standees.stragglers.state, 'alert');
 });
+
+// NemoMix 12B, the task 3-6 check (2026-10-22): into Gil's office, then out "the stockroom's back window".
+test('playtest: a window the player names in another room on the way is added, and the move goes through it', async () => {
+  const r = await replay('playtest-office-window');
+  const s = r.steps[0].state;
+  assert.equal(s.characters.pike.status.location, 'lot');
+  assert.deepEqual([...s.pending.res.outcomes[0].via], ['floor', 'stockroom']);
+  assert.equal(s.locations.stockroom.links.find((k) => k.to === 'lot').kind, 'window');
+  assert.ok(s.pending.res.guards.some((g) => g.type === 'feature added' && /from the player's words/.test(g.detail)), 'the model left new_feature out');
+  const narrate = r.E.LLM.calls.filter((c) => c.kind === 'narrate').pop();
+  assert.match(narrate.user, /\[moves to Parking Lot, through Sales Floor, Stockroom\]/);
+});
+
+test('playtest: the scene that walked Jordan back out of the office is a relocation, and its closing line of theirs is trimmed', () => {
+  const { E, state } = newGame('zombie-holdout');
+  const prose = require('./fixtures/playtest-office-window.json').start.recent[0].text;
+  state.characters.pike.status.location = 'office';
+  state.links['floor|office'].locked = false;
+  assert.equal(E.Engine.findRelocation(state, prose, 'floor').to, "back out of Manager's Office", '"You slip out of the office, leaving it unlocked"');
+  assert.doesNotMatch(E.Engine.trimPlayerEnding(prose), /Just looking for supplies," you say/);
+});

@@ -86,7 +86,10 @@
       "features": [
         "two cots",
         "scanner",
-        "drug cabinet"
+        {
+          "name": "drug cabinet",
+          "state": "locked"
+        }
       ]
     },
     {
@@ -188,6 +191,18 @@
   "site": {
     "type": "corridor"
   },
+  "entrances": [
+    {
+      "room": "suitroom",
+      "kind": "airlock",
+      "watched": false
+    },
+    {
+      "room": "garage",
+      "kind": "vehicle airlock",
+      "watched": false
+    }
+  ],
   "regions": [
     {
       "id": "station",

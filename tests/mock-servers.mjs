@@ -2,6 +2,7 @@
 //   KoboldCpp-style on :5001 (no key), OpenAI-style API on :5002 (key "sk-test", model "test/story-70b").
 // Run standalone with `node tests/mock-servers.mjs`, then point Settings at them.
 import http from 'node:http';
+import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -82,12 +83,25 @@ export async function startMocks() {
   const api = http.createServer(handler(true));
   // A real KoboldCpp left running on 5001 would answer the tests instead (and
   // time every check out), so a busy port stops with a clear message.
-  const listen = (server, port, what) => new Promise((resolve, reject) => {
-    server.once('error', (err) => reject(err.code === 'EADDRINUSE'
-      ? new Error(`Port ${port} is already in use (${what}). Close whatever is using it, such as a running KoboldCpp, and run the UI tests again.`)
-      : err));
-    server.listen(port, resolve);
+  const busy = (port, what) => new Error(`Port ${port} is already in use (${what}). Close whatever is using it, such as a running KoboldCpp, and run the UI tests again.`);
+  // On Windows a program already listening on 5001 doesn't stop Node
+  // listening there too, and the browser's "localhost" then reaches that
+  // program instead (2026-10-22: a real KoboldCpp timed out 21 checks). So
+  // first see whether anything answers on the port.
+  const probe = (port, what) => new Promise((resolve, reject) => {
+    const s = net.connect({ port, host: '127.0.0.1' });
+    s.setTimeout(1000);
+    s.once('connect', () => { s.destroy(); reject(busy(port, what)); });
+    s.once('timeout', () => { s.destroy(); resolve(); });
+    s.once('error', () => resolve());
   });
+  const listen = async (server, port, what) => {
+    await probe(port, what);
+    await new Promise((resolve, reject) => {
+      server.once('error', (err) => reject(err.code === 'EADDRINUSE' ? busy(port, what) : err));
+      server.listen(port, resolve);
+    });
+  };
   await listen(kobold, 5001, 'the fake KoboldCpp needs it');
   await listen(api, 5002, 'the fake API needs it');
   return { log: handler.log, close: () => { kobold.close(); api.close(); } };

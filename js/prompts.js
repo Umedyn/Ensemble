@@ -56,9 +56,12 @@
     return ['\n=== RULES ==='].concat(rules.map((r) => '- ' + r));
   };
   // A room's region is shown only when the rooms are in more than one.
-  B.places = ({ state }) => {
-    const many = new Set(Object.values(state.locations).map((l) => l.region)).size > 1;
-    return ['\n=== LOCATIONS ==='].concat(Object.values(state.locations).map((l) => {
+  // The authored rooms (sc.locations), so a way inferred in play (task 3-6)
+  // never changes the header; the live ways are in the user message.
+  B.places = ({ state, sc }) => {
+    const rooms = sc.locations && sc.locations.length ? sc.locations : Object.values(state.locations);
+    const many = new Set(rooms.map((l) => l.region)).size > 1;
+    return ['\n=== LOCATIONS ==='].concat(rooms.map((l) => {
       const c = l.connects && l.connects.length ? ` (connects: ${l.connects.join(', ')})` : '';
       return `- ${l.id}: ${l.name} — ${l.desc}${c}${many && l.region ? ` [region: ${l.region}]` : ''}`;
     }));
@@ -108,6 +111,26 @@
     const groups = (state.factions || []).map((f) => `${f.name}: ${f.stance}`).join('; ');
     return `World: ${w || 'nothing notable'}\nPressures: ${clocks || 'none'}` + (groups ? `\nGroups: ${groups}` : '') + regionLines(state);
   }
+  // Site rules (task 3-6): the ways out of a room as they are now, and the
+  // things in it (with their state). Only for worlds with site data.
+  const hasSite = (state) => Object.values(state.locations).some((l) => (l.features || []).length || (l.links || []).length);
+  function wayText(state, from, to) {
+    const k = Eng().linkInfo(state, from, to);
+    if (!k || k.kind === 'open') return state.locations[to].name;
+    const st = k.kind === 'locked door' && k.locked ? 'locked' : k.open ? 'open' : 'shut';
+    return `${state.locations[to].name} (${k.kind === 'locked door' ? 'door' : k.kind}, ${st})`;
+  }
+  function siteLines(state, room) {
+    if (!hasSite(state)) return '';
+    const ways = Eng().linkedRooms(state, room).map((o) => wayText(state, room, o));
+    const things = Eng().features(state, room).map((f) => f.name + (f.state ? ` (${f.state})` : ''));
+    return `Ways from here: ${ways.join(', ') || 'none'}` + (things.length ? `\nThings here: ${things.join(', ')}` : '');
+  }
+  const lockedHere = (state) => {
+    const here = state.characters[state.player].status.location;
+    return Eng().linkedRooms(state, here).filter((o) => { const k = Eng().linkInfo(state, here, o); return k && k.locked; });
+  };
+
   // The current state of the player's region and its neighbours only.
   function regionLines(state) {
     const near = Eng().nearbyRegions(state);
@@ -212,6 +235,8 @@
     if (minor.length) lines.push(`Also here (minor people): ${minor.map((x) => Eng().extraLabel(x)).join('; ')}`);
     const groups = Eng().standeesAt(state, pc.status.location);
     if (groups.length) lines.push(`Unnamed groups here: ${groups.map((g) => Eng().standeeLabel(state, g)).join('; ')}`);
+    const site = siteLines(state, pc.status.location);
+    if (site) lines.push(site);
     if (elsewhere.length) lines.push(`Elsewhere: ${elsewhere.join(', ')}`);
     lines.push('\n=== STATUS ===');
     lines.push(statusLine(state, state.player, forNarrator, present));
@@ -246,6 +271,11 @@
     present.forEach((id) => {
       const c = state.characters[id];
       if (working(c)) priv.push(`- ${c.name}'s aim: ${c.agenda.goal} (next: ${working(c)})`);
+      // Keys (task 3-6): who can lock and unlock the doors next to them.
+      Eng().linkedRooms(state, c.status.location).forEach((o) => {
+        const k = Eng().linkInfo(state, c.status.location, o);
+        if (k && k.kind === 'locked door' && k.key.includes(id)) priv.push(`- ${c.name} has the key to the door to ${state.locations[o].name} (${k.locked ? 'locked' : 'unlocked'}; can set "${k.locked ? 'unlock' : 'lock'}":"${o}")`);
+      });
       if (c.secret) priv.push(`- ${c.name}'s secret: ${c.secret} (guard: ${c.guard || 'medium'}; ${({ low: 'cracks easily when confronted', medium: 'holds up unless stressed or trusting', high: 'very hard to crack' })[c.guard || 'medium']})`);
       Mem().privateFacts(state, id).slice(-6).forEach((f) => priv.push(`- ${c.name} knows: ${f.text}`));
     });
@@ -287,6 +317,12 @@
       `   If the player's action is aimed at an unnamed group, set the player's "against" to that group id. If the player singles out one member of one, set "single_out": {"standee":"group_id","name":"short name or description","role":"short role"}.\n`;
   };
 
+  const siteTask = (state) => {
+    if (!hasSite(state)) return '';
+    const locked = lockedHere(state);
+    return (locked.length ? `   To pick or force a lock, set the player's "unlock" to the room on the other side (${locked.join(', ')}); it always takes a roll. Nobody walks through a locked door.\n` : '') +
+      `   If the player's action uses something not listed for their room (a window, a vent, a fire extinguisher), set the player's "new_feature": {"name":"short name","to":null or the room id it leads to}.\n`;
+  };
   const inventLine = (sc) => (sc.inventExtras
     ? `   If the scene truly needs a minor person or group who isn't listed anywhere (a guard, a shopkeeper, a crowd), add them to "new_extras": {"name","role","location","group":false}. At most 1. Never for someone already in the cast.\n`
     : '');
@@ -340,7 +376,7 @@
    - "visibility": "seen" (happens in the player's room), "heard" (the player gets a sound, call or message about it) or "hidden" (the player has no idea).
    - "moves": [{"id":"character_id","to":"location_id"}] for offstage characters who go somewhere because of it, else [].
    - "scope": "local" for these.
-${groupTask(state, action)}${inventLine(sc)}${tierTask(state, due)}
+${groupTask(state, action)}${siteTask(state)}${inventLine(sc)}${tierTask(state, due)}
 Reply with JSON only, exactly in this shape:
 ${intentExample(state, present, action)}`;
   };
@@ -368,7 +404,8 @@ ${intentExample(state, present, action)}`;
     );
     const groups = groupsHere(state, action).map((g) => `  {"id":"${g.id}","action":"one sentence","visible":true,"move_to":null}`);
     const anyGroups = Eng().engagedStandees(state, action).length;
-    return `{"player":{"summary":"the player's action restated as a concrete attempt","needs_roll":false,"skill":null,"difficulty":"normal","move_to":null${anyGroups ? ',"against":null,"single_out":null' : ''}},
+    const site = hasSite(state) ? `${lockedHere(state).length ? ',"unlock":null' : ''},"new_feature":null` : '';
+    return `{"player":{"summary":"the player's action restated as a concrete attempt","needs_roll":false,"skill":null,"difficulty":"normal","move_to":null${anyGroups ? ',"against":null,"single_out":null' : ''}${site}},
  "intents":[${intents.length ? '\n' + intents.join(',\n') + '\n ' : ''}],${groups.length ? `\n "group_intents":[\n${groups.join(',\n')}\n ],` : ''}
  "events":[{"text":"one sentence","scope":"local","who":["character_id"],"where":"location_id","visibility":"heard","moves":[]}]${state.scenario.inventExtras ? ',\n "new_extras":[]' : ''}}`;
   }
@@ -382,7 +419,7 @@ ${intentExample(state, present, action)}`;
         return;
       }
       const roll = o.roll ? ` → ${o.roll.result.toUpperCase()} (${o.skill} check: rolled ${o.roll.total} vs ${o.roll.dc}${o.dcWhy ? `; ${o.dcWhy}` : ''})` : ' → happens (no roll needed)';
-      const move = o.moved ? ` [moves to ${state.locations[o.moved].name}]` : '';
+      const move = o.moved ? ` [moves to ${state.locations[o.moved].name}${o.via && o.via.length ? `, through ${o.via.map((r) => state.locations[r].name).join(', ')}` : ''}]` : '';
       const hidden = !forNarrator && !o.visible ? ' [HIDDEN from player]' : '';
       lines.push(`- ${who}: ${o.action}${roll}${move}${hidden}`);
       if (o.says) lines.push(`    says (gist): ${o.says}`);
@@ -620,7 +657,35 @@ locations: ${Object.keys(state.locations).join(', ')}
 world keys: ${Object.keys(state.world).join(', ') || '(none)'}
 groups: ${(state.factions || []).map((f) => f.id).join(', ') || '(none)'}
 clocks: ${state.clocks.map((c) => c.id).join(', ') || '(none)'}
-${Object.keys(state.standees || {}).length ? `unnamed groups (count, state, location only): ${Object.values(state.standees).map((g) => `${g.id} (${g.count}, ${g.state}) in ${g.location}`).join(', ')}\n` : ''}${Object.keys(state.extras || {}).length ? `minor people (facts and location only): ${Object.values(state.extras).map((x) => `${x.id}${x.location ? ' in ' + x.location : ''}`).join(', ')}\n` : ''}${sc.needs.length ? `needs: ${sc.needs.map((n) => n.id).join(', ')}\n` : ''}present this turn: ${[state.player].concat(present).join(', ')}`;
+${updateSiteIds(state)}${Object.keys(state.standees || {}).length ? `unnamed groups (count, state, location only): ${Object.values(state.standees).map((g) => `${g.id} (${g.count}, ${g.state}) in ${g.location}`).join(', ')}\n` : ''}${Object.keys(state.extras || {}).length ? `minor people (facts and location only): ${Object.values(state.extras).map((x) => `${x.id}${x.location ? ' in ' + x.location : ''}`).join(', ')}\n` : ''}${sc.needs.length ? `needs: ${sc.needs.map((n) => n.id).join(', ')}\n` : ''}present this turn: ${[state.player].concat(present).join(', ')}`;
+  // Doors next to the player, features with a state there, and unknown rooms (task 3-6).
+  function updateSiteParts(state) {
+    const here = state.characters[state.player].status.location;
+    const ways = Eng().linkedRooms(state, here).filter((o) => { const k = Eng().linkInfo(state, here, o); return k && k.kind !== 'open'; })
+      .map((o) => `${[here, o].sort().join('|')} (${wayText(state, here, o).replace(/^[^(]*\(|\)$/g, '')})`);
+    const feats = Eng().features(state, here).filter((f) => f.state).map((f) => `${here}|${f.name} (${f.state})`);
+    const unseen = Object.keys(state.locations).filter((r) => !(state.seenRooms || []).includes(r));
+    return { ways, feats, unseen };
+  }
+  function updateSiteShape(state) {
+    const { ways, feats, unseen } = updateSiteParts(state);
+    return (ways.length ? '          {"target":"link:room_a|room_b","field":"open","value":true},\n' : '') +
+      (feats.length ? '          {"target":"feature:room_id|name","field":"state","value":"new state"},\n' : '') +
+      (unseen.length ? '          {"target":"room:room_id","field":"seen","value":true},\n' : '');
+  }
+  function siteGuide(state) {
+    const { ways, feats, unseen } = updateSiteParts(state);
+    const bits = [];
+    if (ways.length) bits.push('a door, hatch or window is opened or shut only when the scene shows it, and a locked one never opens here');
+    if (feats.length) bits.push("a thing's state changes only when the scene shows it (a camera switched off)");
+    if (unseen.length) bits.push('a room is revealed only when the scene shows a plan of it or someone describes it');
+    return bits.length ? `\n- the place: ${bits.join('; ')}.` : '';
+  }
+  function updateSiteIds(state) {
+    const { ways, feats, unseen } = updateSiteParts(state);
+    return (ways.length ? `ways here (open or shut): ${ways.join(', ')}\n` : '') + (feats.length ? `things here with a state: ${feats.join(', ')}\n` : '') +
+      (unseen.length ? `rooms the player doesn't know yet: ${unseen.join(', ')}\n` : '');
+  }
   B.whatHappened = ({ state, action, res, cut }) => (cut
       ? '\n=== WHAT WAS PLANNED THIS TURN (the player stepped in partway: only what the scene below shows actually happened; moves, events and lines it does not show did NOT happen) ===\n'
       : '\n=== WHAT HAPPENED THIS TURN (full truth, including hidden actions) ===\n') + `Player action: "${action}"\n` + outcomeLines(state, res, false);
@@ -642,7 +707,7 @@ Record what changed this turn. Reply with JSON only, exactly in this shape:
           {"target":"char:character_id","field":"need","need":"need_id","delta":-0.5},` : ''}
 ${Object.keys(state.standees || {}).length ? `          {"target":"standee:group_id","field":"count","delta":-1},
           {"target":"standee:group_id","field":"state","value":"calm|alert|hostile|fled|down"},
-` : ''}          {"target":"world:key","value":"new short description"},
+` : ''}${updateSiteShape(state)}          {"target":"world:key","value":"new short description"},
           {"target":"faction:group_id","value":"new short stance"},
           {"target":"clock:clock_id","delta":-2}],
  "relations":[{"from":"character_id","to":"character_id","delta":5,"reason":"short reason"}],
@@ -664,7 +729,7 @@ Guidelines:
 - player_attitude: how ${name(state, state.player)}'s own feelings toward someone shifted, judged ONLY from the player action as quoted above (their words and tone), never from how the narrator embellished it. Snapping, mocking or threatening lowers it; thanking, helping, joking warmly or confiding raises it. Delta between -10 and 10. Leave empty if the action was neutral.
 - chapter_worthy: true only for a major turning point.${Object.keys(state.extras || {}).length ? `
 - minor people: may be in facts (about, known_by) and may change location; no relations, moods, tags or needs.` : ''}${Object.keys(state.standees || {}).length ? `
-- unnamed groups: count goes down for members killed, captured or gone (it only goes up if an event brought more); state when the scene shows them change (fled: they leave for good); location only one linked room, when seen leaving.` : ''}${sc.inventExtras ? `
+- unnamed groups: count goes down for members killed, captured or gone (it only goes up if an event brought more); state when the scene shows them change (fled: they leave for good); location only one linked room, when seen leaving.` : ''}${siteGuide(state)}${sc.inventExtras ? `
 - new_extras: only if the scene clearly brought in a new minor person or group not listed above: {"name","role","location","group":false}. At most 1.` : ''}
 Use [] for any list with nothing to record.`;
 
