@@ -1,0 +1,52 @@
+/* The creator (task 3-5). Theme variables only: every colour comes from the
+   theme blocks in style.css (tests/themes.test.js checks this file too). */
+body.creator { display: flex; flex-direction: column; height: 100dvh; }
+.c-banner { padding: 8px 18px; font-size: 0.8125rem; background: var(--panel-2); border-bottom: 1px solid var(--line); }
+.c-banner.bad { color: var(--bad); }
+.c-tabs { display: flex; gap: 4px; padding: 8px 14px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.c-tabs button { border-radius: 6px 6px 0 0; border-bottom: none; font-size: 0.8125rem; }
+.c-tabs button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+.c-tabs .soon { color: var(--muted); font-size: 0.6875rem; }
+.c-main { flex: 1; min-height: 0; overflow: auto; }
+.c-empty { color: var(--muted); text-align: center; margin-top: 60px; }
+.c-validation { flex: none; max-height: 22vh; overflow: auto; padding: 8px 18px; border-top: 1px solid var(--line); background: var(--panel); font-size: 0.8125rem; }
+.c-validation ul { margin: 4px 0 0 18px; padding: 0; }
+.c-validation .bad, .bad { color: var(--bad); }
+.c-validation .good, .good { color: var(--good); }
+.c-map { display: grid; grid-template-columns: minmax(0, 1fr) 330px; height: 100%; min-height: 0; }
+.c-canvas-col { display: flex; flex-direction: column; min-height: 0; padding: 10px 14px; }
+.c-toolbar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+.c-toolbar button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+.c-toolbar .sep { width: 1px; height: 1.4rem; background: var(--line); margin: 0 4px; }
+.c-toolbar .zoom { margin-left: auto; display: flex; gap: 4px; }
+.c-canvas { flex: 1; min-height: 0; overflow: hidden; position: relative; }
+.c-canvas .world-svg { height: 100%; max-height: 100%; cursor: crosshair; }
+.c-hint { color: var(--muted); font-size: 0.75rem; margin-top: 6px; }
+.c-missing { position: absolute; left: 10px; right: 10px; top: 10px; padding: 8px 10px; background: var(--panel); border: 1px solid var(--bad); border-radius: 6px; font-size: 0.8125rem; }
+.c-panel { overflow-y: auto; border-left: 1px solid var(--line); background: var(--panel); padding: 10px 14px; }
+.c-panel section { margin-bottom: 16px; }
+.c-panel h3 { margin: 0 0 6px; font-size: 0.875rem; }
+.c-panel label { display: block; font-size: 0.8125rem; margin: 6px 0; }
+.c-panel input:not([type="checkbox"]), .c-panel textarea, .c-panel select { width: 100%; }
+.c-panel .c-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.c-panel .c-row select { width: auto; max-width: 55%; }
+.c-list { display: flex; flex-direction: column; gap: 3px; margin-bottom: 6px; }
+.c-list button { text-align: left; font-size: 0.8125rem; }
+.c-list button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.c-neigh { border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; margin: 8px 0; }
+.c-neigh label { display: block; margin: 3px 0; }
+.c-placed { list-style: none; margin: 6px 0 0; padding: 0; font-size: 0.8125rem; }
+.c-placed li { margin: 3px 0; }
+button.danger { color: var(--bad); }
+.small { font-size: 0.75rem; }
+.muted { color: var(--muted); }
+/* Editing handles over the map */
+.c-handle { fill: var(--accent); stroke: var(--bg); stroke-width: 1; cursor: move; }
+.c-draw { fill: none; stroke: var(--accent); stroke-dasharray: 6 4; }
+.c-draw-pt { fill: var(--accent); }
+.c-draw-pt.first { fill: var(--good); }
+@media (max-width: 860px) {
+  .c-map { grid-template-columns: minmax(0, 1fr); height: auto; }
+  .c-canvas { height: 60vh; flex: none; }
+  .c-panel { border-left: none; border-top: 1px solid var(--line); }
+}

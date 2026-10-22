@@ -10,6 +10,9 @@ import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import { startServer } from '../tools/serve.mjs';
 import { startMocks } from './mock-servers.mjs';
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const helpers = require('./helpers.js');
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const shots = path.join(here, 'screenshots');
@@ -572,6 +575,64 @@ await check('phone: the world view fits and the level switch works', async (page
   const box = await page.locator('#worldSvg').boundingBox();
   assert.ok(box.x >= 0 && box.x + box.width <= 390, 'fits the screen');
   await page.screenshot({ path: path.join(shots, 'phone-map-world.png') });
+});
+
+// Task 3-5: the creator. Draw a region on a map image, export the world as
+// a zip, check the zip loads, then play it in the game from disk.
+await check('creator: draw a region on a map image, export, and play the export', async (page) => {
+  await page.goto(BASE + 'creator.html');
+  await page.waitForFunction(() => document.querySelectorAll('#cWorld option').length > 1);
+  assert.ok(await page.locator('#cTabs [data-tab="world"]').isDisabled(), 'later tabs are shown, not ready');
+  await page.selectOption('#cWorld', 'server:mars-station');
+  await page.waitForSelector('#cSvg');
+  assert.match(await page.textContent('#cValidation'), /No problems/);
+  await page.setInputFiles('#cImage', path.join(here, '..', 'scenarios', 'zombie-holdout', 'maps', 'town.svg'));
+  await page.waitForSelector('#cSvg image');
+  await page.click('#cRegionList [data-sel="station"]');
+  await page.click('[data-mode="draw"]');
+  const box = await page.locator('#cSvg').boundingBox();
+  for (const [fx, fy] of [[0.2, 0.2], [0.45, 0.2], [0.45, 0.5], [0.2, 0.5]]) await page.mouse.click(box.x + box.width * fx, box.y + box.height * fy);
+  await page.keyboard.press('Enter');
+  assert.match(await page.textContent('#cRegionForm'), /Outlined with 4 corners/);
+  await page.selectOption('[data-field="controller"]', 'sponsor');
+  await page.selectOption('[data-startregion="garage"]', 'crater-rim');
+  // Problems show inline, next to the region, as you type.
+  await page.fill('[data-field="tags"]', 'a, b, c, d, e, f, g');
+  await page.waitForFunction(() => /"tags" must be a list of at most 6/.test(document.getElementById('cRegionProblems').textContent));
+  assert.match(await page.textContent('#cValidation'), /1 problem/);
+  await page.fill('[data-field="tags"]', 'cramped');
+  await page.waitForFunction(() => /No problems/.test(document.getElementById('cValidation').textContent));
+  await page.screenshot({ path: path.join(shots, 'creator-map.png') });
+  const [download] = await Promise.all([page.waitForEvent('download'), page.click('#cExport')]);
+  const bytes = new Uint8Array(fs.readFileSync(await download.path()));
+  const E = helpers.loadEngine();
+  const out = path.join(shots, 'creator-export');
+  fs.rmSync(out, { recursive: true, force: true });
+  const names = [];
+  for (const e of E.Zip.read(bytes)) {
+    names.push(e.name);
+    fs.mkdirSync(path.dirname(path.join(out, e.name)), { recursive: true });
+    fs.writeFileSync(path.join(out, e.name), e.data);
+  }
+  assert.ok(names.includes('mars-station/maps/town.svg') && names.includes('mars-station/world.json') && names.includes('mars-station/starts/garage.json'));
+  const w = helpers.readWorld(path.join(out, 'mars-station'), E);
+  assert.ok(w.starts.every((s) => s.scenario), 'the export loads');
+  const sc = w.starts.find((s) => s.id === 'garage').scenario;
+  assert.equal(sc.map.image, 'maps/town.svg');
+  assert.equal(sc.map.regions.station.polygon.length, 4);
+  assert.equal(sc.regions.find((r) => r.id === 'station').controller, 'sponsor');
+  assert.equal(sc.region, 'crater-rim');
+  // Play it: open the exported folder in the game and look at the world map.
+  await page.goto(BASE);
+  await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
+  await page.setInputFiles('#folderInput', path.join(out, 'mars-station'));
+  await page.waitForFunction(() => [...document.querySelectorAll('#scenarioSelect option')].some((o) => o.value === 'disk:mars-station'));
+  await page.selectOption('#scenarioSelect', 'disk:mars-station');
+  await newGame(page);
+  await sceneReady(page);
+  await page.click('[data-mapview="world"]');
+  assert.equal(await page.locator('#worldSvg image').count(), 1, 'the map image came from the export');
+  assert.ok(await page.locator('.region-g[data-region="station"] polygon.fc-4').count(), 'drawn, in the sponsor\'s colour');
 });
 
 // Task 1-8: fix your own feelings toward someone from their details.

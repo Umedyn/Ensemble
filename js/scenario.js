@@ -182,6 +182,11 @@
         if (typeof entry !== 'string') warnings.push(...unknownFields(entry, CAST_FIELDS, `${where} cast "${entry.id}"`));
       });
     });
+    // Rooms placed on the world map must exist in the world or some start.
+    if (isObj(world.map) && isObj(world.map.locations)) {
+      const rooms = new Set([].concat(world.locations || [], ...startIds.map((sid) => (starts[sid] && starts[sid].locations) || [])).map((l) => l && l.id));
+      Object.keys(world.map.locations).forEach((id) => req(rooms.has(id), `map: unknown location "${id}"`));
+    }
     // Regions the world map leaves out get an automatic point (task 3-4).
     if (isObj(world.map) && Array.isArray(world.regions)) world.regions.forEach((r) => {
       if (r && r.id && !(isObj(world.map.regions) && world.map.regions[r.id])) warnings.push(`world.json: region "${r.id}" is not on the map; it gets a point placed automatically`);
@@ -258,7 +263,9 @@
   };
 
   // Missing start or character files are left out, so validateWorld names them.
-  S.loadWorldServer = async function (folder) {
+  // A server world's raw files, { relative path: parsed JSON }, not yet
+  // composed (the creator edits these; task 3-5).
+  S.fetchWorldFiles = async function (folder) {
     const base = `scenarios/${folder}/`;
     const files = {};
     let legacy = false;
@@ -268,7 +275,10 @@
     await Promise.all(S.neededFiles(rootJson, legacy).map(async (p) => {
       try { files[p] = await getJSON(base + p); } catch (e) { /* reported by validateWorld */ }
     }));
-    return S.prepareWorld(folder, files);
+    return files;
+  };
+  S.loadWorldServer = async function (folder) {
+    return S.prepareWorld(folder, await S.fetchWorldFiles(folder));
   };
 
   // The default start of a server world, validated (kept for older callers).
@@ -279,7 +289,10 @@
   // FileList from <input webkitdirectory>. Finds every world.json (or legacy
   // scenario.json) in it, so picking either one world folder or the whole
   // scenarios/ folder works.
-  S.loadFromFiles = async function (fileList) {
+  // The raw files of every world in a picked folder: [{ folder, files, assets }]
+  // (assets: image files by path relative to the world folder). Unreadable
+  // ones are reported in errors.
+  S.readFolderFiles = async function (fileList) {
     const files = Array.from(fileList);
     const byPath = new Map(files.map((f) => [f.webkitRelativePath || f.name, f]));
     const readJSON = async (f) => JSON.parse(await f.text());
@@ -299,16 +312,29 @@
         for (const p of S.neededFiles(rootJson, rootName === 'scenario.json')) {
           if (byPath.has(dir + p)) found[p] = await readJSON(byPath.get(dir + p));
         }
-        const folder = dir.replace(/\/$/, '').split('/').pop() || rootJson.id;
-        const world = S.prepareWorld(folder, found);
-        // Image files in the folder, by path relative to it (the page makes URLs; never saved).
-        world.assets = {};
-        for (const [p, f] of byPath) if (p.startsWith(dir) && E.isImagePath(p.slice(dir.length))) world.assets[p.slice(dir.length)] = f;
-        worlds.push(world);
+        const assets = {};
+        for (const [p, f] of byPath) if (p.startsWith(dir) && E.isImagePath(p.slice(dir.length))) assets[p.slice(dir.length)] = f;
+        worlds.push({ folder: dir.replace(/\/$/, '').split('/').pop() || rootJson.id, files: found, assets });
       } catch (err) {
         errors.push(`${dir || '(root)'}: ${err.message}`);
       }
     }
+    return { worlds, errors };
+  };
+  S.loadFromFiles = async function (fileList) {
+    const raw = await S.readFolderFiles(fileList);
+    const worlds = [];
+    const errors = raw.errors.slice();
+    raw.worlds.forEach((w) => {
+      try {
+        const world = S.prepareWorld(w.folder, w.files);
+        // Image files in the folder, by path relative to it (the page makes URLs; never saved).
+        world.assets = w.assets;
+        worlds.push(world);
+      } catch (err) {
+        errors.push(`${w.folder}: ${err.message}`);
+      }
+    });
     if (!worlds.length) {
       throw new Error(errors.length ? errors.join('\n') : 'No world.json or scenario.json found in that folder.');
     }
@@ -494,10 +520,9 @@
         req(inside(shape.point), `map: region "${id}" point is outside the image`);
       } else problems.push(`map: region "${id}" needs a "polygon" or a "point"`);
     });
-    Object.entries(isObj(m.locations) ? m.locations : {}).forEach(([id, p]) => {
-      req(locIds.has(id), `map: unknown location "${id}"`);
-      req(inside(p), `map: location "${id}" is outside the image`);
-    });
+    // Rooms may belong to another start (the map is the world's); unknown ids
+    // are checked once against every start in validateWorld.
+    Object.entries(isObj(m.locations) ? m.locations : {}).forEach(([id, p]) => req(inside(p), `map: location "${id}" is outside the image`));
     return problems;
   }
 

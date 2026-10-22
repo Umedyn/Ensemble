@@ -20,17 +20,27 @@ test('the world map validates: known regions, polygons of 3+ points inside the i
   sc.map.regions.junction = { polygon: [[0, 0], [10, 0]] };
   sc.map.regions['main-street'] = { polygon: [[0, 0], [900, 0], [10, 10]] };
   sc.map.regions.residential = { point: [-5, 3] };
-  sc.map.locations.attic = [1, 1];
   sc.map.locations.lot = [5000, 1];
   sc.factions[0].color = 9;
   assert.throws(() => E.Scenario.validate(sc), (err) => [
     'map: unknown region "shire"', 'region "junction" polygon needs at least 3 points', 'region "main-street" polygon has a point outside the image',
-    'region "residential" point is outside the image', 'map: unknown location "attic"', 'map: location "lot" is outside the image',
+    'region "residential" point is outside the image', 'map: location "lot" is outside the image',
     '"color" must be a whole number from 1 to 8',
   ].every((m) => err.message.includes(m)));
   const bad = readScenario('zombie-holdout');
   bad.map = { image: '../secret.png', width: 10, height: 10 };
   assert.throws(() => E.Scenario.validate(bad), /"map" needs an "image" in the world folder/);
+});
+
+test('rooms on the world map may come from any start, but must exist in one', () => {
+  const E = loadEngine();
+  const files = worldFiles('zombie-holdout');
+  files['world.json'].map.locations.attic = [1, 1];
+  assert.throws(() => E.Scenario.prepareWorld('zombie-holdout', files), /map: unknown location "attic"/);
+  const m = worldFiles('mars-station');
+  m['world.json'].map = { image: 'maps/x.png', width: 100, height: 100, regions: {}, locations: { garage: [5, 5] } };
+  const w = E.Scenario.prepareWorld('mars-station', m);
+  assert.ok(w.starts.every((s) => s.scenario), 'garage is a world room: fine in both starts');
 });
 
 test('a region left off the map is warned about and gets a point along the bottom', () => {

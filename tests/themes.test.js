@@ -76,6 +76,11 @@ test('every theme sets every colour the dark theme defines', () => {
   }
 });
 
+test('the creator stylesheet uses theme colours only (task 3-5)', () => {
+  const creator = fs.readFileSync(path.join(__dirname, '..', 'css', 'creator.css'), 'utf8');
+  assert.deepEqual(creator.match(/#[0-9a-fA-F]{3,8}/g) || [], []);
+});
+
 test('no hard-coded colours outside the theme blocks', () => {
   const rules = css.replace(/:root(\[data-theme="\w+"\])? \{[^}]*\}/g, '').replace(/repeating-linear-gradient\([^)]*\)/g, '');
   assert.deepEqual(rules.match(/#[0-9a-fA-F]{3,8}\b/g) || [], []);

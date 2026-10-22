@@ -118,7 +118,7 @@ Pax Historia's map at personal scale: World → Regional → Local.
 - [x] Phone layout: one view at a time with a switcher.
 
 **First creator tab**
-- [ ] `creator.html`, the **map editor**: load an image, draw and edit region polygons, set controllers, tags and neighbours, place locations, and export JSON. Shares `scenario.js` validation.
+- [x] `creator.html`, the **map editor**: load an image, draw and edit region polygons, set controllers, tags and neighbours, place locations, and export JSON. Shares `scenario.js` validation.
 
 ## Phase 4: Creation and generation
 
