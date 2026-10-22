@@ -21,6 +21,15 @@
   --monogram-text: #ffffff;
   --focus: #d9a35b;
   --focus-width: 2px;
+  /* Faction colours (task 3-4): region fills on the world map */
+  --f1: #d0805a;
+  --f2: #5aa6d6;
+  --f3: #74b870;
+  --f4: #cfa940;
+  --f5: #ad88d6;
+  --f6: #4fb8ad;
+  --f7: #d77399;
+  --f8: #a3a374;
   --serif: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
   --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
   --story-font: var(--serif);
@@ -48,6 +57,14 @@
   --backdrop: #0006;
   --monogram-text: #ffffff;
   --focus: #8a4f0c;
+  --f1: #a14e28;
+  --f2: #2a6a99;
+  --f3: #3b7837;
+  --f4: #85660e;
+  --f5: #6c4aa1;
+  --f6: #21756d;
+  --f7: #a13a61;
+  --f8: #666637;
   color-scheme: light;
 }
 /* High visibility: very high contrast, thick borders and focus rings, no
@@ -72,6 +89,14 @@
   --monogram-text: #ffffff;
   --focus: #ffd400;
   --focus-width: 3px;
+  --f1: #ff9a66;
+  --f2: #66c2ff;
+  --f3: #8cff8c;
+  --f4: #ffd966;
+  --f5: #d1a3ff;
+  --f6: #66ffe6;
+  --f7: #ff8cc6;
+  --f8: #e6e68c;
   color-scheme: dark;
 }
 :root[data-font="sans"] { --story-font: var(--sans); }
@@ -162,6 +187,42 @@ button:disabled { opacity: .5; cursor: default; }
 .map-token:focus .tok, .map-token:hover .tok { stroke: var(--focus); stroke-width: 2; }
 .map-more { fill: var(--muted); font-size: 10px; font-family: var(--sans); }
 .map-empty { color: var(--muted); text-align: center; margin-top: 40px; }
+/* World and regional views (task 3-4) */
+.map-tabs { display: flex; gap: 0; margin-bottom: 8px; align-items: center; }
+.map-tabs button { font-size: 0.75rem; padding: 3px 10px; border-radius: 0; }
+.map-tabs button:first-child { border-radius: 6px 0 0 6px; }
+.map-tabs button.last { border-radius: 0 6px 6px 0; }
+.map-tabs button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.map-tabs .zoom { margin-left: auto; display: flex; gap: 4px; }
+.map-tabs .zoom button { border-radius: 6px; padding: 3px 8px; }
+.world-svg { width: 100%; height: auto; display: block; touch-action: none; cursor: grab; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.world-svg.panning { cursor: grabbing; }
+.region-shape { stroke: var(--line-strong); stroke-width: 2; fill-opacity: 0.45; cursor: pointer; }
+.region-shape.none { fill: var(--panel-2); fill-opacity: 0.35; stroke-dasharray: 6 4; }
+.region-shape.here { stroke: var(--accent); stroke-width: 4; }
+.region-shape.selected { stroke: var(--focus); stroke-width: 4; }
+.region-node.none { fill: var(--panel-2); }
+.region-edge { stroke: var(--line-strong); stroke-width: 2; }
+.region-g:focus { outline: none; }
+.region-g:focus .region-shape { stroke: var(--focus); stroke-width: 4; }
+.region-label { fill: var(--text); font-family: var(--sans); font-size: 15px; font-weight: 700; paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round; pointer-events: none; }
+.region-tag { fill: var(--tag-bg); stroke: var(--line); }
+.region-tag-text { fill: var(--text); font-family: var(--sans); font-size: 11px; pointer-events: none; }
+.region-pin { fill: var(--accent); stroke: var(--bg); stroke-width: 2; pointer-events: none; }
+.region-loc { fill: var(--text); stroke: var(--bg); stroke-width: 1.5; }
+.region-loc-label { fill: var(--muted); font-family: var(--sans); font-size: 11px; paint-order: stroke; stroke: var(--bg); stroke-width: 3px; pointer-events: none; }
+.region-g.changed .region-shape { animation: region-pulse 1.2s ease-out 1; }
+@keyframes region-pulse { 0% { stroke-width: 10; stroke: var(--accent); } 100% { stroke-width: 2; } }
+.region-info { margin-top: 8px; font-size: 0.8125rem; line-height: 1.45; }
+.region-info b { color: var(--text); }
+.region-info .muted { color: var(--muted); }
+.region-info .changed { color: var(--accent); }
+.fc-1 { fill: var(--f1); } .fc-2 { fill: var(--f2); } .fc-3 { fill: var(--f3); } .fc-4 { fill: var(--f4); }
+.fc-5 { fill: var(--f5); } .fc-6 { fill: var(--f6); } .fc-7 { fill: var(--f7); } .fc-8 { fill: var(--f8); }
+.swatch { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 2px; vertical-align: -1px; margin-right: 4px; }
+.swatch.fc-1 { background: var(--f1); } .swatch.fc-2 { background: var(--f2); } .swatch.fc-3 { background: var(--f3); } .swatch.fc-4 { background: var(--f4); }
+.swatch.fc-5 { background: var(--f5); } .swatch.fc-6 { background: var(--f6); } .swatch.fc-7 { background: var(--f7); } .swatch.fc-8 { background: var(--f8); }
+.swatch.none { background: var(--panel-2); border: 1px dashed var(--line-strong); }
 .scene-bar b { color: var(--text); }
 .log { flex: 1; overflow-y: auto; padding: 18px 22px 30px; }
 .log .empty { color: var(--muted); margin-top: 40px; text-align: center; }

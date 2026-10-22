@@ -112,10 +112,10 @@ Pax Historia's map at personal scale: World → Regional → Local.
 - [ ] **Secure rooms** (`secure: true`, defaulted for types like vault, armory, cell, server room): exactly one way in and out, through a guard post, security point or hallway. Layout styles place them as dead ends, generation is rejected if it gives them a second link, and inference can never add one.
 
 **Views**
-- [ ] **World view**: the map image with creator-drawn region polygons coloured by controller, and tag badges. Without an image, a node map laid out automatically.
-- [ ] **Regional view**: the world view zoomed to the current region and its neighbours.
+- [x] **World view**: the map image with creator-drawn region polygons coloured by controller, and tag badges. Without an image, a node map laid out automatically.
+- [x] **Regional view**: the world view zoomed to the current region and its neighbours.
 - [x] **Local view**: the room graph laid out automatically from `connects`, or an optional floor-plan image with room hotspots, showing tokens. Clicking a room or token fills in the action box ("go to the lab", "talk to Teo").
-- [ ] Phone layout: one view at a time with a switcher.
+- [x] Phone layout: one view at a time with a switcher.
 
 **First creator tab**
 - [ ] `creator.html`, the **map editor**: load an image, draw and edit region polygons, set controllers, tags and neighbours, place locations, and export JSON. Shares `scenario.js` validation.

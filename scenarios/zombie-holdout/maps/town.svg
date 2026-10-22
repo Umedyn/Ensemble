@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="560" viewBox="0 0 800 560">
+  <!-- Hand-drawn town map for Holdout at Harmon's (task 3-4). Plain shapes, no text: the game draws names and colours on top. -->
+  <rect width="800" height="560" fill="#2b2f2a"/>
+  <!-- fields and woods -->
+  <path d="M0 0 H800 V140 C640 170 520 120 400 150 C260 185 120 130 0 170 Z" fill="#323a2e"/>
+  <g fill="#2a3326" opacity="0.9">
+    <circle cx="60" cy="60" r="38"/><circle cx="120" cy="40" r="30"/><circle cx="700" cy="70" r="44"/><circle cx="760" cy="120" r="28"/>
+    <circle cx="40" cy="480" r="36"/><circle cx="740" cy="500" r="40"/>
+  </g>
+  <!-- ridge road climbing to Ridge -->
+  <path d="M420 250 C380 200 300 160 210 110 C170 90 140 80 110 70" fill="none" stroke="#5a5a52" stroke-width="10" stroke-linecap="round"/>
+  <!-- Ridge: walled school and grain elevator -->
+  <rect x="60" y="40" width="150" height="90" rx="6" fill="#3b3a36" stroke="#6b6658" stroke-width="3"/>
+  <rect x="80" y="55" width="50" height="35" fill="#4a4740"/><circle cx="170" cy="75" r="18" fill="#56524a"/>
+  <!-- the interstate and the junction -->
+  <path d="M800 210 C660 220 540 230 420 250 C300 270 180 260 0 250" fill="none" stroke="#4d4d48" stroke-width="22"/>
+  <path d="M800 210 C660 220 540 230 420 250 C300 270 180 260 0 250" fill="none" stroke="#6a6a60" stroke-width="2" stroke-dasharray="14 12"/>
+  <g fill="#5e4a3c"><rect x="400" y="236" width="18" height="10" transform="rotate(18 409 241)"/><rect x="430" y="246" width="18" height="10" transform="rotate(-25 439 251)"/><rect x="455" y="238" width="18" height="10" transform="rotate(8 464 243)"/></g>
+  <!-- the two-lane highway south through the strip -->
+  <path d="M430 255 C440 300 450 330 460 560" fill="none" stroke="#4d4d48" stroke-width="14"/>
+  <!-- the highway strip: store, gas station, diner, feed store -->
+  <rect x="480" y="300" width="70" height="44" fill="#4b4a44" stroke="#77736a" stroke-width="2"/>
+  <rect x="480" y="350" width="70" height="30" fill="#3a3a36"/>
+  <rect x="380" y="300" width="44" height="28" fill="#47463f"/><rect x="380" y="340" width="40" height="26" fill="#47463f"/><rect x="488" y="392" width="46" height="24" fill="#47463f"/>
+  <!-- Main Street: blocks around the courthouse -->
+  <g fill="#3f3d38" stroke="#57534a" stroke-width="1.5">
+    <rect x="560" y="430" width="60" height="40"/><rect x="630" y="430" width="50" height="40"/><rect x="690" y="430" width="70" height="40"/>
+    <rect x="560" y="480" width="60" height="50"/><rect x="690" y="480" width="70" height="50"/>
+  </g>
+  <rect x="630" y="480" width="50" height="50" fill="#55514a" stroke="#77736a" stroke-width="2"/>
+  <path d="M470 455 H790" stroke="#4d4d48" stroke-width="8"/>
+  <!-- the houses: small lots and trailers -->
+  <g fill="#3d3b36" stroke="#55514a" stroke-width="1">
+    <rect x="90" y="360" width="34" height="24"/><rect x="140" y="360" width="34" height="24"/><rect x="190" y="360" width="34" height="24"/><rect x="250" y="360" width="34" height="24"/>
+    <rect x="90" y="420" width="34" height="24"/><rect x="140" y="420" width="34" height="24"/><rect x="200" y="420" width="44" height="16"/><rect x="260" y="420" width="44" height="16"/>
+    <rect x="110" y="480" width="34" height="24"/><rect x="170" y="480" width="34" height="24"/><rect x="240" y="480" width="44" height="16"/>
+  </g>
+  <path d="M60 400 H440 M60 460 H440" stroke="#4a4a44" stroke-width="5"/>
+</svg>

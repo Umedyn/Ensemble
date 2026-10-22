@@ -692,9 +692,7 @@
     }
   }
   const KIND_WORD = { open: 'way', door: 'door', 'locked door': 'locked door', vent: 'vent', hatch: 'hatch', window: 'window', stairs: 'stairs' };
-  function renderMap() {
-    const pane = $('mapPane');
-    if (!state) { pane.innerHTML = ''; return; }
+  function localMapHtml() {
     const here = state.characters[state.player].status.location;
     const tokens = mapTokens();
     const seen = (id) => state.seenRooms.includes(id);
@@ -735,8 +733,229 @@
       const who = (tokens[id] || []).map((t) => (t.player ? 'you' : t.kind === 'standee' ? `${t.count} ${t.label}` : t.label) + (t.now ? '' : ' (last seen)'));
       return `<li>${esc(state.locations[id].name)}${id === here ? ' (you are here)' : ''}: ${esc(who.join(', ') || 'no one you know of')}</li>`;
     }).join('');
-    pane.innerHTML = svg + `<ul class="sr-only" id="mapList">${list}</ul>`;
+    return svg + `<ul class="sr-only" id="mapList">${list}</ul>`;
   }
+
+  // ---------- world and regional views (task 3-4) ----------
+  // Regions coloured by who holds them (theme colours --f1…--f8, picked by
+  // the faction's "color" or a hash of its id), tag badges, your region
+  // marked, and an info strip for the region you pick. Public state only:
+  // controller, tags, status and the lore summary. The regional view is the
+  // same map zoomed to your region and its neighbours. Drag to pan; wheel,
+  // pinch or the buttons to zoom.
+  const MAPVIEW_KEY = 'ensemble.mapview';
+  let mapSel = null; // the region picked for the info strip
+  const viewBoxes = {}; // per view: the panned/zoomed viewBox, until reset or a new game
+  const pulsed = new Set(); // "id@turn": a change pulses once
+  function mapViewAll() { try { return JSON.parse(store.get(MAPVIEW_KEY)) || {}; } catch (e) { return {}; } }
+  const hasRegions = () => !!(state && (state.scenario.regions || []).length);
+  function mapView() {
+    const v = hasRegions() ? mapViewAll()[state.scenario.worldId] : null;
+    return ['local', 'region', 'world'].includes(v) ? v : 'local';
+  }
+  const factionClass = (fid) => {
+    const f = fid && (state.factions || []).find((x) => x.id === fid);
+    if (!f) return 'none';
+    return 'fc-' + (f.color || (E.hash(f.id) % E.Scenario.FACTION_COLORS) + 1);
+  };
+  const factionName = (fid) => { const f = fid && (state.factions || []).find((x) => x.id === fid); return f ? f.name : 'no one'; };
+  // The geometry for either kind of world map: shapes, anchors and the full viewBox.
+  function worldGeometry() {
+    const regions = state.scenario.regions || [];
+    const m = state.scenario.map;
+    if (m) {
+      const anchors = E.Layouts.regionAnchors(regions, m);
+      const shapes = {};
+      regions.forEach((r) => {
+        const sh = m.regions && m.regions[r.id];
+        shapes[r.id] = sh && sh.polygon ? { polygon: sh.polygon } : { circle: anchors[r.id], r: 26 };
+      });
+      return { image: m, anchors, shapes, edges: [], full: [0, 0, m.width, m.height] };
+    }
+    const nm = E.Layouts.regionMap(regions, state.scenario.worldId);
+    const anchors = {}, shapes = {};
+    Object.entries(nm.nodes).forEach(([id, n]) => { anchors[id] = [n.x, n.y]; shapes[id] = { box: n }; });
+    return { image: null, anchors, shapes, edges: nm.edges, full: [0, 0, nm.width, nm.height] };
+  }
+  // The box around a set of regions, padded.
+  function regionBox(g, ids) {
+    const pts = [];
+    ids.forEach((id) => {
+      const sh = g.shapes[id];
+      if (sh.polygon) pts.push(...sh.polygon);
+      else if (sh.box) pts.push([sh.box.x - sh.box.w / 2, sh.box.y - sh.box.h / 2], [sh.box.x + sh.box.w / 2, sh.box.y + sh.box.h / 2]);
+      else pts.push([sh.circle[0] - 60, sh.circle[1] - 40], [sh.circle[0] + 60, sh.circle[1] + 40]);
+    });
+    const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+    const pad = 30;
+    return [Math.min(...xs) - pad, Math.min(...ys) - pad, Math.max(...xs) - Math.min(...xs) + 2 * pad, Math.max(...ys) - Math.min(...ys) + 2 * pad];
+  }
+  // The regional view: your region at twice its size, within the box around
+  // it and its neighbours, so you see it whole and the edges of the rest.
+  function focusBox(g, mine, near) {
+    const [ox, oy, ow, oh] = regionBox(g, [mine]);
+    const [nx, ny, nw, nh] = regionBox(g, near);
+    const cx = ox + ow / 2, cy = oy + oh / 2;
+    const x0 = Math.max(nx, cx - ow), y0 = Math.max(ny, cy - oh);
+    const x1 = Math.min(nx + nw, cx + ow), y1 = Math.min(ny + nh, cy + oh);
+    return [x0, y0, x1 - x0, y1 - y0];
+  }
+  function worldMapHtml(view) {
+    const g = worldGeometry();
+    const mine = E.Engine.playerRegion(state);
+    const near = E.Engine.nearbyRegions(state);
+    const regions = state.scenario.regions;
+    const defaultBox = view === 'region' && near.length ? focusBox(g, mine, near) : g.full;
+    const vb = viewBoxes[view] || defaultBox;
+    const shapeSvg = (id, cls) => {
+      const sh = g.shapes[id];
+      if (sh.polygon) return `<polygon class="${cls}" points="${sh.polygon.map((p) => p.join(',')).join(' ')}"/>`;
+      if (sh.box) return `<rect class="${cls}" x="${sh.box.x - sh.box.w / 2}" y="${sh.box.y - sh.box.h / 2}" width="${sh.box.w}" height="${sh.box.h}" rx="10" style="fill-opacity:0.8"/>`;
+      return `<circle class="${cls}" cx="${sh.circle[0]}" cy="${sh.circle[1]}" r="${sh.r}"/>`;
+    };
+    const edges = g.edges.map(([a, b]) => `<line class="region-edge" x1="${g.anchors[a][0]}" y1="${g.anchors[a][1]}" x2="${g.anchors[b][0]}" y2="${g.anchors[b][1]}"/>`).join('');
+    const body = regions.map((r) => {
+      const now = state.regions[r.id];
+      const fc = factionClass(now.controller);
+      const ch = (state.regionChanged || {})[r.id];
+      const key = `${r.id}@${state.turn}`;
+      const pulse = ch && ch.turn === state.turn && !pulsed.has(key);
+      if (pulse) pulsed.add(key);
+      const cls = `region-shape ${fc}${fc === 'none' ? ' none' : ''}${r.id === mine ? ' here' : ''}${r.id === mapSel ? ' selected' : ''}`;
+      const [ax, ay] = g.anchors[r.id];
+      const tags = now.tags.slice(0, 2).concat(now.tags.length > 2 ? [`+${now.tags.length - 2}`] : []);
+      let tx = ax - tags.reduce((t, x) => t + x.length * 6.2 + 14, 0) / 2;
+      const badges = tags.map((t) => {
+        const w = t.length * 6.2 + 10;
+        const out = `<rect class="region-tag" x="${tx}" y="${ay + 8}" width="${w}" height="16" rx="8"/><text class="region-tag-text" x="${tx + 5}" y="${ay + 20}">${esc(t)}</text>`;
+        tx += w + 4;
+        return out;
+      }).join('');
+      const pin = r.id === mine ? `<circle class="region-pin" cx="${ax}" cy="${ay - 24}" r="6"/>` : '';
+      const label = `${r.name}, held by ${factionName(now.controller)}${r.id === mine ? ', you are here' : ''}`;
+      return `<g class="region-g${pulse ? ' changed' : ''}" tabindex="0" role="button" data-region="${esc(r.id)}" aria-label="${esc(label)}">${shapeSvg(r.id, cls)}<text class="region-label" x="${ax}" y="${ay}" text-anchor="middle">${esc(r.name)}</text>${badges}${pin}</g>`;
+    }).join('');
+    // Rooms placed on the map, in the regional view.
+    const locs = view === 'region' && g.image && g.image.locations
+      ? Object.entries(g.image.locations).filter(([id]) => state.locations[id] && state.seenRooms.includes(id)).map(([id, p]) =>
+        `<circle class="region-loc" cx="${p[0]}" cy="${p[1]}" r="4"/><text class="region-loc-label" x="${p[0] + 7}" y="${p[1] + 4}">${esc(state.locations[id].name)}</text>`).join('')
+      : '';
+    const url = g.image && portraitUrl(g.image.image);
+    const img = url ? `<image href="${esc(url)}" x="0" y="0" width="${g.image.width}" height="${g.image.height}"/>` : '';
+    return `<svg class="world-svg" id="worldSvg" data-view="${view}" viewBox="${vb.map((n) => Math.round(n)).join(' ')}" role="img" aria-label="${view === 'world' ? 'World map' : 'Map of your region and its neighbours'}">${img}${edges}${body}${locs}</svg>` + regionInfoHtml(view);
+  }
+  function regionInfoHtml(view) {
+    const id = mapSel || E.Engine.playerRegion(state);
+    const r = id && E.Engine.regionDef(state, id);
+    if (!r) return '<div class="region-info muted">Pick a region to see who holds it.</div>';
+    const now = state.regions[id];
+    const ch = (state.regionChanged || {})[id];
+    const fc = factionClass(now.controller);
+    const bits = [`<b>${esc(r.name)}</b>${id === E.Engine.playerRegion(state) ? ' (you are here)' : ''}`,
+      `<span class="swatch ${fc}"></span>held by ${esc(factionName(now.controller))}`];
+    if (now.status) bits.push(esc(now.status));
+    if (now.tags.length) bits.push(`tags: ${esc(now.tags.join(', '))}`);
+    let html = `<div class="region-info" id="regionInfo">${bits.join(' · ')}`;
+    if (ch && ch.turn === state.turn) html += `<div class="changed">This turn: ${esc(ch.what.join(', '))}.</div>`;
+    if (r.lore) html += `<div class="muted">${esc(r.lore)}</div>`;
+    if (view === 'region' && id === E.Engine.playerRegion(state)) {
+      const placed = (state.scenario.map && state.scenario.map.locations) || {};
+      const rest = Object.values(state.locations).filter((l) => l.region === id && !placed[l.id] && state.seenRooms.includes(l.id)).map((l) => l.name);
+      if (rest.length) html += `<div class="muted">Rooms here: ${esc(rest.join(', '))}</div>`;
+    }
+    return html + '</div>';
+  }
+  function renderMap() {
+    const pane = $('mapPane');
+    if (!state) { pane.innerHTML = ''; return; }
+    const view = mapView();
+    const tabs = hasRegions()
+      ? `<div class="map-tabs" role="group" aria-label="Map level">${['local', 'region', 'world'].map((v, i) => `<button type="button" data-mapview="${v}" class="${i === 2 ? 'last' : ''}" aria-pressed="${v === view}">${({ local: 'Local', region: 'Region', world: 'World' })[v]}</button>`).join('')}` +
+        (view === 'local' ? '' : `<span class="zoom"><button type="button" data-zoom="in" aria-label="Zoom in" title="Zoom in">+</button><button type="button" data-zoom="out" aria-label="Zoom out" title="Zoom out">−</button><button type="button" data-zoom="reset" aria-label="Reset the view" title="Reset the view">⟲</button></span>`) + '</div>'
+      : '';
+    pane.innerHTML = tabs + (view === 'local' ? localMapHtml() : worldMapHtml(view));
+  }
+  // Zoom the world map's viewBox around a point (in map units), within limits.
+  function zoomWorld(factor, cx, cy) {
+    const svg = $('worldSvg');
+    if (!svg) return;
+    const view = svg.dataset.view;
+    const [x, y, w, h] = svg.getAttribute('viewBox').split(/\s+/).map(Number);
+    const full = worldGeometry().full;
+    const nw = Math.min(full[2] * 2, Math.max(full[2] / 8, w * factor)), nh = h * (nw / w);
+    const px = cx == null ? x + w / 2 : cx, py = cy == null ? y + h / 2 : cy;
+    viewBoxes[view] = [px - (px - x) * (nw / w), py - (py - y) * (nh / h), nw, nh];
+    svg.setAttribute('viewBox', viewBoxes[view].map((n) => Math.round(n)).join(' '));
+  }
+  const toMap = (svg, ev) => {
+    const pt = svg.createSVGPoint();
+    pt.x = ev.clientX; pt.y = ev.clientY;
+    const m = svg.getScreenCTM();
+    return m ? pt.matrixTransform(m.inverse()) : { x: 0, y: 0 };
+  };
+  const pointers = new Map();
+  let drag = null;
+  $('mapPane').addEventListener('pointerdown', (ev) => {
+    const svg = ev.target.closest && ev.target.closest('#worldSvg');
+    if (!svg) return;
+    pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    drag = { moved: false, start: { x: ev.clientX, y: ev.clientY }, vb: svg.getAttribute('viewBox').split(/\s+/).map(Number), dist: null };
+    if (pointers.size === 2) { const [a, b] = [...pointers.values()]; drag.dist = Math.hypot(a.x - b.x, a.y - b.y); }
+  });
+  $('mapPane').addEventListener('pointermove', (ev) => {
+    const svg = $('worldSvg');
+    if (!svg || !drag || !pointers.has(ev.pointerId)) return;
+    pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    const rect = svg.getBoundingClientRect();
+    if (pointers.size === 2 && drag.dist) {
+      const [a, b] = [...pointers.values()];
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      if (Math.abs(d - drag.dist) > 4) { zoomWorld(drag.dist / d); drag.dist = d; drag.moved = true; }
+      return;
+    }
+    const dx = ev.clientX - drag.start.x, dy = ev.clientY - drag.start.y;
+    if (!drag.moved && Math.hypot(dx, dy) < 5) return;
+    if (!drag.moved) { drag.moved = true; try { svg.setPointerCapture(ev.pointerId); } catch (e) {} }
+    svg.classList.add('panning');
+    const [x, y, w, h] = drag.vb;
+    viewBoxes[svg.dataset.view] = [x - dx * (w / rect.width), y - dy * (h / rect.height), w, h];
+    svg.setAttribute('viewBox', viewBoxes[svg.dataset.view].map((n) => Math.round(n)).join(' '));
+  });
+  const endDrag = (ev) => {
+    pointers.delete(ev.pointerId);
+    const svg = $('worldSvg');
+    if (svg) svg.classList.remove('panning');
+    const wasDrag = drag && drag.moved;
+    if (!pointers.size) drag = null;
+    if (ev.type === 'pointerup' && !wasDrag && ev.target.closest) {
+      const g = ev.target.closest('.region-g');
+      if (g) { mapSel = g.dataset.region; renderMap(); }
+    }
+  };
+  $('mapPane').addEventListener('pointerup', endDrag);
+  $('mapPane').addEventListener('pointercancel', endDrag);
+  $('mapPane').addEventListener('wheel', (ev) => {
+    const svg = ev.target.closest && ev.target.closest('#worldSvg');
+    if (!svg) return;
+    ev.preventDefault();
+    const p = toMap(svg, ev);
+    zoomWorld(ev.deltaY > 0 ? 1.15 : 1 / 1.15, p.x, p.y);
+  }, { passive: false });
+  $('mapPane').addEventListener('click', (ev) => {
+    const tab = ev.target.closest('[data-mapview]');
+    if (tab && state) {
+      const all = mapViewAll();
+      all[state.scenario.worldId] = tab.dataset.mapview;
+      store.set(MAPVIEW_KEY, JSON.stringify(all));
+      mapSel = null;
+      return renderMap();
+    }
+    const z = ev.target.closest('[data-zoom]');
+    if (z) {
+      if (z.dataset.zoom === 'reset') { const v = mapView(); delete viewBoxes[v]; return renderMap(); }
+      zoomWorld(z.dataset.zoom === 'in' ? 1 / 1.4 : 1.4);
+    }
+  });
   // Clicking fills in the action box (never acts).
   function fillAction(text) {
     const box = $('actionInput');
@@ -762,6 +981,8 @@
   $('mapPane').addEventListener('click', (ev) => mapActivate(ev.target));
   $('mapPane').addEventListener('keydown', (ev) => {
     if (ev.key !== 'Enter' && ev.key !== ' ') return;
+    const reg = ev.target.closest && ev.target.closest('.region-g');
+    if (reg) { ev.preventDefault(); mapSel = reg.dataset.region; renderMap(); const el = document.querySelector(`.region-g[data-region="${reg.dataset.region}"]`); if (el) el.focus(); return; }
     if (!ev.target.closest('.map-token, .map-room')) return;
     ev.preventDefault();
     mapActivate(ev.target);
@@ -777,7 +998,11 @@
     $('btnMapPhone').setAttribute('aria-pressed', String(mode === 'map'));
     if (remember && state) { const all = viewAll(); all[state.scenario.worldId] = mode; store.set(VIEW_KEY, JSON.stringify(all)); }
   }
-  function restoreView() { setView((state && viewAll()[state.scenario.worldId]) || 'split', false); }
+  function restoreView() {
+    setView((state && viewAll()[state.scenario.worldId]) || 'split', false);
+    Object.keys(viewBoxes).forEach((k) => delete viewBoxes[k]);
+    mapSel = null;
+  }
   document.querySelectorAll('.view-switch button').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view, true)));
   $('btnMapPhone').addEventListener('click', () => setView($('story').classList.contains('view-map') ? 'text' : 'map', false));
   setView('split', false);

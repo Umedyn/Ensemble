@@ -251,13 +251,15 @@
       "id": "mission",
       "name": "Mission Control",
       "desc": "The Ares program's ground team on Earth, 14 light-minutes away. Reviews everything the crew sends and decides on the second rotation.",
-      "stance": "supportive but anxious; reviewing this rotation's data for the renewal decision"
+      "stance": "supportive but anxious; reviewing this rotation's data for the renewal decision",
+      "color": 2
     },
     {
       "id": "sponsor",
       "name": "Halvorsen Aerospace",
       "desc": "The corporate sponsor funding most of Ares Deep. Wants headlines and results it can sell.",
-      "stance": "publicly upbeat; privately watching costs and crew performance"
+      "stance": "publicly upbeat; privately watching costs and crew performance",
+      "color": 4
     }
   ],
   "eventRates": {

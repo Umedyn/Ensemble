@@ -16,9 +16,9 @@
   const START_OWN = ['id', 'title', 'summary', 'start', 'player', 'cast', 'opening', 'castLabel', 'region'];
   // World fields a start may override (merge rules below).
   const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'tagThresholds', 'portraitSet', 'factions', 'world',
-    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'standees', 'site', 'localMap'];
+    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'standees', 'site', 'localMap', 'map'];
   const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'characters', 'starts', ...OVERRIDABLE];
-  const WORLD_RESERVED = ['map', 'lore', 'timeline'];
+  const WORLD_RESERVED = ['lore', 'timeline'];
   const START_RESERVED = ['playerSlot'];
   const CAST_FIELDS = ['id', 'status', 'needs', 'relations', 'knows', 'want', 'secret', 'guard', 'tags', 'tier', 'pinned', 'agenda'];
   // Merge rules: lists of {id} objects merge by id, lists of strings are
@@ -181,6 +181,10 @@
       (st.cast || []).forEach((entry) => {
         if (typeof entry !== 'string') warnings.push(...unknownFields(entry, CAST_FIELDS, `${where} cast "${entry.id}"`));
       });
+    });
+    // Regions the world map leaves out get an automatic point (task 3-4).
+    if (isObj(world.map) && Array.isArray(world.regions)) world.regions.forEach((r) => {
+      if (r && r.id && !(isObj(world.map.regions) && world.map.regions[r.id])) warnings.push(`world.json: region "${r.id}" is not on the map; it gets a point placed automatically`);
     });
     // Groups away from the rooms (task 3-2) are dropped when composing.
     [['world.json', world]].concat(startIds.map((sid) => [bundle.legacy ? 'scenario.json' : `starts/${sid}.json`, starts[sid]])).forEach(([where, src]) =>
@@ -469,6 +473,34 @@
     return problems;
   }
 
+  // The world map (task 3-4): an image with a polygon or a point per region,
+  // and optional points for rooms, all in image pixels. Regions it leaves out
+  // get a point placed automatically (validateWorld warns).
+  S.FACTION_COLORS = 8;
+  function mapProblems(sc, locIds) {
+    if (sc.map == null) return [];
+    const problems = [];
+    const req = (cond, msg) => { if (!cond) problems.push(msg); };
+    const m = sc.map;
+    if (!isObj(m) || !E.isImagePath(m.image) || !(m.width > 0) || !(m.height > 0)) return ['"map" needs an "image" in the world folder, a "width" and a "height"'];
+    const regionIds = new Set((Array.isArray(sc.regions) ? sc.regions : []).map((r) => r && r.id));
+    const inside = (p) => Array.isArray(p) && p.length === 2 && p.every((n) => typeof n === 'number') && p[0] >= 0 && p[1] >= 0 && p[0] <= m.width && p[1] <= m.height;
+    Object.entries(isObj(m.regions) ? m.regions : {}).forEach(([id, shape]) => {
+      req(regionIds.has(id), `map: unknown region "${id}"`);
+      if (isObj(shape) && shape.polygon != null) {
+        req(Array.isArray(shape.polygon) && shape.polygon.length >= 3, `map: region "${id}" polygon needs at least 3 points`);
+        req(Array.isArray(shape.polygon) && shape.polygon.every(inside), `map: region "${id}" polygon has a point outside the image`);
+      } else if (isObj(shape) && shape.point != null) {
+        req(inside(shape.point), `map: region "${id}" point is outside the image`);
+      } else problems.push(`map: region "${id}" needs a "polygon" or a "point"`);
+    });
+    Object.entries(isObj(m.locations) ? m.locations : {}).forEach(([id, p]) => {
+      req(locIds.has(id), `map: unknown location "${id}"`);
+      req(inside(p), `map: location "${id}" is outside the image`);
+    });
+    return problems;
+  }
+
   // Catches authoring mistakes early with readable messages.
   S.validate = function (sc) {
     const problems = [];
@@ -528,6 +560,8 @@
     req(sc.toneNote == null || (typeof sc.toneNote === 'string' && sc.toneNote.length <= 300), '"toneNote" must be text of at most 300 characters');
     Object.entries(sc.eventRates || {}).forEach(([k, v]) => req(['regional', 'world'].includes(k) && typeof v === 'number' && v >= 0, `eventRates.${k} must be regional/world with hours >= 0 (0 turns it off)`));
     (sc.factions || []).forEach((f) => req(f.id && f.name && f.desc && f.stance, `group "${f.id || '?'}" needs id, name, desc and stance`));
+    (sc.factions || []).forEach((f) => req(f.color == null || (Number.isInteger(f.color) && f.color >= 1 && f.color <= S.FACTION_COLORS), `group "${f.id}": "color" must be a whole number from 1 to ${S.FACTION_COLORS} (a theme colour)`));
+    problems.push(...mapProblems(sc, locIds));
     problems.push(...regionProblems(sc));
     problems.push(...standeeProblems(sc, locIds, extraIds));
     (sc.clocks || []).forEach((c) => {

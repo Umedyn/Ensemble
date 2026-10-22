@@ -53,13 +53,15 @@
       "id": "convoy",
       "name": "Coastal rescue convoy",
       "desc": "An armed convoy evacuating survivors to a coastal safe zone, broadcasting on handheld radio bands.",
-      "stance": "heading for the highway junction; says it can take only three more people"
+      "stance": "heading for the highway junction; says it can take only three more people",
+      "color": 2
     },
     {
       "id": "ridge",
       "name": "The Ridge",
       "desc": "Armed survivors holed up in the next town over. Nobody here knows much about them.",
-      "stance": "unknown; their trucks were seen scavenging along the highway"
+      "stance": "unknown; their trucks were seen scavenging along the highway",
+      "color": 1
     }
   ],
   "regions": [
@@ -134,6 +136,155 @@
       "lore": "The next town over, up the ridge road. Its survivors walled off the school and the grain elevator early."
     }
   ],
+  "map": {
+    "image": "maps/town.svg",
+    "width": 800,
+    "height": 560,
+    "regions": {
+      "ridge-town": {
+        "polygon": [
+          [
+            20,
+            10
+          ],
+          [
+            260,
+            10
+          ],
+          [
+            300,
+            150
+          ],
+          [
+            240,
+            190
+          ],
+          [
+            20,
+            200
+          ]
+        ]
+      },
+      "junction": {
+        "polygon": [
+          [
+            300,
+            150
+          ],
+          [
+            620,
+            150
+          ],
+          [
+            640,
+            290
+          ],
+          [
+            430,
+            300
+          ],
+          [
+            300,
+            280
+          ]
+        ]
+      },
+      "highway-strip": {
+        "polygon": [
+          [
+            340,
+            290
+          ],
+          [
+            640,
+            290
+          ],
+          [
+            560,
+            430
+          ],
+          [
+            540,
+            560
+          ],
+          [
+            360,
+            560
+          ],
+          [
+            350,
+            420
+          ]
+        ]
+      },
+      "main-street": {
+        "polygon": [
+          [
+            560,
+            430
+          ],
+          [
+            640,
+            290
+          ],
+          [
+            800,
+            290
+          ],
+          [
+            800,
+            560
+          ],
+          [
+            540,
+            560
+          ]
+        ]
+      },
+      "residential": {
+        "polygon": [
+          [
+            20,
+            300
+          ],
+          [
+            340,
+            290
+          ],
+          [
+            350,
+            420
+          ],
+          [
+            360,
+            560
+          ],
+          [
+            20,
+            560
+          ]
+        ]
+      }
+    },
+    "locations": {
+      "floor": [
+        515,
+        322
+      ],
+      "dock": [
+        515,
+        365
+      ],
+      "lot": [
+        530,
+        410
+      ],
+      "roof": [
+        540,
+        300
+      ]
+    }
+  },
   "eventRates": {
     "regional": 14,
     "world": 72

@@ -62,7 +62,7 @@ Static servers can't list directories, so `world.json` lists its starts and char
 | `skills`, `needs` | | as today; no `needs` (or `[]`) means none: no bars, no need penalties (task 1-5) |
 | `tagThresholds` | object | optional; need id → `{at, tag}` for the derived card tags (task 1-6). Starts may override |
 | `skillPenalties`, `revealPressure` | object, string[] | optional; roll penalties from health and needs, and which needs count as pressure on secrets. Defaults are today's values. Starts may override |
-| `factions` | | as today; starts may override `stance` |
+| `factions` | | as today; starts may override `stance`. Optional `color` (1–8) picks one of eight theme colours for the regions a group holds on the world map; without it, one is picked from the id |
 | `world` | object | world-status defaults; starts may add or override keys |
 | `eventRates`, `eventSeeds`, `majorEventDays`, `majorHorizonDays`, `majorSeeds`, `revealSkills` | | as today; starts may override. An `eventSeeds` idea is text or `{text, region}` (a known region id); regional ideas for regions away from the player are left out of prompts |
 | `tiers` | object | optional `{demoteAfter, maxLocal}` (whole numbers ≥ 1; defaults 4 and 6) for cast tiers (task 2-1). Starts may override field by field |
@@ -75,7 +75,8 @@ Static servers can't list directories, so `world.json` lists its starts and char
 | `locations`, `clocks` | | optional world-wide ones (rare); usually per start. A location may set `region` (default: the start's `region`) |
 | `regions` | object[] | the map above the rooms (task 3-1): `{id, name, controller, tags, status, neighbours, lore}`. `controller` is a group id or `null`; `tags` up to 6 (30 characters each); `status` up to 120 characters; `lore` a summary up to 400 (no secrets or future events; full lore entries come in phase 5). Neighbour links are made two-way when validated. Starts change them by `id`. Once a world has regions, every start needs `region` and every location a known region |
 | `portraitSet` | string[] | optional; image paths in the world folder used as stand-ins for characters without a `portrait`, picked by a hash of the id (task 1-7). Without it, a monogram |
-| reserved | | `map`, `lore`, `timeline`: accepted and ignored until their phase |
+| `map` | object | optional world map (task 3-4): `{image, width, height, regions: {id: {polygon: [[x, y], …]} or {point: [x, y]}}, locations: {roomId: [x, y]}}`, in image pixels. Polygons need 3+ points; every point inside the image; region and room ids must exist. A region left off gets a point placed automatically (with a warning). Without a map, the world view draws a node map from the regions' `neighbours` |
+| reserved | | `lore`, `timeline`: accepted and ignored until their phase |
 
 ## starts/&lt;id&gt;.json
 

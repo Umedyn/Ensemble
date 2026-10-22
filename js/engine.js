@@ -37,6 +37,7 @@
     };
     // Regions (task 3-1): what changes in play; the definition stays in the scenario.
     (sc.regions || []).forEach((r) => { state.regions[r.id] = { controller: r.controller ?? null, tags: (r.tags || []).slice(), status: r.status || '' }; });
+    state.regionChanged = {};
     (sc.locations || []).forEach((l) => (state.locations[l.id] = Object.assign({ connects: [] }, l)));
     sc.characterData.forEach((raw) => {
       const c = E.clone(raw);
@@ -78,7 +79,7 @@
 
   // Saves and autosaves from older versions are upgraded one step at a time
   // when loaded. Each step takes a state at version n and returns n + 1.
-  Eng.STATE_VERSION = 9;
+  Eng.STATE_VERSION = 10;
   Eng.migrations = {
     // Worlds and starts (docs/WORLDS.md): the scenario records where it came from.
     1: (state) => {
@@ -157,6 +158,13 @@
       fill(state, state.turn);
       if (state.pending && state.pending.pre) fill(Object.assign(state.pending.pre, { player: state.player }), state.turn);
       state.version = 9;
+      return state;
+    },
+    // World views (task 3-4): when each region last changed, for highlighting.
+    9: (state) => {
+      if (!state.regionChanged) state.regionChanged = {};
+      if (state.pending && state.pending.pre && !state.pending.pre.regionChanged) state.pending.pre.regionChanged = {};
+      state.version = 10;
       return state;
     },
   };
@@ -905,6 +913,7 @@
         if (to && !f) return reject(`unknown group "${to}" for ${c.region}`);
         if (r.now.controller === to) return reject(`${c.region} is already held by ${f ? f.id : 'no one'}`);
         r.now.controller = to;
+        r.stamp('changed hands');
         return `${r.def.name}: now held by ${f ? f.name : 'no one'}`;
       },
     },
@@ -918,6 +927,7 @@
         if (r.now.tags.some((x) => x.toLowerCase() === tag)) return null;
         if (r.now.tags.length >= E.Scenario.REGION_TAGS) return reject(`${t.region} already has ${E.Scenario.REGION_TAGS} tags; not adding "${tag}"`);
         r.now.tags.push(tag);
+        r.stamp('new tag');
         return `${r.def.name}: ${tag}`;
       },
     },
@@ -930,6 +940,7 @@
         const i = r.now.tags.findIndex((x) => x.toLowerCase() === tag);
         if (i < 0) return reject(`${t.region} has no tag "${t.tag}"`);
         const [gone] = r.now.tags.splice(i, 1);
+        r.stamp('tag gone');
         return `${r.def.name}: no longer ${gone}`;
       },
     },
@@ -940,16 +951,24 @@
         if (r.reject) return r;
         if (!s.status) return reject(`no status for ${s.region}`);
         r.now.status = String(s.status).slice(0, 120);
+        r.stamp('new status');
         return `${r.def.name}: ${r.now.status}`;
       },
     },
   };
-  // The region an effect item names: { def, now } or a rejection.
+  // The region an effect item names: { def, now } or a rejection. stamp()
+  // records what changed this turn, for the world view (task 3-4).
   function region(state, item) {
     const id = item && item.region;
     const now = id != null && state.regions && own(state.regions, id) ? state.regions[id] : null;
     const def = now && Eng.regionDef(state, id);
-    return def ? { def, now } : reject(`unknown region "${id}"`);
+    if (!def) return reject(`unknown region "${id}"`);
+    const stamp = (what) => {
+      state.regionChanged = state.regionChanged || {};
+      const c = state.regionChanged[id];
+      state.regionChanged[id] = { turn: state.turn, what: c && c.turn === state.turn && !c.what.includes(what) ? c.what.concat(what) : c && c.turn === state.turn ? c.what : [what] };
+    };
+    return { def, now, stamp };
   }
   Eng.EFFECTS = EFFECTS;
 

@@ -523,6 +523,57 @@ await check('phone: the map button swaps the story for the map', async (page) =>
   assert.ok(await page.isVisible('#log'));
 });
 
+// Task 3-4: world and regional views, with a map image (the holdout's town) and without (Ares Deep).
+await check('world and regional views: regions by who holds them, the info strip, zoom', async (page) => {
+  await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+  await newGame(page);
+  await sceneReady(page);
+  await page.click('[data-mapview="world"]');
+  assert.equal(await page.locator('#worldSvg image').count(), 1, 'the town map image');
+  assert.equal(await page.locator('#worldSvg .region-g').count(), 5);
+  assert.ok(await page.locator('.region-g[data-region="ridge-town"] .region-shape.fc-1').count(), 'Ridge in The Ridge\'s colour');
+  assert.ok(await page.locator('.region-g[data-region="highway-strip"] .region-shape.here').count(), 'your region is marked');
+  assert.match(await page.textContent('#regionInfo'), /The highway strip \(you are here\).*held by no one.*quiet except for stragglers.*dead nearby/);
+  await page.locator('.region-g[data-region="ridge-town"] .region-shape').click({ position: { x: 40, y: 40 } });
+  const info = await page.textContent('#regionInfo');
+  assert.match(info, /Ridge.*held by The Ridge.*trucks seen coming and going.*fortified/);
+  assert.match(info, /walled off the school/, 'the lore summary');
+  const full = (await page.getAttribute('#worldSvg', 'viewBox')).split(' ').map(Number);
+  await page.click('[data-zoom="in"]');
+  const zoomed = (await page.getAttribute('#worldSvg', 'viewBox')).split(' ').map(Number);
+  assert.ok(zoomed[2] < full[2], 'zoomed in');
+  await page.click('[data-zoom="reset"]');
+  assert.deepEqual((await page.getAttribute('#worldSvg', 'viewBox')).split(' ').map(Number), full);
+  await page.screenshot({ path: path.join(shots, 'map-world.png') });
+  await page.click('[data-mapview="region"]');
+  const region = (await page.getAttribute('#worldSvg', 'viewBox')).split(' ').map(Number);
+  assert.ok(region[2] < full[2], 'zoomed to your region and its neighbours');
+  assert.match(await page.textContent('#worldSvg'), /Sales Floor/, 'rooms placed on the map');
+  await page.screenshot({ path: path.join(shots, 'map-region.png') });
+  await page.click('[data-mapview="local"]');
+  assert.ok(await page.locator('#mapPane .map-room').count(), 'back to the rooms');
+  // Ares Deep has no map image: a node map from the neighbours.
+  await page.selectOption('#scenarioSelect', 'server:mars-station');
+  await newGame(page);
+  await sceneReady(page);
+  await page.click('[data-mapview="world"]');
+  assert.equal(await page.locator('#worldSvg image').count(), 0);
+  assert.equal(await page.locator('#worldSvg .region-g').count(), 4);
+  assert.equal(await page.locator('#worldSvg .region-edge').count(), 3);
+  await page.screenshot({ path: path.join(shots, 'map-world-nodes.png') });
+});
+
+await check('phone: the world view fits and the level switch works', async (page) => {
+  await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+  await newGame(page);
+  await sceneReady(page);
+  await page.click('#btnMapPhone');
+  await page.click('[data-mapview="world"]');
+  const box = await page.locator('#worldSvg').boundingBox();
+  assert.ok(box.x >= 0 && box.x + box.width <= 390, 'fits the screen');
+  await page.screenshot({ path: path.join(shots, 'phone-map-world.png') });
+});
+
 // Task 1-8: fix your own feelings toward someone from their details.
 await check('correct your feelings from a card', async (page) => {
   await newGame(page);

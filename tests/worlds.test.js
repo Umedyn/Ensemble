@@ -167,7 +167,7 @@ test('a broken start reports its error without hiding the others', () => {
 
 test('reserved fields are accepted silently; unknown fields are ignored with a warning', () => {
   const w = load((f) => {
-    Object.assign(f['world.json'], { lore: [], map: {}, timeline: [], colour: 'grey' });
+    Object.assign(f['world.json'], { lore: [], timeline: [], colour: 'grey' });
     Object.assign(f['starts/morning.json'], { playerSlot: {}, extras: [], standees: [], oppening: 'typo' });
     f['starts/storm.json'].cast[1].mood = 'grim';
   });
@@ -250,6 +250,8 @@ test('converted bundled worlds start the same game as their legacy versions', ()
     Object.values(now.state.locations).forEach((l) => { delete l.region; });
     // And site layout data (task 3-3).
     Object.values(now.state.locations).forEach((l) => ['size', 'level', 'outside', 'features', 'links'].forEach((k) => delete l[k]));
+    // And faction colours for the world map (task 3-4).
+    now.state.factions.forEach((f) => delete f.color);
     ['characters', 'locations', 'clocks', 'world', 'facts', 'factions', 'order', 'time', 'recent', 'player'].forEach((k) =>
       assert.deepEqual(plain(now.state[k]), plain(before.state[k]), `${folder}: state.${k}`));
     assert.equal(now.state.scenario.worldId, folder);

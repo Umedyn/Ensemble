@@ -46,6 +46,8 @@ const PAIRS = [
   ['hidden', SURFACES, 4.5, 4.5],
   ['on-accent', ['accent'], 4.5, 7],
   ['focus', SURFACES, 3, 3],
+  // Faction colours on the world map (task 3-4): shapes, so 3:1 against the page.
+  ...[1, 2, 3, 4, 5, 6, 7, 8].map((n) => [`f${n}`, ['bg'], 3, 3]),
 ];
 
 for (const [name, vars] of Object.entries(themes)) {

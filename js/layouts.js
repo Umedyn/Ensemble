@@ -135,6 +135,89 @@
     return { remote: true };
   }
 
+  // ---------- the world map without an image (task 3-4) ----------
+  // A node map of the regions from their neighbours: a small force layout
+  // with a fixed number of steps, starting from a circle in id order rotated
+  // by the seed, so it is the same every time. Boxes never overlap.
+  L.NODE = { w: 130, h: 46 };
+  L.regionMap = function (regions, seed) {
+    const list = (regions || []).slice().sort((a, b) => (a.id < b.id ? -1 : 1));
+    const n = list.length;
+    const { w, h } = L.NODE;
+    const pos = {};
+    const rot = (hash(String(seed || '')) % 360) * Math.PI / 180;
+    const radius = 90 + 45 * n;
+    list.forEach((r, i) => { const a = rot + (2 * Math.PI * i) / Math.max(1, n); pos[r.id] = { x: Math.cos(a) * radius, y: Math.sin(a) * radius * 0.7 }; });
+    const ids = new Set(list.map((r) => r.id));
+    const edges = [];
+    const seen = new Set();
+    list.forEach((r) => (r.neighbours || []).forEach((o) => {
+      const k = [r.id, o].sort().join('|');
+      if (ids.has(o) && !seen.has(k)) { seen.add(k); edges.push([r.id, o].sort()); }
+    }));
+    const ideal = 220;
+    for (let it = 0; it < 300; it++) {
+      const f = {};
+      list.forEach((r) => (f[r.id] = { x: 0, y: 0 }));
+      for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+        const a = pos[list[i].id], b = pos[list[j].id];
+        const dx = a.x - b.x || 0.01, dy = a.y - b.y || 0.01;
+        const d2 = dx * dx + dy * dy, d = Math.sqrt(d2);
+        const rep = (ideal * ideal) / d2;
+        f[list[i].id].x += (dx / d) * rep; f[list[i].id].y += (dy / d) * rep;
+        f[list[j].id].x -= (dx / d) * rep; f[list[j].id].y -= (dy / d) * rep;
+      }
+      edges.forEach(([p, q]) => {
+        const a = pos[p], b = pos[q];
+        const dx = b.x - a.x, dy = b.y - a.y, d = Math.sqrt(dx * dx + dy * dy) || 0.01;
+        const pull = (d - ideal) / d * 0.1;
+        f[p].x += dx * pull; f[p].y += dy * pull; f[q].x -= dx * pull; f[q].y -= dy * pull;
+      });
+      const step = 8 * (1 - it / 300) + 0.5;
+      list.forEach((r) => {
+        const v = f[r.id], len = Math.sqrt(v.x * v.x + v.y * v.y) || 1;
+        pos[r.id].x += (v.x / len) * Math.min(step, len);
+        pos[r.id].y += (v.y / len) * Math.min(step, len);
+      });
+    }
+    // Push apart any boxes that still overlap.
+    for (let pass = 0; pass < 50; pass++) {
+      let moved = false;
+      for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+        const a = pos[list[i].id], b = pos[list[j].id];
+        const ox = w + 20 - Math.abs(a.x - b.x), oy = h + 20 - Math.abs(a.y - b.y);
+        if (ox > 0 && oy > 0) {
+          moved = true;
+          if (ox < oy) { const s = (a.x < b.x ? -1 : 1) * ox / 2; a.x += s; b.x -= s; } else { const s = (a.y < b.y ? -1 : 1) * oy / 2; a.y += s; b.y -= s; }
+        }
+      }
+      if (!moved) break;
+    }
+    const xs = list.map((r) => pos[r.id].x), ys = list.map((r) => pos[r.id].y);
+    const minX = Math.min(...xs) - w / 2 - 20, minY = Math.min(...ys) - h / 2 - 20;
+    const nodes = {};
+    list.forEach((r) => { nodes[r.id] = { x: Math.round(pos[r.id].x - minX), y: Math.round(pos[r.id].y - minY), w, h }; });
+    return {
+      width: n ? Math.round(Math.max(...xs) - minX + w / 2 + 20) : 0,
+      height: n ? Math.round(Math.max(...ys) - minY + h / 2 + 20) : 0,
+      nodes, edges,
+    };
+  };
+  // Where a region's label and pin go on an image map: the middle of its
+  // polygon, its point, or (not on the map) a spot along the bottom edge.
+  L.regionAnchors = function (regions, map) {
+    const out = {};
+    const missing = [];
+    (regions || []).forEach((r) => {
+      const s = map.regions && map.regions[r.id];
+      if (s && s.polygon) out[r.id] = [s.polygon.reduce((t, p) => t + p[0], 0) / s.polygon.length, s.polygon.reduce((t, p) => t + p[1], 0) / s.polygon.length];
+      else if (s && s.point) out[r.id] = s.point.slice();
+      else missing.push(r.id);
+    });
+    missing.forEach((id, i) => { out[id] = [map.width * (i + 1) / (missing.length + 1), map.height - 24]; });
+    return out;
+  };
+
   // locs: the locations (list or object); opts: { type, seed }.
   // → { style, width, height, levels: [{level, x, y, w, h}], rooms: {id: {x, y, w, h, level}}, links: [{a, b, kind, x, y, orient} | {a, b, kind, remote}] }
   L.plan = function (locs, opts) {
