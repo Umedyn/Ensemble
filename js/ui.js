@@ -1931,6 +1931,7 @@
         `${t.guards.length ? ` · ${t.guards.length} guard${t.guards.length === 1 ? '' : 's'}` : ''}${t.error ? ' <span class="fail">failed</span>' : ''}</summary>` +
         `<table><thead><tr><th>step</th><th>backend</th><th class="num">in</th><th class="num">out</th>${cache ? '<th class="num" title="Prompt tokens the provider served from its cache">cached</th>' : ''}${perf ? '<th class="num" title="KoboldCpp prompt processing time; short means the shared prefix was reused">prompt</th>' : ''}<th class="num">time</th></tr></thead><tbody>${rows}</tbody></table>` +
         `<div class="muted small">Guards fired</div>${guards}` +
+        ((t.lore || []).length ? `<div class="muted small">Lore included</div><ul class="guards">${t.lore.map((l) => `<li><b>${esc(l.title)}</b> <span class="muted">(${esc(l.call)})</span>: ${esc(l.why)}</li>`).join('')}</ul>` : '') +
         `<button type="button" class="small" data-copy-report="${E.Engine.telemetry.indexOf(t)}">Copy turn report</button></details>`;
     }).join('');
   }

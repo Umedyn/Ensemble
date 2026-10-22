@@ -39,7 +39,8 @@ scenarios/
     starts/<startId>.json    one per id in world.json "starts"
     characters/<id>.json     the world's character pool
     portraits/               images referenced by characters (`portrait`) and the stand-in set (`portraitSet`)
-    maps/  lore/             (phases 3 and 5) reserved
+    maps/                    map images (phase 3)
+    lore/<id>.json           lore files listed in world.json "lore" (task 5-1): one entry, or a list of entries
 ```
 
 The top folder stays named `scenarios/`; renaming it would only add churn. In code and docs, "scenario" now means **the composed object**, "world" the folder, and "start" the entry point.
@@ -55,7 +56,7 @@ Static servers can't list directories, so `world.json` lists its starts and char
 | `format` | `2` | required in new-format worlds; its absence marks a legacy folder |
 | `id`, `title` | string | |
 | `summary` | string | one or two lines for the world picker |
-| `setting` | string | the always-on world context (keep it broad; regional detail goes in region lore later) |
+| `setting` | string | the always-on world context (keep it broad; regional detail goes in region lore) |
 | `rules` | string[] | |
 | `tags`, `toneNote` | string[], string | genre tags in order of importance (up to 8; known ones: `survival`, `slice-of-life`, `romance`, `intrigue`, `war`, `horror`, `mystery`, `comedy`, `cozy`, `grim`, `adventure`, `political`; others are freeform) and a short tone note (up to 300 characters). See `js/genres.js` |
 | `timeLabel`, `wakeHour` | | as today |
@@ -76,10 +77,11 @@ Static servers can't list directories, so `world.json` lists its starts and char
 | `generatedSites` | object | optional (task 4-4): `{maxSites, keepDays}` (defaults 8 and 3; 1–30 and 1–60): the engine builds places the story goes that the map doesn't have. See [Generated sites](#generated-sites) |
 | `sites` | string[] | optional: library site maps in `sites/<id>.json`, used first when a new place fits one (task 4-4) |
 | `locations`, `clocks` | | optional world-wide ones (rare); usually per start. A location may set `region` (default: the start's `region`) |
-| `regions` | object[] | the map above the rooms (task 3-1): `{id, name, controller, tags, status, neighbours, lore}`. `controller` is a group id or `null`; `tags` up to 6 (30 characters each); `status` up to 120 characters; `lore` a summary up to 400 (no secrets or future events; full lore entries come in phase 5). `startable: true` marks the regions a generated start can begin in (none marked: all). Neighbour links are made two-way when validated. Starts change them by `id`. Once a world has regions, every start needs `region` and every location a known region |
+| `regions` | object[] | the map above the rooms (task 3-1): `{id, name, controller, tags, status, neighbours, lore}`. `controller` is a group id or `null`; `tags` up to 6 (30 characters each); `status` up to 120 characters; `lore` a summary up to 400, always in the prompt (no secrets or future events; the heavier detail goes in `region` lore entries, below). `startable: true` marks the regions a generated start can begin in (none marked: all). Neighbour links are made two-way when validated. Starts change them by `id`. Once a world has regions, every start needs `region` and every location a known region |
 | `portraitSet` | string[] | optional; image paths in the world folder used as stand-ins for characters without a `portrait`, picked by a hash of the id (task 1-7). Without it, a monogram |
 | `map` | object | optional world map (task 3-4): `{image, width, height, regions: {id: {polygon: [[x, y], …]} or {point: [x, y]}}, locations: {roomId: [x, y]}}`, in image pixels. Polygons need 3+ points; every point inside the image; region ids must exist, and room ids must exist in the world or in some start (the map is the world's, rooms are usually a start's). A region left off gets a point placed automatically (with a warning). Without a map, the world view draws a node map from the regions' `neighbours` |
-| reserved | | `lore`, `timeline`: accepted and ignored until their phase |
+| `lore` | (object \| string)[] | lore entries (task 5-1), each inline or the id of a file in `lore/` (a file holds one entry, its `id` defaulting to the file name, or a list: a lore packet). See [Lore](#lore). Starts add to or replace entries by `id`, inline only |
+| reserved | | `timeline`: accepted and ignored until its phase |
 
 ## starts/&lt;id&gt;.json
 
@@ -152,7 +154,7 @@ Overridable per start: `status`, `needs`, `relations`, `knows`, `want`, `secret`
 
 1. Start with a deep clone of the world.
 2. **Scalars, strings and every other field** (`setting`, `timeLabel`, `majorEventDays`, and lists not named below such as `skills`, `needs`, `majorSeeds`, `revealSkills`): the start's value replaces the world's.
-3. **Lists of objects with `id`** (`locations`, `clocks`, `factions`, `extras`, `regions`, `standees`): merge by id, with start entries replacing world entries field by field. New ids are appended.
+3. **Lists of objects with `id`** (`locations`, `clocks`, `factions`, `extras`, `regions`, `standees`, `lore`): merge by id, with start entries replacing world entries field by field. New ids are appended.
 4. **Lists of strings** (`rules`, `facts`, `tags`): world first, then the start's, without duplicates.
 5. **Plain objects** (`world`, `eventRates`, `eventSeeds`, `tiers`): shallow merge, with the start winning.
 6. `characters` = the start's cast ids in order; `characterData` = each pool file deep-merged with its cast entry (cast entry wins; plain objects such as `status`, `needs` and `relations` merge field by field, lists such as `knows` are replaced). Relations to pool characters who aren't in this start's cast are dropped (they're checked against the pool by `validateWorld` instead).
@@ -205,6 +207,33 @@ Sites **fade unless something happened there**: a fact of weight 2+ recorded whi
 
 Rooms use the start room format (task 3-3). `type`, `credit` and `license` are required. A new place uses a map when a word of its kind matches the map's `type` or a tag; among several, the pick is seeded by the site id, so it is the same every time. Ids that clash with the game's are renamed. The maps travel in the composed scenario (`siteMaps`), so saves keep them. The shared cross-world library comes with task 6-3. `tests/fixtures/chrome-district/` is the worked example (the Saints' chop shop).
 
+## Lore
+
+Task 5-1. A lore entry is public world knowledge, chosen per turn so a big world fits a small context (how it is chosen: `docs/DESIGN.md` › Lore).
+
+```json
+{ "id": "rim-work", "title": "Working on the rim", "level": "region", "ref": "crater-rim",
+  "keywords": ["EVA", "dust devil", "ice drill"], "priority": 3,
+  "text": "Every trip outside needs two people, a filed route and a suit check...",
+  "sources": [{ "title": "Where this came from", "url": "https://example.org/page" }] }
+```
+
+| field | notes |
+|---|---|
+| `id` | lowercase letters, digits, `-` or `_`; unique across the world and its starts (a start's entry with the same id replaces the world's) |
+| `title` | up to 80 characters; shown to the model before the text |
+| `level` | `world`, `region`, `location`, `character` or `topic` |
+| `ref` | for `region`, `location` and `character` entries: the region, room or character it is about (a region or character must exist; a room that no start has is only a warning, since generated starts and sites make their own). Not allowed on `world` and `topic` |
+| `keywords` | up to 12 words or phrases (40 characters each). Matched as whole words, ignoring case, in the player's action and the last scene. Include aliases: nicknames, titles, other spellings |
+| `text` | up to 800 characters; 40–80 words on one topic works best |
+| `priority` | 1–5 (default 3); higher wins when the budget is tight |
+| `alwaysOn` | `world` entries only: always in the prompt header (keep these few and short) |
+| `sources` | optional `[{title, url}]`; for the creator, never sent to the model |
+
+**Lore is public.** It reaches the narrator, which never sees secrets, so anything secret belongs in a character's `secret` or in private facts, and anything that hasn't happened yet as of the start belongs in the canon timeline (phase 5), never in lore. Validation enforces the first part: an entry that shares 4 or more content words with someone's secret is an error.
+
+`mars-station` keeps its entries inline in `world.json`; `zombie-holdout` keeps them in `lore/town.json` and `lore/store.json` (packets) and lists `"lore": ["town", "store"]`.
+
 ## Saves
 
 - Bump the state `version` to `2`. New states store `scenario.worldId` and `scenario.startId`.
@@ -225,7 +254,7 @@ As built (task 1-3): two selects in the top bar, the start one hidden when a wor
 
 ## Reserved fields policy
 
-`S.validateWorld` and `S.validate` **accept and ignore** the reserved fields listed above, so creators can write content before the engine uses it. Unknown fields that aren't reserved are also accepted, but reported as a warning in the console and the Debug panel (a typo like `oppening` shouldn't silently do nothing). Warnings cover `world.json`, start files, cast entries and legacy `scenario.json`; character files aren't checked, since later phases add many character fields. `npm run check` prints them too.
+`S.validateWorld` and `S.validate` **accept and ignore** the reserved fields listed above (now only `timeline`), so creators can write content before the engine uses it. Unknown fields that aren't reserved are also accepted, but reported as a warning in the console and the Debug panel (a typo like `oppening` shouldn't silently do nothing). Warnings cover `world.json`, start files, cast entries and legacy `scenario.json`; character files aren't checked, since later phases add many character fields. `npm run check` prints them too.
 
 ## Tests
 

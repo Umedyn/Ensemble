@@ -29,14 +29,14 @@
   P.build = function (layout, ctx) {
     const parts = [];
     P.layouts[layout].forEach((id) => {
-      const out = B[id](ctx);
+      const out = B[id](ctx, layout);
       if (out == null) return;
       if (Array.isArray(out)) parts.push(...out); else parts.push(out);
     });
     return parts.join('\n');
   };
 
-  P.layouts.header = ['intro', 'setting', 'genre', 'rules', 'places', 'regions', 'groups', 'cast', 'newcomers', 'chapters', 'facts'];
+  P.layouts.header = ['intro', 'setting', 'genre', 'rules', 'places', 'regions', 'groups', 'loreAlways', 'cast', 'newcomers', 'chapters', 'facts'];
   P.header = (state) => P.build('header', { state, sc: state.scenario, pc: state.characters[state.player] });
 
   B.intro = () => 'You are the simulation engine and narrator for an interactive, character-driven story.';
@@ -76,6 +76,19 @@
   B.groups = ({ sc }) => (sc.factions && sc.factions.length
     ? ['\n=== GROUPS ==='].concat(sc.factions.map((f) => `- ${f.id}: ${f.name} — ${f.desc}`))
     : null);
+  // Lore (task 5-1): always-on world entries are static, so they sit in the
+  // header; the rest are chosen per call and go in the user message (B.lore).
+  B.loreAlways = ({ sc }) => {
+    const always = E.Lore.always(sc);
+    return always.length ? ['\n=== WORLD LORE ==='].concat(always.map(E.Lore.line)) : null;
+  };
+  // The player's room and region at the time of the call (the end of the
+  // player's move, for the scene) and their words pick the entries.
+  B.lore = ({ state, action }, layout) => {
+    const picks = E.Lore.select(state, { action });
+    E.Lore.note(layout, picks);
+    return picks.length ? ['\n=== LORE (public knowledge; use it when it fits) ==='].concat(picks.map(E.Lore.line)) : null;
+  };
   const castLine = (state, id) => {
     const c = state.characters[id];
     const tag = id === state.player ? ' (PLAYER)' : '';
@@ -261,7 +274,7 @@
   };
 
   // ---------- intent ----------
-  P.layouts.intent = ['now', 'knownPlaces', 'private', 'extrasHere', 'standees', 'offstage', 'background', 'agendaDue', 'lastScene', 'intentAction', 'intentTask'];
+  P.layouts.intent = ['now', 'lore', 'knownPlaces', 'private', 'extrasHere', 'standees', 'offstage', 'background', 'agendaDue', 'lastScene', 'intentAction', 'intentTask'];
   // Places beyond the start's rooms (task 4-4): the rooms of the place the
   // player is in (made during the story, so not in the header) and the
   // places the story knows of. Only in worlds that build new places.
@@ -473,7 +486,7 @@ ${intentExample(state, present, action)}`;
   // ---------- scene and its continuation ----------
   // Frame, status, last scene, player action and resolved outcomes are shared
   // by the scene and its continuation.
-  const SCENE_CONTEXT = ['sceneFrame', 'status', 'lastScene', 'sceneAction', 'resolved'];
+  const SCENE_CONTEXT = ['sceneFrame', 'status', 'lore', 'lastScene', 'sceneAction', 'resolved'];
   P.layouts.narrate = SCENE_CONTEXT.concat(['narrateTask']);
   P.layouts.narrateMore = SCENE_CONTEXT.concat(['sceneSoFar', 'narrateMoreTask']);
   P.narrate = (state, presentStart, action, frame, res) =>
@@ -589,7 +602,7 @@ Reply with the new beats only.`;
     return [].concat(state.scenario.majorSeeds || [], seedTexts(state, 'regional').slice(0, 3), seedTexts(state, 'world').slice(0, 3));
   }
 
-  P.layouts.skipIntent = ['skipFrame', 'people', 'agendaDuring', 'lastScene', 'skipTask'];
+  P.layouts.skipIntent = ['skipFrame', 'lore', 'people','agendaDuring', 'lastScene', 'skipTask'];
   P.skipIntent = (state, action, plan, frame, res, agendaSteps) =>
     P.build('skipIntent', { state, pc: state.characters[state.player], action, plan, frame, res, agendaSteps: agendaSteps || [] });
 
@@ -626,7 +639,7 @@ Guidelines:
 - player_where: where ${pc.name} is when it hits, consistent with their plan.`;
   };
 
-  P.layouts.narrateSkip = ['downtimeFrame', 'status', 'lastScene', 'montage', 'alsoDuring', 'endsIt', 'whereEveryone', 'narrateSkipTask'];
+  P.layouts.narrateSkip = ['downtimeFrame', 'status', 'lore', 'lastScene', 'montage', 'alsoDuring', 'endsIt', 'whereEveryone', 'narrateSkipTask'];
   P.narrateSkip = function (state, action, frame, montage, doings, res, presentStart) {
     const pc = state.characters[state.player];
     const here = pc.status.location;
@@ -862,7 +875,7 @@ Reply with JSON only: ${CHAR_ASK[field][1]}`;
   // where it starts, a short summary of what earlier steps made (one line per
   // item, not their JSON) and the step's task. Secrets appear only in the
   // ties step, which builds tensions from them.
-  P.layouts.genHeader = ['genIntro', 'setting', 'genre', 'genRules', 'regions', 'groups', 'genNames'];
+  P.layouts.genHeader = ['genIntro', 'setting', 'genre', 'genRules', 'regions', 'groups', 'loreAlways', 'genNames'];
   P.genHeader = (sc, taken) => P.build('genHeader', { sc, taken });
   B.genIntro = () => 'You are building the starting situation for an interactive, character-driven story set in the world below. The player plays one person; everyone else is simulated, each with their own wants, needs, secrets and feelings. Write grounded, specific material that fits the setting.';
   B.genRules = ({ sc }) => ((sc.rules || []).length ? ['\n=== RULES ==='].concat(sc.rules.map((r) => '- ' + r)) : null);

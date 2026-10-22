@@ -88,7 +88,15 @@
       if (sd && typeof sd === 'object' && sd.region != null) { const v = fn(sd.region); if (v) sd.region = v; else delete sd.region; }
     }));
   }
-  M.renameRegion = function (world, starts, from, to) {
+  // Lore entries (task 5-1) inline in world.json and starts, and in lore/
+  // files (files: the creator's { path: JSON }, of which only lore/ is read).
+  function loreEntries(world, starts, files) {
+    const fromFiles = Object.entries(files || {}).filter(([p]) => /^lore\/[^/]+\.json$/.test(p)).map(([, d]) => d);
+    return [].concat(world.lore || [], ...Object.values(starts || {}).map((s) => s.lore || []), ...fromFiles)
+      .filter((e) => e && typeof e === 'object');
+  }
+  const regionLore = (world, starts, files, id) => loreEntries(world, starts, files).filter((e) => e.level === 'region' && e.ref === id);
+  M.renameRegion = function (world, starts, from, to, files) {
     if (from === to) return;
     const r = (world.regions || []).find((x) => x.id === from);
     if (!r) return;
@@ -98,17 +106,24 @@
       delete world.map.regions[from];
     }
     eachRef(world, starts, (id) => (id === from ? to : id));
+    regionLore(world, starts, files, from).forEach((e) => { e.ref = to; });
   };
   // Deletes a region and everything pointing at it. A start or room left
   // without a region falls back to the first region left (validation needs
-  // one), or loses the field when none are left. Returns notes for the page.
-  M.deleteRegion = function (world, starts, id) {
+  // one), or loses the field when none are left. Its lore entries are kept as
+  // topics (the text is the author's). Returns notes for the page.
+  M.deleteRegion = function (world, starts, id, files) {
     world.regions = (world.regions || []).filter((r) => r.id !== id);
     if (world.map && world.map.regions) delete world.map.regions[id];
     const fallback = world.regions[0] ? world.regions[0].id : null;
     const moved = Object.entries(starts || {}).filter(([, s]) => s.region === id).map(([sid]) => sid);
     eachRef(world, starts, (x) => (x === id ? fallback : x), (x) => (x === id ? null : x));
     const notes = moved.map((sid) => (fallback ? `start "${sid}" now starts in ${fallback}` : `start "${sid}" has no region now`));
+    regionLore(world, starts, files, id).forEach((e) => {
+      e.level = 'topic';
+      delete e.ref;
+      notes.push(`lore "${e.id}" is now a topic (it only comes up by its keywords)`);
+    });
     if (!world.regions.length) {
       delete world.regions;
       if (world.map) delete world.map.regions;

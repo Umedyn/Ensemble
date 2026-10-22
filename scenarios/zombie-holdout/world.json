@@ -354,6 +354,10 @@
     "part of the food stash is found missing",
     "a gunshot nearby draws the dead"
   ],
+  "lore": [
+    "town",
+    "store"
+  ],
   "characters": [
     "pike",
     "ortiz",

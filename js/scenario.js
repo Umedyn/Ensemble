@@ -16,14 +16,14 @@
   const START_OWN = ['id', 'title', 'summary', 'start', 'player', 'cast', 'opening', 'castLabel', 'region', 'playerSlot', 'generated'];
   // World fields a start may override (merge rules below).
   const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'tagThresholds', 'portraitSet', 'factions', 'world',
-    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'standees', 'site', 'localMap', 'map', 'entrances'];
+    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'standees', 'site', 'localMap', 'map', 'entrances', 'lore'];
   const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'characters', 'starts', 'generatedStarts', 'generatedSites', 'sites', ...OVERRIDABLE];
-  const WORLD_RESERVED = ['lore', 'timeline'];
+  const WORLD_RESERVED = ['timeline'];
   const START_RESERVED = [];
   const CAST_FIELDS = ['id', 'status', 'needs', 'relations', 'knows', 'want', 'secret', 'guard', 'tags', 'tier', 'pinned', 'agenda'];
   // Merge rules: lists of {id} objects merge by id, lists of strings are
   // unioned, plain objects merge shallowly; anything else is replaced.
-  const ID_LISTS = ['locations', 'clocks', 'factions', 'extras', 'regions', 'standees'];
+  const ID_LISTS = ['locations', 'clocks', 'factions', 'extras', 'regions', 'standees', 'lore'];
   const STRING_LISTS = ['rules', 'facts', 'tags'];
   const OBJECTS = ['world', 'eventRates', 'eventSeeds', 'tiers'];
 
@@ -145,6 +145,41 @@
     return { world, starts: { default: start }, characters, legacy: true };
   };
 
+  // ---------- lore (task 5-1) ----------
+  // The lore/ files among a world's files ({ "lore/<id>.json": data }).
+  S.loreFiles = (files) => Object.fromEntries(Object.entries(files || {}).filter(([p]) => /^lore\/[^/]+\.json$/.test(p)));
+  // Lore across the world and its starts: missing files, the shape of every
+  // entry, refs to a region, room or person that exists somewhere in the
+  // world, and no entry that gives away someone's secret.
+  function loreWorldProblems(bundle, startIds, warnings) {
+    const { world, starts = {}, characters = {} } = bundle;
+    const { entries, problems } = E.Lore.resolve(world.lore, bundle.loreFiles);
+    const rootName = bundle.legacy ? 'scenario.json' : 'world.json';
+    problems.push(...E.Lore.problems(entries, rootName));
+    const sources = [[rootName, entries]].concat(startIds.filter((sid) => starts[sid] && starts[sid].lore != null).map((sid) => {
+      const where = `starts/${sid}.json`;
+      if (!Array.isArray(starts[sid].lore)) { problems.push(`${where}: "lore" must be a list of entries`); return [where, []]; }
+      problems.push(...E.Lore.problems(starts[sid].lore, where));
+      return [where, starts[sid].lore];
+    }));
+    if (sources.every(([, list]) => !list.length)) return problems;
+    const ofStarts = (k) => [].concat(world[k] || [], ...startIds.map((sid) => (starts[sid] && starts[sid][k]) || [])).map((x) => x && x.id);
+    const known = { region: new Set(ofStarts('regions')), location: new Set(ofStarts('locations')), character: new Set(world.characters || []) };
+    // Secrets: the pool's, and any a start gives its cast.
+    const people = Object.values(characters).concat(...startIds.map((sid) => ((starts[sid] && starts[sid].cast) || []).filter(isObj)
+      .map((c) => Object.assign({}, characters[c.id], c))));
+    sources.forEach(([where, list]) => list.filter(isObj).forEach((e) => {
+      if (!E.Lore.REF_LEVELS.includes(e.level) || typeof e.ref !== 'string' || known[e.level].has(e.ref)) { /* fine */ }
+      // Generated starts and sites make rooms of their own, so a room no
+      // authored start has is only a warning.
+      else if (e.level === 'location') warnings.push(`${where}: lore "${e.id}" is about "${e.ref}", a room no start has (it comes up only by its keywords until one does)`);
+      else problems.push(`${where}: lore "${e.id}" is about unknown ${e.level} "${e.ref}"`);
+      const who = E.Lore.leak(e, people);
+      if (who) problems.push(`${where}: lore "${e.id}" gives away ${who.name || who.id}'s secret (lore is public; keep secrets in the character's "secret")`);
+    }));
+    return problems;
+  }
+
   // ---------- validation ----------
   // Catches mistakes that composing would hide. bundle: { world, starts: {id:
   // start}, characters: {id: data}, legacy } with missing files left out.
@@ -176,6 +211,7 @@
       if (!m) problems.push(`missing sites/${id}.json`);
       else problems.push(...E.Sites.mapProblems(m, id));
     });
+    problems.push(...loreWorldProblems(bundle, startIds, warnings));
     dupes(pool).forEach((id) => problems.push(`character "${id}" is listed twice`));
     dupes(startIds).forEach((id) => problems.push(`start "${id}" is listed twice`));
     ['locations', 'clocks', 'factions', 'regions'].forEach((k) =>
@@ -230,7 +266,8 @@
   S.neededFiles = function (rootJson, legacy) {
     const chars = (rootJson.characters || []).map((id) => `characters/${id}.json`);
     const sites = (Array.isArray(rootJson.sites) ? rootJson.sites : []).map((id) => `sites/${id}.json`);
-    return legacy ? chars.concat(sites) : [...(rootJson.starts || []).map((id) => `starts/${id}.json`), ...chars, ...sites];
+    const lore = (Array.isArray(rootJson.lore) ? rootJson.lore : []).filter((x) => typeof x === 'string').map((id) => `lore/${id}.json`);
+    return legacy ? chars.concat(sites, lore) : [...(rootJson.starts || []).map((id) => `starts/${id}.json`), ...chars, ...sites, ...lore];
   };
 
   // folder + {relative path: parsed JSON} → a loaded world: { folder, id,
@@ -256,7 +293,10 @@
       throw new Error(`${folder}: no world.json or scenario.json`);
     }
     bundle.folder = folder;
+    bundle.loreFiles = S.loreFiles(files);
     const warnings = S.validateWorld(bundle);
+    // Lore file ids become their entries, so composing needs no files.
+    if (bundle.world.lore != null) bundle.world = Object.assign({}, bundle.world, { lore: E.Lore.resolve(bundle.world.lore, bundle.loreFiles).entries });
     const w = bundle.world;
     return {
       folder, id: w.id || folder, title: w.title, summary: w.summary || '', tags: w.tags || [],
@@ -648,6 +688,16 @@
     problems.push(...mapProblems(sc, locIds));
     problems.push(...regionProblems(sc));
     problems.push(...standeeProblems(sc, locIds, extraIds));
+    // Lore (task 5-1): its shape here; rooms and people are checked across
+    // the whole world in validateWorld.
+    if (sc.lore != null) {
+      if (!Array.isArray(sc.lore)) problems.push('"lore" must be a list of entries');
+      else {
+        problems.push(...E.Lore.problems(sc.lore, 'scenario'));
+        const regionIds = new Set((sc.regions || []).map((r) => r && r.id));
+        sc.lore.forEach((e) => { if (isObj(e) && e.level === 'region' && !regionIds.has(e.ref)) problems.push(`lore "${e.id}" is about unknown region "${e.ref}"`); });
+      }
+    }
     (sc.clocks || []).forEach((c) => {
       req(c.id && c.name && c.max > 0, `clock "${c.id || '?'}" needs id, name and max`);
       Object.keys(c.fireWorld || {}).forEach((k) => req(sc.world && k in sc.world, `clock "${c.id}" fireWorld key "${k}" not in world`));

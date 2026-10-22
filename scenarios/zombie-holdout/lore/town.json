@@ -1,0 +1,88 @@
+[
+  {
+    "id": "the-dead",
+    "title": "The dead",
+    "level": "world",
+    "alwaysOn": true,
+    "text": "The dead are slow, but they never tire and they follow noise. A bite brings a fever within a day, and those who die of it get up again. Nobody here knows of a cure. Television went dark in the second week, and the phones soon after."
+  },
+  {
+    "id": "highway-strip",
+    "title": "The highway strip",
+    "level": "region",
+    "ref": "highway-strip",
+    "keywords": [
+      "highway",
+      "gas station",
+      "diner",
+      "feed store"
+    ],
+    "text": "The strip was the busy end of town: trucks stopped for diesel and pie at the diner, farmers bought seed and fencing at the feed store. The gas station's pumps went dry on day six, and its little shop was cleaned out before that."
+  },
+  {
+    "id": "main-street",
+    "title": "Main Street",
+    "level": "region",
+    "ref": "main-street",
+    "keywords": [
+      "Main Street",
+      "courthouse",
+      "pharmacy",
+      "church"
+    ],
+    "text": "Main Street is two blocks of brick storefronts around the courthouse. The pharmacy was looted early but its back room has a steel door. The church bell rang every hour for the first week, until someone made it stop; the dead still drift toward the square out of habit."
+  },
+  {
+    "id": "residential",
+    "title": "The houses",
+    "level": "region",
+    "ref": "residential",
+    "priority": 2,
+    "keywords": [
+      "houses",
+      "trailers",
+      "trailer park",
+      "neighborhood"
+    ],
+    "text": "Behind Main Street are a few hundred small houses and a trailer park by the creek. Most doors stand open. Pantries, garages and medicine cabinets are worth searching, but the dead linger indoors where they turned, and a quiet house is not always an empty one."
+  },
+  {
+    "id": "junction",
+    "title": "The highway junction",
+    "level": "region",
+    "ref": "junction",
+    "priority": 2,
+    "keywords": [
+      "junction",
+      "interstate",
+      "overpass"
+    ],
+    "text": "A few miles out, the two-lane meets the interstate under a concrete overpass. Abandoned cars fill both lanes for a mile in each direction, many with their doors open and luggage still in the trunks. Anyone travelling by road has to pass through or around it."
+  },
+  {
+    "id": "ridge-town",
+    "title": "Ridge",
+    "level": "region",
+    "ref": "ridge-town",
+    "priority": 2,
+    "keywords": [
+      "Ridge",
+      "ridge road",
+      "grain elevator"
+    ],
+    "text": "Ridge is the next town up the ridge road, smaller and poorer than this one. Its people walled off the school and the grain elevator with trucks and fencing in the first days. Traders who went up there early came back with flour; lately, nobody has gone."
+  },
+  {
+    "id": "evacuation",
+    "title": "The evacuation",
+    "level": "topic",
+    "keywords": [
+      "evacuation",
+      "buses",
+      "bus",
+      "clinic",
+      "National Guard"
+    ],
+    "text": "On day four the county organised an evacuation from the clinic on Main Street. Buses were to take people to the interstate and on to a camp. The clinic was overrun before half had boarded, the buses that got away never came back, and nobody has heard from the camp."
+  }
+]

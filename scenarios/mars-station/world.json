@@ -341,6 +341,131 @@
     "an electrical fire",
     "an argument between crew members turns physical"
   ],
+  "lore": [
+    {
+      "id": "ares-program",
+      "title": "The Ares program",
+      "level": "world",
+      "alwaysOn": true,
+      "text": "Ares Deep is the first long-stay crewed outpost on Mars. An international space agency runs it through Mission Control, and Halvorsen Aerospace pays most of the bills in exchange for the publicity. Crews serve 500-sol rotations, and nobody has yet promised a second crew."
+    },
+    {
+      "id": "station-life",
+      "title": "Life in the modules",
+      "level": "region",
+      "ref": "station",
+      "keywords": [
+        "modules",
+        "life support",
+        "quiet hours",
+        "radiation"
+      ],
+      "text": "The modules were printed from regolith and buried under three metres of fill to shield them from radiation. Air, heat and water all depend on one shared life-support loop, so when any part of it falters everyone feels it within hours. Quiet hours run from 22:00 to 06:00 station time, and the crew mostly keeps them."
+    },
+    {
+      "id": "rim-work",
+      "title": "Working on the rim",
+      "level": "region",
+      "ref": "crater-rim",
+      "keywords": [
+        "EVA",
+        "outside",
+        "dust devil",
+        "dust devils",
+        "solar field",
+        "ice drill",
+        "suit up"
+      ],
+      "text": "Every trip outside needs two people, a filed route and a suit check in the suit room. Dust devils sweep the rim most afternoons, and slopes give way without warning after a hard frost. The solar field and the ice drill site are where nearly every trip goes."
+    },
+    {
+      "id": "hellas-floor",
+      "title": "The floor of Hellas",
+      "level": "region",
+      "ref": "basin-floor",
+      "priority": 2,
+      "keywords": [
+        "Hellas",
+        "basin",
+        "basin floor",
+        "supply drop",
+        "supply drops"
+      ],
+      "text": "The floor of Hellas lies about seven kilometres below the rim, the lowest ground on Mars. The air is thick enough there for frost to linger at dawn, and nights fall below minus ninety. Supply drops aim for the rim; the ones that miss end up down here, a long and steep drive away."
+    },
+    {
+      "id": "relay-mast",
+      "title": "The Halvorsen relay",
+      "level": "region",
+      "ref": "relay-mast",
+      "priority": 2,
+      "keywords": [
+        "relay",
+        "mast",
+        "weather station",
+        "Halvorsen relay"
+      ],
+      "text": "A day's drive along the rim stands an automated relay mast and weather station that Halvorsen built and stamped with its logo. It boosts the station's link to orbit and records the weather. Someone has to drive out and clear its panels of dust every few months."
+    },
+    {
+      "id": "the-mule",
+      "title": "The Mule",
+      "level": "location",
+      "ref": "garage",
+      "keywords": [
+        "Mule",
+        "rover",
+        "rovers"
+      ],
+      "text": "The station's only pressurized rover is officially Rover 1 and has been called the Mule since its first week, for its stubbornness on slopes. It seats four, runs about two sols on a full battery pack, and has a winch that has pulled it out of more than one drift."
+    },
+    {
+      "id": "hydro-bay",
+      "title": "The hydroponics bay",
+      "level": "location",
+      "ref": "hydro",
+      "keywords": [
+        "hydroponics",
+        "grow lights",
+        "lettuce",
+        "potatoes"
+      ],
+      "text": "Fifteen racks of lettuce, soy, potatoes and dwarf wheat grow under pink lights. They supply about a third of the crew's calories and a larger share of its morale: the bay is warm and humid, and the only place on the station that smells alive."
+    },
+    {
+      "id": "okafor-career",
+      "title": "Imani Okafor",
+      "level": "character",
+      "ref": "okafor",
+      "text": "Okafor made her name mapping ancient lakebeds on Mars from orbit before she ever flew. She was chosen as station lead for how calm she stayed during a winter-over in Antarctica, and she is the crew's voice to Mission Control."
+    },
+    {
+      "id": "earth-delay",
+      "title": "Talking to Earth",
+      "level": "topic",
+      "keywords": [
+        "Earth",
+        "Mission Control",
+        "uplink",
+        "delay",
+        "call home",
+        "message home"
+      ],
+      "text": "Messages take about fourteen minutes each way, more near conjunction. Nobody on Earth can help with an emergency as it happens. The crew sends one uplink every evening; Mission Control answers the next morning, and personal messages ride along when there is bandwidth."
+    },
+    {
+      "id": "cargo-lander",
+      "title": "The cargo lander",
+      "level": "topic",
+      "keywords": [
+        "lander",
+        "cargo",
+        "resupply",
+        "supplies"
+      ],
+      "text": "The next cargo lander is about nine weeks out, carrying spare parts, seeds and food. It lands by itself on a marked pad on the rim; until then, everything the station needs has to be fixed, grown or rationed from what is already here."
+    }
+  ],
   "characters": [
     "navarro",
     "okafor",

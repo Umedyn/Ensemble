@@ -71,15 +71,19 @@ test('renaming a region moves every reference; deleting one cleans them up', () 
   const f = worldFiles('zombie-holdout');
   const world = f['world.json'];
   const starts = { herd: f['starts/herd.json'] };
-  E.MapEdit.renameRegion(world, starts, 'highway-strip', 'strip');
+  E.MapEdit.renameRegion(world, starts, 'highway-strip', 'strip', f);
   assert.ok(world.map.regions.strip && !world.map.regions['highway-strip']);
+  const stripLore = () => f['lore/town.json'].find((e) => e.id === 'highway-strip');
+  assert.equal(stripLore().ref, 'strip', 'region lore in lore/ files follows the rename');
   assert.equal(starts.herd.region, 'strip');
   assert.ok(world.regions.find((r) => r.id === 'junction').neighbours.includes('strip'));
-  const notes = E.MapEdit.deleteRegion(world, starts, 'strip');
+  const notes = E.MapEdit.deleteRegion(world, starts, 'strip', f);
   assert.ok(!world.regions.some((r) => r.id === 'strip' || (r.neighbours || []).includes('strip')));
   assert.ok(!world.map.regions.strip);
   assert.equal(starts.herd.region, 'main-street', 'falls back to the first region left');
-  assert.deepEqual([...notes], ['start "herd" now starts in main-street']);
+  assert.deepEqual([...notes], ['start "herd" now starts in main-street', 'lore "highway-strip" is now a topic (it only comes up by its keywords)']);
+  assert.equal(stripLore().level, 'topic', 'the lore text is kept');
+  assert.equal(stripLore().ref, undefined);
   // The edited world still loads.
   const w = E.Scenario.prepareWorld('zombie-holdout', Object.assign({}, f, { 'world.json': world, 'starts/herd.json': starts.herd }));
   assert.ok(w.starts[0].scenario, w.starts[0].error);

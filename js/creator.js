@@ -30,6 +30,7 @@
     { id: 'groups', label: 'Groups', soon: 'phase 6' },
     { id: 'map', label: 'Map', render: renderMapTab },
     { id: 'sites', label: 'Sites', soon: 'phase 6' },
+    // Lore entries load and play (task 5-1); their editor is task 5-3. Lore is public: no secrets.
     { id: 'lore', label: 'Lore', soon: 'phase 5' },
     { id: 'timeline', label: 'Timeline', soon: 'phase 5' },
     { id: 'characters', label: 'Characters', soon: 'phase 6' },
@@ -224,7 +225,7 @@
       <label>Held by <select data-field="controller"><option value="">no one</option>${(w.factions || []).map((f) => `<option value="${esc(f.id)}"${r.controller === f.id ? ' selected' : ''}>${esc(f.name)}</option>`).join('')}</select></label>
       <label>Tags <span class="muted small">(comma-separated, up to ${S.REGION_TAGS})</span><input data-field="tags" value="${esc((r.tags || []).join(', '))}"></label>
       <label>Status <input data-field="status" value="${esc(r.status || '')}" maxlength="120"></label>
-      <label>Lore summary <span class="muted small" id="cLoreCount">${(r.lore || '').length}/400</span><textarea data-field="lore" rows="3" maxlength="400">${esc(r.lore || '')}</textarea></label>
+      <label>Lore summary <span class="muted small" id="cLoreCount">${(r.lore || '').length}/400</span> <span class="muted small">Public knowledge: secrets go in a character's secret, events still to come in the timeline.</span><textarea data-field="lore" rows="3" maxlength="400">${esc(r.lore || '')}</textarea></label>
       <fieldset class="c-neigh"><legend>Neighbours</legend>${others.map((o) => `<label><input type="checkbox" data-neigh="${esc(o.id)}"${M.areNeighbours(w, r.id, o.id) ? ' checked' : ''}> ${esc(o.name)}${touching.has(o.id) ? ' <span class="muted small">(touching)</span>' : ''}</label>`).join('') || '<span class="muted">No other regions.</span>'}
         ${touching.size ? '<button type="button" id="cAddTouching" class="small">Add touching regions</button>' : ''}</fieldset>
       <div class="muted small">${w.map ? (sh ? (sh.polygon ? `Outlined with ${sh.polygon.length} corners.` : 'Placed as a point.') : 'Not on the map yet: draw it or place it as a point.') : ''}</div>
@@ -410,7 +411,7 @@
     }
     if (t.id === 'cDeleteRegion') {
       if (!ui.confirmDelete) { ui.confirmDelete = true; return render(); }
-      const notes = M.deleteRegion(w, starts(), ui.sel);
+      const notes = M.deleteRegion(w, starts(), ui.sel, cw.files);
       ui.sel = null;
       ui.confirmDelete = false;
       banner(notes.length ? esc(notes.join('; ')) : '');
@@ -432,7 +433,7 @@
       // A new region takes its id from its name until saved elsewhere.
       if (ui.autoIds.has(r.id) && t.value.trim()) {
         const id = M.slug(t.value, (w.regions || []).filter((x) => x !== r).map((x) => x.id).concat(rooms().map((x) => x.id)));
-        if (id !== r.id) { ui.autoIds.delete(r.id); M.renameRegion(w, starts(), r.id, id); ui.autoIds.add(id); ui.sel = id; }
+        if (id !== r.id) { ui.autoIds.delete(r.id); M.renameRegion(w, starts(), r.id, id, cw.files); ui.autoIds.add(id); ui.sel = id; }
       }
     } else if (f === 'tags') r.tags = t.value.split(',').map((x) => x.trim()).filter(Boolean);
     else if (f === 'status') r.status = t.value;

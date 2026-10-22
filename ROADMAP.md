@@ -151,7 +151,7 @@ Make your own character and start, and have the engine fill in the world around 
 
 ## Phase 5: Lore and canon
 
-- [ ] **Lore entries** at four levels (world, region, location, character): title, keywords, text and a priority. Regions are the heaviest level. The world gets a short always-on summary in the header; other entries go in the user message only when triggered (the player's region, the location, people present, or keywords in the player's action or the recent scene), within a budget (around 10% of context).
+- [x] **Lore entries** at four levels (world, region, location, character): title, keywords, text and a priority. Regions are the heaviest level. The world gets a short always-on summary in the header; other entries go in the user message only when triggered (the player's region, the location, people present, or keywords in the player's action or the recent scene), within a budget (around 10% of context).
 - [ ] **Canon timeline.** Past events seed facts and a "chapter zero" summary. Future events are dated, with **preconditions** the engine checks (a character alive, a group controls a region, a clock above a value, a fact known). They fire on their date as a regional or world event, outside the normal rationing. When a precondition breaks, the creator chooses per event: `drop`, or `diverge` (the model writes the altered version).
 - [ ] The downtime skip treats the next canon event as a stopping point, like a clock.
 - [ ] Creator tabs: lore editor and timeline editor.

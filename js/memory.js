@@ -25,7 +25,8 @@
 
   Mem.budgets = function () {
     const ctx = E.memoryContext().tokens;
-    return { facts: Math.floor(ctx * 0.2), story: Math.floor(ctx * 0.12) };
+    // Lore (task 5-1) gets about a tenth, in the user message.
+    return { facts: Math.floor(ctx * 0.2), story: Math.floor(ctx * 0.12), lore: Math.floor(ctx * 0.1) };
   };
 
   const factLine = (f) => `- [T${f.turn}] ${f.text}`;

@@ -2581,12 +2581,14 @@
   Eng.telemetryMax = 20;
 
   function startReport(kind, turn, action, stepId) {
-    const t = { kind, turn, action: action || '', stepId, calls: [], guards: [], ms: 0, started: Date.now() };
+    const t = { kind, turn, action: action || '', stepId, calls: [], guards: [], lore: [], ms: 0, started: Date.now() };
     E.LLM.collector = t.calls;
+    E.Lore.collector = t.lore;
     return t;
   }
   function finishReport(t, guards, err) {
     if (E.LLM.collector === t.calls) E.LLM.collector = null;
+    if (E.Lore.collector === t.lore) E.Lore.collector = null;
     t.ms = Date.now() - t.started;
     t.guards = guards || [];
     if (err) t.error = String(err.message || err);
@@ -2643,6 +2645,10 @@
     });
     lines.push(t.guards.length ? `Guards fired (${t.guards.length}):` : 'Guards fired: none');
     t.guards.forEach((g) => lines.push(`- ${g.type}${g.turn != null && g.turn !== t.turn ? ` (turn ${g.turn})` : ''}: ${g.detail}`));
+    if ((t.lore || []).length) {
+      lines.push(`Lore included (${t.lore.length}):`);
+      t.lore.forEach((l) => lines.push(`- ${l.call} · ${l.id} (${l.title}): ${l.why}`));
+    }
     if (t.outcomes && t.outcomes.length) {
       lines.push('What happened:');
       t.outcomes.forEach((o) => lines.push('- ' + o));

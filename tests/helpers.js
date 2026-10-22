@@ -5,7 +5,7 @@ const path = require('path');
 const vm = require('vm');
 
 const ROOT = path.join(__dirname, '..');
-const ENGINE_FILES = ['util', 'llm', 'recorder', 'memory', 'genres', 'prompts', 'engine', 'scenario', 'charmaker', 'startgen', 'sites', 'layouts', 'sitedraw', 'mapdraw', 'zip', 'mapedit'];
+const ENGINE_FILES = ['util', 'llm', 'recorder', 'memory', 'lore', 'genres', 'prompts', 'engine', 'scenario', 'charmaker', 'startgen', 'sites', 'layouts', 'sitedraw', 'mapdraw', 'zip', 'mapedit'];
 
 // extraGlobals lets a test provide browser objects such as localStorage.
 function loadEngine(extraGlobals = {}) {
@@ -29,7 +29,8 @@ function worldFiles(folder) {
   const files = { [rootName]: read(rootName) };
   const needed = legacy
     ? (files[rootName].characters || []).map((id) => `characters/${id}.json`)
-    : [...(files[rootName].starts || []).map((id) => `starts/${id}.json`), ...(files[rootName].characters || []).map((id) => `characters/${id}.json`), ...(files[rootName].sites || []).map((id) => `sites/${id}.json`)];
+    : [...(files[rootName].starts || []).map((id) => `starts/${id}.json`), ...(files[rootName].characters || []).map((id) => `characters/${id}.json`), ...(files[rootName].sites || []).map((id) => `sites/${id}.json`),
+      ...(files[rootName].lore || []).filter((x) => typeof x === 'string').map((id) => `lore/${id}.json`)];
   needed.forEach((rel) => { if (fs.existsSync(path.join(dir, rel))) files[rel] = read(rel); });
   return files;
 }
@@ -54,7 +55,10 @@ function readScenario(folder, startId) {
   const id = startId || w.starts[0];
   const characters = {};
   w.characters.forEach((c) => (characters[c] = files[`characters/${c}.json`]));
-  return loadEngine().Scenario.compose(w, files[`starts/${id}.json`], characters, name);
+  const E = loadEngine();
+  // Lore file ids become their entries, as Scenario.prepareWorld does.
+  const world = w.lore == null ? w : Object.assign({}, w, { lore: E.Lore.resolve(w.lore, E.Scenario.loreFiles(files)).entries });
+  return E.Scenario.compose(world, files[`starts/${id}.json`], characters, name);
 }
 
 function scenarioFolders() {

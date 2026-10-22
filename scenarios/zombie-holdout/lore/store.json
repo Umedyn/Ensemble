@@ -1,0 +1,33 @@
+[
+  {
+    "id": "harmons",
+    "title": "Harmon's Hardware",
+    "level": "location",
+    "ref": "floor",
+    "keywords": [
+      "Harmon's",
+      "hardware store",
+      "the store"
+    ],
+    "text": "Harmon's is a single-storey cinderblock store with a steel roll-down front, which is why it held. The shelves still carry tools, rope, tarps, fasteners and garden supplies. The power is off; a battery lantern and the skylights light the sales floor."
+  },
+  {
+    "id": "the-roof",
+    "title": "The roof",
+    "level": "location",
+    "ref": "roof",
+    "keywords": [
+      "roof",
+      "lookout",
+      "ladder"
+    ],
+    "text": "A ladder in the manager's office climbs to a roof hatch. From the flat tar roof you can see the whole highway strip, the water tower and the first houses of town. It is the best lookout for miles, and the worst place to be caught in the open."
+  },
+  {
+    "id": "ferris-store",
+    "title": "Gil Ferris",
+    "level": "character",
+    "ref": "ferris",
+    "text": "Gil Ferris bought the store from old Walt Harmon thirty years ago and never changed the sign. He knows every shelf and half the town by name, coached Little League for a decade, and still counts the till drawer every night out of habit."
+  }
+]

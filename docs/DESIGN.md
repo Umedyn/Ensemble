@@ -70,7 +70,7 @@ A normal turn is three model calls (intent, narrate, update), plus an occasional
 
 **Guards.** Whenever the engine overrules or cleans up the model it records `{ stage, type, detail }` in the turn's `res.guards`: `move cancelled`, `reveal blocked`, `leak deflected`, `event dropped` (resolve); `agenda step` (resolve); `id tag replaced`, `speaker label removed`, `retold last scene`, `cut to last sentence` (a line of dialogue it stops in is closed), `repeated paragraph removed`, `player ending trimmed`, `relocation regenerated`, `continuation dropped` (scene; Reroll replaces these); `update rejected`, `update failed`, `cast tier`, `agenda set`, `agenda rejected` (memory, recorded at the next turn's commit and reported with that turn, tagged with the scene's turn). New guards should call `guard()` in `engine.js` so they show up in reports.
 
-Budgets scale with `E.memoryContext()`: the smallest context among the backends routing uses, capped by `memoryCap` (default 32K). Facts ~20%, chapter summaries ~12%. Weight-3 facts are always kept; minor ones go first.
+Budgets scale with `E.memoryContext()`: the smallest context among the backends routing uses, capped by `memoryCap` (default 32K). Facts ~20%, chapter summaries ~12%, lore ~10% (in the user message). Weight-3 facts are always kept; minor ones go first.
 
 ## Cast tiers
 
@@ -147,7 +147,7 @@ Task 3-6. The engine plays by the map that 3-3 draws.
 
 Task 3-5. `creator.html` is a separate page that reuses the engine scripts. `js/creator.js` (the only creator file that touches the DOM) keeps a working copy of one world's raw files (`Scenario.fetchWorldFiles` or `Scenario.readFolderFiles`; a legacy folder is converted with `fromLegacy` on opening) in memory and in `localStorage` under `ensemble.creator.<folder>` (images only as object URLs, never stored), and runs the game's own checks on every edit: `prepareWorld` on a copy, with a problem every start reports shown once as the world's. Tabs are a registry (`TABS`); only Map works so far, the rest say which phase brings them.
 
-- **Map tab**: the world map is drawn by `js/mapdraw.js` (shared with the game, DOM-free), with editing handles on top: draw a polygon (click corners; Enter or the first corner closes it), place a point, drag, add (double-click an edge) or remove (Alt-click) corners, place rooms (`map.locations`). The region panel edits name (a new region's id follows its name), controller, tags, status, lore and neighbours (`MapEdit.suggestNeighbours`: outlines within 10px). Renaming or deleting a region updates every reference (`MapEdit.renameRegion`, `deleteRegion`: neighbours, the map, starts, rooms, event seeds). Loading a new image scales existing shapes to it.
+- **Map tab**: the world map is drawn by `js/mapdraw.js` (shared with the game, DOM-free), with editing handles on top: draw a polygon (click corners; Enter or the first corner closes it), place a point, drag, add (double-click an edge) or remove (Alt-click) corners, place rooms (`map.locations`). The region panel edits name (a new region's id follows its name), controller, tags, status, lore and neighbours (`MapEdit.suggestNeighbours`: outlines within 10px). Renaming or deleting a region updates every reference (`MapEdit.renameRegion`, `deleteRegion`: neighbours, the map, starts, rooms, event seeds, region lore entries). Loading a new image scales existing shapes to it.
 - **Export**: a store-only zip (`js/zip.js`, CRC-32, fixed dates so the same files make the same zip) of every file plus every image the world uses, fetched from the server or the picked folder.
 
 ## Relationship web
@@ -168,6 +168,20 @@ Nodes are you and the local characters (secondary ones with the toggle), never t
 
 
 A fact whose `about` is only the player is something they did, so the player is always among its knowers (the update step kept giving "Jordan knocked on the office door" only to Dex and Ruth). A fact that also names someone else ("Okafor suspects Kit…") keeps the knowers it was given, so private suspicions about the player stay private.
+## Lore
+
+Task 5-1, `js/lore.js`. Lore entries (format: `docs/WORLDS.md` › Lore) let a big world stay playable in 8K: the world carries broad context, regions the heaviest detail, and only what matters for the scene goes in.
+
+- **Always-on** world entries are static, so they go in the header (`loreAlways`, after groups and before the cast; also in the generator's header). Region `lore` summaries stay in the REGIONS block.
+- **Everything else** is chosen per call by `Lore.select(state, {action})` and goes in the user message (`lore` block) of the intent, scene, continuation and both downtime prompts, never the update or suggestion calls. It is chosen where the player is at the time of the call, so a move in the turn swaps the destination's room and region lore into the scene.
+- **Triggers**, in rank order: the player's room and the people present (the player included); the player's region; a keyword in the player's action; a keyword in the last scene. Within a trigger: `priority` (high first), then level (location, character, region, topic, world), then the order written. An entry triggered twice appears once, with both reasons. Always-on entries are never repeated.
+- **Keywords** match whole words and phrases, ignoring case, with letters and digits of any script as word characters (`ash` is not in `crash`; `dust storm` matches `DUST  storm`).
+- **Budget**: `Memory.budgets().lore`, about 10% of the memory context. Entries are taken best first; one that doesn't fit is skipped, and a smaller one later can still go in.
+- **Cache**: the selection never touches the header, so the header stays identical for every call in a turn whatever the player types (tested).
+- **Lore is public.** The narrator sees it, so `validateWorld` refuses an entry that shares 4+ content words with someone's secret (pool or start cast). Future events belong in the canon timeline.
+- **Debug**: each turn report lists the entries each call included and why (`Lore.collector`, filled by the `lore` block while a report is open), and "Copy turn report" includes them.
+- **Creator**: renaming a region moves its lore entries' `ref` (inline or in `lore/` files); deleting it turns them into topics, keeping the text.
+
 ## Secrets
 
 Each secret-keeper has a `guard`:
