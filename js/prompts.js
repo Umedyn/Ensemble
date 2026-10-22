@@ -210,6 +210,8 @@
     ];
     const minor = Eng().extrasAt(state, pc.status.location);
     if (minor.length) lines.push(`Also here (minor people): ${minor.map((x) => Eng().extraLabel(x)).join('; ')}`);
+    const groups = Eng().standeesAt(state, pc.status.location);
+    if (groups.length) lines.push(`Unnamed groups here: ${groups.map((g) => Eng().standeeLabel(state, g)).join('; ')}`);
     if (elsewhere.length) lines.push(`Elsewhere: ${elsewhere.join(', ')}`);
     lines.push('\n=== STATUS ===');
     lines.push(statusLine(state, state.player, forNarrator, present));
@@ -231,7 +233,7 @@
   };
 
   // ---------- intent ----------
-  P.layouts.intent = ['now', 'private', 'extrasHere', 'offstage', 'background', 'agendaDue', 'lastScene', 'intentAction', 'intentTask'];
+  P.layouts.intent = ['now', 'private', 'extrasHere', 'standees', 'offstage', 'background', 'agendaDue', 'lastScene', 'intentAction', 'intentTask'];
   P.intent = (state, present, action, stepLabel, stepId, due) =>
     P.build('intent', { state, sc: state.scenario, present, forNarrator: false, action, stepLabel, stepId, due: due || {} });
 
@@ -262,6 +264,29 @@
     if (away.length) lines.push(`- elsewhere: ${away.map((x) => `${x.id} (${x.name}${x.group ? ', a group' : ''}, ${x.location ? (state.locations[x.location] || {}).name || x.location : 'no particular place'})`).join('; ')}`);
     return lines;
   };
+  // Groups (task 3-2): ids and notes for the ones here (one intent each), and
+  // one short line for the rest, so events can use their ids.
+  B.standees = ({ state, action }) => {
+    const all = Object.values(state.standees || {});
+    if (!all.length) return null;
+    const here = state.characters[state.player].status.location;
+    const engaged = Eng().engagedStandees(state, action);
+    const lines = ['\n=== UNNAMED GROUPS (people as one entity: one intent per group, never per person) ==='];
+    engaged.forEach((g) => lines.push(`- ${g.location === here ? 'here' : `next door in ${state.locations[g.location].name} (named in the action)`}: ${g.id}: ${Eng().standeeLabel(state, g)}${g.note ? ` — ${g.note}` : ''}`));
+    const away = all.filter((g) => !engaged.includes(g)).slice(0, 8);
+    if (away.length) lines.push(`- elsewhere: ${away.map((g) => `${g.id} (${g.label}, ${g.count}, ${g.state}, ${(state.locations[g.location] || {}).name || g.location})`).join('; ')}`);
+    return lines;
+  };
+  const groupsHere = (state, action) => Eng().engagedStandees(state, action).filter((g) => Eng().standeeActive(g));
+  const groupTask = (state, action) => {
+    const here = groupsHere(state, action);
+    const any = Eng().engagedStandees(state, action).length;
+    if (!any) return '';
+    const links = Eng().linkedRooms(state, state.characters[state.player].status.location).join(', ') || 'none';
+    return (here.length ? `   Unnamed groups the player can deal with (${here.map((g) => g.id).join(', ')}): give each exactly one entry in "group_intents": what the group does as a group this span ("move_to" only to a room linked to where the group is; the player's room links to: ${links}; a group on guard holds its post unless hostile).\n` : '') +
+      `   If the player's action is aimed at an unnamed group, set the player's "against" to that group id. If the player singles out one member of one, set "single_out": {"standee":"group_id","name":"short name or description","role":"short role"}.\n`;
+  };
+
   const inventLine = (sc) => (sc.inventExtras
     ? `   If the scene truly needs a minor person or group who isn't listed anywhere (a guard, a shopkeeper, a crowd), add them to "new_extras": {"name","role","location","group":false}. At most 1. Never for someone already in the cast.\n`
     : '');
@@ -300,7 +325,7 @@
     }), `   Shape: {"text":"one sentence, with names","agenda":"${ids[0]}","scope":"local","who":["${ids[0]}"],"where":"location_id","visibility":"hidden","moves":[]}. These are in addition to the other events.`);
   };
   B.intentAction = ({ action, stepLabel }) => `\n=== PLAYER ACTION (time passing: ${stepLabel}) ===\n"${action}"\nThe player's action takes up this whole span. Others act during the same span.`;
-  B.intentTask = ({ state, sc, present, stepId, due }) => {
+  B.intentTask = ({ state, sc, present, stepId, due, action }) => {
     const ids = present.join(', ') || '(none)';
     return `
 === TASK ===
@@ -315,9 +340,9 @@
    - "visibility": "seen" (happens in the player's room), "heard" (the player gets a sound, call or message about it) or "hidden" (the player has no idea).
    - "moves": [{"id":"character_id","to":"location_id"}] for offstage characters who go somewhere because of it, else [].
    - "scope": "local" for these.
-${inventLine(sc)}${tierTask(state, due)}
+${groupTask(state, action)}${inventLine(sc)}${tierTask(state, due)}
 Reply with JSON only, exactly in this shape:
-${intentExample(state, present)}`;
+${intentExample(state, present, action)}`;
   };
 
   function tierTask(state, due) {
@@ -337,12 +362,14 @@ ${intentExample(state, present)}`;
   }
 
   // The example is pre-filled with the real ids so small models don't drop anyone.
-  function intentExample(state, present) {
+  function intentExample(state, present, action) {
     const intents = present.map((id) =>
       `  {"id":"${id}","action":"one sentence","says":null,"reveals":null,"visible":true,"needs_roll":false,"skill":null,"difficulty":"normal","move_to":null}`
     );
-    return `{"player":{"summary":"the player's action restated as a concrete attempt","needs_roll":false,"skill":null,"difficulty":"normal","move_to":null},
- "intents":[${intents.length ? '\n' + intents.join(',\n') + '\n ' : ''}],
+    const groups = groupsHere(state, action).map((g) => `  {"id":"${g.id}","action":"one sentence","visible":true,"move_to":null}`);
+    const anyGroups = Eng().engagedStandees(state, action).length;
+    return `{"player":{"summary":"the player's action restated as a concrete attempt","needs_roll":false,"skill":null,"difficulty":"normal","move_to":null${anyGroups ? ',"against":null,"single_out":null' : ''}},
+ "intents":[${intents.length ? '\n' + intents.join(',\n') + '\n ' : ''}],${groups.length ? `\n "group_intents":[\n${groups.join(',\n')}\n ],` : ''}
  "events":[{"text":"one sentence","scope":"local","who":["character_id"],"where":"location_id","visibility":"heard","moves":[]}]${state.scenario.inventExtras ? ',\n "new_extras":[]' : ''}}`;
   }
 
@@ -354,13 +381,21 @@ ${intentExample(state, present)}`;
         lines.push(`- ${name(state, o.id)} does something out of your sight. At most hint at it.`);
         return;
       }
-      const roll = o.roll ? ` → ${o.roll.result.toUpperCase()} (${o.skill} check: rolled ${o.roll.total} vs ${o.roll.dc})` : ' → happens (no roll needed)';
+      const roll = o.roll ? ` → ${o.roll.result.toUpperCase()} (${o.skill} check: rolled ${o.roll.total} vs ${o.roll.dc}${o.dcWhy ? `; ${o.dcWhy}` : ''})` : ' → happens (no roll needed)';
       const move = o.moved ? ` [moves to ${state.locations[o.moved].name}]` : '';
       const hidden = !forNarrator && !o.visible ? ' [HIDDEN from player]' : '';
       lines.push(`- ${who}: ${o.action}${roll}${move}${hidden}`);
       if (o.says) lines.push(`    says (gist): ${o.says}`);
       if (o.reveals) lines.push(`    REVEALS: ${o.reveals}`);
     });
+    // Groups (task 3-2): one line per group, and exactly what the engine changed.
+    (res.groups || []).forEach((g) => {
+      const st = state.standees && state.standees[g.id];
+      const label = st ? `${st.label} (group of ${st.count})` : g.id;
+      if (forNarrator && !g.visible) return lines.push(`- ${label} do something out of your sight. At most hint at it.`);
+      lines.push(`- ${label}: ${g.action}${g.moved ? ` [moves to ${state.locations[g.moved].name}]` : ''}${!forNarrator && !g.visible ? ' [HIDDEN from player]' : ''}`);
+    });
+    (res.standeeChanges || []).forEach((t) => lines.push(`- CHANGED: ${t}`));
     res.events.forEach((e) => lines.push(`- EVENT: ${e}`));
     return lines.join('\n');
   }
@@ -406,11 +441,14 @@ ${intentExample(state, present)}`;
   }
 
   // Minor people in the scene's rooms (task 2-3): name and role, never the note.
-  function minorLine(state, locs) {
+  function minorLine(state, locs, engaged) {
     const minor = [...new Set(locs)].flatMap((l) => Eng().extrasAt(state, l));
-    return minor.length ? `\nAlso around (minor people, they may appear): ${minor.map((x) => Eng().extraLabel(x)).join('; ')}.` : '';
+    const groups = [...new Set(locs)].flatMap((l) => Eng().standeesAt(state, l))
+      .concat((engaged || []).map((id) => state.standees[id]).filter((g) => g && !locs.includes(g.location)));
+    return (minor.length ? `\nAlso around (minor people, they may appear): ${minor.map((x) => Eng().extraLabel(x)).join('; ')}.` : '') +
+      (groups.length ? `\nUnnamed groups around (exactly these, no more): ${groups.map((g) => `${Eng().standeeLabel(state, g)} in ${state.locations[g.location].name}`).join('; ')}.` : '');
   }
-  B.sceneFrame = ({ state, presentStart, frame, pc, startLoc, endLoc, moved, left, arrived }) => `=== SCENE FRAME ===
+  B.sceneFrame = ({ state, presentStart, frame, pc, startLoc, endLoc, moved, left, arrived, res }) => `=== SCENE FRAME ===
 Starts: ${frame.startTime}, in ${startLoc ? startLoc.name : frame.startLoc}, with ${presentStart.length ? presentStart.map((id) => name(state, id)).join(', ') : 'no one'}.
 Ends: ${E.fmtTime(state)}, ${pc.name} ${moved ? `now in ${endLoc.name}` : `still in ${startLoc ? startLoc.name : frame.startLoc}`}.` +
       // When the player moves, people who stay put are left behind, not leaving.
@@ -418,7 +456,7 @@ Ends: ${E.fmtTime(state)}, ${pc.name} ${moved ? `now in ${endLoc.name}` : `still
         ? `${name(state, id)} stays behind in ${startLoc ? startLoc.name : frame.startLoc}`
         : `${name(state, id)} leaves for ${state.locations[state.characters[id].status.location].name}`).join('; ')}.` : '') +
       (arrived.length ? `\n${arrived.map((id) => name(state, id)).join(', ')} ${arrived.length > 1 ? 'are' : 'is'} there at the end.` : '') +
-      minorLine(state, [frame.startLoc, state.characters[state.player].status.location]) +
+      minorLine(state, [frame.startLoc, state.characters[state.player].status.location], res && res.engaged) +
       `\n${worldLines(state)}`;
   // Narrator-side status (no secrets, notable needs only) for the player and statusIds.
   B.status = ({ state, statusIds }) => ['\n=== STATUS ===', statusLine(state, state.player, true, statusIds)]
@@ -582,7 +620,7 @@ locations: ${Object.keys(state.locations).join(', ')}
 world keys: ${Object.keys(state.world).join(', ') || '(none)'}
 groups: ${(state.factions || []).map((f) => f.id).join(', ') || '(none)'}
 clocks: ${state.clocks.map((c) => c.id).join(', ') || '(none)'}
-${Object.keys(state.extras || {}).length ? `minor people (facts and location only): ${Object.values(state.extras).map((x) => `${x.id}${x.location ? ' in ' + x.location : ''}`).join(', ')}\n` : ''}${sc.needs.length ? `needs: ${sc.needs.map((n) => n.id).join(', ')}\n` : ''}present this turn: ${[state.player].concat(present).join(', ')}`;
+${Object.keys(state.standees || {}).length ? `unnamed groups (count, state, location only): ${Object.values(state.standees).map((g) => `${g.id} (${g.count}, ${g.state}) in ${g.location}`).join(', ')}\n` : ''}${Object.keys(state.extras || {}).length ? `minor people (facts and location only): ${Object.values(state.extras).map((x) => `${x.id}${x.location ? ' in ' + x.location : ''}`).join(', ')}\n` : ''}${sc.needs.length ? `needs: ${sc.needs.map((n) => n.id).join(', ')}\n` : ''}present this turn: ${[state.player].concat(present).join(', ')}`;
   B.whatHappened = ({ state, action, res, cut }) => (cut
       ? '\n=== WHAT WAS PLANNED THIS TURN (the player stepped in partway: only what the scene below shows actually happened; moves, events and lines it does not show did NOT happen) ===\n'
       : '\n=== WHAT HAPPENED THIS TURN (full truth, including hidden actions) ===\n') + `Player action: "${action}"\n` + outcomeLines(state, res, false);
@@ -602,7 +640,9 @@ Record what changed this turn. Reply with JSON only, exactly in this shape:
           {"target":"char:character_id","field":"remove_tag","value":"existing tag"},
           {"target":"char:character_id","field":"mood","value":"how they come across now","reason":"why"},${sc.needs.length ? `
           {"target":"char:character_id","field":"need","need":"need_id","delta":-0.5},` : ''}
-          {"target":"world:key","value":"new short description"},
+${Object.keys(state.standees || {}).length ? `          {"target":"standee:group_id","field":"count","delta":-1},
+          {"target":"standee:group_id","field":"state","value":"calm|alert|hostile|fled|down"},
+` : ''}          {"target":"world:key","value":"new short description"},
           {"target":"faction:group_id","value":"new short stance"},
           {"target":"clock:clock_id","delta":-2}],
  "relations":[{"from":"character_id","to":"character_id","delta":5,"reason":"short reason"}],
@@ -623,7 +663,8 @@ Guidelines:
 - relations: how this turn changed how non-player characters feel about others (never ${name(state, state.player)}'s own feelings), delta between -15 and 15. Leave empty if nothing changed.
 - player_attitude: how ${name(state, state.player)}'s own feelings toward someone shifted, judged ONLY from the player action as quoted above (their words and tone), never from how the narrator embellished it. Snapping, mocking or threatening lowers it; thanking, helping, joking warmly or confiding raises it. Delta between -10 and 10. Leave empty if the action was neutral.
 - chapter_worthy: true only for a major turning point.${Object.keys(state.extras || {}).length ? `
-- minor people: may be in facts (about, known_by) and may change location; no relations, moods, tags or needs.` : ''}${sc.inventExtras ? `
+- minor people: may be in facts (about, known_by) and may change location; no relations, moods, tags or needs.` : ''}${Object.keys(state.standees || {}).length ? `
+- unnamed groups: count goes down for members killed, captured or gone (it only goes up if an event brought more); state when the scene shows them change (fled: they leave for good); location only one linked room, when seen leaving.` : ''}${sc.inventExtras ? `
 - new_extras: only if the scene clearly brought in a new minor person or group not listed above: {"name","role","location","group":false}. At most 1.` : ''}
 Use [] for any list with nothing to record.`;
 

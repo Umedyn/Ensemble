@@ -16,14 +16,14 @@
   const START_OWN = ['id', 'title', 'summary', 'start', 'player', 'cast', 'opening', 'castLabel', 'region'];
   // World fields a start may override (merge rules below).
   const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'tagThresholds', 'portraitSet', 'factions', 'world',
-    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions'];
+    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'standees'];
   const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'characters', 'starts', ...OVERRIDABLE];
   const WORLD_RESERVED = ['map', 'lore', 'timeline'];
-  const START_RESERVED = ['playerSlot', 'standees'];
+  const START_RESERVED = ['playerSlot'];
   const CAST_FIELDS = ['id', 'status', 'needs', 'relations', 'knows', 'want', 'secret', 'guard', 'tags', 'tier', 'pinned', 'agenda'];
   // Merge rules: lists of {id} objects merge by id, lists of strings are
   // unioned, plain objects merge shallowly; anything else is replaced.
-  const ID_LISTS = ['locations', 'clocks', 'factions', 'extras', 'regions'];
+  const ID_LISTS = ['locations', 'clocks', 'factions', 'extras', 'regions', 'standees'];
   const STRING_LISTS = ['rules', 'facts', 'tags'];
   const OBJECTS = ['world', 'eventRates', 'eventSeeds', 'tiers'];
 
@@ -68,6 +68,7 @@
     if (Array.isArray(sc.regions) && sc.regions.length && sc.region != null) {
       (sc.locations || []).forEach((l) => { if (l && l.region == null) l.region = sc.region; });
     }
+    S.groupsToStandees(sc);
     const cast = start.cast || [];
     sc.characters = cast.map(castId);
     sc.characterData = cast.map((entry) => {
@@ -85,6 +86,32 @@
     sc.startTitle = start.title || null;
     sc.title = start.title ? `${world.title}: ${start.title}` : world.title;
     if (folder) sc.folder = folder;
+    return sc;
+  };
+
+  // ---------- standees (task 3-2) ----------
+  // Groups exist only on the local map. A group extra ("group": true, the
+  // form before standees) with a room becomes a standee; one with no room is
+  // dropped (validateWorld warns), since a group away from the rooms is its
+  // faction's business. Counts in words become numbers.
+  const COUNT_WORDS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, twenty: 20, fifty: 50, couple: 2, pair: 2, few: 3, handful: 4, several: 5, some: 5, dozen: 12, dozens: 24, scores: 50, hundred: 100, hundreds: 100, thousand: 999, thousands: 999 };
+  S.parseCount = function (v) {
+    if (typeof v === 'number' && v >= 1) return Math.min(999, Math.round(v));
+    const t = String(v == null ? '' : v).toLowerCase();
+    const n = t.match(/\d+/);
+    if (n) return E.clamp(Number(n[0]), 1, 999);
+    const w = t.split(/[^a-z]+/).find((x) => COUNT_WORDS[x]);
+    return w ? COUNT_WORDS[w] : 10;
+  };
+  S.groupsToStandees = function (sc) {
+    if (!Array.isArray(sc.extras) || !sc.extras.some((x) => x && x.group === true)) return sc;
+    const standees = Array.isArray(sc.standees) ? sc.standees : [];
+    sc.extras.filter((x) => x && x.group === true && x.location != null).forEach((x) => {
+      if (standees.some((st) => st.id === x.id)) return;
+      standees.push({ id: x.id, label: x.name, count: S.parseCount(x.count), location: x.location, state: 'calm', note: [x.role, x.note].filter(Boolean).join('; ') });
+    });
+    sc.extras = sc.extras.filter((x) => !(x && x.group === true));
+    sc.standees = standees;
     return sc;
   };
 
@@ -155,6 +182,10 @@
         if (typeof entry !== 'string') warnings.push(...unknownFields(entry, CAST_FIELDS, `${where} cast "${entry.id}"`));
       });
     });
+    // Groups away from the rooms (task 3-2) are dropped when composing.
+    [['world.json', world]].concat(startIds.map((sid) => [bundle.legacy ? 'scenario.json' : `starts/${sid}.json`, starts[sid]])).forEach(([where, src]) =>
+      ((src && Array.isArray(src.extras)) ? src.extras : []).filter((x) => x && x.group === true && x.location == null).forEach((x) =>
+        warnings.push(`${where}: group "${x.id}" is in no room and is left out (groups exist only on the local map; use a faction or a pressure for the rest)`)));
     if (problems.length) throw new Error(`World "${world.title || bundle.folder}" has problems:\n- ` + problems.join('\n- '));
     return warnings;
   };
@@ -351,6 +382,41 @@
     return problems;
   }
 
+  // Standees (task 3-2): unnamed groups on the local map.
+  S.STANDEE_STATES = ['calm', 'alert', 'hostile', 'fled', 'down'];
+  function standeeProblems(sc, locIds, extraIds) {
+    const problems = [];
+    const req = (cond, msg) => { if (!cond) problems.push(msg); };
+    const groupIds = new Set((sc.factions || []).map((f) => f.id));
+    const seen = new Set();
+    const locs = {};
+    (sc.locations || []).forEach((l) => (locs[l.id] = l));
+    const linked = (a, b) => (locs[a] && (locs[a].connects || []).includes(b)) || (locs[b] && (locs[b].connects || []).includes(a));
+    (sc.standees == null ? [] : Array.isArray(sc.standees) ? sc.standees : [null]).forEach((g) => {
+      const where = `standee "${(g && g.id) || '?'}"`;
+      if (!isObj(g)) return problems.push('"standees" must be a list of {id, label, count, location}');
+      req(typeof g.id === 'string' && /^[a-z0-9][a-z0-9_-]*$/.test(g.id), `${where}: "id" must be lowercase letters, digits, - or _`);
+      req(!seen.has(g.id), `${where} is listed twice`);
+      seen.add(g.id);
+      req(!(sc.characters || []).includes(g.id) && !locIds.has(g.id) && !extraIds.has(g.id), `${where}: id is already used by a character, extra or location`);
+      req(typeof g.label === 'string' && g.label.trim() && g.label.length <= 40, `${where}: "label" must be text of at most 40 characters`);
+      req(Number.isInteger(g.count) && g.count >= 1 && g.count <= 999, `${where}: "count" must be a whole number from 1 to 999`);
+      req(locIds.has(g.location), `${where}: unknown location "${g.location}" (groups are always in a room)`);
+      req(g.state == null || (S.STANDEE_STATES.includes(g.state) && g.state !== 'fled'), `${where}: "state" must be calm, alert, hostile or down`);
+      req(g.faction == null || groupIds.has(g.faction), `${where}: faction "${g.faction}" is not one of the groups`);
+      req(g.note == null || (typeof g.note === 'string' && g.note.length <= 200), `${where}: "note" must be text of at most 200 characters`);
+      req(g.post == null || g.patrol == null, `${where}: a group holds a "post" or walks a "patrol", not both`);
+      req(g.post == null || locIds.has(g.post), `${where}: unknown post "${g.post}"`);
+      if (g.patrol != null) {
+        const ok = Array.isArray(g.patrol) && g.patrol.length >= 2 && g.patrol.every((l) => locIds.has(l));
+        req(ok, `${where}: "patrol" must be a list of at least 2 known rooms`);
+        if (ok) g.patrol.forEach((l, i) => { const next = g.patrol[(i + 1) % g.patrol.length]; req(linked(l, next), `${where}: patrol step ${l} → ${next} is not a linked room`); });
+        if (ok) req(g.patrol.includes(g.location), `${where}: starts in "${g.location}", which is not on its patrol`);
+      }
+    });
+    return problems;
+  }
+
   // Catches authoring mistakes early with readable messages.
   S.validate = function (sc) {
     const problems = [];
@@ -410,6 +476,7 @@
     Object.entries(sc.eventRates || {}).forEach(([k, v]) => req(['regional', 'world'].includes(k) && typeof v === 'number' && v >= 0, `eventRates.${k} must be regional/world with hours >= 0 (0 turns it off)`));
     (sc.factions || []).forEach((f) => req(f.id && f.name && f.desc && f.stance, `group "${f.id || '?'}" needs id, name, desc and stance`));
     problems.push(...regionProblems(sc));
+    problems.push(...standeeProblems(sc, locIds, extraIds));
     (sc.clocks || []).forEach((c) => {
       req(c.id && c.name && c.max > 0, `clock "${c.id || '?'}" needs id, name and max`);
       Object.keys(c.fireWorld || {}).forEach((k) => req(sc.world && k in sc.world, `clock "${c.id}" fireWorld key "${k}" not in world`));

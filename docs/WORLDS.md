@@ -66,7 +66,8 @@ Static servers can't list directories, so `world.json` lists its starts and char
 | `world` | object | world-status defaults; starts may add or override keys |
 | `eventRates`, `eventSeeds`, `majorEventDays`, `majorHorizonDays`, `majorSeeds`, `revealSkills` | | as today; starts may override. An `eventSeeds` idea is text or `{text, region}` (a known region id); regional ideas for regions away from the player are left out of prompts |
 | `tiers` | object | optional `{demoteAfter, maxLocal}` (whole numbers ≥ 1; defaults 4 and 6) for cast tiers (task 2-1). Starts may override field by field |
-| `extras` | object[] | minor people (task 2-3): `{id, name, role, location, note, pronouns, group, count}`. `location` may be `null` (nowhere in particular); `group: true` makes one entity of a crowd, patrol or horde, with an optional `count` ("hundreds"). Ids must not clash with characters or locations. Starts add to or change them by `id` |
+| `extras` | object[] | minor people (task 2-3): `{id, name, role, location, note, pronouns}`. `location` may be `null` (nowhere in particular). Ids must not clash with characters or locations. Starts add to or change them by `id`. The older `group: true` form (with `count`) loads as a standee when it has a room and is left out with a warning when it doesn't |
+| `standees` | object[] | unnamed groups on the local map (task 3-2): `{id, label, count, location, state, faction, post, patrol, note}`. `count` 1–999; `location` a room (groups exist only in rooms; elsewhere they are their faction's business); `state` `calm` (default), `alert`, `hostile` or `down`; `faction` a group id; `post` a room it holds, or `patrol` a loop of at least 2 linked rooms that includes `location` (not both); `note` up to 200 characters, never shown to the player. Ids must not clash with characters, extras or locations. Starts add to or change them by `id` |
 | `inventExtras` | boolean | default false; true lets the model add minor people during play (one a turn, 30 in all). Leave it off for closed settings |
 | `facts` | string[] | public facts true everywhere |
 | `characters` | string[] | the character pool (ids in `characters/`) |
@@ -92,7 +93,7 @@ Static servers can't list directories, so `world.json` lists its starts and char
 | `opening` | string | first scene |
 | `castLabel` | string | sidebar heading ("Crew", "Survivors") |
 | `region` | id | where the player starts; required when the world has `regions`, and the default region of the start's locations |
-| reserved | | `playerSlot` (phase 4: lets the player make their own character), `standees` (phase 3) |
+| reserved | | `playerSlot` (phase 4: lets the player make their own character) |
 
 ### cast entries
 
@@ -112,11 +113,11 @@ Overridable per start: `status`, `needs`, `relations`, `knows`, `want`, `secret`
 
 1. Start with a deep clone of the world.
 2. **Scalars, strings and every other field** (`setting`, `timeLabel`, `majorEventDays`, and lists not named below such as `skills`, `needs`, `majorSeeds`, `revealSkills`): the start's value replaces the world's.
-3. **Lists of objects with `id`** (`locations`, `clocks`, `factions`, `extras`, `regions`): merge by id, with start entries replacing world entries field by field. New ids are appended.
+3. **Lists of objects with `id`** (`locations`, `clocks`, `factions`, `extras`, `regions`, `standees`): merge by id, with start entries replacing world entries field by field. New ids are appended.
 4. **Lists of strings** (`rules`, `facts`, `tags`): world first, then the start's, without duplicates.
 5. **Plain objects** (`world`, `eventRates`, `eventSeeds`, `tiers`): shallow merge, with the start winning.
 6. `characters` = the start's cast ids in order; `characterData` = each pool file deep-merged with its cast entry (cast entry wins; plain objects such as `status`, `needs` and `relations` merge field by field, lists such as `knows` are replaced). Relations to pool characters who aren't in this start's cast are dropped (they're checked against the pool by `validateWorld` instead).
-7. When the result has `regions`, each location without a `region` gets the start's `region`.
+7. When the result has `regions`, each location without a `region` gets the start's `region`. Group extras become standees (`S.groupsToStandees`).
 8. The composed scenario gets `worldId`, `startId`, `folder` (the world folder) and `title` (`"<world title>: <start title>"` for display, or just the world title when the start has none, plus `worldTitle` and `startTitle` separately). `format` and `starts` are dropped. The prompt header's `SETTING:` line uses `worldTitle`, so start titles stay out of prompts.
 9. Then `S.validate(composed)`: today's checks, unchanged. `S.compose` itself doesn't validate; `S.prepareWorld` does both.
 

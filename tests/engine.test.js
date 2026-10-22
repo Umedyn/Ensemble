@@ -867,3 +867,10 @@ test('old single-endpoint settings migrate to the local backend', () => {
   assert.equal(E.settings.narrateTokens, 320);
   assert.equal(E.settings.routing.narrate, 'local');
 });
+
+test('beat markers in seconds are beats too, not prose (playtest-stragglers-sneak)', () => {
+  const { E } = newGame();
+  const beats = [...E.Engine.parseBeats('[+0m] You crouch.\n\n[+30s] Dex watches.\n\n[+1m 15s] Dex curses.\n\n[+2m] Ruth stands.', 15)];
+  assert.deepEqual(beats.map((b) => b.text), ['You crouch.', 'Dex watches.', 'Dex curses.', 'Ruth stands.']);
+  assert.deepEqual(beats.map((b) => b.at), [0, 1, 1, 2]);
+});

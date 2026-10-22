@@ -96,8 +96,8 @@ Pax Historia's map at personal scale: World → Regional → Local.
 
 **Local map: tokens on nodes**
 - [ ] Every character is a **token** on a location node, named characters and **standees** alike.
-- [ ] **Standees** are unnamed groups such as gang members, guards or a mob: label, count, location, state (calm, alert, hostile, fled, down). The engine tracks them; the model can propose moves, count changes and state changes, and the engine validates and clamps them. A standee can be promoted to an extra or a named character when the player singles one out.
-- [ ] **Guard posts and patrols**: standees can hold a post or follow a patrol route through the room graph; whether the player is seen depends on who is in or next to their room.
+- [x] **Standees** are unnamed groups such as gang members, guards or a mob: label, count, location, state (calm, alert, hostile, fled, down). The engine tracks them; the model can propose moves, count changes and state changes, and the engine validates and clamps them. A standee can be promoted to an extra or a named character when the player singles one out.
+- [x] **Guard posts and patrols**: standees can hold a post or follow a patrol route through the room graph; whether the player is seen depends on who is in or next to their room.
 - [ ] Later, possibly: positions inside a room (doorway, cover, back wall) for a more hands-on feel. The site layout below gives every room coordinates, so this becomes possible; decide after playing with tokens.
 
 **Site layouts: the model describes, the engine draws**

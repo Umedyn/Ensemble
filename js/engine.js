@@ -55,6 +55,8 @@
     Eng.initTiers(state);
     state.extras = {};
     (sc.extras || []).forEach((x) => { state.extras[x.id] = Eng.newExtra(x, 'author', 0); });
+    state.standees = {};
+    (sc.standees || []).forEach((g) => { state.standees[g.id] = Eng.newStandee(g); });
     // Starting knowledge becomes private facts; scenario facts are public.
     sc.characterData.forEach((c) =>
       (c.knows || []).forEach((text) =>
@@ -71,7 +73,7 @@
 
   // Saves and autosaves from older versions are upgraded one step at a time
   // when loaded. Each step takes a state at version n and returns n + 1.
-  Eng.STATE_VERSION = 7;
+  Eng.STATE_VERSION = 8;
   Eng.migrations = {
     // Worlds and starts (docs/WORLDS.md): the scenario records where it came from.
     1: (state) => {
@@ -122,6 +124,23 @@
       if (!state.regions) state.regions = {};
       if (state.pending && state.pending.pre && !state.pending.pre.regions) state.pending.pre.regions = {};
       state.version = 7;
+      return state;
+    },
+    // Standees (task 3-2): group extras in a room become standees; groups in
+    // no room are dropped (groups exist only on the local map).
+    7: (state) => {
+      const convert = (st) => {
+        st.standees = st.standees || {};
+        Object.values(st.extras || {}).filter((x) => x.group).forEach((x) => {
+          if (x.location && !st.standees[x.id]) {
+            st.standees[x.id] = Eng.newStandee({ id: x.id, label: x.name, count: E.Scenario.parseCount(x.count), location: x.location, note: [x.role, x.note].filter(Boolean).join('; ') });
+          }
+          delete st.extras[x.id];
+        });
+      };
+      convert(state);
+      if (state.pending && state.pending.pre) convert(state.pending.pre);
+      state.version = 8;
       return state;
     },
   };
@@ -223,9 +242,15 @@
     const base = slug(name) || 'extra';
     let id = base;
     for (let i = 2; state.characters[id] || state.extras[id] || state.locations[id]; i++) id = `${base}-${i}`;
-    const group = raw.group === true;
-    state.extras[id] = Eng.newExtra({ id, name, role, location: loc || null, group, count: group && typeof raw.count === 'string' ? raw.count.slice(0, 30) : null }, 'model', turn);
+    for (let i = 2; state.standees && state.standees[id]; i++) id = `${base}-${i}`;
     state.newExtras = { turn, n: added + 1 };
+    // A group is a standee (task 3-2), and groups are always in a room.
+    if (raw.group === true) {
+      if (!loc) return { error: `a group needs a room (${name})` };
+      state.standees[id] = Eng.newStandee({ id, label: name, count: E.Scenario.parseCount(raw.count), location: loc, note: role });
+      return { id, note: `+group ${Eng.standeeLabel(state, state.standees[id])} in ${state.locations[loc].name} (${id})` };
+    }
+    state.extras[id] = Eng.newExtra({ id, name, role, location: loc || null }, 'model', turn);
     return { id, note: `+${Eng.extraLabel(state.extras[id])} in ${loc ? state.locations[loc].name : 'no particular place'} (${id})` };
   };
 
@@ -245,9 +270,159 @@
     return out;
   };
 
-  // Where someone is, character or extra.
-  const whereIs = (state, id) => (state.characters[id] ? state.characters[id].status.location : state.extras && state.extras[id] ? state.extras[id].location : null);
+  // ---------- standees (task 3-2) ----------
+  // Unnamed groups on the local map (guards, a gang, the dead): a label, a
+  // count, a room and a state. One intent per group, never per person. A
+  // group that is wiped out or flees leaves the map and is folded back into
+  // its faction; groups exist only in rooms.
+  Eng.newStandee = (g) => ({
+    id: g.id, label: g.label, count: g.count, location: g.location, state: g.state || 'calm', faction: g.faction || null,
+    post: g.post || null, patrol: g.patrol ? g.patrol.slice() : null, patrolHours: 0, note: g.note || '',
+  });
+  // Groups that can act: here, and not down.
+  const ACTIVE = ['calm', 'alert', 'hostile'];
+  Eng.standeesAt = (state, loc) => Object.values(state.standees || {}).filter((g) => g.location === loc && g.count > 0);
+  Eng.standeeActive = (g) => !!g && g.count > 0 && ACTIVE.includes(g.state);
+  // "3 Chrome Saints (alert)", "the dead (12, hostile)"
+  Eng.standeeLabel = (state, g) => {
+    const f = g.faction && (state.factions || []).find((x) => x.id === g.faction);
+    return `${g.label} (${g.count}, ${g.state}${f ? `, ${f.name}` : ''}${g.post ? ', on guard' : g.patrol ? ', on patrol' : ''})`;
+  };
+  // Every token on a room, for the map view (3-3) and the prompts: the
+  // player and living characters, then extras, then standees.
+  Eng.tokens = function (state, loc) {
+    const chars = [state.player].concat(Eng.cast(state, { alive: true, includePlayer: false }))
+      .filter((id) => Eng.alive(state, id) && state.characters[id].status.location === loc)
+      .map((id) => ({ kind: 'character', id, label: state.characters[id].name, player: id === state.player }));
+    const extras = Eng.extrasAt(state, loc).map((x) => ({ kind: 'extra', id: x.id, label: x.name }));
+    const groups = Eng.standeesAt(state, loc).map((g) => ({ kind: 'standee', id: g.id, label: g.label, count: g.count, state: g.state, faction: g.faction }));
+    return chars.concat(extras, groups);
+  };
+  const linked = (state, a, b) => {
+    const la = state.locations[a], lb = state.locations[b];
+    return !!((la && (la.connects || []).includes(b)) || (lb && (lb.connects || []).includes(a)));
+  };
+  Eng.linkedRooms = (state, loc) => Object.keys(state.locations).filter((l) => l !== loc && linked(state, loc, l));
+  // Leaves the map: wiped out or fled. Returns a Debug line.
+  function removeStandee(state, g, why) {
+    delete state.standees[g.id];
+    const f = g.faction && (state.factions || []).find((x) => x.id === g.faction);
+    return `${g.label} ${why}${f ? `; folded back into ${f.name}` : ''}`;
+  }
+  // A group moves one linked step, unless it holds a post (only hostile
+  // groups leave a post). Returns null or why not.
+  function standeeMoveProblem(state, g, dest) {
+    if (!dest) return 'unknown location';
+    if (dest === g.location) return 'already there';
+    if (!linked(state, g.location, dest)) return `${dest} is not linked to ${g.location}`;
+    if (g.post && g.state !== 'hostile') return `holds its post in ${g.post}`;
+    return null;
+  }
+  // Harder rolls against groups: state plus size. Stealth also counts who
+  // could notice: alert or hostile groups in the player's room, a linked
+  // room or the destination; an empty route makes it easier.
+  const STATE_DC = { calm: 0, alert: 2, hostile: 4 };
+  const sizeDC = (n) => (n >= 20 ? 4 : n >= 8 ? 3 : n >= 4 ? 2 : n >= 2 ? 1 : 0);
+  Eng.STEALTH_SKILLS = ['stealth'];
+  Eng.standeeDC = function (state, it) {
+    const here = state.characters[state.player].status.location;
+    let mod = 0;
+    const why = [];
+    const target = it.against && state.standees[it.against];
+    if (target) {
+      const m = (STATE_DC[target.state] || 0) + sizeDC(target.count);
+      if (m) { mod += m; why.push(`${target.count} ${target.state} ${target.label} +${m}`); }
+    }
+    if (Eng.STEALTH_SKILLS.includes(it.skill) && Object.keys(state.standees || {}).length) {
+      const rooms = new Set([here].concat(Eng.linkedRooms(state, here), it.moveTo ? [it.moveTo] : []));
+      const watchers = Object.values(state.standees).filter((g) => rooms.has(g.location) && Eng.standeeActive(g));
+      const sharp = watchers.filter((g) => g.state !== 'calm' && g !== target);
+      if (sharp.length) { const m = Math.min(4, 2 * sharp.length); mod += m; why.push(`watched by ${sharp.map((g) => g.label).join(', ')} +${m}`); }
+      else if (!watchers.length) { mod -= 2; why.push('nobody on the route −2'); }
+    }
+    return { mod, why };
+  };
+  // A failed stealth roll: the nearest group that could notice gets warier
+  // (calm → alert → hostile); one that turns hostile next door and holds no
+  // post steps toward the player. Returns lines for the narrator (exactly what changed).
+  Eng.standeesNotice = function (state, it) {
+    const here = state.characters[state.player].status.location;
+    const near = new Set(Eng.linkedRooms(state, here).concat(it.moveTo ? [it.moveTo] : []));
+    const order = (g) => (g.location === here ? 0 : g.location === it.moveTo ? 1 : 2);
+    const g = Object.values(state.standees || {}).filter((x) => Eng.standeeActive(x) && x.state !== 'hostile' && (x.location === here || near.has(x.location)))
+      .sort((a, b) => order(a) - order(b))[0];
+    if (!g) return [];
+    const was = g.state;
+    g.state = was === 'calm' ? 'alert' : 'hostile';
+    const lines = [`${g.label} ${g.state === 'alert' ? 'notice something and are now alert' : 'spot the player and turn hostile'} (were ${was})`];
+    if (g.state === 'hostile' && g.location !== here && !g.post && linked(state, g.location, here)) {
+      g.location = here;
+      lines.push(`${g.label} come into ${state.locations[here].name}`);
+    }
+    return lines;
+  };
+  // Groups the player can deal with this turn: the ones in their room, and
+  // ones in a linked room that the player's own words name ("sneak past the
+  // stragglers" from the dock; playtest-stragglers-sneak). They get an
+  // intent, can be a roll's target, and the update step may change them.
+  const labelHit = (g, text) => {
+    const words = String(text || '').toLowerCase().split(/[^a-z0-9]+/).map((w) => w.replace(/s$/, ''));
+    return labelWords(g.label).some((w) => words.includes(w));
+  };
+  Eng.engagedStandees = function (state, actionText) {
+    const here = state.characters[state.player].status.location;
+    const next = new Set(Eng.linkedRooms(state, here));
+    return Object.values(state.standees || {}).filter((g) => g.count > 0 && (g.location === here || (next.has(g.location) && labelHit(g, actionText))));
+  };
+  // Sneaking near a group always rolls, even when the model says it doesn't
+  // need to (playtest-stragglers-sneak: "I sneak around the side of the truck"
+  // with the dead next door, no roll).
+  const SNEAKING = /\b(?:sneak|sneaks|sneaking|creep|creeps|creeping|tiptoe|tiptoes|quietly|silently|stay(?:ing)? (?:low|hidden|out of sight)|keep(?:ing)? low|slip(?:s|ping)? (?:past|by|around|behind)|without being (?:seen|noticed|heard))\b/i;
+  Eng.sneakNeedsRoll = function (state, actionText) {
+    if (!SNEAKING.test(String(actionText || ''))) return false;
+    const here = state.characters[state.player].status.location;
+    const rooms = new Set([here].concat(Eng.linkedRooms(state, here)));
+    return Object.values(state.standees || {}).some((g) => rooms.has(g.location) && Eng.standeeActive(g));
+  };
+
+  // Patrols advance one room per in-game hour while calm or alert.
+  function advancePatrols(state, hours) {
+    Object.values(state.standees || {}).forEach((g) => {
+      if (!g.patrol || !['calm', 'alert'].includes(g.state)) return;
+      g.patrolHours = (g.patrolHours || 0) + hours;
+      const steps = Math.floor(g.patrolHours);
+      if (!steps) return;
+      g.patrolHours -= steps;
+      const i = Math.max(0, g.patrol.indexOf(g.location));
+      g.location = g.patrol[(i + steps) % g.patrol.length];
+    });
+  }
+  // The player singles one member out ("I grab the nearest straggler"): only
+  // when the player's own words refer to the group. The count drops by one
+  // and an individual extra stands in the same room. Returns { note } or { error }.
+  const labelWords = (label) => String(label).toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && !['the', 'and'].includes(w)).map((w) => w.replace(/s$/, ''));
+  Eng.singleOut = function (state, raw, actionText, turn) {
+    const g = raw && state.standees[raw.standee];
+    if (!g) return { error: `unknown group "${raw && raw.standee}"` };
+    if (g.location !== state.characters[state.player].status.location) return { error: `${g.label} is not here` };
+    if (!Eng.standeeActive(g) && g.state !== 'down') return { error: `${g.label} can't be singled out` };
+    if (!labelHit(g, actionText)) return { error: `the player's action doesn't name ${g.label}` };
+    if (Object.keys(state.extras).length >= Eng.EXTRAS_MAX) return { error: `already ${Eng.EXTRAS_MAX} minor people` };
+    const name = typeof raw.name === 'string' && raw.name.trim() ? raw.name.replace(/\s+/g, ' ').trim().slice(0, 40) : `one of the ${g.label}`.slice(0, 40);
+    const role = typeof raw.role === 'string' && raw.role.trim() ? raw.role.replace(/\s+/g, ' ').trim().slice(0, 60) : `one of the ${g.label}`.slice(0, 60);
+    const base = slug(name === `one of the ${g.label}`.slice(0, 40) ? `${g.id}-one` : name) || 'extra';
+    let id = base;
+    for (let i = 2; state.characters[id] || state.extras[id] || state.locations[id] || state.standees[id]; i++) id = `${base}-${i}`;
+    state.extras[id] = Eng.newExtra({ id, name, role, location: g.location, note: `singled out from ${g.label}${g.note ? '; ' + g.note : ''}` }, 'standee', turn);
+    g.count -= 1;
+    const gone = g.count <= 0 ? '; ' + removeStandee(state, g, 'is down to no one') : '';
+    return { id, note: `${name} singled out from ${g.label} (${id}); ${g.label} now ${Math.max(0, g.count)}${gone}` };
+  };
+
+  // Where someone is, character, extra or group.
+  const whereIs = (state, id) => (state.characters[id] ? state.characters[id].status.location : state.extras && state.extras[id] ? state.extras[id].location : state.standees && state.standees[id] ? state.standees[id].location : null);
   const isExtra = (state, id) => !!(state.extras && state.extras[id]);
+  const isStandee = (state, id) => !!(state.standees && state.standees[id]);
 
   Eng.offstage = (state, present) => {
     present = present || Eng.present(state);
@@ -488,9 +663,9 @@
     return p;
   }
 
-  Eng.roll = function (c, skill, difficulty, sc) {
+  Eng.roll = function (c, skill, difficulty, sc, mod) {
     const d = 1 + Math.floor(E.rng() * 20);
-    const dc = DC[difficulty] || DC.normal;
+    const dc = (DC[difficulty] || DC.normal) + (Number(mod) || 0);
     const total = d + (Number(c.skills[skill]) || 0) * 2 + skillPenalty(c, sc);
     const result = d === 1 ? 'critical failure' : d === 20 ? 'critical success' : total >= dc ? 'success' : 'failure';
     return { d, total, dc, result };
@@ -525,6 +700,8 @@
       skill,
       difficulty: DC[raw && raw.difficulty] ? raw.difficulty : 'normal',
       moveTo: raw ? Eng.resolveLocation(state, raw.move_to, true) : null,
+      against: id === state.player && raw && typeof raw.against === 'string' ? raw.against : null,
+      singleOut: id === state.player && raw && raw.single_out && typeof raw.single_out === 'object' ? raw.single_out : null,
     };
   }
 
@@ -756,7 +933,7 @@
       if (used[scope] >= caps[scope]) return guard(res, 'resolve', 'event dropped', `${scope} event not due or over the cap: ${ev.text}`);
       used[scope]++;
       const text = ev.text.trim().slice(0, 220);
-      const who = (Array.isArray(ev.who) ? ev.who : []).filter((id) => (state.characters[id] || isExtra(state, id)) && id !== state.player);
+      const who = (Array.isArray(ev.who) ? ev.who : []).filter((id) => (state.characters[id] || isExtra(state, id) || isStandee(state, id)) && id !== state.player);
       // Offstage people in an event may know facts about it (see applyUpdate).
       res.involved = [...new Set((res.involved || []).concat(who))];
       const where = Eng.resolveLocation(state, ev.where, false) || (scope === 'local' && who[0] ? whereIs(state, who[0]) : null);
@@ -764,6 +941,15 @@
       if (vis === 'seen' && where !== here) vis = 'heard';
       const moved = [];
       (Array.isArray(ev.moves) ? ev.moves : []).forEach((m) => {
+        if (m && isStandee(state, m.id)) {
+          const g = state.standees[m.id];
+          const dest = Eng.resolveLocation(state, m.to, false);
+          const why = standeeMoveProblem(state, g, dest);
+          if (why) return guard(res, 'resolve', 'standee move', `${g.label} → ${m.to}: ${why}`);
+          g.location = dest;
+          moved.push(`${g.label} → ${state.locations[dest].name}`);
+          return;
+        }
         if (m && isExtra(state, m.id)) {
           const to = Eng.resolveLocation(state, m.to, false);
           if (!to) return;
@@ -823,6 +1009,12 @@
     // anywhere, unless the action says so ("…then head to the garage") or names
     // someone who is at the destination.
     const p = list[0];
+    // Standees (task 3-2): who the player can deal with, and sneaking always rolls.
+    res.engaged = Eng.engagedStandees(state, actionText).map((g) => g.id);
+    if (!p.needsRoll && state.scenario.skills.includes('stealth') && Eng.sneakNeedsRoll(state, actionText)) {
+      Object.assign(p, { needsRoll: true, skill: 'stealth', difficulty: 'normal' });
+      guard(res, 'resolve', 'roll required', 'the player sneaks with a group close by: stealth roll');
+    }
     if (p.moveTo) {
       const about = present.filter((id) => mentions(actionText, state.characters[id]));
       // Someone named who is heading the same way this turn counts as being there.
@@ -855,18 +1047,63 @@
           o.says = null;
         }
       }
-      if (it.needsRoll) o.roll = Eng.roll(c, it.skill, it.difficulty, state.scenario);
+      if (it.needsRoll) {
+        let mod = 0;
+        if (it.id === state.player) {
+          // Standees (task 3-2): a target must be a group that is here and able to resist.
+          if (it.against && !(res.engaged.includes(it.against) && Eng.standeeActive(state.standees[it.against]))) {
+            guard(res, 'resolve', 'standee rejected', `roll against "${it.against}": no such group here that can resist`);
+            it.against = null;
+          }
+          const dc = Eng.standeeDC(state, it);
+          mod = dc.mod;
+          if (dc.why.length) { o.dcWhy = dc.why.join('; '); guard(res, 'resolve', 'difficulty', o.dcWhy); }
+        }
+        o.roll = Eng.roll(c, it.skill, it.difficulty, state.scenario, mod);
+      }
       const failed = o.roll && /failure/.test(o.roll.result);
+      if (it.id === state.player && failed && Eng.STEALTH_SKILLS.includes(it.skill)) {
+        const seen = Eng.standeesNotice(state, it);
+        if (seen.length) { res.standeeChanges = (res.standeeChanges || []).concat(seen); seen.forEach((l) => guard(res, 'resolve', 'noticed', l)); }
+      }
       if (it.moveTo && it.moveTo !== c.status.location && !failed) {
         c.status.location = it.moveTo;
         o.moved = it.moveTo;
       }
       outcomes.push(o);
     });
+    resolveGroups(state, intentObj, res, res.engaged);
+    if (list[0].singleOut) {
+      const out = Eng.singleOut(state, list[0].singleOut, actionText, state.turn);
+      if (out.error) guard(res, 'resolve', 'standee rejected', `single out: ${out.error}`);
+      else { guard(res, 'resolve', 'singled out', out.note); res.standeeChanges = (res.standeeChanges || []).concat(out.note); }
+    }
     applyEvents(state, intentObj, present, stepId || 'hour', res, due);
     applyNewExtras(state, intentObj.new_extras, state.turn, state.characters[state.player].status.location, (why) => guard(res, 'resolve', 'extra rejected', why), (note) => guard(res, 'resolve', 'extra added', note));
     return res;
   };
+
+  // One intent per group with the player (task 3-2): what the group does, and
+  // at most one linked step away. Groups that are down can't act; unknown or
+  // absent ids are dropped.
+  function resolveGroups(state, intentObj, res, engaged) {
+    res.groups = [];
+    const given = Array.isArray(intentObj.group_intents) ? intentObj.group_intents.slice(0, 6) : [];
+    given.forEach((gi) => {
+      const g = gi && state.standees[gi.id];
+      if (g && res.groups.some((x) => x.id === g.id)) return;
+      if (!g || !engaged.includes(g.id)) return guard(res, 'resolve', 'standee rejected', `group intent for "${gi && gi.id}": no such group here`);
+      if (!Eng.standeeActive(g)) return guard(res, 'resolve', 'standee rejected', `${g.label} is ${g.state} and can't act`);
+      const o = { id: g.id, action: String(gi.action || 'hold where they are').slice(0, 200), visible: gi.visible !== false, moved: null };
+      if (gi.move_to != null && gi.move_to !== '') {
+        const dest = Eng.resolveLocation(state, gi.move_to, false);
+        const why = standeeMoveProblem(state, g, dest);
+        if (why) guard(res, 'resolve', 'standee move', `${g.label} → ${gi.move_to}: ${why}`);
+        else { g.location = dest; o.moved = dest; }
+      }
+      res.groups.push(o);
+    });
+  }
 
   function applyNewExtras(state, list, turn, defaultLoc, no, yes) {
     if (list == null || (Array.isArray(list) && !list.length)) return;
@@ -899,6 +1136,7 @@
     });
     // Downtime runs agendas itself (Eng.runAgendas), step by step.
     if (!routine) advanceAgendas(state, hours);
+    advancePatrols(state, hours);
   };
 
   Eng.fireClock = function (state, cl, res) {
@@ -1105,9 +1343,11 @@
   };
 
   // ---------- applying the model's update ----------
+  // Placeholder values from the update prompt's shape and guidelines.
+  Eng.PROMPT_EXAMPLES = ['new short description', 'degraded, about 70% output', 'new short stance'];
   Eng.applyUpdate = function (state, upd, present, ctx) {
     ctx = ctx || {};
-    const report = { applied: [], rejected: [], tags: [], extras: [] };
+    const report = { applied: [], rejected: [], tags: [], extras: [], standees: [] };
     const ids = new Set(Eng.cast(state));
     const extraIds = new Set(Object.keys(state.extras || {}));
     const reject = (what, why) => report.rejected.push(`${what} — ${why}`);
@@ -1121,7 +1361,8 @@
 
     (Array.isArray(upd.facts) ? upd.facts : []).slice(0, 6).forEach((f) => {
       if (!f || !f.text) return reject('fact', 'no text');
-      const about = (f.about || []).filter(named);
+      // Facts may be about a group (task 3-2), though a group knows nothing.
+      const about = (f.about || []).filter((x) => named(x) || isStandee(state, x));
       let known = (f.known_by || []).filter((x) => x === 'all' || named(x));
       if (!known.includes('all')) {
         const absent = known.filter((x) => !couldKnow.has(x));
@@ -1197,10 +1438,38 @@
           if (c.needs[s.need] == null) return reject(label, 'unknown need');
           c.needs[s.need] = E.clamp(c.needs[s.need] + E.clamp(Number(s.delta) || 0, -1, 1), 0, 1);
         } else return reject(label, 'unknown field');
+      } else if (kind === 'standee') {
+        // Groups (task 3-2): count, state and location, clamped.
+        const g = state.standees[key];
+        if (!g) return reject(label, 'unknown group');
+        if (s.field === 'count') {
+          const d = Math.round(Number(s.delta) || 0);
+          if (!d) return reject(label, 'no change');
+          if (d > 0 && !(ctx.involved || []).includes(key)) return reject(label, "a group only grows when one of this turn's events brings more");
+          const n = E.clamp(g.count + E.clamp(d, -g.count, Math.max(1, Math.ceil(g.count / 2))), 0, 999);
+          g.count = n;
+          if (n <= 0) report.standees.push(removeStandee(state, g, 'is down to no one'));
+        } else if (s.field === 'state') {
+          if (!E.Scenario.STANDEE_STATES.includes(s.value)) return reject(label, 'state must be calm, alert, hostile, fled or down');
+          if (![ctx.startLoc, ctx.endLoc].includes(g.location) && !(ctx.engaged || []).includes(key)) return reject(label, 'nobody in the scene could have seen that');
+          g.state = s.value;
+          if (s.value === 'fled') report.standees.push(removeStandee(state, g, 'fled'));
+        } else if (s.field === 'location') {
+          const dest = Eng.resolveLocation(state, s.value, false);
+          const why = standeeMoveProblem(state, g, dest);
+          if (why) return reject(label, why);
+          if (![ctx.startLoc, ctx.endLoc].includes(g.location) && dest !== ctx.endLoc && !(ctx.engaged || []).includes(key)) return reject(label, 'nobody in the scene could have seen that move');
+          if (ctx.keptProse != null && !Eng.seenLeaving(ctx.keptProse, { id: g.id, name: g.label })) return reject(label, 'the player stepped in before they left');
+          g.location = dest;
+        } else return reject(label, 'groups have only count, state and location');
       } else if (kind === 'world') {
         if (!(key in state.world)) return reject(label, 'unknown world key');
         const lock = (state.worldSetBy || {})[key];
         if (lock && lock.turn === (ctx.turn ?? state.turn)) return reject(label, `set by "${lock.clock}" this turn`);
+        // The prompt's own examples are not news (playtest-stragglers-sneak:
+        // the holdout's barricades became "degraded, about 70% output").
+        const v = String(s.value || '').trim().toLowerCase();
+        if (Eng.PROMPT_EXAMPLES.includes(v) && String(state.world[key]).toLowerCase() !== v) return reject(label, "copied the prompt's example");
         state.world[key] = String(s.value || '').slice(0, 120);
       } else if (kind === 'faction') {
         const f = (state.factions || []).find((x) => x.id === key);
@@ -1427,13 +1696,18 @@
   // ---------- beats ----------
   // The narrator marks beats with [+Nm] / [+Nh]. Returns [{at (minutes), text}].
   Eng.parseBeats = function (prose, spanMinutes) {
-    const re = /\[\s*\+\s*(\d+(?:\.\d+)?)\s*(m|min|mins|minutes?|h|hr|hrs|hours?|d|days?|sols?)?\s*\]/gi;
+    // Seconds too, alone or after minutes ("[+30s]", "[+1m 15s]"): a 12B wrote
+    // them for a few-minute step and they stayed in the prose
+    // (playtest-stragglers-sneak).
+    const re = /\[\s*\+\s*(\d+(?:\.\d+)?)\s*(m|min|mins|minutes?|h|hr|hrs|hours?|d|days?|sols?|s|secs?|seconds?)?(?:\s*(\d+)\s*(?:s|secs?|seconds?))?\s*\]/gi;
     const marks = [];
     let m;
     while ((m = re.exec(prose))) {
       const n = parseFloat(m[1]);
       const unit = (m[2] || 'm').toLowerCase();
-      marks.push({ index: m.index, end: re.lastIndex, at: /^(d|sol)/.test(unit) ? n * 1440 : unit.startsWith('h') ? n * 60 : n });
+      const secs = m[3] ? Number(m[3]) / 60 : 0;
+      const at = /^(d|sol)/.test(unit) ? n * 1440 : unit.startsWith('h') ? n * 60 : /^s/.test(unit) ? n / 60 : n + secs;
+      marks.push({ index: m.index, end: re.lastIndex, at });
     }
     if (!marks.length) return [{ at: 0, text: String(prose).trim() }];
     const beats = [];
@@ -1527,7 +1801,7 @@
         maxTokens: 520, temperature: 0.3,
       });
       const expired = Eng.expireTags(state, p.turn);
-      report = Eng.applyUpdate(state, upd, p.present, { startLoc: p.frame.startLoc, endLoc, keptProse: cut ? prose : null, involved: p.res.involved, turn: p.turn, extrasPresent: p.extrasPresent || [] });
+      report = Eng.applyUpdate(state, upd, p.present, { startLoc: p.frame.startLoc, endLoc, keptProse: cut ? prose : null, involved: p.res.involved, turn: p.turn, extrasPresent: p.extrasPresent || [], engaged: p.res.engaged || [] });
       report.rejected.forEach((r) => guard(p.res, 'memory', 'update rejected', r));
       expired.concat(report.tags).forEach((t) => guard(p.res, 'memory', 'tags & mood', t));
       report.extras.forEach((t) => guard(p.res, 'memory', 'extras', t));
@@ -1946,7 +2220,7 @@
     phase(due.world ? 'The wider world stirs…' : due.regional ? 'Something stirs nearby…' : 'Characters deciding…');
     const intentObj = await E.LLM.chatJSON({
       kind: 'intent', system, user: E.Prompts.intent(state, present, action, step.label, step.id, due),
-      maxTokens: 260 + 150 * present.length + 80 * Eng.agendasDue(state).length + (due.regional ? 120 : 0) + (due.world ? 140 : 0), temperature: 0.7,
+      maxTokens: 260 + 150 * present.length + 60 * Eng.standeesAt(state, state.characters[state.player].status.location).length + 80 * Eng.agendasDue(state).length + (due.regional ? 120 : 0) + (due.world ? 140 : 0), temperature: 0.7,
     });
 
     const frame = { startTime: E.fmtTime(state), startLoc: state.characters[state.player].status.location, stepId: step.id, stepLabel: step.label, words: step.words, spanMinutes: Math.round(step.hours * 60) };

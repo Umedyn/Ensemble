@@ -31,11 +31,12 @@ function model(E, over = {}) {
 
 // ---------- authoring ----------
 
-test('bundled extras load as minor people outside the cast; a group is one entity', () => {
+test('bundled extras load as minor people outside the cast; groups are standees (task 3-2)', () => {
   const { E, state } = newGame('zombie-holdout');
   assert.equal(state.extras.albee.name, 'Mrs. Albee');
   assert.equal(state.extras.albee.location, 'dock');
-  assert.deepEqual([state.extras.herd.group, state.extras.herd.count, state.extras.herd.location], [true, 'hundreds', null]);
+  assert.ok(!state.extras.herd && Object.values(state.extras).every((x) => !x.group));
+  assert.equal(state.standees.stragglers.count, 5);
   assert.ok(!state.order.includes('albee') && !state.characters.albee);
   assert.doesNotMatch(E.Prompts.header(state), /Albee|the herd/, 'never in the header');
   assert.equal(newGame().state.extras.capcom.role, 'Mission Control CAPCOM');
@@ -67,7 +68,6 @@ test('minor people here are in the intent call with their notes; the narrator ge
   const intent = calls.find((c) => c.kind === 'intent').user;
   assert.match(intent, /Also here \(minor people\): Mrs\. Albee \(she\/her\), elderly neighbour/);
   assert.match(intent, /- here: albee: Mrs\. Albee \(she\/her\), elderly neighbour — Has been living in the trailer/);
-  assert.match(intent, /- elsewhere: herd \(the herd, a group, no particular place\)/);
   assert.match(intent, /"new_extras":\[\]/, 'this world lets the model add minor people');
   const narrate = calls.find((c) => c.kind === 'narrate').user;
   assert.match(narrate, /Also around \(minor people, they may appear\): Mrs\. Albee \(she\/her\), elderly neighbour\./);
@@ -84,14 +84,14 @@ test('Mars does not invite invented minor people', () => {
 
 // ---------- events, facts and the update step ----------
 
-test('events can involve and move minor people, including a group', () => {
+test('events can involve and move minor people', () => {
   const { E, state } = newGame('zombie-holdout');
   const res = E.Engine.resolve(state, intentOf({ player: { summary: 'x' }, intents: [], events: [
-    { text: 'The herd spills into the parking lot.', who: ['herd'], where: 'lot', visibility: 'heard', moves: [{ id: 'herd', to: 'lot' }] },
+    { text: 'Mrs. Albee walks out to the parking lot.', who: ['albee'], where: 'lot', visibility: 'heard', moves: [{ id: 'albee', to: 'lot' }] },
   ] }), [], 'Wait.', 'hour');
-  assert.equal(state.extras.herd.location, 'lot');
-  assert.ok(res.involved.includes('herd'));
-  assert.deepEqual([...res.director[0].moved], ['the herd → Parking Lot']);
+  assert.equal(state.extras.albee.location, 'lot');
+  assert.ok(res.involved.includes('albee'));
+  assert.deepEqual([...res.director[0].moved], ['Mrs. Albee → Parking Lot']);
 });
 
 test('facts can be about or known by minor people who were there; they have no feelings, moods or needs', () => {
@@ -100,7 +100,7 @@ test('facts can be about or known by minor people who were there; they have no f
   const report = E.Engine.applyUpdate(state, {
     facts: [
       { about: ['albee'], text: 'Mrs. Albee says she saw lights on the highway two nights ago.', known_by: ['pike', 'albee'], weight: 1 },
-      { about: ['herd'], text: 'The herd turned off the highway toward town.', known_by: ['herd'], weight: 1 },
+      { about: ['albee'], text: 'Mrs. Albee keeps the trailer key on a string.', known_by: ['ferris'], weight: 1 },
     ],
     state: [
       { target: 'char:albee', field: 'mood', value: 'suspicious' },
@@ -110,7 +110,7 @@ test('facts can be about or known by minor people who were there; they have no f
     player_attitude: [{ to: 'albee', delta: 5, reason: 'she was kind' }],
   }, [], { startLoc: 'dock', endLoc: 'dock', extrasPresent: ['albee'], turn: 1 });
   assert.deepEqual([...state.facts.find((f) => /lights on the highway/.test(f.text)).known_by], ['pike', 'albee']);
-  assert.ok(report.rejected.some((r) => /dropped herd: not in the scene/.test(r)));
+  assert.ok(report.rejected.some((r) => /dropped ferris: not in the scene/.test(r)));
   assert.ok(report.rejected.some((r) => /mood.*minor people have only a location/.test(r)));
   assert.equal(state.extras.albee.location, 'lot', 'seen leaving the dock');
   assert.equal(report.rejected.filter((r) => /minor people have no feelings tracked/.test(r)).length, 2);
@@ -131,13 +131,14 @@ test('the model may add one minor person a turn in a world that allows it, with 
   assert.ok(!Object.values(state.extras).some((x) => x.name === 'Another One'));
 });
 
-test('a proposed name already in use is that person; a proposed group is a group; Mars accepts none', () => {
+test('a proposed name already in use is that person; a proposed group is a standee in a room; Mars accepts none', () => {
   const z = newGame('zombie-holdout');
   const r1 = z.E.Engine.proposeExtra(z.state, { name: 'Mrs. Albee', role: 'neighbour' }, 1, 'floor');
-  assert.deepEqual([r1.id, Object.keys(z.state.extras).length], ['albee', 2]);
+  assert.deepEqual([r1.id, Object.keys(z.state.extras).length], ['albee', 1]);
   const r2 = z.E.Engine.proposeExtra(z.state, { name: 'The Ridge scouts', role: 'armed scavengers', group: true, count: 'six', location: 'Parking Lot' }, 1, 'floor');
   assert.equal(r2.id, 'ridge-scouts');
-  assert.deepEqual([z.state.extras['ridge-scouts'].group, z.state.extras['ridge-scouts'].count, z.state.extras['ridge-scouts'].location], [true, 'six', 'lot']);
+  assert.ok(!z.state.extras['ridge-scouts']);
+  assert.deepEqual([z.state.standees['ridge-scouts'].label, z.state.standees['ridge-scouts'].count, z.state.standees['ridge-scouts'].location], ['The Ridge scouts', 6, 'lot']);
   assert.match(z.E.Engine.proposeExtra(z.state, { name: 'Bob', role: 'x', location: 'moon' }, 2, 'floor').error, /unknown location "moon"/);
   const m = newGame();
   assert.match(m.E.Engine.proposeExtra(m.state, { name: 'Stowaway', role: 'surprise' }, 1, 'commons').error, /no invented minor people/);
@@ -175,16 +176,13 @@ test('named on two turns, a minor person becomes a full character who keeps what
   assert.ok(lastReport(E).guards.some((g) => g.type === 'extra promoted' && /Mrs\. Albee \(she\/her\)/.test(g.detail)));
 });
 
-test('a notable fact about an individual makes them due for promotion; a group never is', () => {
+test('a notable fact about an individual makes them due for promotion', () => {
   const { E, state } = newGame('zombie-holdout');
   const report = E.Engine.applyUpdate(state, { facts: [
     { about: ['albee'], text: 'Mrs. Albee shot one of the dead at the dock gate.', known_by: ['all'], weight: 2 },
-    { about: ['herd'], text: 'The herd reached the junction overnight.', known_by: ['all'], weight: 3 },
   ] }, [], { turn: 1 });
   assert.ok(state.extras.albee.promote);
-  assert.ok(!state.extras.herd.promote);
   assert.ok(report.extras.some((l) => /Mrs\. Albee: in a notable fact/.test(l)));
-  assert.equal(E.Engine.noteExtraMentions(state, 'Watch the herd. Watch the herd!', 2).length, 0);
 });
 
 test('a bad sheet leaves them a minor person; one retry, then no more calls', async () => {

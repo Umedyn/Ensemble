@@ -180,15 +180,16 @@
       "role": "elderly neighbour",
       "location": "dock",
       "note": "Has been living in the trailer at the loading dock since day three; deaf in one ear, sharp otherwise, keeps a shotgun she says is not loaded."
-    },
+    }
+  ],
+  "standees": [
     {
-      "id": "herd",
-      "name": "the herd",
-      "role": "a slow tide of the dead",
-      "group": true,
-      "count": "hundreds",
-      "location": null,
-      "note": "Drifting along the highway toward the junction and the store; noise draws it."
+      "id": "stragglers",
+      "label": "stragglers",
+      "count": 5,
+      "location": "lot",
+      "state": "calm",
+      "note": "Slow dead that wandered off the highway ahead of the herd; they bunch up at the dock door when they hear noise."
     }
   ],
   "majorSeeds": [

@@ -570,6 +570,8 @@
     $('sceneBar').innerHTML = `<b>${esc(E.fmtTime(state))}</b> · ${esc(state.scenario.worldTitle || state.scenario.title)}${state.scenario.startTitle ? `<span class="desktop-only"> (${esc(state.scenario.startTitle)})</span>` : ''} · You are in <b>${esc(loc ? loc.name : '?')}</b>` +
       (present.length ? ` with ${esc(present.join(', '))}` : ', alone') +
       ((m) => (m.length ? `<span class="desktop-only"> · also here: ${esc(m.map((x) => `${x.name} (${x.role})`).join(', '))}</span>` : ''))(E.Engine.extrasAt(state, pc.status.location)) +
+      // Unnamed groups (task 3-2) on every screen size: a hostile crowd matters.
+      ((g) => (g.length ? ` · ${esc(g.map((x) => `${x.count} ${x.label}, ${x.state}`).join('; '))}` : ''))(E.Engine.standeesAt(state, pc.status.location)) +
       ` · Chapter ${state.chapter}, turn ${state.turn}`;
   }
 
@@ -924,8 +926,15 @@
   function extrasDebug() {
     const xs = Object.values(state.extras || {});
     if (!xs.length) return '';
-    return '\n\nMinor people:\n' + xs.map((x) => `  ${x.name} (${x.id}), ${x.role}${x.group ? `, group${x.count ? ' of ' + x.count : ''}` : ''}; in ${x.location ? (state.locations[x.location] || {}).name || x.location : 'no particular place'}; ${x.from === 'model' ? `added turn ${x.born}` : 'authored'}` +
-      (x.group ? '' : `; named ${x.mentions}×${x.promote ? `; promotion due (${x.tries} tries)` : ''}`) + (x.note ? `\n    note: ${x.note}` : '')).join('\n');
+    return '\n\nMinor people:\n' + xs.map((x) => `  ${x.name} (${x.id}), ${x.role}; in ${x.location ? (state.locations[x.location] || {}).name || x.location : 'no particular place'}; ${x.from === 'model' ? `added turn ${x.born}` : x.from === 'standee' ? `singled out turn ${x.born}` : 'authored'}` +
+      `; named ${x.mentions}×${x.promote ? `; promotion due (${x.tries} tries)` : ''}` + (x.note ? `\n    note: ${x.note}` : '')).join('\n');
+  }
+  // Unnamed groups (task 3-2): count, state, room, post or patrol.
+  function standeesDebug() {
+    const gs = Object.values(state.standees || {});
+    if (!gs.length) return '';
+    return '\n\nUnnamed groups:\n' + gs.map((g) => `  ${g.label} (${g.id}): ${g.count}, ${g.state}; in ${(state.locations[g.location] || {}).name || g.location}` +
+      (g.faction ? `; ${g.faction}` : '') + (g.post ? `; post ${g.post}` : '') + (g.patrol ? `; patrol ${g.patrol.join(' → ')}` : '') + (g.note ? `\n    note: ${g.note}` : '')).join('\n');
   }
 
   // The raw numbers behind the cards (needs as 0–1, tag expiry, mood reasons).
@@ -942,7 +951,7 @@
         ? `  agenda: ${a.goal} — ${a.done ? 'done' : `step ${a.step + 1}/${a.steps.length} "${a.steps[a.step].text}"${a.steps[a.step].contact ? ' (comes to you)' : ''}, ${Math.round(a.progress * 100)}%${a.due ? ', DUE' : ''}`}; ${a.hours} h a step, ${a.visibility}${a.followUp ? ', follow-up' : ''}`
         : 'agenda' in c ? '  agenda: routine' : '  agenda: none yet (the model will propose one when they are in the background)'];
       return [`${c.name} (${id}): ${E.healthWord(c.status.health)}; ${needs}${tier}`, '  ' + mood].concat(agenda).concat(tags.map((t) => '  tag: ' + t)).join('\n');
-    }).join('\n') + extrasDebug() + (state.corrections && state.corrections.length
+    }).join('\n') + extrasDebug() + standeesDebug() + (state.corrections && state.corrections.length
       ? '\n\nYour corrections:\n' + state.corrections.map((x) => `  turn ${x.turn}: ${state.characters[x.id] ? state.characters[x.id].name : x.id} ${x.delta > 0 ? '+' : ''}${x.delta} → ${x.value}${x.why ? ` (${x.why})` : ''}`).join('\n')
       : '');
   }

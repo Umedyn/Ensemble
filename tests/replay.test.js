@@ -249,3 +249,17 @@ test('the recorder keeps calls and dice per action, and never keys or URLs', asy
   assert.equal(r.state.turn, 0);
   assert.equal(r.steps[0].state.turn, 1);
 });
+
+// NemoMix 12B, the task 3-2 check (2026-10-22): sneaking past the stragglers in the lot from the dock.
+test('playtest: sneaking past the stragglers next door engages them, seconds markers leave the prose, and examples are not news', async () => {
+  const r = await replay('playtest-stragglers-sneak');
+  const [, t2, t3] = r.steps.map((s) => s.state);
+  assert.deepEqual([...t2.pending.res.engaged], ['stragglers'], '"sneak past the stragglers" names the group in the lot');
+  assert.doesNotMatch(t2.recent[0].text, /\[\+/, '[+30s] and [+1m 15s] are beat markers, not prose');
+  assert.equal(t3.world.barricades, 'holding, front windows weak', 'the update copied "degraded, about 70% output" from its prompt');
+  assert.ok(r.E.Engine.telemetry[1].guards.some((g) => g.type === 'update rejected' && /copied the prompt's example/.test(g.detail)));
+  const sneak = t3.pending.res;
+  assert.ok(sneak.guards.some((g) => g.type === 'roll required'), '"I sneak around the side of the truck" with the dead next door');
+  assert.deepEqual([sneak.outcomes[0].skill, sneak.outcomes[0].roll.dc], ['stealth', 14]);
+  assert.equal(t3.standees.stragglers.state, 'alert');
+});
