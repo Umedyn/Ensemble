@@ -297,7 +297,7 @@ button:disabled { opacity: .5; cursor: default; }
 .map-tabs .zoom button { border-radius: 6px; padding: 3px 8px; }
 .world-svg { width: 100%; height: auto; display: block; touch-action: none; cursor: grab; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
 .world-svg.panning { cursor: grabbing; }
-.region-shape { stroke: var(--line-strong); stroke-width: 2; fill-opacity: 0.45; cursor: pointer; }
+.region-shape { stroke: var(--line-strong); stroke-width: 2; fill-opacity: 0.45; cursor: pointer; vector-effect: non-scaling-stroke; }
 .region-shape.none { fill: var(--panel-2); fill-opacity: 0.35; stroke-dasharray: 6 4; }
 .region-shape.here { stroke: var(--accent); stroke-width: 4; }
 .region-shape.selected { stroke: var(--focus); stroke-width: 4; }
@@ -310,6 +310,9 @@ button:disabled { opacity: .5; cursor: default; }
 .region-tag-text { fill: var(--text); font-family: var(--sans); font-size: 11px; pointer-events: none; }
 .region-pin { fill: var(--accent); stroke: var(--bg); stroke-width: 2; pointer-events: none; }
 .region-loc { fill: var(--text); stroke: var(--bg); stroke-width: 1.5; }
+.region-place { fill: var(--muted); stroke: var(--bg); stroke-width: 1; vector-effect: non-scaling-stroke; pointer-events: none; }
+.region-place.capital { fill: var(--text); }
+.region-place-g text { pointer-events: none; }
 .region-loc-label { fill: var(--muted); font-family: var(--sans); font-size: 11px; paint-order: stroke; stroke: var(--bg); stroke-width: 3px; pointer-events: none; }
 .region-g.changed .region-shape { animation: region-pulse 1.2s ease-out 1; }
 @keyframes region-pulse { 0% { stroke-width: 10; stroke: var(--accent); } 100% { stroke-width: 2; } }

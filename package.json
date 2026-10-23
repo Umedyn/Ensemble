@@ -10,9 +10,11 @@
     "mocks": "node tests/mock-servers.mjs",
     "check": "node tools/check.mjs",
     "fixture:mock": "node tests/ui.smoke.mjs --save-fixture",
-    "research": "node tools/research.mjs"
+    "research": "node tools/research.mjs",
+    "basemap": "node tools/basemap.mjs"
   },
   "devDependencies": {
+    "jpeg-js": "^0.4.4",
     "playwright": "^1.49.0"
   },
   "engines": {

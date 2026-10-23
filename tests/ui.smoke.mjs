@@ -1152,6 +1152,61 @@ await check('creator: draw a site map on a battlemap, save it to the world, and 
   await page.screenshot({ path: path.join(shots, 'site-image-map.png') });
 });
 
+// Task 4-5: a new world on the shared base map. The area is cut from the
+// world picture, the map knows where it is on the globe (the readout over
+// Lyon), a named place goes there, a region can have two pieces, and the
+// export keeps the projection and the picture.
+await check('creator: a new world on the base map, with real coordinates, places and a region in two pieces', async (page) => {
+  await page.goto(BASE + 'creator.html');
+  await page.waitForFunction(() => document.querySelectorAll('#cWorld option').length > 1);
+  await page.click('#cNew');
+  await page.fill('#cNewTitle', 'Lyon 1943');
+  await page.selectOption('#cNewBase', 'world');
+  await page.selectOption('#cNewArea', { label: 'Western Europe' });
+  await page.click('#cNewGo');
+  await page.waitForSelector('#cSvg image');
+  assert.match(await page.textContent('#cBanner'), /Started on the base map/);
+  // Image coordinates → screen; Lyon is 45.76° N, 4.84° E.
+  const at = (x, y) => page.evaluate(([x, y]) => { const s = document.getElementById('cSvg'); const p = s.createSVGPoint(); p.x = x; p.y = y; const q = p.matrixTransform(s.getScreenCTM()); return [q.x, q.y]; }, [x, y]);
+  const size = await page.evaluate(() => { const i = document.querySelector('#cSvg image'); return [Number(i.getAttribute('width')), Number(i.getAttribute('height'))]; });
+  const lyon = [((4.84 + 11) / 41) * size[0], ((60 - 45.76) / 25) * size[1]];
+  const [lx, ly] = await at(...lyon);
+  await page.mouse.move(lx, ly);
+  await page.waitForFunction(() => /45\.7\d° N, 4\.8\d° E/.test(document.getElementById('cCoords').textContent));
+  await page.click('[data-mode="place"]');
+  await page.mouse.click(lx, ly);
+  await page.waitForSelector('[data-path="map.places.0.name"]');
+  await page.fill('[data-path="map.places.0.name"]', 'Lyon');
+  await page.selectOption('[data-path="map.places.0.kind"]', 'city');
+  assert.equal(Number(await page.inputValue('[data-placell="1"]')).toFixed(1), '45.8');
+  // A region with two pieces: the mainland and Corsica.
+  const draw = async (pts, another) => {
+    await page.click('[data-mode="draw"]');
+    if (another) await page.check('#cAddPiece');
+    for (const [lon, lat] of pts) { const [x, y] = await at(((lon + 11) / 41) * size[0], ((60 - lat) / 25) * size[1]); await page.mouse.click(x, y); }
+    await page.keyboard.press('Enter');
+  };
+  await draw([[-1, 49], [7, 49], [7, 43], [-1, 43]]);
+  await page.fill('[data-field="name"]', 'France');
+  await draw([[8.5, 43], [9.6, 43], [9.6, 41.4], [8.5, 41.4]], true);
+  await page.waitForFunction(() => /Outlined in 2 pieces/.test(document.getElementById('cRegionForm').textContent));
+  await page.waitForFunction(() => /No problems/.test(document.getElementById('cValidation').textContent));
+  await page.screenshot({ path: path.join(shots, 'creator-basemap.png') });
+  const [download] = await Promise.all([page.waitForEvent('download'), page.click('#cExport')]);
+  const E = helpers.loadEngine();
+  const files = {};
+  for (const e of E.Zip.read(new Uint8Array(fs.readFileSync(await download.path())))) files[e.name] = e.data;
+  const w = JSON.parse(E.Zip.text(files['lyon-1943/world.json']));
+  assert.deepEqual(w.map.bounds, [-11, 35, 30, 60]);
+  assert.equal(w.map.projection, 'equirectangular');
+  assert.equal(w.map.base, 'world');
+  assert.ok(files['lyon-1943/maps/base.jpg'] && files['lyon-1943/maps/base.jpg'].length > 10000, 'the cut picture is in the export');
+  assert.equal(w.map.regions.france.polygons.length, 2);
+  assert.equal(w.map.places[0].region, 'france', 'Lyon is in the region drawn around it');
+  const ll = E.Geo.toLonLat(w.map, w.map.places[0].at);
+  assert.ok(Math.abs(ll[0] - 4.84) < 0.1 && Math.abs(ll[1] - 45.76) < 0.1, `Lyon at ${ll}`);
+});
+
 // Task 1-8: fix your own feelings toward someone from their details.
 await check('correct your feelings from a card', async (page) => {
   await newGame(page);

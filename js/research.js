@@ -25,7 +25,8 @@
     const w = loaded.bundle.world;
     const topic = (id, name, level, ref, about) => ({ id, name, level, ref, about, query: name, page: null, url: null, text: null, skip: false, status: 'todo' });
     const out = [topic('world', w.title, 'world', null, 'the world as a whole')];
-    (w.regions || []).forEach((r) => out.push(topic(`region:${r.id}`, r.name, 'region', r.id, `the region ${r.name}`)));
+    // A region imported from open data (task 4-5) brings its Wikipedia page.
+    (w.regions || []).forEach((r) => out.push(Object.assign(topic(`region:${r.id}`, r.name, 'region', r.id, `the region ${r.name}`), r.wiki && r.wiki.title ? { page: r.wiki.title } : {})));
     (w.factions || []).forEach((f) => out.push(topic(`group:${f.id}`, f.name, 'topic', null, `the group ${f.name}`)));
     Object.entries(loaded.bundle.characters || {}).forEach(([id, c]) => out.push(topic(`character:${id}`, c.name || id, 'character', id, `${c.name || id}, ${c.role || 'a character'}`)));
     return out;

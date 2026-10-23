@@ -340,7 +340,10 @@
     const index = await getJSON('library/index.json');
     const mapsById = {};
     await Promise.all((index.sites || []).map(async (e) => { try { mapsById[e.id] = await getJSON(`library/sites/${e.id}.json`); } catch (err) { /* reported below */ } }));
-    return Object.assign(S.buildLibrary(index, mapsById), { assets: {} });
+    // Base maps (task 4-5): library/maps/<id>/map.json and its picture.
+    const baseMaps = {};
+    await Promise.all((index.maps || []).map(async (e) => { try { baseMaps[e.id] = Object.assign(await getJSON(`library/maps/${e.id}/map.json`), { dir: `library/maps/${e.id}/` }); } catch (err) { /* left out */ } }));
+    return Object.assign(S.buildLibrary(index, mapsById), { assets: {}, baseMaps });
   };
   // A picked folder that is a library (index.json with "sites", and no
   // world.json) → { maps, assets, errors }, or null when it isn't one.
@@ -581,6 +584,8 @@
       req(r.status == null || (typeof r.status === 'string' && r.status.length <= 120), `${where}: "status" must be text of at most 120 characters`);
       req(r.lore == null || (typeof r.lore === 'string' && r.lore.length <= 400), `${where}: "lore" must be text of at most 400 characters`);
       req(r.startable == null || typeof r.startable === 'boolean', `${where}: "startable" must be true or false`);
+      req(r.notable == null || typeof r.notable === 'boolean', `${where}: "notable" must be true or false`);
+      req(r.wiki == null || (isObj(r.wiki) && [r.wiki.title, r.wiki.wikidata].every((v) => v == null || (typeof v === 'string' && v.trim()))), `${where}: "wiki" must be {title, wikidata}`);
       if (r.neighbours != null && !Array.isArray(r.neighbours)) return problems.push(`${where}: "neighbours" must be a list of region ids`);
       (r.neighbours || []).forEach((n) => req(ids.has(n) && n !== r.id, `${where}: unknown neighbour "${n}"`));
     });
@@ -707,6 +712,7 @@
   // and optional points for rooms, all in image pixels. Regions it leaves out
   // get a point placed automatically (validateWorld warns).
   S.FACTION_COLORS = 8;
+  S.PLACE_KINDS = ['capital', 'city', 'town', 'place'];
   function mapProblems(sc, locIds) {
     if (sc.map == null) return [];
     const problems = [];
@@ -720,9 +726,34 @@
       if (isObj(shape) && shape.polygon != null) {
         req(Array.isArray(shape.polygon) && shape.polygon.length >= 3, `map: region "${id}" polygon needs at least 3 points`);
         req(Array.isArray(shape.polygon) && shape.polygon.every(inside), `map: region "${id}" polygon has a point outside the image`);
+      } else if (isObj(shape) && shape.polygons != null) {
+        // A region in several pieces (islands; task 4-5).
+        const ok = Array.isArray(shape.polygons) && shape.polygons.length && shape.polygons.every((r) => Array.isArray(r) && r.length >= 3);
+        req(ok, `map: region "${id}" "polygons" must be a list of pieces, each of at least 3 points`);
+        if (ok) req(shape.polygons.every((r) => r.every(inside)), `map: region "${id}" has a point outside the image`);
       } else if (isObj(shape) && shape.point != null) {
         req(inside(shape.point), `map: region "${id}" point is outside the image`);
-      } else problems.push(`map: region "${id}" needs a "polygon" or a "point"`);
+      } else problems.push(`map: region "${id}" needs a "polygon", "polygons" or a "point"`);
+    });
+    // Where the image is on the globe (task 4-5), and named places on it:
+    // capitals and cities with no rooms, which the story knows by name.
+    problems.push(...E.Geo.projectionProblems(m));
+    req(m.base == null || (typeof m.base === 'string' && m.base.trim()), 'map: "base" must be the id of the base map it was cut from');
+    ['credit', 'license'].forEach((k) => req(m[k] == null || typeof m[k] === 'string', `map: "${k}" must be text`));
+    if (m.places != null && !Array.isArray(m.places)) problems.push('map: "places" must be a list of {id, name, kind, at, region}');
+    const placeIds = new Set();
+    (Array.isArray(m.places) ? m.places : []).forEach((pl) => {
+      const where = `map: place "${(pl && pl.id) || '?'}"`;
+      if (!isObj(pl)) return problems.push('map: "places" must be a list of {id, name, kind, at, region}');
+      req(typeof pl.id === 'string' && /^[a-z0-9][a-z0-9_-]*$/.test(pl.id), `${where}: "id" must be lowercase letters, digits, - or _`);
+      req(!placeIds.has(pl.id), `${where} is listed twice`);
+      placeIds.add(pl.id);
+      req(!regionIds.has(pl.id) && !locIds.has(pl.id), `${where}: id is already a region or a room`);
+      req(typeof pl.name === 'string' && pl.name.trim() && pl.name.length <= 60, `${where}: "name" must be text of at most 60 characters`);
+      req(S.PLACE_KINDS.includes(pl.kind || 'place'), `${where}: "kind" must be one of ${S.PLACE_KINDS.join(', ')}`);
+      req(inside(pl.at), `${where}: "at" must be a point inside the image`);
+      req(pl.region == null || regionIds.has(pl.region), `${where}: unknown region "${pl.region}"`);
+      req(pl.notable == null || typeof pl.notable === 'boolean', `${where}: "notable" must be true or false`);
     });
     // Rooms may belong to another start (the map is the world's); unknown ids
     // are checked once against every start in validateWorld.

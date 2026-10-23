@@ -1,0 +1,16 @@
+{
+  "id": "world",
+  "title": "The world (shaded relief)",
+  "image": "world.jpg",
+  "width": 8192,
+  "height": 4096,
+  "projection": "equirectangular",
+  "bounds": [
+    -180,
+    -90,
+    180,
+    90
+  ],
+  "credit": "Made with Natural Earth (naturalearthdata.com): 1:50m cross-blended hypsometric tints with shaded relief and water",
+  "license": "Public domain"
+}

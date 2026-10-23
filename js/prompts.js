@@ -69,10 +69,44 @@
   // Static geography (task 3-1): names, neighbours and lore. Who holds a
   // region, its tags and status change in play, so they go in the user
   // message (regionLines), never here.
-  B.regions = ({ sc }) => ((sc.regions || []).length
-    ? ['\n=== REGIONS ==='].concat(sc.regions.map((r) =>
-      `- ${r.id}: ${r.name}${r.lore ? ` — ${r.lore}` : ''}${r.neighbours && r.neighbours.length ? ` (neighbours: ${r.neighbours.join(', ')})` : ''}`))
-    : null);
+  // A big map (a whole world of countries, task 4-5) keeps the detail near
+  // the start: P.regionFocus picks the regions shown in full; the rest are a
+  // line of names. Both come from the start's region, so the header is the
+  // same for the whole game (rule 7). Named places on the map are listed
+  // with their region.
+  P.REGIONS_FULL = 24;
+  P.REGION_NAMES_MAX = 60;
+  P.regionFocus = function (sc) {
+    const list = sc.regions || [];
+    if (list.length <= P.REGIONS_FULL) return { full: list, far: [] };
+    const byId = new Map(list.map((r) => [r.id, r]));
+    const hops = new Map();
+    let frontier = sc.region && byId.has(sc.region) ? [sc.region] : [];
+    frontier.forEach((id) => hops.set(id, 0));
+    for (let d = 1; frontier.length; d++) {
+      const next = [];
+      frontier.forEach((id) => (byId.get(id).neighbours || []).forEach((n) => { if (byId.has(n) && !hops.has(n)) { hops.set(n, d); next.push(n); } }));
+      frontier = next;
+    }
+    const full = list.filter((r) => (hops.has(r.id) && hops.get(r.id) <= 2) || r.notable === true).slice(0, P.REGIONS_FULL);
+    const shown = new Set(full.map((r) => r.id));
+    const far = list.filter((r) => !shown.has(r.id))
+      .sort((a, b) => (hops.has(a.id) ? hops.get(a.id) : 1e9) - (hops.has(b.id) ? hops.get(b.id) : 1e9) || (a.name < b.name ? -1 : 1))
+      .slice(0, P.REGION_NAMES_MAX);
+    return { full, far };
+  };
+  B.regions = ({ sc }) => {
+    if (!(sc.regions || []).length) return null;
+    const { full, far } = P.regionFocus(sc);
+    const places = (sc.map && Array.isArray(sc.map.places)) ? sc.map.places : [];
+    const placesIn = (id) => places.filter((p) => p.region === id).map((p) => (p.kind === 'capital' ? `${p.name} (capital)` : p.name));
+    const lines = ['\n=== REGIONS ==='].concat(full.map((r) => {
+      const pl = placesIn(r.id);
+      return `- ${r.id}: ${r.name}${r.lore ? ` — ${r.lore}` : ''}${r.neighbours && r.neighbours.length ? ` (neighbours: ${r.neighbours.join(', ')})` : ''}${pl.length ? ` [places: ${pl.join(', ')}]` : ''}`;
+    }));
+    if (far.length) lines.push(`Further away: ${far.map((r) => r.name).join(', ')}${sc.regions.length > full.length + far.length ? ', and others' : ''}.`);
+    return lines;
+  };
   B.groups = ({ sc }) => (sc.factions && sc.factions.length
     ? ['\n=== GROUPS ==='].concat(sc.factions.map((f) => `- ${f.id}: ${f.name} — ${f.desc}`))
     : null);

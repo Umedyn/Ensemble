@@ -36,6 +36,17 @@ try {
     if (JSON.stringify(E.Scenario.libraryEntry(m)) !== JSON.stringify(entry)) { failed++; console.error(`✕ library: the index entry for ${m.id} doesn't match the map (expected ${JSON.stringify(E.Scenario.libraryEntry(m))})`); }
   }
   if (!lib.errors.length) console.log(`✓ library (${Object.keys(lib.maps).length} site maps)`);
+  // Base maps (task 4-5): each listed one has its map.json, a projection and its picture.
+  for (const entry of index.maps || []) {
+    const f = path.join(root, 'library', 'maps', entry.id, 'map.json');
+    if (!fs.existsSync(f)) { failed++; console.error(`✕ library: base map "${entry.id}" has no map.json`); continue; }
+    const m = JSON.parse(fs.readFileSync(f, 'utf8'));
+    const p = E.Geo.projectionProblems(m).concat(m.projection ? [] : ['no projection']);
+    if (!(m.width > 0 && m.height > 0) || !m.credit || !m.license) p.push('needs width, height, credit and license');
+    if (!m.image || !fs.existsSync(path.join(root, 'library', 'maps', entry.id, m.image))) p.push(`its image ${m.image} isn't there`);
+    p.forEach((msg) => { failed++; console.error(`✕ library: base map "${entry.id}": ${msg}`); });
+    if (!p.length) console.log(`✓ base map ${entry.id} (${m.width} × ${m.height})`);
+  }
 } catch (e) { failed++; console.error(`✕ library: ${e.message}`); }
 const index = JSON.parse(fs.readFileSync(path.join(root, 'scenarios', 'index.json'), 'utf8'));
 const listed = new Set((index.scenarios || index).map((x) => (typeof x === 'string' ? x : x.folder)));

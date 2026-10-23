@@ -146,3 +146,9 @@ button.danger { color: var(--bad); }
 .c-grid-fields label { display: inline-flex; gap: 4px; align-items: center; margin: 0; }
 .c-grid-fields input { width: 4.5rem; }
 #cSiteCanvas .map-svg { max-height: 100%; }
+/* Base maps and real places (task 4-5) */
+.c-coords { float: right; font-variant-numeric: tabular-nums; }
+.c-handle.piece { fill: var(--good); }
+.c-place-sel { fill: none; stroke: var(--accent); stroke-width: 3; vector-effect: non-scaling-stroke; }
+.c-banner code { font-size: 0.75rem; }
+.c-banner label { display: inline-flex; gap: 4px; align-items: center; margin-right: 8px; }

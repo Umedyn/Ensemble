@@ -1,0 +1,207 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "ADM0_A3": "ALA",
+    "NAME": "Alandia",
+    "ADMIN": "Republic of Alandia",
+    "NAME_EN": "Alandia",
+    "ISO_A3_EH": "ALA",
+    "WIKIDATAID": "Q900001"
+   },
+   "geometry": {
+    "type": "MultiPolygon",
+    "coordinates": [
+     [
+      [
+       [
+        0,
+        0
+       ],
+       [
+        10,
+        0
+       ],
+       [
+        10,
+        10
+       ],
+       [
+        0,
+        10
+       ],
+       [
+        0,
+        0
+       ]
+      ]
+     ],
+     [
+      [
+       [
+        2,
+        -8
+       ],
+       [
+        4,
+        -8
+       ],
+       [
+        4,
+        -6
+       ],
+       [
+        2,
+        -6
+       ],
+       [
+        2,
+        -8
+       ]
+      ]
+     ],
+     [
+      [
+       [
+        150,
+        0
+       ],
+       [
+        151,
+        0
+       ],
+       [
+        151,
+        1
+       ],
+       [
+        150,
+        1
+       ],
+       [
+        150,
+        0
+       ]
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "ADM0_A3": "BRA",
+    "NAME": "Borovia",
+    "ADMIN": "Borovia",
+    "NAME_EN": "Borovia",
+    "ISO_A3_EH": "BRV",
+    "WIKIDATAID": "Q900002"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       10,
+       0
+      ],
+      [
+       20,
+       0
+      ],
+      [
+       20,
+       10
+      ],
+      [
+       10,
+       10
+      ],
+      [
+       10,
+       0
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "ADM0_A3": "CAS",
+    "NAME": "Castellane",
+    "ADMIN": "Castellane",
+    "NAME_EN": "Castellane (country)",
+    "ISO_A3_EH": "CAS",
+    "WIKIDATAID": "Q900003"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       0,
+       10
+      ],
+      [
+       20,
+       10
+      ],
+      [
+       20,
+       15
+      ],
+      [
+       0,
+       15
+      ],
+      [
+       0,
+       10
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "ADM0_A3": "DUN",
+    "NAME": "Dunmere",
+    "ADMIN": "Dunmere",
+    "NAME_EN": "Dunmere",
+    "ISO_A3_EH": "DUN",
+    "WIKIDATAID": null
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -30,
+       30
+      ],
+      [
+       -29.9,
+       30
+      ],
+      [
+       -29.9,
+       30.1
+      ],
+      [
+       -30,
+       30.1
+      ],
+      [
+       -30,
+       30
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

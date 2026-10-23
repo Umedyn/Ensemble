@@ -21,7 +21,7 @@
   // The working copy: { folder, files: {path: JSON}, assets: {path: File|Blob}, server }
   let cw = null;
   // Map tab state.
-  const ui = { tab: 'map', mode: 'select', sel: null, drawing: [], room: '', vb: null, autoIds: new Set(), confirmDelete: false };
+  const ui = { tab: 'map', mode: 'select', sel: null, drawing: [], room: '', vb: null, autoIds: new Set(), confirmDelete: false, piece: null, place: null, addPiece: false };
   // Lore and timeline tabs (task 5-3): the entry or event being edited, the
   // region a link from the map points at, and the lore test box's inputs.
   const lui = { sel: null, confirm: false, focus: null, test: { startId: '', room: '', action: '', scene: '' } };
@@ -85,7 +85,7 @@
     urls.clear();
     const original = normalise(JSON.parse(JSON.stringify(files)));
     cw = { folder, files: original, assets: Object.assign({}, assets || {}), server: !!server, original, draft: !!draft };
-    Object.assign(ui, { mode: 'select', sel: null, drawing: [], room: '', vb: null, confirmDelete: false });
+    Object.assign(ui, { mode: 'select', sel: null, drawing: [], room: '', vb: null, confirmDelete: false, piece: null, place: null, addPiece: false });
     Object.assign(lui, { sel: null, confirm: false, focus: null, test: { startId: '', room: '', action: '', scene: '' } });
     Object.assign(tui, { sel: null, confirm: false, focus: null, startId: '', effectsError: '' });
     Object.assign(gui, { sel: null, confirm: false });
@@ -105,6 +105,7 @@
     $('cJson').disabled = false;
     $('cTest').disabled = false;
     render();
+    recropIfMissing();
   }
   $('cBanner').addEventListener('click', (ev) => {
     if (ev.target.id === 'cDeleteDraft' && cw) {
@@ -205,10 +206,13 @@
       // Shapes drawn on a previous image are scaled to the new one.
       const scale = (p) => [Math.round(p[0] * scaleX), Math.round(p[1] * scaleY)];
       const regions = {};
-      Object.entries((w.map && w.map.regions) || {}).forEach(([id, sh]) => (regions[id] = sh.polygon ? { polygon: sh.polygon.map(scale) } : { point: scale(sh.point) }));
+      Object.entries((w.map && w.map.regions) || {}).forEach(([id, sh]) => (regions[id] = sh.polygons ? { polygons: sh.polygons.map((r) => r.map(scale)) } : sh.polygon ? { polygon: sh.polygon.map(scale) } : { point: scale(sh.point) }));
       const locations = {};
       Object.entries((w.map && w.map.locations) || {}).forEach(([id, p]) => (locations[id] = scale(p)));
-      w.map = { image: path, width, height, regions, locations };
+      const places = ((w.map && w.map.places) || []).map((pl) => Object.assign({}, pl, { at: scale(pl.at) }));
+      // Another picture: where it is on the globe isn't known any more.
+      if (w.map && w.map.projection) banner('The new picture has no latitude and longitude: to keep them, crop it with npm run basemap instead.');
+      w.map = Object.assign({ image: path, width, height, regions, locations }, places.length ? { places } : {});
       cw.assets[path] = file;
       urls.set(path, url);
       ui.vb = null;
@@ -224,6 +228,7 @@
     draw: 'Click to add corners. Click the first corner or press Enter to finish; Backspace removes the last corner; Esc cancels. The shape goes to the selected region (or a new one).',
     point: 'Click to place the selected region as a point (for places too small or vague to outline).',
     room: 'Pick a room, then click where it is on the map.',
+    place: 'Click where a town or city is to add it as a named place (task 4-5): the story knows it by name.',
   };
   function rooms() {
     const out = [];
@@ -239,24 +244,47 @@
     return `<div class="c-map">
       <div class="c-canvas-col">
         <div class="c-toolbar" role="toolbar" aria-label="Map tools">
-          ${['select', 'draw', 'point', 'room'].map((m) => `<button type="button" data-mode="${m}" aria-pressed="${ui.mode === m}">${({ select: 'Select', draw: 'Draw region', point: 'Point', room: 'Place room' })[m]}</button>`).join('')}
+          ${['select', 'draw', 'point', 'room', 'place'].map((m) => `<button type="button" data-mode="${m}" aria-pressed="${ui.mode === m}">${({ select: 'Select', draw: 'Draw region', point: 'Point', room: 'Place room', place: 'Add place' })[m]}</button>`).join('')}
+          ${ui.mode === 'draw' ? `<label class="c-check small"><input type="checkbox" id="cAddPiece"${ui.addPiece ? ' checked' : ''}> add as another piece</label>` : ''}
           <span class="sep"></span>
           <label class="btn">${w.map ? 'Change image' : 'Load image'}<input type="file" id="cImage" accept="image/*" hidden></label>
           ${w.map ? '<button type="button" id="cNoImage" title="Use the automatic node map instead">Remove image</button>' : ''}
           <span class="zoom"><button type="button" data-czoom="in" aria-label="Zoom in">+</button><button type="button" data-czoom="out" aria-label="Zoom out">−</button><button type="button" data-czoom="reset" aria-label="Reset the view">⟲</button></span>
         </div>
         <div id="cCanvas" class="c-canvas"></div>
-        <div class="c-hint" id="cHint">${esc(w.map ? HINTS[ui.mode] : 'Load a map image to draw regions on it. Without one, the game lays the regions out from their neighbours, as shown here.')}</div>
+        <div class="c-hint" id="cHint">${esc(w.map ? HINTS[ui.mode] : 'Load a map image to draw regions on it. Without one, the game lays the regions out from their neighbours, as shown here.')} <span id="cCoords" class="c-coords"></span></div>
       </div>
       <aside class="c-panel">
         <section><h3>Regions</h3><div id="cRegionList" class="c-list"></div><button type="button" id="cAddRegion" class="small">+ Region</button></section>
         <section id="cRegionForm">${regionForm()}</section>
         ${w.map ? `<section><h3>Rooms on the map</h3><select id="cRoomPick" aria-label="Room to place"><option value="">Pick a room…</option>${rooms().map((r) => `<option value="${esc(r.id)}"${r.id === ui.room ? ' selected' : ''}>${esc(r.name)}${r.from !== 'world' ? ` (${esc(r.from)})` : ''}${w.map.locations && w.map.locations[r.id] ? ' ✓' : ''}</option>`).join('')}</select>
           <ul class="c-placed">${Object.keys(w.map.locations || {}).map((id) => `<li>${esc((rooms().find((r) => r.id === id) || { name: id }).name)} <span class="muted">${esc(M.regionAt(w.map, w.map.locations[id]) || 'outside every region')}</span> <button type="button" class="small ghost" data-unplace="${esc(id)}" aria-label="Remove ${esc(id)} from the map">✕</button></li>`).join('')}</ul></section>` : ''}
+        ${w.map ? placesSection(w) : ''}
         ${regions.length ? `<section><h3>Where each start begins</h3>${startList.map(([sid, st]) => `<label class="c-row">${esc(st.title || sid)} <select data-startregion="${esc(sid)}">${regions.map((r) => `<option value="${esc(r.id)}"${st.region === r.id ? ' selected' : ''}>${esc(r.name)}</option>`).join('')}${st.region ? '' : '<option value="" selected>(none)</option>'}</select></label>`).join('')}</section>` : ''}
         ${factions.length ? `<section><h3>Group colours</h3>${factions.map((f) => `<label class="c-row"><span><span class="swatch ${D.factionClass(factions, f.id)}"></span>${esc(f.name)}</span> <select data-fcolor="${esc(f.id)}"><option value="">auto</option>${[1, 2, 3, 4, 5, 6, 7, 8].map((n) => `<option value="${n}"${f.color === n ? ' selected' : ''}>colour ${n}</option>`).join('')}</select></label>`).join('')}</section>` : ''}
       </aside>
     </div>`;
+  }
+  // Named places on the map (task 4-5): capitals, cities, towns. Bound fields
+  // on world.json; latitude and longitude when the map is projected.
+  function placesSection(w) {
+    const list = w.map.places || [];
+    const i = list.findIndex((pl) => pl.id === ui.place);
+    const pl = list[i];
+    const G = E.Geo;
+    let form = '';
+    if (pl) {
+      const ll = G.projected(w.map) && Array.isArray(pl.at) ? G.toLonLat(w.map, pl.at) : null;
+      form = `<div class="c-card">${fld('world.json', `map.places.${i}.name`, 'text', 'Name', { max: 60, live: 'canvas' })}
+        <div class="c-row2">${fld('world.json', `map.places.${i}.kind`, 'text', 'Kind', { blank: 'place', options: ['capital', 'city', 'town'].map((x) => ({ id: x, name: x })) })}
+        ${fld('world.json', `map.places.${i}.region`, 'text', 'Region', { blank: 'none', options: idList(w.regions) })}</div>
+        ${ll ? `<div class="c-row2"><label>Latitude <input type="number" step="0.01" data-placell="1" value="${ll[1].toFixed(2)}"></label><label>Longitude <input type="number" step="0.01" data-placell="0" value="${ll[0].toFixed(2)}"></label></div>` : ''}
+        ${fld('world.json', `map.places.${i}.notable`, 'bool', 'Named on the map even zoomed out')}
+        <button type="button" id="cDelPlace" class="small danger">Remove place</button></div>`;
+    }
+    return `<section><h3>Places <span class="muted small">${list.length}</span></h3>
+      <select id="cPlacePick" aria-label="A place on the map"><option value="">${list.length ? 'Pick a place…' : 'No places yet: use Add place'}</option>${list.map((x) => `<option value="${esc(x.id)}"${x.id === ui.place ? ' selected' : ''}>${esc(x.name)}${x.kind === 'capital' ? ' ★' : ''}</option>`).join('')}</select>
+      ${form}</section>`;
   }
   function regionForm() {
     const w = world();
@@ -274,7 +302,9 @@
       <label>Lore summary <span class="muted small" id="cLoreCount">${(r.lore || '').length}/400</span> <span class="muted small">Public knowledge: secrets go in a character's secret, events still to come in the timeline.</span><textarea data-field="lore" rows="3" maxlength="400">${esc(r.lore || '')}</textarea></label>
       <fieldset class="c-neigh"><legend>Neighbours</legend>${others.map((o) => `<label><input type="checkbox" data-neigh="${esc(o.id)}"${M.areNeighbours(w, r.id, o.id) ? ' checked' : ''}> ${esc(o.name)}${touching.has(o.id) ? ' <span class="muted small">(touching)</span>' : ''}</label>`).join('') || '<span class="muted">No other regions.</span>'}
         ${touching.size ? '<button type="button" id="cAddTouching" class="small">Add touching regions</button>' : ''}</fieldset>
-      <div class="muted small">${w.map ? (sh ? (sh.polygon ? `Outlined with ${sh.polygon.length} corners.` : 'Placed as a point.') : 'Not on the map yet: draw it or place it as a point.') : ''}</div>
+      <div class="muted small">${w.map ? (sh ? (sh.polygon ? `Outlined with ${sh.polygon.length} corners.` : sh.polygons ? `Outlined in ${sh.polygons.length} pieces (islands and parts). Click a piece to pick it.` : 'Placed as a point.') : 'Not on the map yet: draw it or place it as a point.') : ''}</div>
+      ${sh && sh.polygons && ui.piece != null && sh.polygons[ui.piece] ? `<button type="button" id="cRemovePiece" class="small">Remove piece ${ui.piece + 1} of ${sh.polygons.length}</button>` : ''}
+      ${r.wiki && r.wiki.title ? `<div class="small">Wikipedia: <a href="https://en.wikipedia.org/wiki/${encodeURIComponent(r.wiki.title.replace(/ /g, '_'))}" target="_blank" rel="noopener noreferrer">${esc(r.wiki.title)}</a> <span class="muted">(for the research helper)</span></div>` : ''}
       ${(() => { const u = LE.regionUse(cw.files, r.id); return `<div class="small c-uses">Lore: <button type="button" class="linkish" data-golore="${esc(r.id)}">${u.lore} entr${u.lore === 1 ? 'y' : 'ies'}</button> · Timeline: <button type="button" class="linkish" data-gotimeline="${esc(r.id)}">${u.events} event${u.events === 1 ? '' : 's'}</button></div>`; })()}
       <button type="button" id="cDeleteRegion" class="small danger">${ui.confirmDelete ? 'Click again to delete' : 'Delete region'}</button>`;
   }
@@ -297,7 +327,10 @@
     const unit = vb[2] / 120; // handle size that stays the same on screen
     let overlay = '';
     const sh = w.map && ui.sel && w.map.regions && w.map.regions[ui.sel];
-    if (sh && sh.polygon && ui.mode === 'select') overlay += sh.polygon.map((p, i) => `<circle class="c-handle" data-i="${i}" cx="${p[0]}" cy="${p[1]}" r="${unit}"/>`).join('');
+    // Handles on every piece of the selected region (task 4-5: islands).
+    if (sh && ui.mode === 'select') E.Geo.pieces(sh).forEach((ring, k) => { overlay += ring.map((p, i) => `<circle class="c-handle${ui.piece === k ? ' piece' : ''}" data-i="${k}:${i}" cx="${p[0]}" cy="${p[1]}" r="${unit}"/>`).join(''); });
+    const selPlace = w.map && ui.place && (w.map.places || []).find((x) => x.id === ui.place);
+    if (selPlace) overlay += `<circle class="c-place-sel" cx="${selPlace.at[0]}" cy="${selPlace.at[1]}" r="${unit * 1.8}"/>`;
     if (ui.drawing.length) {
       overlay += `<polyline class="c-draw" points="${ui.drawing.map((p) => p.join(',')).join(' ')}" style="stroke-width:${unit / 3}"/>`;
       overlay += ui.drawing.map((p, i) => `<circle class="c-draw-pt${i === 0 ? ' first' : ''}" cx="${p[0]}" cy="${p[1]}" r="${i === 0 ? unit * 1.3 : unit * 0.8}"/>`).join('');
@@ -305,7 +338,7 @@
     const roomList = rooms();
     const placed = w.map ? Object.entries(w.map.locations || {}).map(([id, p]) => ({ x: p[0], y: p[1], name: (roomList.find((r) => r.id === id) || { name: id }).name })) : [];
     const imageUrl = w.map ? assetUrl(w.map.image) : null;
-    el.innerHTML = D.worldSvg({ g, regions: w.regions || [], factions: w.factions, selected: ui.sel, imageUrl, viewBox: vb, id: 'cSvg', view: 'world', label: 'Map being edited', rooms: placed, overlay })
+    el.innerHTML = D.worldSvg({ g, regions: w.regions || [], factions: w.factions, selected: ui.sel, imageUrl, viewBox: vb, id: 'cSvg', view: 'world', label: 'Map being edited', rooms: placed, places: D.placesOf(w.map), overlay })
       + (w.map && !imageUrl ? `<div class="c-missing">The image <b>${esc(w.map.image)}</b> isn't loaded. Pick it again with <b>Change image</b> (shapes stay where they are).</div>` : '');
   }
   // Replacing the tab blurs a focused field, whose change handler may ask
@@ -356,16 +389,24 @@
     if (ui.drawing.length < 3 || !w.map) return;
     const id = ui.sel || addRegion();
     w.map.regions = w.map.regions || {};
-    w.map.regions[id] = { polygon: ui.drawing.slice() };
+    const had = E.Geo.pieces(w.map.regions[id]);
+    // "Add as another piece": an island or an exclave of the same region.
+    if (ui.addPiece && had.length) { w.map.regions[id] = { polygons: had.concat([ui.drawing.slice()]) }; ui.piece = had.length; }
+    else { w.map.regions[id] = { polygon: ui.drawing.slice() }; ui.piece = null; }
+    // Places inside it that belong to no region yet are in it now.
+    (w.map.places || []).forEach((pl) => { if (!pl.region && E.Geo.inside(pl.at, ui.drawing)) pl.region = id; });
     ui.drawing = [];
     ui.mode = 'select';
     changed();
   }
+  // A corner of a region's shape: "piece:index" (one piece: "0:index").
+  const ringOf = (sh, k) => (sh.polygons ? sh.polygons[k] : sh.polygon);
+  function setRing(sh, k, ring) { if (sh.polygons) sh.polygons[k] = ring; else sh.polygon = ring; }
   let drag = null;
   $('cMain').addEventListener('pointerdown', (ev) => {
     if (!cw || !ev.target.closest || !ev.target.closest('#cSvg')) return;
     const handle = ev.target.closest('.c-handle');
-    drag = { start: [ev.clientX, ev.clientY], moved: false, vb: (ui.vb || geometry().full).slice(), vertex: handle && !ev.altKey ? Number(handle.dataset.i) : null };
+    drag = { start: [ev.clientX, ev.clientY], moved: false, vb: (ui.vb || geometry().full).slice(), vertex: handle && !ev.altKey ? handle.dataset.i : null };
     if (drag.vertex != null) { try { $('cSvg').setPointerCapture(ev.pointerId); } catch (e) {} }
   });
   $('cMain').addEventListener('pointermove', (ev) => {
@@ -375,7 +416,8 @@
     drag.moved = true;
     const w = world();
     if (drag.vertex != null) {
-      w.map.regions[ui.sel].polygon[drag.vertex] = toSvg(ev);
+      const [k, i] = drag.vertex.split(':').map(Number);
+      ringOf(w.map.regions[ui.sel], k)[i] = toSvg(ev);
       renderCanvas();
     } else if (ui.mode === 'select') {
       const rect = $('cSvg').getBoundingClientRect();
@@ -395,12 +437,17 @@
     const handle = ev.target.closest('.c-handle');
     if (ui.mode === 'select') {
       if (handle && ev.altKey) {
-        const poly = w.map.regions[ui.sel].polygon;
-        w.map.regions[ui.sel].polygon = M.removeVertex(poly, Number(handle.dataset.i));
+        const sh = w.map.regions[ui.sel];
+        const [k, i] = handle.dataset.i.split(':').map(Number);
+        setRing(sh, k, M.removeVertex(ringOf(sh, k), i));
         return changed(['canvas']);
       }
       const g = ev.target.closest('.region-g');
       const id = g ? g.dataset.region : w.map ? M.regionAt(w.map, p) : null;
+      // A second click on the selected region picks the piece under it.
+      const sh = id && w.map && w.map.regions && w.map.regions[id];
+      ui.piece = sh && sh.polygons ? sh.polygons.findIndex((ring) => E.Geo.inside(p, ring)) : null;
+      if (ui.piece === -1) ui.piece = null;
       ui.sel = id;
       ui.confirmDelete = false;
       return render();
@@ -418,6 +465,16 @@
       w.map.regions[ui.sel] = { point: p };
       return changed();
     }
+    if (ui.mode === 'place') {
+      w.map.places = w.map.places || [];
+      const taken = w.map.places.map((x) => x.id).concat((w.regions || []).map((r) => r.id), rooms().map((r) => r.id));
+      const id = M.slug('new place', taken);
+      const region = M.regionAt(w.map, p);
+      w.map.places.push(Object.assign({ id, name: 'New place', kind: 'town', at: p }, region ? { region } : {}));
+      ui.place = id;
+      ui.mode = 'select';
+      return changed();
+    }
     if (ui.mode === 'room') {
       if (!ui.room) return banner('Pick a room first, then click where it is.');
       w.map.locations = w.map.locations || {};
@@ -429,12 +486,20 @@
     if (!cw || ui.mode !== 'select' || !ev.target.closest || !ev.target.closest('#cSvg')) return;
     const w = world();
     const sh = w.map && ui.sel && w.map.regions && w.map.regions[ui.sel];
-    if (!sh || !sh.polygon) return;
+    if (!sh || !(sh.polygon || sh.polygons)) return;
     const p = toSvg(ev);
-    const e = M.nearestEdge(sh.polygon, p);
-    if (e.dist > (ui.vb || geometry().full)[2] / 40) return;
-    sh.polygon = M.insertVertex(sh.polygon, e.index, p);
+    let best = null;
+    E.Geo.pieces(sh).forEach((ring, k) => { const e = M.nearestEdge(ring, p); if (!best || e.dist < best.e.dist) best = { k, e }; });
+    if (best.e.dist > (ui.vb || geometry().full)[2] / 40) return;
+    setRing(sh, best.k, M.insertVertex(ringOf(sh, best.k), best.e.index, p));
     changed(['canvas']);
+  });
+  // Where the pointer is on the globe, for a projected map (task 4-5).
+  $('cMain').addEventListener('pointermove', (ev) => {
+    const out = $('cCoords');
+    if (!cw || !out || ui.tab !== 'map') return;
+    const w = world();
+    out.textContent = w.map && E.Geo.projected(w.map) && ev.target.closest && ev.target.closest('#cSvg') ? E.Geo.fmtLonLat(E.Geo.toLonLat(w.map, toSvg(ev))) : '';
   });
   $('cMain').addEventListener('wheel', (ev) => {
     if (!cw || !ev.target.closest || !ev.target.closest('#cSvg')) return;
@@ -481,6 +546,19 @@
     }
     const un = t.closest('[data-unplace]');
     if (un) { delete w.map.locations[un.dataset.unplace]; return changed(); }
+    if (t.id === 'cRemovePiece') {
+      const sh = w.map.regions[ui.sel];
+      sh.polygons.splice(ui.piece, 1);
+      if (sh.polygons.length === 1) w.map.regions[ui.sel] = { polygon: sh.polygons[0] };
+      ui.piece = null;
+      return changed();
+    }
+    if (t.id === 'cDelPlace') {
+      w.map.places = (w.map.places || []).filter((x) => x.id !== ui.place);
+      if (!w.map.places.length) delete w.map.places;
+      ui.place = null;
+      return changed();
+    }
   });
   // Typing updates the map and list without redrawing the form (keeps focus).
   $('cMain').addEventListener('input', (ev) => {
@@ -509,6 +587,17 @@
     const w = world();
     if (t.id === 'cImage' && t.files && t.files[0]) return loadImage(t.files[0]);
     if (t.id === 'cRoomPick') { ui.room = t.value; if (t.value) ui.mode = 'room'; return render(); }
+    if (t.id === 'cPlacePick') { ui.place = t.value || null; return render(); }
+    if (t.id === 'cAddPiece') { ui.addPiece = t.checked; return; }
+    if (t.dataset.placell != null) {
+      const pl = (w.map.places || []).find((x) => x.id === ui.place);
+      const ll = E.Geo.toLonLat(w.map, pl.at);
+      ll[Number(t.dataset.placell)] = Number(t.value);
+      const at = E.Geo.toPixel(w.map, ll).map(Math.round);
+      if (at[0] < 0 || at[1] < 0 || at[0] > w.map.width || at[1] > w.map.height) { banner('That is off this map.', 'bad'); return render(); }
+      pl.at = at;
+      return changed();
+    }
     if (t.dataset.startregion) { starts()[t.dataset.startregion].region = t.value || undefined; return changed(); }
     if (t.dataset.fcolor) {
       const f = (w.factions || []).find((x) => x.id === t.dataset.fcolor);
@@ -2092,19 +2181,81 @@
 
   // New world (task 6-1): a blank world that loads as it is, kept in this
   // browser as a draft until it is exported.
+  // Areas of the shared base map to start a world on (task 4-5): [west,
+  // south, east, north] in degrees.
+  const AREAS = [
+    ['The whole world', [-180, -90, 180, 90]], ['Europe', [-25, 34, 45, 72]], ['Western Europe', [-11, 35, 30, 60]],
+    ['The Mediterranean and the Middle East', [-10, 25, 60, 48]], ['East Asia', [95, 15, 150, 50]], ['Japan', [128, 30, 146, 46]],
+    ['South Asia', [60, 5, 100, 38]], ['Africa', [-20, -36, 55, 38]], ['North America', [-170, 10, -50, 75]], ['South America', [-90, -57, -30, 15]],
+  ];
   $('cNew').addEventListener('click', () => {
-    banner('<label>Title of the new world <input id="cNewTitle" maxlength="80" placeholder="The Lighthouse"></label> <button type="button" id="cNewGo" class="small">Create</button>');
+    const bases = Object.values(S.library.baseMaps || {});
+    banner(`<label>Title of the new world <input id="cNewTitle" maxlength="80" placeholder="The Lighthouse"></label>
+      ${bases.length ? `<label>Map <select id="cNewBase"><option value="">none (draw your own, or no map)</option>${bases.map((b) => `<option value="${esc(b.id)}">${esc(b.title)}</option>`).join('')}</select></label>
+      <label>Area <select id="cNewArea">${AREAS.map(([name], k) => `<option value="${k}">${esc(name)}</option>`).join('')}</select></label>
+      <label>or bounds <input id="cNewBounds" placeholder="W,S,E,N in degrees" size="18"></label>` : ''}
+      <button type="button" id="cNewGo" class="small">Create</button>`);
     const i = $('cNewTitle');
     i.focus();
     i.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') newWorld(i.value); });
   });
-  function newWorld(title) {
+  // A piece of a base map as a world's picture: cut in the browser from the
+  // shared image (sharper: npm run basemap -- crop). → { blob, width, height }
+  async function cropBase(base, bounds, width) {
+    const img = await new Promise((ok, fail) => { const im = new Image(); im.onload = () => ok(im); im.onerror = () => fail(new Error(`the base map's picture (${base.dir}${base.image}) couldn't be loaded`)); im.src = base.dir + base.image; });
+    const W = img.naturalWidth, H = img.naturalHeight;
+    const [w, s, e, n] = base.bounds;
+    const sx = ((bounds[0] - w) / (e - w)) * W, sw = ((bounds[2] - bounds[0]) / (e - w)) * W;
+    const sy = ((n - bounds[3]) / (n - s)) * H, sh = ((bounds[3] - bounds[1]) / (n - s)) * H;
+    const outW = width || Math.min(4096, Math.max(1200, Math.round(sw * 2)));
+    const outH = Math.round(outW * (sh / sw));
+    const canvas = document.createElement('canvas');
+    canvas.width = outW; canvas.height = outH;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, outW, outH);
+    const blob = await new Promise((ok) => canvas.toBlob(ok, 'image/jpeg', 0.88));
+    return { blob, width: outW, height: outH };
+  }
+  async function newWorld(title) {
     const b = WE.blankWorld(title, folders());
+    const assets = {};
+    const baseId = $('cNewBase') ? $('cNewBase').value : '';
+    if (baseId) {
+      const base = S.library.baseMaps[baseId];
+      const typed = ($('cNewBounds').value || '').split(',').map((x) => Number(x.trim()));
+      const bounds = typed.length === 4 && typed.every(Number.isFinite) ? typed : AREAS[Number($('cNewArea').value) || 0][1];
+      const p = E.Geo.projectionProblems({ projection: 'equirectangular', bounds });
+      const [w, s, e, n] = base.bounds;
+      if (p.length || bounds[0] < w || bounds[2] > e || bounds[1] < s || bounds[3] > n) return banner(esc(p[0] || 'Those bounds are outside the base map.') + ' Bounds are west,south,east,north in degrees, like -11,35,30,60.', 'bad');
+      try {
+        const c = await cropBase(base, bounds);
+        assets['maps/base.jpg'] = c.blob;
+        b.files['world.json'].map = { image: 'maps/base.jpg', width: c.width, height: c.height, projection: 'equirectangular', bounds, base: base.id, regions: {}, credit: base.credit, license: base.license };
+      } catch (err) { return banner(`Couldn't use the base map: ${esc(err.message)}`, 'bad'); }
+    }
     store.set(SAVE_KEY(b.folder), JSON.stringify({ files: b.files, at: Date.now(), draft: true }));
     addOption('draft:' + b.folder, `${b.files['world.json'].title} (draft)`);
     $('cWorld').value = 'draft:' + b.folder;
-    ui.tab = 'world';
-    open(b.folder, b.files, {}, false, true);
+    ui.tab = baseId ? 'map' : 'world';
+    open(b.folder, b.files, assets, false, true);
+    if (baseId) {
+      const m = b.files['world.json'].map;
+      banner(`Started on the base map, ${esc(m.bounds.join(', '))}. Add regions here, or import real countries and capitals: <code>npm run basemap -- regions &lt;world folder&gt; --within --places capitals</code> (after exporting). For a sharper picture of a small area: <code>npm run basemap -- crop &lt;world folder&gt; --bounds ${esc(m.bounds.join(','))}</code>.`);
+    }
+  }
+  // A world started on a base map gets its picture cut again after a reload
+  // (drafts don't keep images).
+  async function recropIfMissing() {
+    const m = cw && world().map;
+    const base = m && m.base && (S.library.baseMaps || {})[m.base];
+    if (!base || cw.assets[m.image] || cw.server) return;
+    try {
+      const c = await cropBase(base, m.bounds, m.width);
+      cw.assets[m.image] = c.blob;
+      urls.delete(m.image);
+      render();
+    } catch (e) { /* the "isn't loaded" note stays */ }
   }
   // Drafts: working copies in this browser whose world isn't on the server.
   function listDrafts() {

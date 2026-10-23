@@ -30,6 +30,10 @@ Battlemaps and floor plans can be turned into site maps in the creator's **Sites
 
 Fill in `credit` and `license` for every map you share. Many battlemaps sold online don't allow redistribution, so only share maps you made or have the right to share. Maps bundled with Ensemble (`library/`) are original or CC0 only.
 
+## Real places
+
+Worlds set in the real world, in any era, can share one topographic base map (`library/maps/world/`, from Natural Earth, public domain): start a **New world** in the creator on it and pick an area. Draw your era's borders in the Map tab, or import today's with `npm run basemap -- regions <world> --within --places capitals` and redraw them (run `npm run basemap -- fetch` once first). Only the main area needs detail; far-off countries can be outlines and names. Historical border datasets online are often GPL, so don't bundle them with a world you share; draw borders yourself or start from Natural Earth. See `docs/WORLDS.md` › Base maps and real places.
+
 ## Content
 
 Adults choose their own stories. Mature content is opt-in and rated per world, and the player sets their own maximum. There is one hard line: **no sexual content involving minors**. The engine enforces it in every mode, whatever model or service you use.

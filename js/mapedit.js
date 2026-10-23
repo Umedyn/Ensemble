@@ -32,7 +32,7 @@
   };
   // The region whose polygon (or point, within r) holds p; the last drawn wins.
   M.regionAt = function (map, p, r) {
-    const hits = Object.entries((map && map.regions) || {}).filter(([, s]) => (s.polygon ? M.inPolygon(p, s.polygon) : s.point && Math.sqrt(dist2(p, s.point)) <= (r || 26)));
+    const hits = Object.entries((map && map.regions) || {}).filter(([, s]) => (s.polygon || s.polygons ? E.Geo.pieces(s).some((ring) => M.inPolygon(p, ring)) : s.point && Math.sqrt(dist2(p, s.point)) <= (r || 26)));
     return hits.length ? hits[hits.length - 1][0] : null;
   };
   // The polygon edge nearest p: { index (insert after it), dist }.
@@ -51,13 +51,9 @@
   // the other. → [[a, b], …], ids sorted.
   M.suggestNeighbours = function (map, tol) {
     tol = tol == null ? 10 : tol;
-    const polys = Object.entries((map && map.regions) || {}).filter(([, s]) => s.polygon && s.polygon.length >= 3);
-    const out = [];
-    const touches = (A, B) => A.some((p) => B.some((b, i) => M.segDist(p, b, B[(i + 1) % B.length]) <= tol));
-    polys.forEach(([a, sa], i) => polys.slice(i + 1).forEach(([b, sb]) => {
-      if (touches(sa.polygon, sb.polygon) || touches(sb.polygon, sa.polygon)) out.push([a, b].sort());
-    }));
-    return out.sort();
+    const shapes = {};
+    Object.entries((map && map.regions) || {}).forEach(([id, s]) => { const rings = E.Geo.pieces(s).filter((r) => r.length >= 3); if (rings.length) shapes[id] = rings; });
+    return E.Geo.neighbours(shapes, tol).map((p) => p.sort()).sort();
   };
 
   // Neighbour links both ways (validation does this too, but the editor's
@@ -76,7 +72,8 @@
   };
 
   // Every place a region id is used: regions' neighbours, the map, starts'
-  // "region", rooms' "region" (world and starts) and event seeds.
+  // "region", rooms' "region" (world and starts), event seeds and the map's
+  // named places.
   // neighbourFn (default fn) maps neighbour lists; null drops the link.
   function eachRef(world, starts, fn, neighbourFn) {
     const nf = neighbourFn || fn;
@@ -84,6 +81,8 @@
     const rooms = [].concat(world.locations || [], ...Object.values(starts || {}).map((s) => s.locations || []));
     rooms.forEach((l) => { if (l.region != null) { const v = fn(l.region); if (v) l.region = v; else delete l.region; } });
     Object.values(starts || {}).forEach((s) => { if (s.region != null) { const v = fn(s.region); if (v) s.region = v; else delete s.region; } });
+    // Named places on the map (task 4-5) belong to a region.
+    ((world.map && Array.isArray(world.map.places)) ? world.map.places : []).forEach((pl) => { if (pl && pl.region != null) { const v = fn(pl.region); if (v) pl.region = v; else delete pl.region; } });
     Object.values(world.eventSeeds || {}).forEach((list) => (Array.isArray(list) ? list : []).forEach((sd) => {
       if (sd && typeof sd === 'object' && sd.region != null) { const v = fn(sd.region); if (v) sd.region = v; else delete sd.region; }
     }));

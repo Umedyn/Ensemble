@@ -210,7 +210,8 @@
     const missing = [];
     (regions || []).forEach((r) => {
       const s = map.regions && map.regions[r.id];
-      if (s && s.polygon) out[r.id] = [s.polygon.reduce((t, p) => t + p[0], 0) / s.polygon.length, s.polygon.reduce((t, p) => t + p[1], 0) / s.polygon.length];
+      // Inside its biggest piece (task 4-5: countries with islands).
+      if (s && (s.polygon || s.polygons)) out[r.id] = E.Geo.anchor(E.Geo.pieces(s)).map((v) => Math.round(v));
       else if (s && s.point) out[r.id] = s.point.slice();
       else missing.push(r.id);
     });

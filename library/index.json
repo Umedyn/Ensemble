@@ -32,5 +32,17 @@
       ],
       "rooms": 6
     }
+  ],
+  "maps": [
+    {
+      "id": "world",
+      "title": "The world (shaded relief)",
+      "bounds": [
+        -180,
+        -90,
+        180,
+        90
+      ]
+    }
   ]
 }

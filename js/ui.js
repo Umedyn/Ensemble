@@ -1250,6 +1250,7 @@
       : [];
     return E.MapDraw.worldSvg({
       g, regions: state.scenario.regions, now: state.regions, factions: state.factions, mine, selected: mapSel, pulse, rooms,
+      places: E.MapDraw.placesOf(state.scenario.map),
       imageUrl: g.image && portraitUrl(g.image.image), viewBox: viewBoxes[view] || defaultBox, id: 'worldSvg', view,
       label: view === 'world' ? 'World map' : 'Map of your region and its neighbours',
     }) + regionInfoHtml(view);

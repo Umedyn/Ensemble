@@ -9,3 +9,6 @@ ensemble-*-turn*.json
 # Local prep and workflow files (task notes, Claude commands)
 docs/tasks/
 .claude/
+
+# build-time downloads (npm run basemap)
+.cache/

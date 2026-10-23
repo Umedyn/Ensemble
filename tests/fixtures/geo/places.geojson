@@ -1,0 +1,77 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "nameascii": "Alton",
+    "name": "Alton",
+    "adm0cap": 1,
+    "adm0_a3": "ALA",
+    "latitude": 5,
+    "longitude": 5
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     5,
+     5
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nameascii": "Bree",
+    "name": "Bree",
+    "adm0cap": 1,
+    "adm0_a3": "BRA",
+    "latitude": 5,
+    "longitude": 15
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     15,
+     5
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nameascii": "Port Cass",
+    "name": "Port Cass",
+    "adm0cap": 0,
+    "adm0_a3": "CAS",
+    "latitude": 12,
+    "longitude": 3
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     3,
+     12
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nameascii": "Faraway",
+    "name": "Faraway",
+    "adm0cap": 1,
+    "adm0_a3": "XXX",
+    "latitude": -60,
+    "longitude": -100
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -100,
+     -60
+    ]
+   }
+  }
+ ]
+}
