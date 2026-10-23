@@ -836,7 +836,8 @@
       const c = state.characters[id];
       const a = c.agenda;
       const st = a.steps[a.step];
-      const text = (ev && typeof ev.text === 'string' && ev.text.trim() && !/^one sentence$/i.test(ev.text.trim()) ? ev.text.trim() : stepSentence(c, st)).slice(0, 220);
+      const raw = (ev && typeof ev.text === 'string' && ev.text.trim() && !/^one sentence$/i.test(ev.text.trim()) ? ev.text.trim() : stepSentence(c, st));
+      const text = E.clip(raw, 220);
       const who = [id].concat((ev && Array.isArray(ev.who) ? ev.who : []).filter((x) => x !== id && state.characters[x] && x !== state.player));
       let where = c.status.location;
       const moved = [];
@@ -1091,7 +1092,7 @@
           id, name: String(nc.name).slice(0, 40), value: 0,
           max: E.clamp(Math.round(Number(nc.max) || 8), 4, 12),
           perHour: E.clamp(Number(nc.perHour) || 0.2, 0.05, 1),
-          fireText: String(nc.fireText || `${nc.name} comes to a head.`).slice(0, 220), fired: false, from: scope,
+          fireText: E.clip(nc.fireText || `${nc.name} comes to a head.`, 220), fired: false, from: scope,
         });
         return `new pressure: ${nc.name}`;
       },
@@ -1131,13 +1132,24 @@
       apply(state, t) {
         const r = region(state, t);
         if (r.reject) return r;
-        const tag = String(t.tag || '').replace(/\s+/g, ' ').trim().toLowerCase().slice(0, 30);
+        const tag = String(t.tag || '').replace(/\s+/g, ' ').trim().toLowerCase();
         if (!tag) return reject(`no tag for ${t.region}`);
+        // Too long is refused, not cut mid-word (playtest-coffee-skips: "commons losing pressure at the").
+        if (tag.length > 30) return reject(`tag too long for ${t.region} (30 characters at most): "${tag}"`);
         if (r.now.tags.some((x) => x.toLowerCase() === tag)) return null;
-        if (r.now.tags.length >= E.Scenario.REGION_TAGS) return reject(`${t.region} already has ${E.Scenario.REGION_TAGS} tags; not adding "${tag}"`);
+        // A full region drops its oldest event tag, so the newest situation shows and
+        // a crisis from weeks ago doesn't (playtest-coffee-skips: "co2 above emergency
+        // threshold" for 80 sols). Authored tags stay.
+        let dropped = null;
+        if (r.now.tags.length >= E.Scenario.REGION_TAGS) {
+          const authored = new Set((r.def.tags || []).map((x) => x.toLowerCase()));
+          const i = r.now.tags.findIndex((x) => !authored.has(x.toLowerCase()));
+          if (i < 0) return reject(`${t.region} already has ${E.Scenario.REGION_TAGS} tags; not adding "${tag}"`);
+          [dropped] = r.now.tags.splice(i, 1);
+        }
         r.now.tags.push(tag);
         r.stamp('new tag');
-        return `${r.def.name}: ${tag}`;
+        return `${r.def.name}: ${tag}${dropped ? ` (no longer ${dropped})` : ''}`;
       },
     },
     remove_tag: {
@@ -1229,7 +1241,7 @@
       const scope = ['regional', 'world'].includes(ev.scope) ? ev.scope : 'local';
       if (used[scope] >= caps[scope]) return guard(res, 'resolve', 'event dropped', `${scope} event not due or over the cap: ${ev.text}`);
       used[scope]++;
-      const text = ev.text.trim().slice(0, 220);
+      const text = E.clip(ev.text, 220);
       const who = (Array.isArray(ev.who) ? ev.who : []).filter((id) => (state.characters[id] || isExtra(state, id) || isStandee(state, id)) && id !== state.player);
       // Offstage people in an event may know facts about it (see applyUpdate).
       res.involved = [...new Set((res.involved || []).concat(who))];
@@ -2156,17 +2168,29 @@
   Eng.parseBeats = function (prose, spanMinutes) {
     // Seconds too, alone or after minutes ("[+30s]", "[+1m 15s]"): a 12B wrote
     // them for a few-minute step and they stayed in the prose
-    // (playtest-stragglers-sneak).
-    const re = /\[\s*\+\s*(\d+(?:\.\d+)?)\s*(m|min|mins|minutes?|h|hr|hrs|hours?|d|days?|sols?|s|secs?|seconds?)?(?:\s*(\d+)\s*(?:s|secs?|seconds?))?\s*\]/gi;
+    // (playtest-stragglers-sneak). Compound marks too ("[+0h06]", "[+1d 20h]"):
+    // a number without a unit after another is the next smaller unit
+    // (playtest-coffee-skips).
+    const UNIT = 'days?|day|sols?|d|hours?|hrs?|hr|h|minutes?|mins?|min|m|seconds?|secs?|sec|s';
+    const re = new RegExp(`\\[\\s*\\+\\s*((?:\\d+(?:\\.\\d+)?\\s*(?:${UNIT})?\\s*){1,3})\\]`, 'gi');
+    const per = { d: 1440, h: 60, m: 1, s: 1 / 60 };
+    const smaller = { d: 'h', h: 'm', m: 's', s: 's' };
+    const kind = (u) => (/^(d|sol)/.test(u) ? 'd' : u.startsWith('h') ? 'h' : /^s/.test(u) ? 's' : 'm');
+    const minutesOf = (inner) => {
+      let total = 0;
+      let prev = null;
+      const part = new RegExp(`(\\d+(?:\\.\\d+)?)\\s*(${UNIT})?`, 'gi');
+      let p;
+      while ((p = part.exec(inner))) {
+        const u = p[2] ? kind(p[2].toLowerCase()) : prev ? smaller[prev] : 'm';
+        total += parseFloat(p[1]) * per[u];
+        prev = u;
+      }
+      return total;
+    };
     const marks = [];
     let m;
-    while ((m = re.exec(prose))) {
-      const n = parseFloat(m[1]);
-      const unit = (m[2] || 'm').toLowerCase();
-      const secs = m[3] ? Number(m[3]) / 60 : 0;
-      const at = /^(d|sol)/.test(unit) ? n * 1440 : unit.startsWith('h') ? n * 60 : /^s/.test(unit) ? n / 60 : n + secs;
-      marks.push({ index: m.index, end: re.lastIndex, at });
-    }
+    while ((m = re.exec(prose))) marks.push({ index: m.index, end: re.lastIndex, at: minutesOf(m[1]) });
     if (!marks.length) return [{ at: 0, text: String(prose).trim() }];
     const beats = [];
     const lead = prose.slice(0, marks[0].index).trim();
@@ -2476,7 +2500,7 @@
       res.major = { text, scope: 'agenda', who: plan.agenda.id };
     } else if (plan.reason !== 'clock') {
       const m = obj.major_event && typeof obj.major_event.text === 'string' ? obj.major_event : { text: 'Something goes badly wrong, and the routine ends.' };
-      const text = m.text.trim().slice(0, 240);
+      const text = E.clip(m.text, 240);
       const scope = ['regional', 'world'].includes(m.scope) ? m.scope : 'local';
       const effects = applyEffects(state, m.effects, scope, res);
       const region = eventRegion(state, m, scope, res);

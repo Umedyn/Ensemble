@@ -14,15 +14,8 @@
   const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
   const ID = /^[a-z0-9][a-z0-9_-]*$/;
   const text = (v, n) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, n) : '');
-  // Prose fields: cut at the last sentence (or word) that fits, never
-  // mid-word (playtest-api: "will trade water fo", "doesn't line up with where Ez").
-  const clip = (v, n) => {
-    const t = typeof v === 'string' ? v.replace(/\s+/g, ' ').trim() : '';
-    if (t.length <= n) return t;
-    const cut = t.slice(0, n);
-    const end = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '));
-    return end > n * 0.5 ? cut.slice(0, end + 1) : E.shorten(t, n);
-  };
+  // Prose fields: cut at the last sentence (or word) that fits, never mid-word.
+  const clip = (v, n) => (typeof v === 'string' ? E.clip(v, n) : '');
   GEN.clip = clip;
   const slug = (t) => String(t || '').replace(/["“][^"”]*["”]/g, ' ').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase()
     .replace(/^(the|a|an)\s+/, '').replace(/^(dr|mr|mrs|ms|mx|capt|sgt|prof)\.?\s+/, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24).replace(/-+$/, '');

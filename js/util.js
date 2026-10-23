@@ -103,6 +103,15 @@
     const sp = cut.lastIndexOf(' ');
     return (sp > n * 0.6 ? cut.slice(0, sp) : cut).replace(/[\s,;:.]+$/, '') + '…';
   };
+  // Prose: cut at the last sentence (or word) that fits, never mid-word
+  // (playtest-api: "will trade water fo"; playtest-coffee-skips: "The only spare cartridge is").
+  E.clip = (v, n) => {
+    const t = v == null ? '' : String(v).replace(/\s+/g, ' ').trim();
+    if (t.length <= n) return t;
+    const cut = t.slice(0, n);
+    const end = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '));
+    return end > n * 0.5 ? cut.slice(0, end + 1) : E.shorten(t, n);
+  };
   E.estTokens = (s) => Math.ceil((s || '').length / 3.6);
   E.rng = Math.random;
 
