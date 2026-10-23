@@ -358,6 +358,105 @@
     "town",
     "store"
   ],
+  "timeline": [
+    {
+      "id": "first-cases",
+      "when": {
+        "day": 1,
+        "hour": 12
+      },
+      "scope": "world",
+      "text": "The first cases reached the county hospital; within two days the town was under a stay-at-home order."
+    },
+    {
+      "id": "evacuation",
+      "when": {
+        "day": 4,
+        "hour": 9
+      },
+      "scope": "regional",
+      "region": "main-street",
+      "text": "The county evacuation from the Main Street clinic broke down in panic before half the people had boarded the buses."
+    },
+    {
+      "id": "pumps-dry",
+      "when": {
+        "day": 6,
+        "hour": 15
+      },
+      "scope": "regional",
+      "region": "highway-strip",
+      "text": "The gas station's pumps on the highway strip ran dry."
+    },
+    {
+      "id": "ridge-road-closed",
+      "when": {
+        "day": 25,
+        "hour": 9
+      },
+      "scope": "regional",
+      "region": "ridge-town",
+      "visibility": "heard",
+      "text": "Ridge closes the ridge road: its people block it with trucks and turn back anyone who comes without something to trade.",
+      "effects": {
+        "add_tag": [
+          {
+            "region": "ridge-town",
+            "tag": "road blocked"
+          }
+        ],
+        "groups": [
+          {
+            "id": "ridge",
+            "stance": "closed to outsiders; trades at the barricade"
+          }
+        ]
+      },
+      "preconditions": [
+        {
+          "controls": {
+            "group": "ridge",
+            "region": "ridge-town"
+          }
+        }
+      ],
+      "onBroken": "drop"
+    },
+    {
+      "id": "convoy-checkpoint",
+      "when": {
+        "day": 26,
+        "hour": 9
+      },
+      "scope": "regional",
+      "region": "junction",
+      "visibility": "heard",
+      "text": "The rescue convoy reaches the highway junction and sets up a checkpoint under the overpass, stopping every car that comes through.",
+      "effects": {
+        "control": [
+          {
+            "region": "junction",
+            "to": "convoy"
+          }
+        ],
+        "add_tag": [
+          {
+            "region": "junction",
+            "tag": "checkpoint"
+          }
+        ]
+      },
+      "preconditions": [
+        {
+          "controls": {
+            "group": null,
+            "region": "junction"
+          }
+        }
+      ],
+      "onBroken": "diverge"
+    }
+  ],
   "characters": [
     "pike",
     "ortiz",

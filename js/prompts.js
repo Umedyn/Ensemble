@@ -406,10 +406,20 @@
    - "visibility": "seen" (happens in the player's room), "heard" (the player gets a sound, call or message about it) or "hidden" (the player has no idea).
    - "moves": [{"id":"character_id","to":"location_id"}] for offstage characters who go somewhere because of it, else [].
    - "scope": "local" for these.
-${groupTask(state, action)}${siteTask(state)}${inventLine(sc)}${tierTask(state, due)}
+${groupTask(state, action)}${siteTask(state)}${inventLine(sc)}${tierTask(state, due)}${canonTask(state, due)}
 Reply with JSON only, exactly in this shape:
-${intentExample(state, present, action)}`;
+${intentExample(state, present, action, due)}`;
   };
+
+  // Timeline events due now whose preconditions broke (task 5-2): the model
+  // writes what happens instead. Only when one is due, so prompts are
+  // otherwise unchanged.
+  function canonTask(state, due) {
+    const list = (due && due.canon) || [];
+    if (!list.length) return '';
+    return '\n' + [`   EXPECTED EVENTS THE STORY HAS CHANGED: these were due during this span, but things are different now. For each, write what happens instead (the same occasion, altered by what changed) in "canon": [{"id":"event_id","text":"one sentence","effects":${effectShape(state)}}].`]
+      .concat(list.map((d) => `   - ${d.ev.id}: was "${d.ev.text}" Changed: ${d.broken.join('; ')}.`)).join('\n');
+  }
 
   function tierTask(state, due) {
     const seeds = { regional: seedTexts(state, 'regional'), world: seedTexts(state, 'world') };
@@ -428,7 +438,8 @@ ${intentExample(state, present, action)}`;
   }
 
   // The example is pre-filled with the real ids so small models don't drop anyone.
-  function intentExample(state, present, action) {
+  function intentExample(state, present, action, due) {
+    const canon = due && due.canon && due.canon.length ? `,\n "canon":[${due.canon.map((d) => `{"id":"${d.ev.id}","text":"one sentence","effects":null}`).join(',')}]` : '';
     const intents = present.map((id) =>
       `  {"id":"${id}","action":"one sentence","says":null,"reveals":null,"visible":true,"needs_roll":false,"skill":null,"difficulty":"normal","move_to":null}`
     );
@@ -437,7 +448,7 @@ ${intentExample(state, present, action)}`;
     const site = hasSite(state) ? `${lockedHere(state).length ? ',"unlock":null' : ''},"new_feature":null` : '';
     return `{"player":{"summary":"the player's action restated as a concrete attempt","needs_roll":false,"skill":null,"difficulty":"normal","move_to":null${anyGroups ? ',"against":null,"single_out":null' : ''}${site}},
  "intents":[${intents.length ? '\n' + intents.join(',\n') + '\n ' : ''}],${groups.length ? `\n "group_intents":[\n${groups.join(',\n')}\n ],` : ''}
- "events":[{"text":"one sentence","scope":"local","who":["character_id"],"where":"location_id","visibility":"heard","moves":[]}]${state.scenario.inventExtras ? ',\n "new_extras":[]' : ''}}`.replace('"move_to":null', E.Sites.enabled(state.scenario) ? '"move_to":null,"new_place":null' : '"move_to":null');
+ "events":[{"text":"one sentence","scope":"local","who":["character_id"],"where":"location_id","visibility":"heard","moves":[]}]${state.scenario.inventExtras ? ',\n "new_extras":[]' : ''}${canon}}`.replace('"move_to":null', E.Sites.enabled(state.scenario) ? '"move_to":null,"new_place":null' : '"move_to":null');
   }
 
   function outcomeLines(state, res, forNarrator) {
@@ -621,6 +632,11 @@ ${worldLines(state)}`;
       ? `The downtime ends when ${who.name} comes to find ${pc.name}: "${plan.agenda.text}". Set "major_event" to null; ${who.name} is with ${pc.name} at the end, and your positions should fit that moment.`
       : plan.reason === 'clock'
       ? `The downtime ends because a pressure comes to a head: "${res.events[res.events.length - 1] || plan.clock.name}". Set "major_event" to null; your positions should fit that moment.`
+      // The timeline (task 5-2): an event as written, or one the story changed.
+      : plan.reason === 'canon' && plan.canonMode === 'fired'
+      ? `The downtime ends with an expected event: "${plan.canonText}". Set "major_event" to null; your positions should fit that moment.`
+      : plan.reason === 'canon'
+      ? `The downtime ends at the moment something long expected was due: "${plan.canonEvent.text}" But the story has changed things: ${plan.canonEvent.broken.join('; ')}. Write in "major_event" what happens instead at that moment, given those changes: the same occasion, altered.`
       : `The downtime ends with a MAJOR EVENT that you choose: something serious and unexpected that demands a response right now. ${majorKinds(state)}${majorIdeas(state).length ? ` Ideas: ${majorIdeas(state).join('; ')}.` : ''}`;
     const reg = Eng().nearbyRegions(state).length ? '"region":"region_id",' : '';
     return `
@@ -1041,6 +1057,39 @@ Reply with JSON only: {"people":[{"name":"...","role":"...","pronouns":"she/her"
   };
 
   // ---------- chapter ----------
+  // ---------- projected timeline events (task 5-2) ----------
+  // When nothing is planned for the next few days, the model plans a few
+  // likely, public events. It sees where things stand and the timeline so far
+  // (for pacing), never secrets or future canon events.
+  P.layouts.project = ['projectNow', 'projectPace', 'projectTask'];
+  P.project = (state, cfg) => P.build('project', { state, sc: state.scenario, cfg, TL: E.Timeline });
+  B.projectNow = ({ state }) => `=== PLANNING AHEAD: ${E.fmtTime(state)} ===\n${worldLines(state)}`;
+  B.projectPace = ({ state, sc, TL }) => {
+    const past = TL.history(state).slice(-5);
+    const gap = TL.gap(state);
+    const lines = ['\n=== THE TIMELINE SO FAR ==='];
+    if (past.length) past.forEach((x) => lines.push(`- ${TL.fmt(sc, x.when)}: ${x.text}`));
+    else lines.push('(nothing yet)');
+    lines.push(gap ? `Events have come about every ${gap >= 36 ? `${Math.round(gap / 24)} days` : `${gap} hours`}.` : 'Aim for about one event a day.');
+    return lines;
+  };
+  B.projectTask = ({ state, sc, cfg, TL }) => {
+    const now = TL.now(state);
+    const first = TL.fmt(sc, { day: Math.floor((now + 1) / 24), hour: (Math.floor(now) + 1) % 24 });
+    const last = TL.fmt(sc, { day: Math.floor((now + cfg.days * 24) / 24), hour: Math.floor(now + cfg.days * 24) % 24 });
+    const regions = (sc.regions || []).map((r) => r.id);
+    return `
+=== TASK ===
+Plan what is most likely to happen in this world over the next ${cfg.days} days, between ${first} and ${last}: things everyone expects (a delivery, an exam, a holiday or festival, a meeting, a scheduled broadcast) or the likely next developments of the situation, spaced like the timeline above. Write 1 to ${cfg.max} events.
+- Public things only: never anyone's secret.
+- Nothing about ${state.characters[state.player].name}'s own choices, and nothing that decides how the story turns out.
+- Modest and plausible: these happen only if the story hasn't changed things.
+- "when" is {"day": number, "hour": 0-23}. "scope": "regional" (nearby) or "world" (far away, broad).${regions.length ? ` "region": one of ${regions.join(', ')}, or null for a world event.` : ''}
+- "effects" only if the event clearly changes something: ${effectShape(state)}, with existing ids only (${effectIds(state)}); otherwise null.
+Reply with JSON only:
+{"events":[{"when":{"day":${Math.floor((now + 24) / 24)},"hour":9},"scope":"regional",${regions.length ? '"region":"region_id",' : ''}"text":"one sentence","visibility":"heard","effects":null}]}`;
+  };
+
   P.layouts.chapter = ['chapterEvents', 'chapterTask'];
   P.chapter = (state) => P.build('chapter', { state, pc: state.characters[state.player] });
 

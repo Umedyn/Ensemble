@@ -16,14 +16,14 @@
   const START_OWN = ['id', 'title', 'summary', 'start', 'player', 'cast', 'opening', 'castLabel', 'region', 'playerSlot', 'generated'];
   // World fields a start may override (merge rules below).
   const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'tagThresholds', 'portraitSet', 'factions', 'world',
-    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'standees', 'site', 'localMap', 'map', 'entrances', 'lore'];
+    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'standees', 'site', 'localMap', 'map', 'entrances', 'lore', 'timeline', 'projectTimeline'];
   const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'characters', 'starts', 'generatedStarts', 'generatedSites', 'sites', ...OVERRIDABLE];
-  const WORLD_RESERVED = ['timeline'];
+  const WORLD_RESERVED = [];
   const START_RESERVED = [];
   const CAST_FIELDS = ['id', 'status', 'needs', 'relations', 'knows', 'want', 'secret', 'guard', 'tags', 'tier', 'pinned', 'agenda'];
   // Merge rules: lists of {id} objects merge by id, lists of strings are
   // unioned, plain objects merge shallowly; anything else is replaced.
-  const ID_LISTS = ['locations', 'clocks', 'factions', 'extras', 'regions', 'standees', 'lore'];
+  const ID_LISTS = ['locations', 'clocks', 'factions', 'extras', 'regions', 'standees', 'lore', 'timeline'];
   const STRING_LISTS = ['rules', 'facts', 'tags'];
   const OBJECTS = ['world', 'eventRates', 'eventSeeds', 'tiers'];
 
@@ -180,6 +180,41 @@
     return problems;
   }
 
+  // ---------- the canon timeline (task 5-2) ----------
+  // Timeline events across the world and its starts: shape, ids that exist
+  // somewhere in the world, and no public event that gives away a secret.
+  function timelineWorldProblems(bundle, startIds, warnings) {
+    const { world, starts = {}, characters = {} } = bundle;
+    const lists = [['world.json', world.timeline]].concat(startIds.filter((sid) => starts[sid] && starts[sid].timeline != null).map((sid) => [`starts/${sid}.json`, starts[sid].timeline]));
+    if (lists.every(([, l]) => l == null)) return [];
+    const ofAll = (k) => new Set([].concat(world[k] || [], ...startIds.map((sid) => (starts[sid] && starts[sid][k]) || [])).map((x) => x && x.id));
+    const clockIds = new Set();
+    const addClocks = (cs) => (cs || []).forEach((c) => { if (c && c.id) { clockIds.add(c.id); addClocks(c.then); } });
+    addClocks(world.clocks);
+    startIds.forEach((sid) => addClocks(starts[sid] && starts[sid].clocks));
+    const first = startIds[0] && starts[startIds[0]] && starts[startIds[0]].start;
+    const refs = {
+      regions: ofAll('regions'), groups: ofAll('factions'), clocks: clockIds, characters: new Set(world.characters || []),
+      effectKeys: Object.keys(E.Engine.EFFECTS), start: first ? E.Timeline.at({ day: first.day ?? 1, hour: first.hour ?? 8 }) : null,
+    };
+    const problems = [];
+    const people = Object.values(characters).concat(...startIds.map((sid) => ((starts[sid] && starts[sid].cast) || []).filter(isObj)
+      .map((c) => Object.assign({}, characters[c.id], c))));
+    lists.forEach(([where, list]) => {
+      problems.push(...E.Timeline.problems(list, where, refs, warnings));
+      (Array.isArray(list) ? list : []).filter((ev) => isObj(ev) && ev.visibility !== 'hidden').forEach((ev) => {
+        const who = E.Lore.leak({ text: ev.text }, people);
+        if (who) problems.push(`${where}: timeline "${ev.id}" gives away ${who.name || who.id}'s secret (public events reach the narrator; make it hidden, or keep the secret in the character's "secret")`);
+      });
+    });
+    return problems;
+  }
+  function projectProblems(v) {
+    if (v == null || v === false || v === true) return [];
+    const ok = isObj(v) && Object.entries(v).every(([k, n]) => (k === 'days' && Number.isInteger(n) && n >= 1 && n <= 14) || (k === 'max' && Number.isInteger(n) && n >= 1 && n <= 5));
+    return ok ? [] : ['"projectTimeline" must be false, or {days: 1–14, max: 1–5}'];
+  }
+
   // ---------- validation ----------
   // Catches mistakes that composing would hide. bundle: { world, starts: {id:
   // start}, characters: {id: data}, legacy } with missing files left out.
@@ -212,6 +247,8 @@
       else problems.push(...E.Sites.mapProblems(m, id));
     });
     problems.push(...loreWorldProblems(bundle, startIds, warnings));
+    problems.push(...timelineWorldProblems(bundle, startIds, warnings));
+    problems.push(...projectProblems(world.projectTimeline));
     dupes(pool).forEach((id) => problems.push(`character "${id}" is listed twice`));
     dupes(startIds).forEach((id) => problems.push(`start "${id}" is listed twice`));
     ['locations', 'clocks', 'factions', 'regions'].forEach((k) =>
@@ -688,6 +725,12 @@
     problems.push(...mapProblems(sc, locIds));
     problems.push(...regionProblems(sc));
     problems.push(...standeeProblems(sc, locIds, extraIds));
+    // The timeline (task 5-2): shape here; people and clocks are checked
+    // across the whole world in validateWorld.
+    problems.push(...E.Timeline.problems(sc.timeline, 'scenario', {
+      regions: new Set((sc.regions || []).map((r) => r && r.id)), groups: new Set((sc.factions || []).map((f) => f && f.id)), effectKeys: Object.keys(E.Engine.EFFECTS),
+    }, []));
+    problems.push(...projectProblems(sc.projectTimeline));
     // Lore (task 5-1): its shape here; rooms and people are checked across
     // the whole world in validateWorld.
     if (sc.lore != null) {

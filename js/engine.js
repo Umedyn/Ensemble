@@ -72,6 +72,8 @@
       )
     );
     (sc.facts || []).forEach((text) => E.Memory.addFact(state, { about: [], text, known_by: ['all'], weight: 2 }));
+    // The canon timeline (task 5-2): the past becomes facts and chapter zero.
+    E.Timeline.seed(state);
     if (sc.opening) {
       state.recent = [{ turn: 0, action: null, text: sc.opening }];
       state.log.push({ turn: 0, type: 'scene', text: sc.opening });
@@ -81,7 +83,7 @@
 
   // Saves and autosaves from older versions are upgraded one step at a time
   // when loaded. Each step takes a state at version n and returns n + 1.
-  Eng.STATE_VERSION = 12;
+  Eng.STATE_VERSION = 13;
   Eng.migrations = {
     // Worlds and starts (docs/WORLDS.md): the scenario records where it came from.
     1: (state) => {
@@ -183,6 +185,17 @@
       state.version = 12;
       return state;
     },
+    // The canon timeline (task 5-2): older games have no outcomes yet, and
+    // don't start projecting events they never planned.
+    12: (state) => {
+      [state, state.pending && state.pending.pre].filter(Boolean).forEach((s) => {
+        if (!s.canon) s.canon = {};
+        if (!s.timeline) s.timeline = [];
+        if (s.projection == null) s.projection = false;
+      });
+      state.version = 13;
+      return state;
+    },
   };
   Eng.migrate = function (state) {
     if (state.version == null) state.version = 1;
@@ -225,6 +238,7 @@
     if (!res) return;
     (res.guards = res.guards || []).push({ stage, type, detail: String(detail || '').replace(/\s+/g, ' ').trim().slice(0, 200) });
   };
+  Eng.guard = guard;
 
   // Cast lists. Everything that lists characters goes through these (ids in
   // state.order), so cast tiers and standees only change them here. Lookups by
@@ -1196,12 +1210,13 @@
     return done;
   }
 
+  Eng.applyEffects = applyEffects;
   Eng.applyEvents = (...a) => applyEvents(...a);
   // noAgendas: the downtime skip leaves due agenda steps for the next turn.
   function applyEvents(state, intentObj, present, stepId, res, due, capsOverride, noAgendas) {
     due = due || {};
     const here = state.characters[state.player].status.location;
-    res.director = [];
+    res.director = res.director || [];
     // Agenda steps that are due (task 2-2) don't count toward the caps.
     const all = Array.isArray(intentObj.events) ? intentObj.events : [];
     const raw = noAgendas ? all.filter((ev) => !(ev && ev.agenda)) : applyAgendaEvents(state, all, present, res);
@@ -1540,12 +1555,17 @@
     const randomHours = meanDays > 0 ? Math.max(6, -Math.log(1 - E.rng()) * meanDays * 24) : Infinity;
     // Someone's agenda bringing them to the player stops the skip too (task 2-2).
     const contact = nextContact(state);
+    let plan;
     if (contact && contact.hours <= horizon && contact.hours <= randomHours && (!clockHit || contact.hours < clockHit.hours)) {
-      return { hours: contact.hours, reason: 'agenda', agenda: contact };
-    }
-    if (clockHit && clockHit.hours <= randomHours) return { hours: clockHit.hours, reason: 'clock', clock: clockHit };
-    if (randomHours <= horizon) return { hours: Math.round(randomHours), reason: 'random' };
-    return { hours: horizon, reason: 'horizon' };
+      plan = { hours: contact.hours, reason: 'agenda', agenda: contact };
+    } else if (clockHit && clockHit.hours <= randomHours) plan = { hours: clockHit.hours, reason: 'clock', clock: clockHit };
+    else if (randomHours <= horizon) plan = { hours: Math.round(randomHours), reason: 'random' };
+    else plan = { hours: horizon, reason: 'horizon' };
+    // The next timeline event stops the skip like a clock (task 5-2); a clock
+    // or someone's agenda at the same hour comes first.
+    const canon = E.Timeline.next(state);
+    const first = canon && (canon.hours < plan.hours || (canon.hours === plan.hours && !['agenda', 'clock'].includes(plan.reason)));
+    return first ? { hours: canon.hours, reason: 'canon', canon } : plan;
   };
 
   // ---------- tags and mood (task 1-6) ----------
@@ -2390,6 +2410,8 @@
   // The downtime turn: simulate time, ask the model for a montage and (if
   // needed) the interrupting event, then narrate it with day-stamped beats.
   async function skipTurn(state, action, phase) {
+    const timelineNotes = [];
+    if (E.Timeline.needsProjection(state)) { phase('Planning the days ahead…'); await E.Timeline.project(state, timelineNotes); }
     const plan = Eng.planMajorSkip(state);
     const tierChanges = Eng.promoteForAction(state, Eng.present(state), action, state.turn + 1);
     const pre = E.clone(state);
@@ -2400,12 +2422,31 @@
     const presentStart = Eng.present(state);
     const res = { outcomes: [], events: [], guards: [] };
     tierChanges.forEach((t) => guard(res, 'resolve', 'cast tier', t));
+    timelineNotes.forEach((n) => guard(res, 'resolve', n.type, n.detail));
 
     phase('Fast-forwarding…');
     Eng.advanceTime(state, plan.hours, res, true);
     const agendaSteps = Eng.runAgendas(state, plan.hours, plan, res);
     frame.endTime = E.fmtTime(state);
     frame.days = Math.round(plan.hours / 24 * 10) / 10;
+    // A timeline event ends the skip (task 5-2), checked now. As written, it
+    // is the interrupting event (like a clock); broken and "diverge", the
+    // model writes the altered version as the major event; dropped, the model
+    // picks a major event as it would for a random one.
+    let canonLead = null;
+    let canonRest = [];
+    if (plan.reason === 'canon') {
+      const due = E.Timeline.due(state, 0);
+      canonLead = due.find((d) => d.ev.id === plan.canon.id) || due[0] || null;
+      canonRest = due.filter((d) => d !== canonLead);
+      if (!canonLead) plan.reason = 'random';
+      else if (!canonLead.broken.length) plan.canonMode = 'fired';
+      else if (canonLead.ev.onBroken === 'diverge') plan.canonMode = 'diverge';
+      else { plan.canonMode = 'drop'; plan.reason = 'random'; }
+      if (canonLead && plan.canonMode !== 'diverge') { E.Timeline.resolveDue(state, [canonLead], [], res); }
+      if (plan.canonMode === 'fired') plan.canonText = state.canon[canonLead.ev.id].text;
+      if (plan.canonMode === 'diverge') plan.canonEvent = { text: canonLead.ev.text, broken: canonLead.broken };
+    }
 
     phase('Simulating the downtime…');
     const obj = await E.LLM.chatJSON({
@@ -2416,8 +2457,19 @@
     // what happened in the meantime
     Eng.applyEvents(state, { events: Array.isArray(obj.events) ? obj.events : [] }, [], 'hours', res,
       { regional: true, world: plan.hours >= 72 }, { local: 2, regional: 2, world: plan.hours >= 72 ? 1 : 0 }, true);
+    // Other timeline events due at the same hour happen too (as news).
+    if (canonRest.length) E.Timeline.resolveDue(state, canonRest, obj.canon, res);
+    if (plan.canonMode === 'diverge') {
+      const m = obj.major_event;
+      const done = E.Timeline.resolveDue(state, [canonLead], m && typeof m === 'object' ? [{ id: canonLead.ev.id, text: m.text, effects: m.effects }] : [], res);
+      if (done.length) res.major = { text: done[0], scope: 'canon' };
+    }
     // the interrupting event, when it isn't a pressure clock firing or someone's agenda
-    if (plan.reason === 'agenda') {
+    if (res.major) {
+      // a rewritten timeline event (above)
+    } else if (plan.reason === 'canon' && plan.canonMode === 'fired') {
+      res.major = { text: plan.canonText, scope: 'canon' };
+    } else if (plan.reason === 'agenda') {
       const c = state.characters[plan.agenda.id];
       const text = stepSentence(c, plan.agenda);
       res.events.push(`[major] ${text}`);
@@ -2672,6 +2724,9 @@
     // Before the start snapshot, so a step-in (which rewinds to it) keeps it.
     const tierChanges = Eng.promoteForAction(state, Eng.present(state), action, state.turn + 1);
     const extraNotes = Eng.noteExtraMentions(state, action, state.turn + 1);
+    // Nothing planned for the next few days: the model projects some (task 5-2).
+    const timelineNotes = [];
+    if (E.Timeline.needsProjection(state)) { phase('Planning the days ahead…'); await E.Timeline.project(state, timelineNotes); }
     const pre = E.clone(state);
     delete pre.log; delete pre.pending; delete pre.undo;
     state.turn += 1;
@@ -2680,10 +2735,14 @@
     const system = E.Prompts.header(state); // same prefix for all calls this turn
 
     const due = Eng.tiersDue(state, step.hours);
+    // Canon events due this span, checked now; broken "diverge" ones are
+    // rewritten by the intent call. They are outside the tier rationing.
+    const canonDue = E.Timeline.due(state, step.hours);
+    due.canon = E.Timeline.diverging(canonDue);
     phase(due.world ? 'The wider world stirs…' : due.regional ? 'Something stirs nearby…' : 'Characters deciding…');
     const intentObj = await E.LLM.chatJSON({
       kind: 'intent', system, user: E.Prompts.intent(state, present, action, step.label, step.id, due),
-      maxTokens: 260 + 150 * present.length + 60 * Eng.standeesAt(state, state.characters[state.player].status.location).length + 80 * Eng.agendasDue(state).length + (due.regional ? 120 : 0) + (due.world ? 140 : 0), temperature: 0.7,
+      maxTokens: 260 + 150 * present.length + 60 * Eng.standeesAt(state, state.characters[state.player].status.location).length + 80 * Eng.agendasDue(state).length + (due.regional ? 120 : 0) + (due.world ? 140 : 0) + 120 * due.canon.length, temperature: 0.7,
     });
 
     const frame = { startTime: E.fmtTime(state), startLoc: state.characters[state.player].status.location, stepId: step.id, stepLabel: step.label, words: step.words, spanMinutes: Math.round(step.hours * 60) };
@@ -2692,9 +2751,10 @@
     const siteNotes = [];
     await E.Sites.forIntent(state, intentObj, action, pre, phase, siteNotes);
     const res = Eng.resolve(state, intentObj, present, action, step.id, due);
+    E.Timeline.resolveDue(state, canonDue, intentObj.canon, res);
     tierChanges.forEach((t) => guard(res, 'resolve', 'cast tier', t));
     extraNotes.forEach((t) => guard(res, 'resolve', 'extras', t));
-    siteNotes.forEach((n) => guard(res, 'resolve', n.type, n.detail));
+    siteNotes.concat(timelineNotes).forEach((n) => guard(res, 'resolve', n.type, n.detail));
     const before = timeSnapshot(state);
     Eng.advanceTime(state, step.hours, res);
     E.Sites.noteVisit(state, frame.startLoc);

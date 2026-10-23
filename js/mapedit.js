@@ -96,6 +96,11 @@
       .filter((e) => e && typeof e === 'object');
   }
   const regionLore = (world, starts, files, id) => loreEntries(world, starts, files).filter((e) => e.level === 'region' && e.ref === id);
+  // Timeline events (task 5-2) in world.json and starts, and the "controls"
+  // preconditions inside them (also inside "not").
+  const timelineEvents = (world, starts) => [].concat(world.timeline || [], ...Object.values(starts || {}).map((s) => s.timeline || []))
+    .filter((ev) => ev && typeof ev === 'object');
+  const controlsOf = (p) => (!p || typeof p !== 'object' ? [] : p.controls ? [p.controls] : p.not ? controlsOf(p.not) : []);
   M.renameRegion = function (world, starts, from, to, files) {
     if (from === to) return;
     const r = (world.regions || []).find((x) => x.id === from);
@@ -107,6 +112,10 @@
     }
     eachRef(world, starts, (id) => (id === from ? to : id));
     regionLore(world, starts, files, from).forEach((e) => { e.ref = to; });
+    timelineEvents(world, starts).forEach((ev) => {
+      if (ev.region === from) ev.region = to;
+      (ev.preconditions || []).flatMap(controlsOf).forEach((c) => { if (c.region === from) c.region = to; });
+    });
   };
   // Deletes a region and everything pointing at it. A start or room left
   // without a region falls back to the first region left (validation needs
@@ -123,6 +132,17 @@
       e.level = 'topic';
       delete e.ref;
       notes.push(`lore "${e.id}" is now a topic (it only comes up by its keywords)`);
+    });
+    // Timeline events there move to the fallback region (or become world
+    // events), and preconditions about who holds it are removed.
+    timelineEvents(world, starts).forEach((ev) => {
+      if (ev.region === id) {
+        if (fallback) { ev.region = fallback; notes.push(`timeline "${ev.id}" now happens in ${fallback}`); }
+        else { delete ev.region; ev.scope = 'world'; notes.push(`timeline "${ev.id}" is now a world event`); }
+      }
+      const before = (ev.preconditions || []).length;
+      if (before) ev.preconditions = ev.preconditions.filter((p) => !controlsOf(p).some((c) => c.region === id));
+      if (ev.preconditions && ev.preconditions.length < before) notes.push(`timeline "${ev.id}" lost a precondition about who holds ${id}`);
     });
     if (!world.regions.length) {
       delete world.regions;

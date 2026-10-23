@@ -1863,6 +1863,7 @@
       renderTelemetry() +
       (state ? `<details><summary>Fact store (${state.facts.length})</summary><pre>${esc(facts)}</pre></details>` : '') +
       (state ? `<details><summary>Characters: needs, tiers, mood and tags</summary><pre>${esc(characterDebug())}</pre></details>` : '') +
+      (state && E.Timeline.all(state).length ? `<details><summary>Timeline (${E.Timeline.pending(state).length} upcoming)</summary><pre>${esc(timelineDebug())}</pre></details>` : '') +
       (state && Object.keys(state.sites || {}).length ? `<details><summary>Places made during the story (${Object.keys(state.sites).length})</summary><pre>${esc(sitesDebug())}</pre></details>` : '') +
       notes.slice().reverse().map((n) => `<details class="note"><summary><b>${esc(n.kind)}</b> · ${esc(n.summary)}</summary><pre>${esc(n.detail)}</pre></details>`).join('') +
       calls.map((c) => `<details><summary><b>${esc(c.kind)}</b> · ${esc(c.backend || '')} · ${c.ms} ms · ~${c.estTokens} tokens${c.overBudget ? ' <span class="fail">over context!</span>' : ''}${c.finish === 'length' ? ' <span class="fail">cut off at the token limit</span>' : ''}${c.salvaged ? ' <span class="fail">salvaged: kept the complete part</span>' : ''}${c.error ? ' <span class="fail">' + esc(c.error) + '</span>' : ''}</summary>
@@ -1870,6 +1871,18 @@
         <div class="muted">User</div><pre>${esc(c.user)}</pre>
         <div class="muted">Raw output</div><pre>${esc(c.raw)}</pre></details>`).join('') ||
       '<div class="muted">No model calls yet.</div>';
+  }
+  // The timeline (task 5-2): upcoming events with each precondition as it
+  // stands now, then what became of the rest. Debug only: the future is hidden.
+  function timelineDebug() {
+    const TL = E.Timeline;
+    const sc = state.scenario;
+    const up = TL.pending(state).map((ev) => [`${TL.fmt(sc, ev.when)} [${ev.scope}${ev.projected ? ', projected' : ''}${ev.onBroken === 'diverge' ? ', diverges' : ''}] ${ev.id}: ${ev.text}`]
+      .concat(TL.status(state, ev).map((p) => `    ${p.ok ? '✓' : '✗'} ${p.text}`)).join('\n'));
+    const done = TL.all(state).filter((ev) => state.canon[ev.id] && state.canon[ev.id].status !== 'past')
+      .map((ev) => { const st = state.canon[ev.id]; return `${ev.id}: ${st.status} (${st.time || ''})${st.why ? ` — ${st.why}` : st.text && st.text !== ev.text ? ` — ${st.text}` : ''}`; });
+    return (up.length ? 'Upcoming:\n' + up.join('\n') : 'Nothing upcoming.') + (done.length ? '\n\nResolved:\n' + done.join('\n') : '') +
+      (state.projection === false ? '\n\n(This game started before projected events; none are planned.)' : '');
   }
   // Minor people (task 2-3): where they are, how often you named them, promotion.
   function extrasDebug() {

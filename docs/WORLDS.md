@@ -81,7 +81,8 @@ Static servers can't list directories, so `world.json` lists its starts and char
 | `portraitSet` | string[] | optional; image paths in the world folder used as stand-ins for characters without a `portrait`, picked by a hash of the id (task 1-7). Without it, a monogram |
 | `map` | object | optional world map (task 3-4): `{image, width, height, regions: {id: {polygon: [[x, y], …]} or {point: [x, y]}}, locations: {roomId: [x, y]}}`, in image pixels. Polygons need 3+ points; every point inside the image; region ids must exist, and room ids must exist in the world or in some start (the map is the world's, rooms are usually a start's). A region left off gets a point placed automatically (with a warning). Without a map, the world view draws a node map from the regions' `neighbours` |
 | `lore` | (object \| string)[] | lore entries (task 5-1), each inline or the id of a file in `lore/` (a file holds one entry, its `id` defaulting to the file name, or a list: a lore packet). See [Lore](#lore). Starts add to or replace entries by `id`, inline only |
-| reserved | | `timeline`: accepted and ignored until its phase |
+| `timeline` | object[] | canon events (task 5-2), past and future. See [Canon timeline](#canon-timeline). Starts add to or replace events by `id` |
+| `projectTimeline` | false \| object | default on: when no event is planned in the next few days, the model projects likely ones. `false` turns it off; `{days, max}` (1–14 and 1–5; defaults 3 and 3) tunes it. Starts may override |
 
 ## starts/&lt;id&gt;.json
 
@@ -154,7 +155,7 @@ Overridable per start: `status`, `needs`, `relations`, `knows`, `want`, `secret`
 
 1. Start with a deep clone of the world.
 2. **Scalars, strings and every other field** (`setting`, `timeLabel`, `majorEventDays`, and lists not named below such as `skills`, `needs`, `majorSeeds`, `revealSkills`): the start's value replaces the world's.
-3. **Lists of objects with `id`** (`locations`, `clocks`, `factions`, `extras`, `regions`, `standees`, `lore`): merge by id, with start entries replacing world entries field by field. New ids are appended.
+3. **Lists of objects with `id`** (`locations`, `clocks`, `factions`, `extras`, `regions`, `standees`, `lore`, `timeline`): merge by id, with start entries replacing world entries field by field. New ids are appended.
 4. **Lists of strings** (`rules`, `facts`, `tags`): world first, then the start's, without duplicates.
 5. **Plain objects** (`world`, `eventRates`, `eventSeeds`, `tiers`): shallow merge, with the start winning.
 6. `characters` = the start's cast ids in order; `characterData` = each pool file deep-merged with its cast entry (cast entry wins; plain objects such as `status`, `needs` and `relations` merge field by field, lists such as `knows` are replaced). Relations to pool characters who aren't in this start's cast are dropped (they're checked against the pool by `validateWorld` instead).
@@ -230,16 +231,45 @@ Task 5-1. A lore entry is public world knowledge, chosen per turn so a big world
 | `alwaysOn` | `world` entries only: always in the prompt header (keep these few and short) |
 | `sources` | optional `[{title, url}]`; for the creator, never sent to the model |
 
-**Lore is public.** It reaches the narrator, which never sees secrets, so anything secret belongs in a character's `secret` or in private facts, and anything that hasn't happened yet as of the start belongs in the canon timeline (phase 5), never in lore. Validation enforces the first part: an entry that shares 4 or more content words with someone's secret is an error.
+**Lore is public.** It reaches the narrator, which never sees secrets, so anything secret belongs in a character's `secret` or in private facts, and anything that hasn't happened yet as of the start belongs in the canon timeline, never in lore. Validation enforces the first part: an entry that shares 4 or more content words with someone's secret is an error.
 
 `mars-station` keeps its entries inline in `world.json`; `zombie-holdout` keeps them in `lore/town.json` and `lore/store.json` (packets) and lists `"lore": ["town", "store"]`.
+
+## Canon timeline
+
+Task 5-2. Events that happen at a set time whatever the player does, unless the story has broken them (how they play: `docs/DESIGN.md` › Canon timeline).
+
+```json
+{ "id": "convoy-checkpoint", "when": { "day": 26, "hour": 9 }, "scope": "regional", "region": "junction",
+  "text": "The rescue convoy reaches the highway junction and sets up a checkpoint under the overpass.",
+  "visibility": "heard", "effects": { "control": [{ "region": "junction", "to": "convoy" }] },
+  "preconditions": [{ "controls": { "group": null, "region": "junction" } }], "onBroken": "diverge" }
+```
+
+| field | notes |
+|---|---|
+| `id` | lowercase letters, digits, `-` or `_`; a start's event with the same id replaces the world's |
+| `when` | `{day, hour}`, whole numbers (hour 0–23), on the same clock as the start's `start`. Before the start it is the **past** |
+| `scope` | `regional` (needs a `region` when the world has regions) or `world` (`region` optional) |
+| `text` | up to 240 characters, as the news will say it |
+| `visibility` | `heard` (default), `seen` or `hidden` (only the people in `who` learn of it, as a private fact; it changes nothing public) |
+| `who` | optional character ids involved |
+| `effects` | as for events: `world`, `groups`, `clocks`, `new_clock`, `control`, `add_tag`, `remove_tag`, `region_status`; checked when it happens |
+| `preconditions` | all must hold when it comes due: `{"alive": id}`, `{"controls": {"group": id or null, "region": id}}`, `{"clock": id, "atLeast": n}` (or fired), `{"world": key, "is": "value"}`, `{"known": "event id"}` or `{"known": {"words": [...]}}` with optional `"by": id` (default the player), `{"not": {...}}` |
+| `onBroken` | `drop` (default: it doesn't happen) or `diverge` (the model writes what happens instead) |
+
+**The past** becomes public facts and a "Before the story" chapter at New game; hidden past events become private facts for `who`. Past events don't use `effects`, `preconditions` or `onBroken` (a warning): write the world as it is at the start. **The future** never reaches a prompt before it is due, so lore and descriptions must not mention it either. A public event that shares 4+ content words with someone's secret is an error, as for lore.
+
+**Projected events.** When nothing is planned for the next few days (`projectTimeline.days`), the model plans 1–`max` likely public events in that window, from where things stand and the timeline so far (its spacing sets the pace). They are checked like authored ones (dates in the window, real ids, no secrets, no one dead, no repeats), kept in the save (`state.timeline`) and play like canon events, without preconditions. So a school world whose canon ends at the spring festival goes on to the next exam or Golden Week, and a world with no future timeline gets one.
+
+`mars-station` and `zombie-holdout` each have a past and future events with preconditions, one of which diverges.
 
 ## Saves
 
 - Bump the state `version` to `2`. New states store `scenario.worldId` and `scenario.startId`.
 - `Engine.migrate(state)` runs when a game is loaded (from browser storage or a file). For version 1 it sets `worldId = scenario.folder || scenario.id`, `startId = 'default'`, and `version = 2`. Nothing else changes, because the composed scenario has the same shape. A state with no `version` counts as 1.
 - Migration is a chain (`Engine.migrations[n]` takes version n to n + 1; `Engine.STATE_VERSION` is the current one), each step tested. The undo copy inside a state is migrated too. A save from a newer version is refused with a message. Replay fixtures are migrated before they play.
-- Later tasks added steps the same way; task 4-4 took it to `12` (`sites`, and `site` on generated rooms; older saves get `sites: {}`).
+- Later tasks added steps the same way; task 4-4 took it to `12` (`sites`, and `site` on generated rooms; older saves get `sites: {}`), and task 5-2 to `13` (`canon` outcomes and projected `timeline` events; older saves get none and `projection: false`, so they never start projecting).
 
 ## The picker
 
@@ -254,7 +284,7 @@ As built (task 1-3): two selects in the top bar, the start one hidden when a wor
 
 ## Reserved fields policy
 
-`S.validateWorld` and `S.validate` **accept and ignore** the reserved fields listed above (now only `timeline`), so creators can write content before the engine uses it. Unknown fields that aren't reserved are also accepted, but reported as a warning in the console and the Debug panel (a typo like `oppening` shouldn't silently do nothing). Warnings cover `world.json`, start files, cast entries and legacy `scenario.json`; character files aren't checked, since later phases add many character fields. `npm run check` prints them too.
+`S.validateWorld` and `S.validate` **accept and ignore** the reserved fields listed above (none at the moment), so creators can write content before the engine uses it. Unknown fields that aren't reserved are also accepted, but reported as a warning in the console and the Debug panel (a typo like `oppening` shouldn't silently do nothing). Warnings cover `world.json`, start files, cast entries and legacy `scenario.json`; character files aren't checked, since later phases add many character fields. `npm run check` prints them too.
 
 ## Tests
 

@@ -171,7 +171,9 @@ test('named on two turns, a minor person becomes a full character who keeps what
   assert.equal(c.agenda.goal, 'make the trailer safe');
   assert.ok(E.Engine.knownAbout(state, 'albee').some((f) => /shotgun/.test(f.text)), 'facts about her still hold');
   const after = E.Prompts.header(state);
-  assert.ok(after.startsWith(before.slice(0, before.indexOf('\n\n=== ESTABLISHED FACTS'))), 'the cached part of the header is unchanged');
+  // Everything before the live blocks (newcomers, then the story so far and facts) is unchanged.
+  const live = (h) => Math.min(...['\n\n=== STORY SO FAR', '\n\n=== ESTABLISHED FACTS'].map((m) => h.indexOf(m)).filter((i) => i >= 0));
+  assert.ok(after.startsWith(before.slice(0, live(before))), 'the cached part of the header is unchanged');
   assert.match(after, /=== CAST: JOINED DURING THE STORY ===\n- albee: Mrs\. Albee \(she\/her\), elderly neighbour, 81\./);
   assert.ok(lastReport(E).guards.some((g) => g.type === 'extra promoted' && /Mrs\. Albee \(she\/her\)/.test(g.detail)));
 });

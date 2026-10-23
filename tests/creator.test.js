@@ -75,13 +75,22 @@ test('renaming a region moves every reference; deleting one cleans them up', () 
   assert.ok(world.map.regions.strip && !world.map.regions['highway-strip']);
   const stripLore = () => f['lore/town.json'].find((e) => e.id === 'highway-strip');
   assert.equal(stripLore().ref, 'strip', 'region lore in lore/ files follows the rename');
+  const pumps = () => world.timeline.find((ev) => ev.id === 'pumps-dry');
+  assert.equal(pumps().region, 'strip', 'and so do timeline events');
   assert.equal(starts.herd.region, 'strip');
   assert.ok(world.regions.find((r) => r.id === 'junction').neighbours.includes('strip'));
   const notes = E.MapEdit.deleteRegion(world, starts, 'strip', f);
   assert.ok(!world.regions.some((r) => r.id === 'strip' || (r.neighbours || []).includes('strip')));
   assert.ok(!world.map.regions.strip);
   assert.equal(starts.herd.region, 'main-street', 'falls back to the first region left');
-  assert.deepEqual([...notes], ['start "herd" now starts in main-street', 'lore "highway-strip" is now a topic (it only comes up by its keywords)']);
+  assert.deepEqual([...notes], ['start "herd" now starts in main-street', 'lore "highway-strip" is now a topic (it only comes up by its keywords)', 'timeline "pumps-dry" now happens in main-street']);
+  assert.equal(pumps().region, 'main-street');
+  // A precondition about who holds a region follows a rename and goes with a delete.
+  const convoy = () => world.timeline.find((ev) => ev.id === 'convoy-checkpoint');
+  E.MapEdit.renameRegion(world, starts, 'junction', 'crossing', f);
+  assert.equal(convoy().preconditions[0].controls.region, 'crossing');
+  assert.ok(E.MapEdit.deleteRegion(world, starts, 'crossing', f).includes('timeline "convoy-checkpoint" lost a precondition about who holds crossing'));
+  assert.equal(convoy().preconditions.length, 0);
   assert.equal(stripLore().level, 'topic', 'the lore text is kept');
   assert.equal(stripLore().ref, undefined);
   // The edited world still loads.

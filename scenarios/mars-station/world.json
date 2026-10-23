@@ -466,6 +466,111 @@
       "text": "The next cargo lander is about nine weeks out, carrying spare parts, seeds and food. It lands by itself on a marked pad on the rim; until then, everything the station needs has to be fixed, grown or rationed from what is already here."
     }
   ],
+  "timeline": [
+    {
+      "id": "landing",
+      "when": {
+        "day": 1,
+        "hour": 10
+      },
+      "scope": "world",
+      "text": "The Ares crew landed on the rim of Hellas and sealed the first module of Ares Deep."
+    },
+    {
+      "id": "sol-120-storm",
+      "when": {
+        "day": 120,
+        "hour": 6
+      },
+      "scope": "regional",
+      "region": "crater-rim",
+      "text": "A regional dust storm buried the solar field for nine sols; the crew lived on batteries and rationed heat until it cleared."
+    },
+    {
+      "id": "lander-launch",
+      "when": {
+        "day": 190,
+        "hour": 12
+      },
+      "scope": "world",
+      "text": "Mission Control confirmed that the next cargo lander had launched from Earth."
+    },
+    {
+      "id": "halvorsen-review",
+      "when": {
+        "day": 216,
+        "hour": 14
+      },
+      "scope": "world",
+      "visibility": "heard",
+      "text": "Halvorsen Aerospace's quarterly review comes over the uplink: the board praises the crew and asks for more footage for its publicity campaign.",
+      "effects": {
+        "groups": [
+          {
+            "id": "sponsor",
+            "stance": "pleased in public; wants footage and good news for the campaign"
+          }
+        ]
+      },
+      "preconditions": [
+        {
+          "world": "comms",
+          "is": "online, 14-minute delay"
+        }
+      ],
+      "onBroken": "diverge"
+    },
+    {
+      "id": "midrotation-review",
+      "when": {
+        "day": 220,
+        "hour": 9
+      },
+      "scope": "world",
+      "visibility": "heard",
+      "text": "Mission Control's mid-rotation review arrives: the station lead is asked for a full status briefing on every system by the end of the week.",
+      "preconditions": [
+        {
+          "alive": "okafor"
+        },
+        {
+          "not": {
+            "world": "comms",
+            "is": "down"
+          }
+        }
+      ],
+      "onBroken": "diverge"
+    },
+    {
+      "id": "cargo-lander",
+      "when": {
+        "day": 277,
+        "hour": 11
+      },
+      "scope": "regional",
+      "region": "crater-rim",
+      "visibility": "heard",
+      "text": "The cargo lander touches down on its pad on the rim, carrying spare parts, seeds and food.",
+      "effects": {
+        "world": [
+          {
+            "key": "power",
+            "value": "solar arrays nominal; spare parts on hand"
+          }
+        ]
+      },
+      "preconditions": [
+        {
+          "not": {
+            "world": "power",
+            "is": "offline"
+          }
+        }
+      ],
+      "onBroken": "diverge"
+    }
+  ],
   "characters": [
     "navarro",
     "okafor",

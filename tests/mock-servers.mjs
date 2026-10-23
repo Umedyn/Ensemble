@@ -25,6 +25,11 @@ function answer(user) {
     const v = genMock.replies()[genStep];
     return JSON.stringify(typeof v === 'function' ? v(user) : v);
   }
+  // Projected timeline events (task 5-2): one, a day out.
+  if (user.includes('=== PLANNING AHEAD:')) {
+    const m = /"when":\{"day":(\d+)/.exec(user);
+    return JSON.stringify({ events: [{ when: { day: m ? Number(m[1]) : 2, hour: 10 }, scope: 'world', region: null, text: 'Mission Control schedules a routine systems check across every module.', visibility: 'heard', effects: null }] });
+  }
   if (user.includes('=== MAKING A CHARACTER ===')) {
     if (user.includes('personality traits')) return JSON.stringify({ traits: ['sharp-eyed', 'restless', 'loyal'] });
     if (user.includes('how this character talks')) return JSON.stringify({ voice: 'Quick and wry, trails off when nervous.' });

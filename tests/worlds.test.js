@@ -252,11 +252,13 @@ test('converted bundled worlds start the same game as their legacy versions', ()
     Object.values(now.state.locations).forEach((l) => ['size', 'level', 'outside', 'features', 'links'].forEach((k) => delete l[k]));
     // And faction colours for the world map (task 3-4).
     now.state.factions.forEach((f) => delete f.color);
+    // And the canon past (task 5-2): its facts and chapter zero.
+    now.state.facts = now.state.facts.filter((f) => !f.canon);
     ['characters', 'locations', 'clocks', 'world', 'facts', 'factions', 'order', 'time', 'recent', 'player'].forEach((k) =>
       assert.deepEqual(plain(now.state[k]), plain(before.state[k]), `${folder}: state.${k}`));
     assert.equal(now.state.scenario.worldId, folder);
     // Genre tags (task 1-4), regions (3-1) and always-on lore (5-1) were added after the conversion; everything else is unchanged.
-    const withoutGenre = (h) => h.replace(/\n\n=== (GENRE AND TONE|REGIONS|WORLD LORE) ===\n[\s\S]*?(?=\n\n=== )/g, '').replace(/ \[region: [a-z0-9_-]+\]/g, '');
+    const withoutGenre = (h) => h.replace(/\n\n=== (GENRE AND TONE|REGIONS|WORLD LORE|STORY SO FAR) ===\n[\s\S]*?(?=\n\n=== )/g, '').replace(/ \[region: [a-z0-9_-]+\]/g, '');
     assert.equal(withoutGenre(now.E.Prompts.header(now.state)), before.E.Prompts.header(before.state), `${folder}: prompt header`);
   }
 });

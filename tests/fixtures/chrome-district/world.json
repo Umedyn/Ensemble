@@ -34,6 +34,7 @@
   "eventRates": { "regional": 30, "world": 0 },
   "eventSeeds": { "regional": ["the Saints shake down a shop on the Strip", "a Kessler drone sweep"] },
   "generatedSites": { "maxSites": 8, "keepDays": 3 },
+  "projectTimeline": false,
   "sites": ["chop-shop"],
   "facts": ["Vex runs the Saints' chop shop on the docks and keeps the books himself."],
   "characters": ["rook", "juno", "mags"],

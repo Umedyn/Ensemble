@@ -19,6 +19,9 @@
 
   Mem.knows = (fact, id) => fact.known_by.includes('all') || fact.known_by.includes(id);
   Mem.playerFacts = (state) => state.facts.filter((f) => Mem.knows(f, state.player));
+  // For the header: past timeline events are already in the chapter-zero
+  // summary (task 5-2), so their facts are left out there.
+  Mem.headerFacts = (state) => Mem.playerFacts(state).filter((f) => !f.inSummary);
   // Facts a given character knows that the player does not.
   Mem.privateFacts = (state, id) =>
     state.facts.filter((f) => !Mem.knows(f, state.player) && Mem.knows(f, id));
@@ -34,7 +37,7 @@
   // Player-known facts for the shared prompt prefix. Always keeps weight-3
   // facts; if over budget, drops the oldest minor ones first.
   Mem.factsBlock = function (state) {
-    const facts = Mem.playerFacts(state);
+    const facts = Mem.headerFacts(state);
     const budget = Mem.budgets().facts;
     let lines = facts.map(factLine);
     if (E.estTokens(lines.join('\n')) <= budget) return lines.join('\n');
@@ -73,7 +76,7 @@
     if (Mem.turnsInChapter(state) >= E.settings.chapterLength) return 'length';
     // Big moments close a chapter early, but never after a single turn.
     if (state.flags.chapterWorthy && Mem.turnsInChapter(state) >= 2) return 'story beat';
-    const playerFacts = Mem.playerFacts(state).map(factLine).join('\n');
+    const playerFacts = Mem.headerFacts(state).map(factLine).join('\n');
     if (E.estTokens(playerFacts) > Mem.budgets().facts) return 'size';
     return false;
   };

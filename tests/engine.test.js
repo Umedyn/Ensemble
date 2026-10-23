@@ -40,7 +40,7 @@ test('scenario validation reports authoring mistakes', () => {
 test('scenario validation accepts and ignores fields the engine does not use yet', () => {
   const E = loadEngine();
   const sc = readScenario('mars-station');
-  Object.assign(sc, { tags: ['hard-sf'], timeline: [{ id: 'lander', title: 'The cargo lander arrives' }] });
+  Object.assign(sc, { tags: ['hard-sf'], endings: [{ id: 'rescue', title: 'The cargo lander arrives' }] });
   Object.assign(sc.characterData[1], { tags: ['stubborn'], portrait: 'okafor.png', region: 'tharsis' });
   const state = E.Engine.newGame(E.Scenario.validate(sc));
   assert.equal(state.characters[sc.characterData[1].id].name, sc.characterData[1].name);
@@ -380,6 +380,7 @@ test('the storm chain: firing a clock starts its follow-ups, and long skips stop
   const { E, state } = newGame();
   fixedRng(E, [0.999]); // keep random major events far away
   Object.values(state.characters).forEach((c) => { c.agenda = null; }); // and agendas (tests/agendas.test.js)
+  state.scenario.timeline = []; // and timeline events (tests/timeline.test.js)
   const plan1 = E.Engine.planMajorSkip(state);
   assert.equal(plan1.reason, 'clock');
   assert.equal(plan1.clock.id, 'storm');
@@ -568,11 +569,12 @@ test('undo after a chapter close also removes that chapter', async () => {
   await E.Engine.runTurn(state, 'Keep at it.', 'moment');
   const before = withoutUndo(state);
   await E.Engine.runTurn(state, 'Ask Teo.', 'moment');
-  assert.equal(state.chapters.length, 1);
+  // Chapter zero (the canon past, task 5-2) is there from the start.
+  assert.equal(state.chapters.length, 2);
   assert.ok(state.log.some((e) => e.type === 'chapter'));
   const info = E.Engine.undo(state);
   assert.deepEqual([...info.chaptersRemoved], [1]);
-  assert.equal(state.chapters.length, 0);
+  assert.deepEqual([...state.chapters.map((c) => c.n)], [0]);
   assert.equal(state.chapter, 1);
   assert.ok(!state.log.some((e) => e.type === 'chapter'));
   assert.equal(withoutUndo(state), before);
