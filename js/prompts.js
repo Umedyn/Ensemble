@@ -664,7 +664,7 @@ ${worldLines(state)}`;
     const ends = plan.reason === 'body'
       ? `The downtime ends when ${pc.name}'s body gives out: their plan left no room for ${Eng().needLimit(state, plan.body.need).missing}, and ${plan.body.text} Set "major_event" to null; your positions should fit that moment (who is there, who finds them).`
       : plan.reason === 'reckoning'
-      ? `The downtime ends when ${rk.name} comes to confront ${pc.name}, who has sat out ${plan.reckoning.sat.length} emergencies (${plan.reckoning.sat.map((t) => `"${t}"`).join('; ')}). ${rk.name} has had enough and comes with something real, true to who they are: an ultimatum, a decision about ${pc.name} made without them, or something taken away. Set "major_event" to null; ${rk.name} is with ${pc.name} at the end, and your positions should fit that moment.`
+      ? `The downtime ends when ${rk.name} comes to confront ${pc.name}, who has sat out ${plan.reckoning.sat.length} emergencies (${plan.reckoning.sat.map((t) => `"${t}"`).join('; ')}). ${rk.name} has had enough and comes with something real, true to who they are: an ultimatum, a decision about ${pc.name} made without them, or something taken away. Write it in "reckoning", and set "major_event" to null; ${rk.name} is with ${pc.name} at the end, and your positions should fit that moment.`
       : plan.reason === 'agenda'
       ? `The downtime ends when ${who.name} comes to find ${pc.name}: "${plan.agenda.text}". Set "major_event" to null; ${who.name} is with ${pc.name} at the end, and your positions should fit that moment.`
       : plan.reason === 'clock'
@@ -690,7 +690,7 @@ ${worldLines(state)}`;
 === TASK ===
 ${frame.days >= 1 ? 'This covers a long stretch of downtime.' : 'This covers a short stretch of time.'} ${plan.crisis ? `It starts with an emergency ${pc.name}'s plan ignores: the last scene ended on "${plan.crisis.text}" ` : ''}${ends}${onPlayer}
 Reply with JSON only:
-{${plan.crisis ? `"crisis":{"outcome":"one or two sentences","harm":${harmShape}},\n ` : ''}"montage":[{"after":"2d","text":"one or two sentences"}],
+{${plan.crisis ? `"crisis":{"outcome":"one or two sentences","harm":${harmShape}},\n ` : ''}${rk ? `"reckoning":"one sentence: what ${rk.name} demands, decides or takes away",\n ` : ''}"montage":[{"after":"2d","text":"one or two sentences"}],
  "events":[{"text":"one sentence","scope":"local|regional|world","who":["character_id"],"where":"location_id",${reg}"visibility":"heard","moves":[],"effects":null}],
  "major_event":{"text":"one or two sentences","scope":"local|regional|world","who":["character_id"],"where":"location_id",${reg}${writesMajor ? `"harm":${harmShape},` : ''}"effects":${effectShape(state)}},
  "positions":[{"id":"character_id","where":"location_id","doing":"what they are doing when it hits"}],

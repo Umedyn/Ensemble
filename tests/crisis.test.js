@@ -379,3 +379,107 @@ test('timeline news ends a skip but is no emergency, and the model repeating it 
   assert.ok(guards(out.res, 'event dropped').some((g) => /repeats the timeline event/.test(g)));
   assert.equal(state.facts.filter((f) => f.text === canon.text).length, 1);
 });
+
+// playtest-coffee-toothless: twenty more turns of coffee. Kit blacked out again
+// and again, the update step healed them in between, Okafor's ultimatum came
+// and went, and everyone who came asking for help was simply ignored.
+test('a reply that forgets to close "major_event" is still read, and its stray keys go back where they belong', () => {
+  const { E } = newGame();
+  const rec = require('./fixtures/playtest-coffee-toothless.json');
+  const obj = E.LLM.extractJSON(rec.actions[0].calls[0].response.text);
+  assert.ok(obj && obj.major_event, 'closed what was left open');
+  assert.ok(Array.isArray(obj.major_event.positions), 'positions ended up inside major_event (skipTurn moves them back)');
+});
+
+test('the update step cannot heal the player unless they rest or get care, and never raises their needs', () => {
+  const { E, state } = newGame();
+  const pc = state.characters.navarro;
+  pc.status.health = 'badly_hurt';
+  pc.needs.fatigue = 0.5;
+  const upd = { state: [{ target: 'char:navarro', field: 'health', value: 'hurt' }, { target: 'char:navarro', field: 'need', need: 'fatigue', delta: 1 }] };
+  let rep = E.Engine.applyUpdate(state, upd, [], { action: 'Drink more coffee.' });
+  assert.equal(pc.status.health, 'badly_hurt');
+  assert.equal(pc.needs.fatigue, 0.5);
+  assert.ok(rep.rejected.some((r) => /only mends when their own action rests/.test(r)));
+  assert.ok(rep.rejected.some((r) => /needs only climb with time/.test(r)));
+  E.Engine.applyUpdate(state, { state: [{ target: 'char:navarro', field: 'health', value: 'ok' }] }, [], { action: 'Lie down in med bay and sleep.' });
+  assert.equal(pc.status.health, 'badly_hurt', 'two steps at once is too much');
+  E.Engine.applyUpdate(state, { state: [{ target: 'char:navarro', field: 'health', value: 'hurt' }] }, [], { action: 'Lie down in med bay and sleep.' });
+  assert.equal(pc.status.health, 'hurt', 'rest mends a step');
+  rep = E.Engine.applyUpdate(state, { state: [{ target: 'char:navarro', field: 'health', value: 'badly_hurt' }] }, [], { action: 'x', playerHarmed: true });
+  assert.equal(pc.status.health, 'hurt', 'the engine already counted this turn\'s blow');
+  E.Engine.applyUpdate(state, { state: [{ target: 'char:navarro', field: 'health', value: 'dead' }] }, [], { action: 'x' });
+  assert.equal(pc.status.health, 'badly_hurt', 'a blow from the scene is one step');
+});
+
+test('the same limit pushed again goes a step past its worst, deadly only where danger is lethal; each collapse counts as sitting out', async () => {
+  const { E, state } = newGame();
+  const pc = state.characters.navarro;
+  quietSkip(state);
+  model(E, { intent: () => ({ montage: [], events: [], major_event: null, positions: [], player_where: 'commons' }) });
+  E.Engine.RECKONING_AFTER = Infinity;
+  pc.status.health = 'badly_hurt';
+  pc.collapses = { fatigue: 1 };
+  pc.needs.fatigue = 1; pc.needsOver = { fatigue: 12 };
+  fixedRng(E, [0.999]);
+  const out = await E.Engine.runTurn(state, 'Keep drinking coffee', 'major');
+  assert.equal(out.plan.reason, 'body');
+  assert.equal(pc.status.health, 'dead', 'Ares Deep is survival: danger is lethal');
+  assert.ok(state.ignored.some((t) => /blacks out/.test(t)));
+
+  const mild = newGame();
+  const mpc = mild.state.characters.navarro;
+  mild.state.scenario.tags = ['slice-of-life'];
+  quietSkip(mild.state);
+  model(mild.E, { intent: () => ({ montage: [], events: [], major_event: null, positions: [], player_where: 'commons' }) });
+  mild.E.Engine.RECKONING_AFTER = Infinity;
+  mpc.status.health = 'badly_hurt';
+  mpc.collapses = { fatigue: 1 };
+  mpc.needs.fatigue = 1; mpc.needsOver = { fatigue: 12 };
+  fixedRng(mild.E, [0.999]);
+  await mild.E.Engine.runTurn(mild.state, 'Keep drinking coffee', 'major');
+  assert.equal(mpc.status.health, 'badly_hurt', 'a mild world never kills by exhaustion');
+});
+
+test('someone who comes to the player and is ignored next turn trusts them less and it counts as sitting out', async () => {
+  const { E, state } = newGame();
+  quietSkip(state);
+  E.Engine.RECKONING_AFTER = Infinity;
+  model(E, { intent: () => ({ montage: [], events: [], major_event: null, positions: [], player_where: 'commons' }) });
+  const before = state.characters.bauer.relations.navarro;
+  state.ask = { turn: state.turn, who: 'bauer', text: 'Teo asks Kit for help rebuilding the recycler pump.' };
+  fixedRng(E, [0.999]);
+  const out = await E.Engine.runTurn(state, 'Drink more coffee.', 'major');
+  assert.equal(state.characters.bauer.relations.navarro, before - E.Engine.ASK_TRUST);
+  assert.ok(state.ignored.some((t) => /Teo Bauer came to Kit Navarro and was turned away/.test(t)));
+  assert.equal(guards(out.res, 'ask ignored').length, 1);
+
+  const b = newGame();
+  quietSkip(b.state);
+  model(b.E, { intent: () => ({ montage: [], events: [], major_event: null, positions: [], player_where: 'commons' }) });
+  b.state.ask = { turn: b.state.turn, who: 'bauer', text: 'Teo asks Kit for help rebuilding the recycler pump.' };
+  fixedRng(b.E, [0.999]);
+  const ok = await b.E.Engine.runTurn(b.state, 'Help rebuild the pump.', 'major');
+  assert.equal(guards(ok.res, 'ask ignored').length, 0, 'answering the ask is enough');
+});
+
+test("a reckoning carries the model's ultimatum, and ignoring it sidelines the player: everyone trusts them less", async () => {
+  const { E, state } = newGame();
+  fixedRng(E, [0.999]);
+  quietSkip(state);
+  state.ignored = ['The storm hits.', 'The recycler fails.'];
+  const ultimatum = 'Okafor tells Kit to take charge of the recycler rebuild by morning or be written up as unfit for duty.';
+  model(E, { intent: () => ({ reckoning: ultimatum, montage: [], events: [], major_event: null, positions: [], player_where: 'commons' }) });
+  const out = await E.Engine.runTurn(state, 'Drink coffee.', 'major');
+  assert.equal(out.plan.reason, 'reckoning');
+  assert.equal(out.res.major.text, ultimatum);
+  assert.equal(state.ask.reckoning, true);
+  const trust = Object.fromEntries(['okafor', 'sorensen', 'raman', 'bauer'].map((id) => [id, state.characters[id].relations.navarro]));
+  model(E, { intent: () => ({ montage: [], events: [], major_event: null, positions: [], player_where: 'commons' }) });
+  fixedRng(E, [0.999]);
+  const next = await E.Engine.runTurn(state, 'Drink coffee.', 'major');
+  assert.equal(guards(next.res, 'sidelined').length, 1);
+  Object.entries(trust).forEach(([id, t]) => assert.equal(state.characters[id].relations.navarro, t - E.Engine.SIDELINED_TRUST, id));
+  assert.ok(state.characters.navarro.tags.some((t) => /sidelined/.test(t.text)));
+  assert.ok(state.facts.some((f) => /ignored Dr\. Imani Okafor's ultimatum/.test(f.text)));
+});

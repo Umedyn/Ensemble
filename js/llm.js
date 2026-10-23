@@ -144,6 +144,7 @@
     const start = t.indexOf('{');
     if (start < 0) return null;
     let depth = 0, inStr = false, esc = false, end = -1;
+    const open = [];
     for (let i = start; i < t.length; i++) {
       const c = t[i];
       if (inStr) {
@@ -153,11 +154,14 @@
         continue;
       }
       if (c === '"') inStr = true;
-      else if (c === '{') depth++;
-      else if (c === '}') { depth--; if (depth === 0) { end = i; break; } }
+      else if (c === '{' || c === '[') { open.push(c === '{' ? '}' : ']'); if (c === '{') depth++; }
+      else if (c === '}' || c === ']') { open.pop(); if (c === '}') { depth--; if (depth === 0) { end = i; break; } } }
     }
     const chunk = end > 0 ? t.slice(start, end + 1) : t.slice(start);
     const attempts = [chunk, chunk.replace(/,\s*([}\]])/g, '$1')];
+    // A closing brace the model forgot (playtest-coffee-toothless: "major_event"
+    // left open, so "positions" ended up inside it): close what is still open.
+    if (end < 0 && !inStr && open.length) attempts.push(chunk.replace(/\s+$/, '') + open.reverse().join(''));
     for (const a of attempts) {
       try { return JSON.parse(a); } catch (e) {}
     }

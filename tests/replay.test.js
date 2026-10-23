@@ -367,5 +367,5 @@ test('playtest: coffee instead of sleep catches up with Kit: their fatigue climb
   assert.equal(last.result.plan.reason, 'body');
   assert.equal(last.state.characters.navarro.status.health, 'hurt');
   assert.ok(last.result.res.guards.some((g) => g.type === 'body gives out' && /left no room for sleep/.test(g.detail)));
-  assert.equal(last.state.ignored.length, 1, 'the storm, sat out in the second skip, still counts');
+  assert.equal(last.state.ignored.length, 3, 'the storm sat out, Teo turned away, and the collapse all count');
 });
