@@ -781,7 +781,8 @@ await check('world and regional views: regions by who holds them, the info strip
   assert.equal(await page.locator('#worldSvg .region-g').count(), 5);
   assert.ok(await page.locator('.region-g[data-region="ridge-town"] .region-shape.fc-1').count(), 'Ridge in The Ridge\'s colour');
   assert.ok(await page.locator('.region-g[data-region="highway-strip"] .region-shape.here').count(), 'your region is marked');
-  assert.match(await page.textContent('#regionInfo'), /The highway strip \(you are here\).*held by no one.*quiet except for stragglers.*dead nearby/);
+  assert.match(await page.textContent('#regionInfo'), /The highway strip, a part of town in Harmon \(you are here\).*held by no one.*quiet except for stragglers.*dead nearby/
+);
   await page.locator('.region-g[data-region="ridge-town"] .region-shape').click({ position: { x: 40, y: 40 } });
   const info = await page.textContent('#regionInfo');
   assert.match(info, /Ridge.*held by The Ridge.*trucks seen coming and going.*fortified/);

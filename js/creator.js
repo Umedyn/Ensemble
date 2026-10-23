@@ -296,6 +296,8 @@
     return `<h3>${esc(r.name)} <span class="muted small">(${esc(r.id)})</span></h3>
       <div id="cRegionProblems"></div>
       <label>Name <input data-field="name" value="${esc(r.name)}" maxlength="40"></label>
+      <label>Inside <select data-field="parent"><option value="">the world (top level)</option>${M.parentChoices(w, r.id).map((x) => `<option value="${esc(x.id)}"${r.parent === x.id ? ' selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>
+      <label>Label <span class="muted small">(a word such as province, city or planet; display only)</span><input data-field="label" value="${esc(r.label || '')}" maxlength="30" placeholder="${esc((w.regionLabels || [])[S.regionChainIn(w.regions, r.id).length - 1] || '')}"></label>
       <label>Held by <select data-field="controller"><option value="">no one</option>${(w.factions || []).map((f) => `<option value="${esc(f.id)}"${r.controller === f.id ? ' selected' : ''}>${esc(f.name)}</option>`).join('')}</select></label>
       <label>Tags <span class="muted small">(comma-separated, up to ${S.REGION_TAGS})</span><input data-field="tags" value="${esc((r.tags || []).join(', '))}"></label>
       <label>Status <input data-field="status" value="${esc(r.status || '')}" maxlength="120"></label>
@@ -312,9 +314,18 @@
     const el = $('cRegionList');
     if (!el) return;
     const w = world();
-    el.innerHTML = (w.regions || []).map((r) => {
-      const placed = !w.map || (w.map.regions && w.map.regions[r.id]);
-      return `<button type="button" data-sel="${esc(r.id)}" aria-pressed="${r.id === ui.sel}"><span class="swatch ${D.factionClass(w.factions, r.controller)}"></span>${esc(r.name)}${placed ? '' : ' <span class="muted small">(not on the map)</span>'}</button>`;
+    // In tree order, the regions inside another indented under it (R-1).
+    const list = w.regions || [];
+    const order = [];
+    const walk = (id) => S.regionChildrenIn(list, id).forEach((c) => { order.push(list.find((x) => x.id === c)); walk(c); });
+    walk(null);
+    list.forEach((r) => { if (!order.includes(r)) order.push(r); }); // in a loop: listed anyway, validation says why
+    el.innerHTML = order.map((r) => {
+      const kids = S.regionChildrenIn(list, r.id).length;
+      const placed = !w.map || kids || (w.map.regions && w.map.regions[r.id]);
+      const depth = S.regionChainIn(list, r.id).length - 1;
+      return `<button type="button" data-sel="${esc(r.id)}" aria-pressed="${r.id === ui.sel}"${depth ? ` style="margin-left:${depth}rem"` : ''}><span class="swatch
+ ${D.factionClass(w.factions, r.controller)}"></span>${esc(r.name)}${placed ? '' : ' <span class="muted small">(not on the map)</span>'}</button>`;
     }).join('') || '<span class="muted">No regions yet.</span>';
   }
   function geometry() { const w = world(); return D.geometry(w.regions || [], w.map || null, w.id || cw.folder); }
@@ -577,6 +588,7 @@
       }
     } else if (f === 'tags') r.tags = t.value.split(',').map((x) => x.trim()).filter(Boolean);
     else if (f === 'status') r.status = t.value;
+    else if (f === 'label') { if (t.value.trim()) r.label = t.value.trim(); else delete r.label; }
     else if (f === 'lore') { r.lore = t.value; const c = $('cLoreCount'); if (c) c.textContent = `${t.value.length}/400`; }
     else return;
     changed(['canvas', 'list']);
@@ -607,6 +619,8 @@
     const r = ui.sel && (w.regions || []).find((x) => x.id === ui.sel);
     if (!r) return;
     if (t.dataset.field === 'controller') { r.controller = t.value || null; return changed(); }
+    if (t.dataset.field === 'parent') { if (t.value) r.parent = t.value; else delete r.parent; return changed(['canvas', 'list']); }
+
     if (t.dataset.neigh) { M.setNeighbour(w, r.id, t.dataset.neigh, t.checked); return changed(); }
   });
 
@@ -1110,7 +1124,9 @@
       <section><h3>World status</h3><p class="muted small">Public values the story can change (power, weather, what's open). Starts may add or change them.</p>${kvRows(F, 'world')}</section>
       <section><h3>Public facts</h3>${fld(F, 'facts', 'lines', null, { rows: 4, placeholder: 'One per line: true everywhere, known to everyone' })}</section>
       <section><h3>Advanced</h3>
+        ${fld(F, 'regionLabels', 'csv', 'Region labels by level', { placeholder: 'nation, province, city', hint: 'from the top; a region\'s own label wins' })}
         ${fld(F, 'revealSkills', 'csv', 'Skills that can pry secrets loose', { placeholder: 'social' })}
+
         ${(w.needs || []).length ? fld(F, 'revealPressure', 'csv', 'Needs that count as pressure on secrets', { placeholder: (w.needs || []).map((n) => n.id).join(', ') }) : ''}
         ${fld(F, 'skillPenalties', 'json', 'Roll penalties (JSON)', { rows: 3, placeholder: '{"health": {"hurt": -1}, "needs": [{"need": "fatigue", "at": 0.8, "penalty": -1}]}' })}
         ${fld(F, 'tagThresholds', 'json', 'Card tags from needs (JSON)', { rows: 2, placeholder: '{"fatigue": {"at": 0.8, "tag": "exhausted"}}' })}

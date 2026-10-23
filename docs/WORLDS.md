@@ -93,12 +93,36 @@ With no `starts` the picker offers only **✦ Make my own start** (as if the wor
 | `generatedSites` | object | optional (task 4-4): `{maxSites, keepDays, library}` (defaults 8 and 3; 1–30 and 1–60): the engine builds places the story goes that the map doesn't have. `library` (task 6-3) is a list of setting tags, such as `["modern"]`: shared site maps whose `setting` overlaps join the world's own. See [Generated sites](#generated-sites) |
 | `sites` | string[] | optional: library site maps in `sites/<id>.json`, used first when a new place fits one (task 4-4) |
 | `locations`, `clocks` | | optional world-wide ones (rare); usually per start. A location may set `region` (default: the start's `region`) |
-| `regions` | object[] | the map above the rooms (task 3-1): `{id, name, controller, tags, status, neighbours, lore}`. `controller` is a group id or `null`; `tags` up to 6 (30 characters each); `status` up to 120 characters; `lore` a summary up to 400, always in the prompt (no secrets or future events; the heavier detail goes in `region` lore entries, below). `startable: true` marks the regions a generated start can begin in (none marked: all). Neighbour links are made two-way when validated. Starts change them by `id`. Once a world has regions, every start needs `region` and every location a known region |
+| `regions` | object[] | the map above the rooms (task 3-1): `{id, name, controller, tags, status, neighbours, lore}`. `controller` is a group id or `null`; `tags` up to 6 (30 characters each); `status` up to 120 characters; `lore` a summary up to 400, always in the prompt (no secrets or future events; the heavier detail goes in `region` lore entries, below). `startable: true` marks the regions a generated start can begin in (none marked: all). Neighbour links are made two-way when validated. Starts change them by `id`. Once a world has regions, every start needs `region` and every location a known region. Since R-1, regions form a tree: `parent` (a region id) puts a region inside another, `label` is its display word (up to 30 characters). See [The region tree](#the-region-tree) |
+| `regionLabels` | string[] | optional (R-1): the display word for each level of the region tree, from the top (`["nation", "province", "city"]`, at most 6); a region's own `label` wins. Display only: the engine never branches on a label |
 | `portraitSet` | string[] | optional; image paths in the world folder used as stand-ins for characters without a `portrait`, picked by a hash of the id (task 1-7). Without it, a monogram |
 | `map` | object | optional world map (task 3-4): `{image, width, height, regions: {id: {polygon: [[x, y], …]} or {polygons: [[[x, y], …], …]} or {point: [x, y]}}, locations: {roomId: [x, y]}}`, in image pixels. Polygons need 3+ points; every point inside the image; region ids must exist, and room ids must exist in the world or in some start (the map is the world's, rooms are usually a start's). A region left off gets a point placed automatically (with a warning). Without a map, the world view draws a node map from the regions' `neighbours`. Since task 4-5: `polygons` for a region in several pieces (islands); `projection: "equirectangular"` and `bounds: [west, south, east, north]` in degrees for a map on the globe; `places` (named points, below); `base` (the base map it was cut from) and `credit`, `license`. See [Base maps and real places](#base-maps-and-real-places) |
 | `lore` | (object \| string)[] | lore entries (task 5-1), each inline or the id of a file in `lore/` (a file holds one entry, its `id` defaulting to the file name, or a list: a lore packet). See [Lore](#lore). Starts add to or replace entries by `id`, inline only |
 | `timeline` | object[] | canon events (task 5-2), past and future. See [Canon timeline](#canon-timeline). Starts add to or replace events by `id` |
 | `projectTimeline` | false \| object | default on: when no event is planned in the next few days, the model projects likely ones. `false` turns it off; `{days, max}` (1–14 and 1–5; defaults 3 and 3) tunes it. Starts may override |
+
+### The region tree
+
+Task R-1. A flat list of regions is a whole world; add `parent` only where the story needs more detail. France can go four levels deep while the rest of Europe stays one region each:
+
+```json
+"regionLabels": ["nation", "zone", "department", "city"],
+"regions": [
+  { "id": "france", "name": "France" },
+  { "id": "occupied", "name": "Occupied Zone", "parent": "france", "controller": "germany" },
+  { "id": "free", "name": "Free Zone", "parent": "france", "controller": "vichy" },
+  { "id": "paris", "name": "Paris", "parent": "occupied", "label": "city" },
+  { "id": "spain", "name": "Spain", "neighbours": ["france"] }
+]
+```
+
+- **Every field is optional.** A region without `parent` sits directly under the world. Depth varies by branch, up to 6 levels. Validation names regions by name: "Paris is inside Lyon, which is inside Paris", "Lyon is inside "x", which isn't one of the regions", "The Vault is 7 levels deep (inside …); 6 is the most".
+- **Rooms and sites hang off any region**, as before (`region` on a location, or the start's).
+- **Who holds what.** `controller` works at any level. A parent with no controller of its own shows its children's state in summary ("no single holder (The Occupation holds 1 of 2, …)"); it never gets a made-up owner.
+- **Near.** What counts as near a region (`Engine.regionNear`): its neighbours, then its siblings under the same parent (not at the top level: the other countries of a world map aren't near), then its children, at most 8. The player's region and what's near get their current state in the prompt; each region the player's is inside gets one entry on an `Inside:` line.
+- **The prompt.** The header's region block is an outline built once from the start's region: the start's chain, what's within two steps (neighbours, parent, children), the siblings along the chain and `notable` regions in full (up to 24), then names for the rest, top-level ones first. A line reads `- paris: Paris, a city in Occupied Zone — lore`. It is the same for the whole game, so a deep tree costs nothing per turn. A flat world gets the lines it always had.
+- **Lore and events up the chain.** Region lore for the regions the player's is inside comes in after the region's own (a ward with no lore still gets its city's); an event idea tied to an ancestor counts as near, and a regional event may name any of them.
+- **The map.** A region with regions inside it is drawn only when the map gives it a shape of its own (under its children); otherwise its children stand for it, and it needs no shape and gets no automatic point. Named `places` on the map stay pins in a region, not regions.
 
 ## starts/&lt;id&gt;.json
 
@@ -353,6 +377,7 @@ In `tests/worlds.test.js` (task 1-1), except the picker smoke test (task 1-3):
 - A cast entry overrides location, relations and knows; a plain id uses the file.
 - `validateWorld`: missing start file, cast id not in pool, player not in cast, duplicate ids.
 - The minimum world (R-0, `tests/minimum-world.test.js`): only a title and a setting validates, composes and starts a generated game; so does the same world with a few regions.
+- The region tree (R-1, `tests/regiontree.test.js`): chain, children and nearby on a branch-deep tree; validation in plain words; who holds a parent; the header outline stays the same across turns and moves; the user message doesn't grow with the tree; lore, event ideas and new places up the chain; the map and the creator; every bundled and fixture world still loads.
 - A legacy folder composes to the same scenario it produced before (snapshot of the `newGame` state's characters, locations and clocks).
 - Every bundled world validates with no warnings, and every start in it starts a game and plays a turn.
 - Each converted bundled world's default start begins the same game as its legacy version.

@@ -69,40 +69,65 @@
   // Static geography (task 3-1): names, neighbours and lore. Who holds a
   // region, its tags and status change in play, so they go in the user
   // message (regionLines), never here.
-  // A big map (a whole world of countries, task 4-5) keeps the detail near
-  // the start: P.regionFocus picks the regions shown in full; the rest are a
-  // line of names. Both come from the start's region, so the header is the
-  // same for the whole game (rule 7). Named places on the map are listed
-  // with their region.
+  // The outline (R-1): a big map (a whole world of countries, task 4-5) or a
+  // deep tree keeps the detail near the start. P.regionOutline walks out from
+  // the start's region along neighbours and the tree (parent and children):
+  // the start's chain, what is within two steps and "notable" regions are
+  // shown in full; the rest are a line of names, top-level ones first. It
+  // all comes from the start's region, so the header is the same for the
+  // whole game (rule 7). Named places on the map are listed with their region.
   P.REGIONS_FULL = 24;
   P.REGION_NAMES_MAX = 60;
-  P.regionFocus = function (sc) {
+  P.regionOutline = function (sc) {
     const list = sc.regions || [];
     if (list.length <= P.REGIONS_FULL) return { full: list, far: [] };
+    const S = E.Scenario;
     const byId = new Map(list.map((r) => [r.id, r]));
+    const order = new Map(list.map((r, i) => [r.id, i]));
+    const chain = sc.region && byId.has(sc.region) ? S.regionChainIn(list, sc.region) : [];
+    const links = (id) => (byId.get(id).neighbours || []).concat(byId.get(id).parent != null ? [byId.get(id).parent] : [], S.regionChildrenIn(list, id));
     const hops = new Map();
-    let frontier = sc.region && byId.has(sc.region) ? [sc.region] : [];
+    let frontier = chain.slice(0, 1);
     frontier.forEach((id) => hops.set(id, 0));
     for (let d = 1; frontier.length; d++) {
       const next = [];
-      frontier.forEach((id) => (byId.get(id).neighbours || []).forEach((n) => { if (byId.has(n) && !hops.has(n)) { hops.set(n, d); next.push(n); } }));
+      frontier.forEach((id) => links(id).forEach((n) => { if (byId.has(n) && !hops.has(n)) { hops.set(n, d); next.push(n); } }));
       frontier = next;
     }
-    const full = list.filter((r) => (hops.has(r.id) && hops.get(r.id) <= 2) || r.notable === true).slice(0, P.REGIONS_FULL);
+    const hop = (r) => (hops.has(r.id) ? hops.get(r.id) : 1e9);
+    // The chain first, then the nearest, then the siblings along the chain
+    // (the other zone of a split country), then notable ones; shown in the
+    // world's order.
+    const besideChain = (r) => r.parent != null && chain.includes(r.parent);
+    const rank = (r) => (chain.includes(r.id) ? -1 : hop(r) <= 2 ? hop(r) : besideChain(r) ? 3 : 4);
+    const full = list.filter((r) => chain.includes(r.id) || hop(r) <= 2 || besideChain(r) || r.notable === true)
+
+      .sort((a, b) => rank(a) - rank(b) || order.get(a.id) - order.get(b.id)).slice(0, P.REGIONS_FULL)
+      .sort((a, b) => order.get(a.id) - order.get(b.id));
     const shown = new Set(full.map((r) => r.id));
+    const top = (r) => (r.parent == null || !byId.has(r.parent) ? 0 : 1);
     const far = list.filter((r) => !shown.has(r.id))
-      .sort((a, b) => (hops.has(a.id) ? hops.get(a.id) : 1e9) - (hops.has(b.id) ? hops.get(b.id) : 1e9) || (a.name < b.name ? -1 : 1))
+      .sort((a, b) => top(a) - top(b) || hop(a) - hop(b) || (a.name < b.name ? -1 : 1))
       .slice(0, P.REGION_NAMES_MAX);
     return { full, far };
   };
+  // ", a part of town in Harmon", ", a town", " in Harmon" or "" (R-1): the
+  // region's label and what it is inside, by name, in plain words.
+  P.regionWhat = function (sc, id, withParent) {
+    const r = (sc.regions || []).find((x) => x.id === id);
+    if (!r) return '';
+    const label = E.Scenario.regionLabel(sc, id);
+    const parent = withParent && r.parent != null && (sc.regions || []).find((x) => x.id === r.parent);
+    return (label ? `, ${/^[aeiou]/i.test(label) ? 'an' : 'a'} ${label}` : '') + (parent ? ` in ${parent.name}` : '');
+  };
   B.regions = ({ sc }) => {
     if (!(sc.regions || []).length) return null;
-    const { full, far } = P.regionFocus(sc);
+    const { full, far } = P.regionOutline(sc);
     const places = (sc.map && Array.isArray(sc.map.places)) ? sc.map.places : [];
     const placesIn = (id) => places.filter((p) => p.region === id).map((p) => (p.kind === 'capital' ? `${p.name} (capital)` : p.name));
     const lines = ['\n=== REGIONS ==='].concat(full.map((r) => {
       const pl = placesIn(r.id);
-      return `- ${r.id}: ${r.name}${r.lore ? ` — ${r.lore}` : ''}${r.neighbours && r.neighbours.length ? ` (neighbours: ${r.neighbours.join(', ')})` : ''}${pl.length ? ` [places: ${pl.join(', ')}]` : ''}`;
+      return `- ${r.id}: ${r.name}${P.regionWhat(sc, r.id, true)}${r.lore ? ` — ${r.lore}` : ''}${r.neighbours && r.neighbours.length ? ` (neighbours: ${r.neighbours.join(', ')})` : ''}${pl.length ? ` [places: ${pl.join(', ')}]` : ''}`;
     }));
     if (far.length) lines.push(`Further away: ${far.map((r) => r.name).join(', ')}${sc.regions.length > full.length + far.length ? ', and others' : ''}.`);
     return lines;
@@ -180,25 +205,30 @@
     return Eng().linkedRooms(state, here).filter((o) => { const k = Eng().linkInfo(state, here, o); return k && k.locked; });
   };
 
-  // The current state of the player's region and its neighbours only.
+  // The current state of the player's region, the regions it is inside (R-1:
+  // a line a level, so depth costs little and the tree's size nothing) and
+  // what's near (capped) only.
   function regionLines(state) {
     const near = Eng().nearbyRegions(state);
     if (!near.length) return '';
-    const desc = (id) => {
+    const desc = (id, withLabel) => {
       const def = Eng().regionDef(state, id);
       const r = state.regions[id];
-      const f = r.controller && (state.factions || []).find((x) => x.id === r.controller);
-      const bits = [`held by ${f ? f.name : 'no one'}`];
+      const bits = [`held by ${Eng().regionHolder(state, id).text}`];
       if (r.tags.length) bits.push(`tags: ${r.tags.join(', ')}`);
       if (r.status) bits.push(r.status);
-      return `${def.name} (${id}): ${bits.join('; ')}`;
+      return `${def.name}${withLabel ? P.regionWhat(state.scenario, id) : ''} (${id}): ${bits.join('; ')}`;
     };
-    return `\nRegion: ${desc(near[0])}` + (near.length > 1 ? `\nNearby: ${near.slice(1).map(desc).join(' | ')}` : '');
+
+    const up = Eng().regionChain(state, near[0]).slice(1);
+    return `\nRegion: ${desc(near[0], true)}` + (up.length ? `\nInside: ${up.map((id) => desc(id, true)).join(' › ')}` : '')
+      + (near.length > 1 ? `\nNearby: ${near.slice(1).map((id) => desc(id)).join(' | ')}` : '');
   }
   // Event ideas (eventSeeds) are text or {text, region}. Regional ideas for
-  // regions far from the player are left out; the rest say where they are.
+  // regions away from the player are left out (an idea for a region the
+  // player is inside counts, R-1); the rest say where they are.
   function seedTexts(state, scope) {
-    const near = Eng().nearbyRegions(state);
+    const near = Eng().regionsAround(state);
     return ((state.scenario.eventSeeds || {})[scope] || []).map((s) => {
       if (typeof s === 'string') return s;
       if (!s.region) return s.text;
@@ -480,7 +510,7 @@ ${intentExample(state, present, action, due)}`;
       lines.push(`${due.regional ? 7 : 6}. A WORLD event is due: add exactly one event with "scope":"world" — a broad shift far away (organizations, money, politics, disasters) whose effects reach the people here.${seeds.world.length ? ' Ideas: ' + seeds.world.join('; ') + '.' : ''}`);
     }
     if (!lines.length) return '   No regional or world events this turn; keep events local.';
-    const near = Eng().nearbyRegions(state);
+    const near = Eng().regionsAround(state);
     if (near.length) lines.push(`   Give regional/world events a "region": the region id where it happens (regional events: ${near.join(', ')}; world events: any region, or null).`);
     lines.push(`   Give regional/world events concrete consequences in "effects":${effectShape(state)}. Use only existing keys/ids (${effectIds(state)}). Use new_clock {"name":"short name","max":8,"perHour":0.2,"fireText":"what happens when it runs out"} only for a genuinely new looming problem. Usually "visibility":"heard" (news, a message, an alarm).`);
     return lines.join('\n');
@@ -1020,7 +1050,10 @@ Reply with JSON only:
       const holder = (sc.factions || []).find((f) => f.id === r.controller);
       lines.push(`Region: ${r.name}${r.lore ? ` — ${r.lore}` : ''}`);
       lines.push(`Held by: ${holder ? holder.name : 'no one'}.${r.status ? ` Right now: ${r.status}.` : ''}${(r.tags || []).length ? ` (${r.tags.join(', ')})` : ''}`);
-      const near = (r.neighbours || []).map((id) => ((sc.regions || []).find((x) => x.id === id) || {}).name).filter(Boolean);
+      const nameOf = (id) => ((sc.regions || []).find((x) => x.id === id) || {}).name;
+      const up = E.Scenario.regionChainIn(sc.regions, r.id).slice(1).map(nameOf).filter(Boolean);
+      if (up.length) lines.push(`Inside: ${up.join(' › ')}.`);
+      const near = E.Scenario.regionNearIn(sc.regions, r.id).map(nameOf).filter(Boolean);
       if (near.length) lines.push(`Next to: ${near.join(', ')}.`);
     }
     const g = sc.start;

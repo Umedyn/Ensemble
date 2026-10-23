@@ -50,8 +50,13 @@ test('a region left off the map is warned about and gets a point along the botto
   const w = E.Scenario.prepareWorld('zombie-holdout', files);
   assert.ok([...w.warnings].some((m) => /region "ridge-town" is not on the map/.test(m)));
   const sc = w.starts[0].scenario;
-  const anchors = E.Layouts.regionAnchors(sc.regions, sc.map);
+  // Harmon holds regions of its own, so its children stand for it (R-1).
+  assert.ok(![...w.warnings].some((m) => /region "town"/.test(m)), 'a region with regions inside needs no shape');
+  const g = E.MapDraw.geometry(sc.regions, sc.map, 'zombie-holdout');
+  assert.equal(g.shapes.town, undefined);
+  const anchors = g.anchors;
   assert.deepEqual([...anchors['ridge-town']], [400, 536]);
+
   assert.ok(anchors.junction[0] > 300 && anchors.junction[0] < 640, 'a polygon anchors in its middle');
 });
 

@@ -100,7 +100,14 @@
   const timelineEvents = (world, starts) => [].concat(world.timeline || [], ...Object.values(starts || {}).map((s) => s.timeline || []))
     .filter((ev) => ev && typeof ev === 'object');
   const controlsOf = (p) => (!p || typeof p !== 'object' ? [] : p.controls ? [p.controls] : p.not ? controlsOf(p.not) : []);
+  // The regions a region may be put inside (R-1): any but itself and the
+  // regions inside it, which would make a loop.
+  M.parentChoices = function (world, id) {
+    const list = world.regions || [];
+    return list.filter((r) => r.id !== id && !E.Scenario.regionChainIn(list, r.id).includes(id));
+  };
   M.renameRegion = function (world, starts, from, to, files) {
+
     if (from === to) return;
     const r = (world.regions || []).find((x) => x.id === from);
     if (!r) return;
@@ -110,6 +117,8 @@
       delete world.map.regions[from];
     }
     eachRef(world, starts, (id) => (id === from ? to : id));
+    // The regions inside it (R-1).
+    (world.regions || []).forEach((x) => { if (x.parent === from) x.parent = to; });
     regionLore(world, starts, files, from).forEach((e) => { e.ref = to; });
     timelineEvents(world, starts).forEach((ev) => {
       if (ev.region === from) ev.region = to;
@@ -121,12 +130,19 @@
   // one), or loses the field when none are left. Its lore entries are kept as
   // topics (the text is the author's). Returns notes for the page.
   M.deleteRegion = function (world, starts, id, files) {
+    const gone = (world.regions || []).find((r) => r.id === id);
     world.regions = (world.regions || []).filter((r) => r.id !== id);
+    // The regions inside it move up to its own parent (R-1).
+    const up = gone && gone.parent != null && world.regions.some((r) => r.id === gone.parent) ? gone.parent : null;
+    const lifted = world.regions.filter((r) => r.parent === id);
+    lifted.forEach((r) => { if (up) r.parent = up; else delete r.parent; });
     if (world.map && world.map.regions) delete world.map.regions[id];
     const fallback = world.regions[0] ? world.regions[0].id : null;
     const moved = Object.entries(starts || {}).filter(([, s]) => s.region === id).map(([sid]) => sid);
     eachRef(world, starts, (x) => (x === id ? fallback : x), (x) => (x === id ? null : x));
     const notes = moved.map((sid) => (fallback ? `start "${sid}" now starts in ${fallback}` : `start "${sid}" has no region now`));
+    if (lifted.length) notes.push(`${lifted.map((r) => r.name).join(', ')} ${lifted.length > 1 ? 'are' : 'is'} now ${up ? `inside ${(world.regions.find((r) => r.id === up) || {}).name || up}` : 'at the top level'}`);
+
     regionLore(world, starts, files, id).forEach((e) => {
       e.level = 'topic';
       delete e.ref;

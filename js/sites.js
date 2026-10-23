@@ -263,7 +263,8 @@
     if (ask && ask.region && regions.length) {
       const r = regions.find((x) => x.id === ask.region || norm(x.name) === norm(ask.region));
       if (!r) return { error: `unknown region "${ask.region}"` };
-      const near = r.id === here || (Eng().regionDef(state, here) || {}).neighbours?.includes(r.id);
+      // Here, a region it is inside ("somewhere in Tokyo") or one near it (R-1).
+      const near = r.id === here || Eng().regionsAround(state).includes(r.id);
       if (!near) return { error: `${r.name} is too far for one step from here; go through a neighbouring region first` };
       region = r.id;
     }

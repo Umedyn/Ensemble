@@ -147,7 +147,8 @@ test('bigger events say where they happen: a known region, else the player\'s re
 test('the header lists the static geography and does not change when a region changes hands', () => {
   const { E, state } = zombies();
   const before = E.Prompts.header(state);
-  assert.match(before, /=== REGIONS ===\n- highway-strip: The highway strip — .* \(neighbours: main-street, residential, junction\)/);
+  assert.match(before, /=== REGIONS ===\n- highway-strip: The highway strip, a part of town in Harmon — .* \(neighbours: main-street, residential, junction\)/);
+  assert.match(before, /\n- town: Harmon, a town — A small farm town/);
   assert.ok(!/held by|overrun|fortified/.test(before), 'no controllers, tags or status in the header');
   regional(E, state, { control: [{ region: 'junction', to: 'convoy' }], add_tag: [{ region: 'junction', tag: 'checkpoint' }], region_status: [{ region: 'junction', status: 'convoy trucks parked across the ramp' }] });
   // The event itself becomes a public fact, so the header only grows at its end (rule 7).
@@ -160,12 +161,14 @@ test('the header lists the static geography and does not change when a region ch
 test('only the player\'s region and its neighbours reach the user message', () => {
   const { E, state } = zombies();
   const user = E.Prompts.intent(state, [], 'Look out.', 'about an hour', 'hour', { regional: true });
-  assert.match(user, /\nRegion: The highway strip \(highway-strip\): held by no one; tags: dead nearby; quiet except for stragglers\n/);
+  assert.match(user, /\nRegion: The highway strip, a part of town \(highway-strip\): held by no one; tags: dead nearby; quiet except for stragglers\n/);
+  assert.match(user, /\nInside: Harmon, a town \(town\): held by no one; mostly empty since the evacuation buses\n/);
   assert.match(user, /\nNearby: Main Street \(main-street\): .*\| The houses \(residential\): .*\| Highway junction \(junction\): /);
   assert.ok(!/Ridge \(ridge-town\)|fortified|trucks seen coming/.test(user), 'Ridge is two regions away: its state stays out');
-  assert.match(user, /"region": the region id where it happens \(regional events: highway-strip, main-street, residential, junction; world events: any region, or null\)/);
+  assert.match(user, /"region": the region id where it happens \(regional events: highway-strip, town, main-street, residential, junction; world events: any region, or null\)/);
   // Any region can change, even far ones; only their current state stays out.
-  assert.match(user, /regions: highway-strip, main-street, residential, junction, ridge-town\)/);
+  assert.match(user, /regions: highway-strip, main-street, residential, junction, ridge-town, town\)/);
+
   assert.match(user, /"control":\[\{"region":"region_id"/);
   const narr = E.Prompts.narrate(state, [], 'Look out.', { startLoc: 'floor', startTime: E.fmtTime(state), stepId: 'hour', stepLabel: 'about an hour', spanMinutes: 60 }, fresh());
   assert.ok(!/fortified/.test(narr));
@@ -179,7 +182,9 @@ test('regional event ideas for far regions are left out; the rest say where they
   state.characters[state.player].status.location = 'surface';
   const outside = E.Prompts.intent(state, [], 'Work.', 'about an hour', 'hour', { regional: true });
   assert.match(outside, /neighboring outpost going quiet on the regional relay \(Relay mast\)/);
-  assert.match(outside, /\nRegion: Hellas crater rim \(crater-rim\)/);
+  assert.match(outside, /\nRegion: Hellas crater rim, a stretch of surface \(crater-rim\)/
+
+);
 });
 
 test('a world without regions has no region lines or region effects in its prompts', () => {

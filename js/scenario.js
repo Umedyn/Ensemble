@@ -16,7 +16,7 @@
   const START_OWN = ['id', 'title', 'summary', 'start', 'player', 'cast', 'opening', 'castLabel', 'region', 'playerSlot', 'generated'];
   // World fields a start may override (merge rules below).
   const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'tagThresholds', 'portraitSet', 'factions', 'world',
-    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'standees', 'site', 'localMap', 'map', 'entrances', 'lore', 'timeline', 'projectTimeline'];
+    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'regionLabels', 'standees', 'site', 'localMap', 'map', 'entrances', 'lore', 'timeline', 'projectTimeline'];
   const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'date', 'characters', 'starts', 'generatedStarts', 'generatedSites', 'sites', ...OVERRIDABLE];
   const WORLD_RESERVED = [];
   const START_RESERVED = [];
@@ -287,8 +287,10 @@
       Object.keys(world.map.locations).forEach((id) => req(rooms.has(id), `map: unknown location "${id}"`));
     }
     // Regions the world map leaves out get an automatic point (task 3-4).
+    // A region with regions inside it needs no shape: its children stand for it (R-1).
     if (isObj(world.map) && Array.isArray(world.regions)) world.regions.forEach((r) => {
-      if (r && r.id && !(isObj(world.map.regions) && world.map.regions[r.id])) warnings.push(`world.json: region "${r.id}" is not on the map; it gets a point placed automatically`);
+      if (r && r.id && !world.regions.some((c) => c && c.parent === r.id) && !(isObj(world.map.regions) && world.map.regions[r.id])) warnings.push
+(`world.json: region "${r.id}" is not on the map; it gets a point placed automatically`);
     });
     // World-level extras and groups stand in a room of the world or of some start.
     const anyRoom = new Set([].concat(world.locations || [], ...startIds.map((sid) => (starts[sid] && starts[sid].locations) || [])).map((l) => l && l.id));
@@ -581,13 +583,68 @@
   // Neighbour links work both ways, so listing one side is enough; this fills
   // in the other. Locations need a known region once a world has regions.
   S.REGION_TAGS = 6;
+
+  // ---------- the region tree (R-1) ----------
+  // A region's optional "parent" puts it inside another; regions without one
+  // sit under the world. Depth varies by branch, up to S.REGION_DEPTH levels.
+  // Pure helpers over a list of region definitions, shared by validation, the
+  // engine (Eng.regionChain and friends) and the prompts.
+  S.REGION_DEPTH = 6;
+  S.REGION_NEAR = 8;
+  // Built on every call: the creator edits regions in place.
+  function tree(list) {
+    const regions = Array.isArray(list) ? list : [];
+    const byId = new Map();
+    const kids = new Map([[null, []]]);
+    regions.forEach((r) => { if (isObj(r) && r.id != null && !byId.has(r.id)) { byId.set(r.id, r); kids.set(r.id, []); } });
+    byId.forEach((r) => (kids.get(r.parent != null && byId.has(r.parent) ? r.parent : null) || kids.get(null)).push(r.id));
+    return { byId, kids };
+  }
+  // The region and its ancestors, nearest first (stops at a loop).
+  S.regionChainIn = function (list, id) {
+    const { byId } = tree(list);
+    const out = [];
+    for (let r = byId.get(id); r && !out.includes(r.id); r = r.parent != null ? byId.get(r.parent) : null) out.push(r.id);
+    return out;
+  };
+  // The regions directly inside one (null: the top level).
+  S.regionChildrenIn = (list, id) => (tree(list).kids.get(id == null ? null : id) || []).slice();
+  // What's near a region: its neighbours, then its siblings (only under a
+  // real parent: the top level of a 200-country map isn't "near"), then its
+  // children; never itself or its chain. Capped, so a big tree doesn't grow
+  // the prompts.
+  S.regionNearIn = function (list, id, cap) {
+    const { byId } = tree(list);
+    const r = byId.get(id);
+    if (!r) return [];
+    const chain = S.regionChainIn(list, id);
+    const out = [];
+    const add = (x) => { if (byId.has(x) && !chain.includes(x) && !out.includes(x)) out.push(x); };
+    (r.neighbours || []).forEach(add);
+    if (r.parent != null && byId.has(r.parent)) S.regionChildrenIn(list, r.parent).forEach(add);
+    S.regionChildrenIn(list, id).forEach(add);
+    return out.slice(0, cap == null ? S.REGION_NEAR : cap);
+  };
+  // The display word for a region: its own label, else the world's for its depth.
+  S.regionLabel = function (sc, id) {
+    const r = tree(sc.regions).byId.get(id);
+    if (!r) return null;
+    if (typeof r.label === 'string' && r.label.trim()) return r.label;
+    const labels = Array.isArray(sc.regionLabels) ? sc.regionLabels : [];
+    return labels[S.regionChainIn(sc.regions, id).length - 1] || null;
+  };
+
   function regionProblems(sc) {
     const problems = [];
     const req = (cond, msg) => { if (!cond) problems.push(msg); };
     const groupIds = new Set((sc.factions || []).map((f) => f.id));
     const list = sc.regions == null ? [] : Array.isArray(sc.regions) ? sc.regions : [null];
     const ids = new Set(list.filter(isObj).map((r) => r.id));
+    const byId = new Map(list.filter(isObj).map((r) => [r.id, r]));
+    const nameOf = (r) => (r && typeof r.name === 'string' && r.name.trim() ? r.name : `"${r && r.id}"`);
     const seen = new Set();
+    req(sc.regionLabels == null || (Array.isArray(sc.regionLabels) && sc.regionLabels.length <= S.REGION_DEPTH && sc.regionLabels.every((t) => typeof t === 'string' && t.trim() && t.length <= 30)),
+      `"regionLabels" must be a list of at most ${S.REGION_DEPTH} short words, one per level from the top (such as ["nation", "province", "city"])`);
     list.forEach((r) => {
       const where = `region "${(r && r.id) || '?'}"`;
       if (!isObj(r)) return problems.push('"regions" must be a list of {id, name, controller, tags, status, neighbours, lore}');
@@ -603,8 +660,26 @@
       req(r.startable == null || typeof r.startable === 'boolean', `${where}: "startable" must be true or false`);
       req(r.notable == null || typeof r.notable === 'boolean', `${where}: "notable" must be true or false`);
       req(r.wiki == null || (isObj(r.wiki) && [r.wiki.title, r.wiki.wikidata].every((v) => v == null || (typeof v === 'string' && v.trim()))), `${where}: "wiki" must be {title, wikidata}`);
+      req(r.label == null || (typeof r.label === 'string' && r.label.trim() && r.label.length <= 30), `${where}: "label" must be a short word (30 characters at most), such as "province"`);
+      if (r.parent != null) req(ids.has(r.parent), `${nameOf(r)} is inside "${r.parent}", which isn't one of the regions`);
       if (r.neighbours != null && !Array.isArray(r.neighbours)) return problems.push(`${where}: "neighbours" must be a list of region ids`);
       (r.neighbours || []).forEach((n) => req(ids.has(n) && n !== r.id, `${where}: unknown neighbour "${n}"`));
+    });
+    // The tree (R-1): no loops, at most S.REGION_DEPTH levels, in plain words.
+    const looped = new Set();
+    list.filter(isObj).forEach((r) => {
+      const path = [r];
+      for (let p = byId.get(r.parent); p; p = byId.get(p.parent)) {
+        if (p === r) {
+          // "Paris is inside Lyon, which is inside Paris"
+          if (!path.some((x) => looped.has(x.id))) problems.push(`${nameOf(r)} is inside ${path.slice(1).concat(r).map(nameOf).join(', which is inside ')}`);
+          path.forEach((x) => looped.add(x.id));
+          return;
+        }
+        if (path.includes(p)) return; // a loop further up, reported from there
+        path.push(p);
+      }
+      if (path.length > S.REGION_DEPTH) problems.push(`${nameOf(r)} is ${path.length} levels deep (inside ${path.slice(1).map(nameOf).join(' › ')}); ${S.REGION_DEPTH} is the most`);
     });
     if (!problems.length) {
       const byId = {};

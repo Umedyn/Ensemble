@@ -994,9 +994,10 @@
     const def = id && E.Engine.regionDef(state, id);
     const r = def && state.regions && state.regions[id];
     if (!r) return '';
-    const f = r.controller && (state.factions || []).find((x) => x.id === r.controller);
-    const bits = [`held by ${f ? f.name : 'no one'}`].concat(r.tags.length ? [r.tags.join(', ')] : [], r.status ? [r.status] : []);
-    return `<div class="world groups" title="${esc(def.lore || '')}"><b>${esc(def.name)}</b>: ${esc(bits.join('; '))}</div>`;
+    const bits = [`held by ${E.Engine.regionHolder(state, id).text}`].concat(r.tags.length ? [r.tags.join(', ')] : [], r.status ? [r.status] : []);
+    // The regions it is inside (R-1): "in Harmon County".
+    const up = E.Engine.regionChain(state, id).slice(1).map((x) => E.Engine.regionDef(state, x).name);
+    return `<div class="world groups" title="${esc(def.lore || '')}"><b>${esc(def.name)}</b>${up.length ? ` <span class="muted">(in ${esc(up.join(', '))})</span>` : ''}: ${esc(bits.join('; '))}</div>`;
   }
 
   const regionName = (id) => { const d = id && E.Engine.regionDef(state, id); return d ? ` · ${esc(d.name)}` : ''; };
@@ -1262,8 +1263,10 @@
     const now = state.regions[id];
     const ch = (state.regionChanged || {})[id];
     const fc = factionClass(now.controller);
-    const bits = [`<b>${esc(r.name)}</b>${id === E.Engine.playerRegion(state) ? ' (you are here)' : ''}`,
-      `<span class="swatch ${fc}"></span>held by ${esc(factionName(now.controller))}`];
+    // Where it sits in the tree (R-1), and who holds a parent's children.
+    const bits = [`<b>${esc(r.name)}</b>${esc(E.Prompts.regionWhat(state.scenario, id, true))}${id === E.Engine.playerRegion(state) ? ' (you are here)' : ''}`,
+
+      `<span class="swatch ${fc}"></span>held by ${esc(E.Engine.regionHolder(state, id).text)}`];
     if (now.status) bits.push(esc(now.status));
     if (now.tags.length) bits.push(`tags: ${esc(now.tags.join(', '))}`);
     let html = `<div class="region-info" id="regionInfo">${bits.join(' · ')}`;

@@ -72,9 +72,14 @@
       "color": 1
     }
   ],
+  "regionLabels": [
+    "town",
+    "part of town"
+  ],
   "regions": [
     {
       "id": "highway-strip",
+      "parent": "town",
       "name": "The highway strip",
       "controller": null,
       "tags": [
@@ -90,6 +95,7 @@
     },
     {
       "id": "main-street",
+      "parent": "town",
       "name": "Main Street",
       "controller": null,
       "tags": [
@@ -105,6 +111,7 @@
     },
     {
       "id": "residential",
+      "parent": "town",
       "name": "The houses",
       "controller": null,
       "tags": [
@@ -120,6 +127,7 @@
     },
     {
       "id": "junction",
+      "label": "crossroads",
       "name": "Highway junction",
       "controller": null,
       "tags": [
@@ -145,6 +153,15 @@
         "junction"
       ],
       "lore": "The next town over, up the ridge road. Its survivors walled off the school and the grain elevator early."
+    },
+    {
+      "id": "town",
+      "name": "Harmon",
+      "label": "town",
+      "controller": null,
+      "tags": [],
+      "status": "mostly empty since the evacuation buses",
+      "lore": "A small farm town off the two-lane highway, named for the family that ran the hardware store. Most people left on the evacuation buses in the first week; the rest are holed up, dead or gone."
     }
   ],
   "map": {

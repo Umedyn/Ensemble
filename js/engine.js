@@ -207,16 +207,42 @@
   };
 
   // Regions (task 3-1). The player's region is the region of the room they're
-  // in; "nearby" is that region and its neighbours, the only ones whose
-  // current state goes in prompts.
+  // in; "nearby" is that region and what's near it (R-1: neighbours, siblings
+  // under the same parent, children), the only ones whose current state goes
+  // in prompts. The tree (R-1): Eng.regionChain is a region and its
+  // ancestors, nearest first; the helpers are in Scenario.
   Eng.regionDef = (state, id) => (state.scenario.regions || []).find((r) => r.id === id) || null;
   Eng.regionOf = (state, loc) => (state.locations[loc] && state.locations[loc].region) || null;
   Eng.playerRegion = (state) => Eng.regionOf(state, state.characters[state.player].status.location);
+  Eng.regionChain = (state, id) => E.Scenario.regionChainIn(state.scenario.regions, id).filter((r) => state.regions && state.regions[r]);
+  Eng.regionChildren = (state, id) => E.Scenario.regionChildrenIn(state.scenario.regions, id).filter((r) => state.regions && state.regions[r]);
+  Eng.regionNear = (state, id) => E.Scenario.regionNearIn(state.scenario.regions, id).filter((r) => state.regions && state.regions[r]);
   Eng.nearbyRegions = (state) => {
     const id = Eng.playerRegion(state);
-    const def = id && Eng.regionDef(state, id);
-    if (!def || !state.regions || !state.regions[id]) return [];
-    return [id].concat((def.neighbours || []).filter((n) => state.regions[n]));
+    if (!id || !Eng.regionDef(state, id) || !state.regions || !state.regions[id]) return [];
+    return [id].concat(Eng.regionNear(state, id));
+  };
+  // The player's region, its ancestors and what's near: where a regional
+  // event may happen and which event ideas apply (a seed on France counts in Paris).
+  Eng.regionsAround = (state) => {
+    const near = Eng.nearbyRegions(state);
+    return near.length ? [...new Set(Eng.regionChain(state, near[0]).concat(near))] : [];
+  };
+  // Who holds a region, in words: its controller; for a parent with none of
+  // its own, a summary of its children (never a made-up owner); else no one.
+  // → { text, controller, mixed }
+  Eng.regionHolder = (state, id) => {
+    const now = state.regions && state.regions[id];
+    const name = (fid) => { const f = fid && (state.factions || []).find((x) => x.id === fid); return f ? f.name : 'no one'; };
+    if (!now) return { text: 'no one', controller: null, mixed: false };
+    if (now.controller) return { text: name(now.controller), controller: now.controller, mixed: false };
+    const kids = Eng.regionChildren(state, id);
+    if (!kids.length) return { text: 'no one', controller: null, mixed: false };
+    const counts = new Map();
+    kids.forEach((k) => { const c = state.regions[k].controller || null; counts.set(c, (counts.get(c) || 0) + 1); });
+    const held = [...counts.entries()].filter(([c]) => c);
+    if (!held.length) return { text: 'no one', controller: null, mixed: false };
+    return { text: `no single holder (${held.map(([c, n]) => `${name(c)} holds ${n} of ${kids.length}`).join(', ')})`, controller: null, mixed: true };
   };
   // Where a bigger event happens: a known region id, or the player's region
   // for a regional event that names none (or an unknown one). World events

@@ -214,6 +214,7 @@
     {
       "id": "station",
       "name": "Ares Deep",
+      "label": "outpost",
       "controller": "mission",
       "tags": [],
       "status": "five crew, 214 sols into a 500-sol rotation",
@@ -225,6 +226,7 @@
     {
       "id": "crater-rim",
       "name": "Hellas crater rim",
+      "label": "stretch of surface",
       "controller": "mission",
       "tags": [
         "dust season"
@@ -240,6 +242,7 @@
     {
       "id": "basin-floor",
       "name": "Hellas basin floor",
+      "label": "stretch of surface",
       "controller": null,
       "tags": [
         "unexplored"
@@ -253,6 +256,7 @@
     {
       "id": "relay-mast",
       "name": "Relay mast",
+      "label": "outpost",
       "controller": "sponsor",
       "tags": [],
       "status": "automated, checking in on the regional relay",

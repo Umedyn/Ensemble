@@ -47,6 +47,7 @@
     if (!all.length) return [];
     const room = o.room || state.characters[state.player].status.location;
     const region = Eng().regionOf(state, room);
+    const chain = region ? Eng().regionChain(state, region) : [];
     const people = [state.player].concat(Eng().present(state, room));
     const last = state.recent && state.recent[state.recent.length - 1];
     const scene = o.scene != null ? o.scene : last ? last.text : '';
@@ -62,6 +63,11 @@
       if (e.level === 'location' && e.ref === room) add(e, i, 0, 'the player is here');
       if (e.level === 'character' && people.includes(e.ref)) add(e, i, 0, e.ref === state.player ? 'the player character' : `${nm(e.ref)} is present`);
       if (e.level === 'region' && region && e.ref === region) add(e, i, 1, "the player's region");
+      // Up the tree (R-1): the regions the player's is inside, nearest first,
+      // after the action's keywords, so a place with no lore of its own is
+      // still grounded by its city's or its country's.
+      const up = e.level === 'region' && region ? chain.indexOf(e.ref) : -1;
+      if (up > 0) add(e, i, 2.5 + up / 10, `inside ${(Eng().regionDef(state, e.ref) || {}).name || e.ref}`);
       const kws = Array.isArray(e.keywords) ? e.keywords : [];
       const inAction = kws.find((k) => L.matches(k, o.action));
       if (inAction) add(e, i, 2, `"${inAction}" in the action`);

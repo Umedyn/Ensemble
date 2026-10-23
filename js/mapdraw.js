@@ -21,7 +21,12 @@
   // the automatic node map. regions: the definitions; map: the world's map
   // (or null); seed: the world id.
   D.geometry = function (regions, map, seed) {
-    regions = regions || [];
+    // A region with regions inside it (R-1) is drawn only when the map gives
+    // it a shape of its own; otherwise its children stand for it, and it gets
+    // no automatic point or node. Parents go first, so children sit on top.
+    const parents = new Set((regions || []).map((r) => r && r.parent).filter((p) => p != null));
+    const own = (r) => map && map.regions && map.regions[r.id];
+    regions = (regions || []).filter((r) => !parents.has(r.id) || own(r)).sort((a, b) => parents.has(b.id) - parents.has(a.id));
     if (map) {
       const anchors = E.Layouts.regionAnchors(regions, map);
       const shapes = {};
@@ -95,7 +100,8 @@
     };
     const edges = g.edges.map(([a, b]) => `<line class="region-edge" x1="${g.anchors[a][0]}" y1="${g.anchors[a][1]}" x2="${g.anchors[b][0]}" y2="${g.anchors[b][1]}"/>`).join('');
     const pulse = new Set(o.pulse || []);
-    const body = (o.regions || []).filter((r) => g.shapes[r.id]).map((r) => {
+    const parents = new Set((o.regions || []).map((r) => r.parent).filter((p) => p != null));
+    const body = (o.regions || []).filter((r) => g.shapes[r.id]).sort((a, b) => parents.has(b.id) - parents.has(a.id)).map((r) => {
       const now = (o.now || {})[r.id] || { controller: r.controller || null, tags: r.tags || [] };
       const fc = D.factionClass(o.factions, now.controller);
       const cls = `region-shape ${fc}${fc === 'none' ? ' none' : ''}${r.id === o.mine ? ' here' : ''}${r.id === o.selected ? ' selected' : ''}`;
