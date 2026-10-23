@@ -34,11 +34,15 @@
   GEN.PLAYER_FEELING = 25; // the cast has only just met the player
   GEN.PLURAL = /\b(couple|family|pair|twins|group|kids|children|people|men|women|survivors|neighbou?rs|brothers|sisters)\b/i;
   GEN.CONFIG_FIELDS = ['start', 'roles', 'skillPoints', 'maxSkill', 'castSize', 'castLabel'];
+  // Defaults for every generatedStarts field (R-0), so {} (or a world with
+  // no starts) plays.
+  GEN.DEFAULTS = { skillPoints: 10, maxSkill: 3, castSize: [3, 5] };
+  GEN.DATE = { day: 1, hour: 9 };
 
   // ---------- the world's settings ----------
   GEN.configProblems = function (world) {
-    const g = world.generatedStarts;
-    if (!isObj(g)) return ['"generatedStarts" must be an object with "skillPoints" and "maxSkill"'];
+    const g = world.generatedStarts == null ? {} : world.generatedStarts;
+    if (!isObj(g)) return ['"generatedStarts" must be an object (it may be empty)'];
     const problems = [];
     const req = (cond, msg) => { if (!cond) problems.push('generatedStarts: ' + msg); };
     Object.keys(g).filter((k) => !GEN.CONFIG_FIELDS.includes(k)).forEach((k) => req(false, `unknown field "${k}"`));
@@ -47,13 +51,13 @@
       '"castSize" must be [fewest, most], whole numbers from 1 to 8');
     req(g.castLabel == null || (typeof g.castLabel === 'string' && g.castLabel.length <= 30), '"castLabel" must be short text');
     // Roles and point-buy work like a start's playerSlot (task 4-1).
-    const sc = { skills: world.skills || [], needs: world.needs || [], locations: [{ id: '__here' }], characters: [], playerSlot: GEN.slot(world, '__here') };
+    const sc = { skills: world.skills || E.DEFAULT_SKILLS.slice(), needs: world.needs || [], locations: [{ id: '__here' }], characters: [], playerSlot: GEN.slot(world, '__here') };
     E.CharMaker.slotProblems(sc).forEach((p) => problems.push(p.replace(/^playerSlot: /, 'generatedStarts: ')));
     return problems;
   };
   GEN.slot = (world, location) => {
     const g = world.generatedStarts || {};
-    return { location, roles: g.roles || [], freeform: true, skillPoints: g.skillPoints, maxSkill: g.maxSkill };
+    return { location, roles: g.roles || [], freeform: true, skillPoints: g.skillPoints != null ? g.skillPoints : GEN.DEFAULTS.skillPoints, maxSkill: g.maxSkill != null ? g.maxSkill : GEN.DEFAULTS.maxSkill };
   };
   // Regions marked startable, or every region when none is.
   GEN.regions = function (world) {
@@ -67,11 +71,12 @@
   GEN.contextScenario = function (loaded, region) {
     const w = loaded.bundle.world;
     const sc = E.Scenario.compose(w, { id: 'generated', cast: [], region }, {}, loaded.folder);
-    sc.skills = sc.skills || ['physical', 'technical', 'social', 'knowledge', 'stealth'];
+    sc.skills = sc.skills || E.DEFAULT_SKILLS.slice();
     sc.needs = sc.needs || [];
-    // The date: the world's setting for generated starts, else the default start's.
+    // The date: the world's setting for generated starts, its date, the
+    // default start's, else day 1, 9:00.
     const def = loaded.defaultStart && loaded.bundle.starts[loaded.defaultStart];
-    sc.start = E.clone((w.generatedStarts && w.generatedStarts.start) || (def && def.start) || { day: 1, hour: 8 });
+    sc.start = E.clone((w.generatedStarts && w.generatedStarts.start) || w.date || (def && def.start) || GEN.DATE);
     return sc;
   };
   // A scenario for the 4-1 form: one placeholder room (the real one comes
@@ -258,7 +263,8 @@
     return { rooms, playerRoom: start.id, warnings };
   };
 
-  const castSize = (ctx) => (ctx.loaded.bundle.world.generatedStarts.castSize || [3, 5]);
+  GEN.castSize = (world) => ((world.generatedStarts || {}).castSize || GEN.DEFAULTS.castSize);
+  const castSize = (ctx) => GEN.castSize(ctx.loaded.bundle.world);
   C.plan = function (raw, ctx) {
     const [min, max] = castSize(ctx);
     const list = (isObj(raw) && Array.isArray(raw.people) ? raw.people : []).filter(isObj);
@@ -768,7 +774,7 @@
   GEN.toStart = function (loaded, job) {
     if (!GEN.done(job)) throw new Error('This start is not finished yet.');
     const w = loaded.bundle.world;
-    const g = w.generatedStarts;
+    const g = w.generatedStarts || {};
     const s = job.steps;
     const def = loaded.defaultStart && loaded.bundle.starts[loaded.defaultStart];
     const pc = E.clone(s.player.character);

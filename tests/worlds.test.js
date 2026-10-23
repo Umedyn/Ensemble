@@ -179,8 +179,9 @@ test('reserved fields are accepted silently; unknown fields are ignored with a w
   assert.ok(w.starts.every((s) => s.scenario), 'every start still composes');
 });
 
-test('a new-format world needs format 2', () => {
-  assert.throws(() => load((f) => delete f['world.json'].format), /"format" must be 2/);
+test('a new-format world may leave out format (it is 2); any other value is a problem', () => {
+  assert.equal(load((f) => delete f['world.json'].format).legacy, false);
+  assert.throws(() => load((f) => { f['world.json'].format = 1; }), /"format" must be 2/);
 });
 
 // ---------- legacy ----------

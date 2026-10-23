@@ -17,7 +17,7 @@
   // World fields a start may override (merge rules below).
   const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'tagThresholds', 'portraitSet', 'factions', 'world',
     'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'standees', 'site', 'localMap', 'map', 'entrances', 'lore', 'timeline', 'projectTimeline'];
-  const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'characters', 'starts', 'generatedStarts', 'generatedSites', 'sites', ...OVERRIDABLE];
+  const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'date', 'characters', 'starts', 'generatedStarts', 'generatedSites', 'sites', ...OVERRIDABLE];
   const WORLD_RESERVED = [];
   const START_RESERVED = [];
   const CAST_FIELDS = ['id', 'status', 'needs', 'relations', 'knows', 'want', 'secret', 'guard', 'tags', 'tier', 'pinned', 'agenda'];
@@ -59,6 +59,9 @@
     const sc = E.clone(world);
     delete sc.format;
     delete sc.starts;
+    // The world's date (R-0) is the date of a start that gives none.
+    if (sc.date != null && start.start == null) sc.start = sc.date;
+    delete sc.date;
     Object.entries(start).forEach(([k, v]) => {
       if (['id', 'title', 'summary', 'cast'].includes(k)) return;
       if (ID_LISTS.includes(k)) sc[k] = mergeById(sc[k], v);
@@ -228,16 +231,18 @@
       const legacyKnown = [...WORLD_FIELDS, ...START_OWN, ...WORLD_RESERVED, ...START_RESERVED];
       warnings.push(...unknownFields(world, legacyKnown, 'scenario.json'));
     } else {
-      req(world.format === 2, '"format" must be 2');
+      req(world.format == null || world.format === 2, '"format" must be 2');
       warnings.push(...unknownFields(world, [...WORLD_FIELDS, ...WORLD_RESERVED], 'world.json'));
     }
     req(world.title, 'missing "title"');
-    const pool = world.characters || [];
-    const startIds = world.starts || [];
-    req(Array.isArray(pool) && pool.length, 'missing "characters" list');
-    // A world with generated starts (task 4-2) may have no authored ones.
-    req(Array.isArray(startIds) && (startIds.length || world.generatedStarts != null), 'missing "starts" list');
-    if (world.generatedStarts != null) problems.push(...E.StartGen.configProblems(world));
+    // Open worlds (R-0): no character pool and no starts are fine; a world
+    // with no starts gets generated ones (S.openWorld).
+    req(world.characters == null || Array.isArray(world.characters), '"characters" must be a list of character ids');
+    req(world.starts == null || Array.isArray(world.starts), '"starts" must be a list of start ids');
+    const pool = Array.isArray(world.characters) ? world.characters : [];
+    const startIds = Array.isArray(world.starts) ? world.starts : [];
+    req(world.date == null || (isObj(world.date) && Number.isFinite(world.date.day) && Number.isFinite(world.date.hour)), '"date" must be {day, hour}');
+    if (world.generatedStarts != null || !startIds.length) problems.push(...E.StartGen.configProblems(world));
     // Generated sites and library maps (task 4-4).
     problems.push(...E.Sites.configProblems(world));
     if (world.sites != null && !Array.isArray(world.sites)) problems.push('"sites" must be a list of site map ids (files in sites/)');
@@ -378,6 +383,18 @@
     return legacy ? chars.concat(sites, lore) : [...(rootJson.starts || []).map((id) => `starts/${id}.json`), ...chars, ...sites, ...lore];
   };
 
+  // Everything beyond a title and a setting is optional (R-0): a world.json
+  // with no format, pool or starts gets them, and one with no starts gets
+  // generated starts ("Make my own"), as if it had "generatedStarts": {}.
+  S.openWorld = function (world) {
+    const w = Object.assign({}, world);
+    if (w.format == null) w.format = 2;
+    if (w.characters == null) w.characters = [];
+    if (w.starts == null) w.starts = [];
+    if (Array.isArray(w.starts) && !w.starts.length && w.generatedStarts == null) w.generatedStarts = {};
+    return w;
+  };
+
   // folder + {relative path: parsed JSON} → a loaded world: { folder, id,
   // title, summary, tags, legacy, defaultStart, warnings, starts: [{ id,
   // title, summary, scenario | error }] }. Every start is composed and
@@ -385,7 +402,7 @@
   S.prepareWorld = function (folder, files) {
     let bundle;
     if (files['world.json']) {
-      const world = files['world.json'];
+      const world = S.openWorld(files['world.json']);
       const starts = {};
       const characters = {};
       (world.starts || []).forEach((id) => { if (files[`starts/${id}.json`]) starts[id] = files[`starts/${id}.json`]; });
@@ -771,7 +788,7 @@
     // A start with a playerSlot may leave the player to the character creator (task 4-1).
     if (sc.player != null || !sc.playerSlot) req(sc.characters && sc.characters.includes(sc.player), '"player" must be one of "characters"');
     req(Array.isArray(sc.locations) && sc.locations.length, 'missing "locations"');
-    sc.skills = sc.skills || ['physical', 'technical', 'social', 'knowledge', 'stealth'];
+    sc.skills = sc.skills || E.DEFAULT_SKILLS.slice();
     // No needs unless the world lists them (task 1-5: a world without needs plays fine).
     sc.needs = sc.needs || [];
     req(Array.isArray(sc.needs) && sc.needs.every((n) => n && n.id), '"needs" must be a list of {id, label, perHour}');

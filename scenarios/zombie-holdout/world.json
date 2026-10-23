@@ -2,6 +2,10 @@
   "format": 2,
   "id": "zombie-holdout",
   "title": "Holdout at Harmon's",
+  "date": {
+    "day": 23,
+    "hour": 9
+  },
   "summary": "Five strangers barricaded inside a rural hardware store, 23 days into the outbreak. The dead are slow but endless; the living are the real danger.",
   "tags": [
     "survival",

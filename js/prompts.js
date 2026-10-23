@@ -1066,8 +1066,8 @@ Reply with JSON only:
 
   const skillJson = (sc, n) => `{${sc.skills.map((k) => `"${k}":${n}`).join(',')}}`;
   GEN_TASKS.player = ({ sc, job, loaded }) => {
-    const g = loaded.bundle.world.generatedStarts;
-    const roles = (g.roles || []).map((r) => r.label);
+    const g = E.StartGen.slot(loaded.bundle.world);
+    const roles = g.roles.map((r) => r.label);
     return `=== TASK: THE PLAYER'S CHARACTER ===
 The player describes the character they want to play: "${job.line}"
 Write their character sheet. Keep to what they said and fill in the rest so it fits the setting.${roles.length ? ` Roles that fit here: ${roles.join(', ')} (or another).` : ''} Skills: up to ${g.skillPoints} points in all, each from 0 to ${g.maxSkill}.
@@ -1080,7 +1080,7 @@ Invent where the story starts${r ? `, somewhere in ${r.name}` : ''}: 3 to 6 room
 Reply with JSON only: {"rooms":[{"id":"back-room","name":"Back Room","desc":"One sentence.","connects":["shop-floor"],"outside":false}],"player_room":"back-room"}`;
   };
   GEN_TASKS.plan = ({ loaded }) => {
-    const [min, max] = loaded.bundle.world.generatedStarts.castSize || [3, 5];
+    const [min, max] = E.StartGen.castSize(loaded.bundle.world);
     return `=== TASK: WHO IS HERE ===
 Plan the ${min} to ${max} people (not counting the player) who are in or around these rooms when the story starts. Make them different from each other in age, background, temperament and what they want, and give each a hook: something about them that will cause trouble. Nobody is the player's relative or old friend: the player's past is theirs to tell. One line each.
 Reply with JSON only: {"people":[{"name":"Full Name","role":"short role","hook":"one line"}]}`;

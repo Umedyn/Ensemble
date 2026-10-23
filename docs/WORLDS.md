@@ -51,10 +51,26 @@ Static servers can't list directories, so `world.json` lists its starts and char
 
 ## world.json
 
+### The minimum world
+
+A title and a setting are a whole world (R-0; `tests/fixtures/minimum-world/`):
+
+```json
+{
+  "title": "The Lighthouse",
+  "setting": "A lighthouse on a cold northern coast, some years after the lights went out everywhere else."
+}
+```
+
+With no `starts` the picker offers only **✦ Make my own start** (as if the world had `"generatedStarts": {}`): the player makes a character and the story engine builds the place, the people and the opening. With no `characters` the pool is empty (generated starts make their own people). With no `skills` the engine's five (`physical`, `technical`, `social`, `knowledge`, `stealth`) apply; no `needs`, groups, regions, clocks, map, lore or timeline means none. The date is day 1, 9:00 unless the world gives a `date`. Every field below is an addition the creator chooses, and the minimum-world test keeps it that way.
+
+### Fields
+
 | field | type | notes |
 |---|---|---|
-| `format` | `2` | required in new-format worlds; its absence marks a legacy folder |
-| `id`, `title` | string | |
+| `format` | `2` | optional in `world.json` (default `2`); any other value is an error. A folder with `scenario.json` instead is a legacy folder |
+| `id`, `title` | string | `title` required; `id` defaults to the folder name |
+| `date` | `{day, hour}` | optional (R-0): the date a generated start begins on, and of an authored start that gives no `start`. Default day 1, 9:00 |
 | `summary` | string | one or two lines for the world picker |
 | `setting` | string | the always-on world context (keep it broad; regional detail goes in region lore) |
 | `rules` | string[] | |
@@ -71,9 +87,9 @@ Static servers can't list directories, so `world.json` lists its starts and char
 | `standees` | object[] | unnamed groups on the local map (task 3-2): `{id, label, count, location, state, faction, post, patrol, note}`. `count` 1–999; `location` a room (groups exist only in rooms; elsewhere they are their faction's business); `state` `calm` (default), `alert`, `hostile` or `down`; `faction` a group id; `post` a room it holds, or `patrol` a loop of at least 2 linked rooms that includes `location` (not both); `note` up to 200 characters, never shown to the player. Ids must not clash with characters, extras or locations. Starts add to or change them by `id` |
 | `inventExtras` | boolean | default false; true lets the model add minor people during play (one a turn, 30 in all). Leave it off for closed settings |
 | `facts` | string[] | public facts true everywhere |
-| `characters` | string[] | the character pool (ids in `characters/`) |
-| `starts` | string[] | start ids in `starts/`; the first is the default. May be empty when the world has `generatedStarts` |
-| `generatedStarts` | object | optional (task 4-2): lets players build a start. See [Generated starts](#generated-starts) |
+| `characters` | string[] | optional: the character pool (ids in `characters/`). Open worlds may have none |
+| `starts` | string[] | optional: start ids in `starts/`; the first is the default. None (missing or empty) means generated starts, as if `generatedStarts: {}` |
+| `generatedStarts` | object | optional (task 4-2): lets players build a start beside the authored ones, or tunes it in a world with none. Every field has a default. See [Generated starts](#generated-starts) |
 | `generatedSites` | object | optional (task 4-4): `{maxSites, keepDays, library}` (defaults 8 and 3; 1–30 and 1–60): the engine builds places the story goes that the map doesn't have. `library` (task 6-3) is a list of setting tags, such as `["modern"]`: shared site maps whose `setting` overlaps join the world's own. See [Generated sites](#generated-sites) |
 | `sites` | string[] | optional: library site maps in `sites/<id>.json`, used first when a new place fits one (task 4-4) |
 | `locations`, `clocks` | | optional world-wide ones (rare); usually per start. A location may set `region` (default: the start's `region`) |
@@ -163,7 +179,7 @@ Overridable per start: `status`, `needs`, `relations`, `knows`, `want`, `secret`
 8. The composed scenario gets `worldId`, `startId`, `folder` (the world folder) and `title` (`"<world title>: <start title>"` for display, or just the world title when the start has none, plus `worldTitle` and `startTitle` separately). `format` and `starts` are dropped. The prompt header's `SETTING:` line uses `worldTitle`, so start titles stay out of prompts.
 9. Then `S.validate(composed)`: today's checks, unchanged. `S.compose` itself doesn't validate; `S.prepareWorld` does both.
 
-A **world validation** (`S.validateWorld(bundle)`, where `bundle` is `{ world, starts: {id: start}, characters: {id: data}, legacy }` with missing files left out) runs first and catches mistakes that composing would hide: missing start or character files, duplicate ids, cast ids not in the pool, a `player` not in the cast, a missing `format: 2`, and relations to ids outside the pool. Each start is composed and validated when the world loads, so a broken start shows its error in the picker instead of failing at "New game".
+A **world validation** (`S.validateWorld(bundle)`, where `bundle` is `{ world, starts: {id: start}, characters: {id: data}, legacy }` with missing files left out) runs first and catches mistakes that composing would hide: missing start or character files, duplicate ids, cast ids not in the pool, a `player` not in the cast, a `format` other than 2, and relations to ids outside the pool. Each start is composed and validated when the world loads, so a broken start shows its error in the picker instead of failing at "New game".
 
 ## Legacy folders
 
@@ -173,13 +189,13 @@ The bundled `mars-station` and `zombie-holdout` folders were converted in task 1
 
 ## Generated starts
 
-Task 4-2. A world opts in with `generatedStarts`:
+Task 4-2. A world with no `starts` always has them (R-0); a world with authored starts opts in with `generatedStarts`, and the picker lists its starts first, then "✦ Make my own start". Every field is optional (`{}` works):
 
 ```json
 "generatedStarts": { "roles": [{ "id": "trucker", "label": "Long-haul trucker", "skills": { "fighting": 2 } }], "skillPoints": 10, "maxSkill": 3, "castSize": [3, 5], "castLabel": "Group", "start": { "day": 23, "hour": 9 } }
 ```
 
-`roles`, `skillPoints` and `maxSkill` work as in a `playerSlot` (freeform roles are always allowed); `castSize` is how many people to make besides the player (default `[3, 5]`, 1–8); `castLabel` the sidebar heading; `start` the date (default: the default start's). Leave it out for closed settings (Ares Deep has none: it is a five-person station).
+`roles`, `skillPoints` and `maxSkill` work as in a `playerSlot` (defaults: no roles, 10 points, 3 at most each; freeform roles are always allowed); `castSize` is how many people to make besides the player (default `[3, 5]`, 1–8; a player's note may still ask for a lone start); `castLabel` the sidebar heading; `start` the date (default: the world's `date`, else the default start's, else day 1, 9:00). Leave it out for closed settings (Ares Deep has none: it is a five-person station).
 
 The player picks a region (`startable` ones), makes a character with the 4-1 form or describes one in a line, and may add a note on the kind of story. `js/startgen.js` then runs small `worldbuild` calls, each checked before the next: the player's sheet (only for a line), rooms, who is here (a one-line plan per person), the people (one call each on KoboldCpp, all in one call on an API model), ties and pressures, minor people and groups, and the opening with a title, summary and public facts. The result is an ordinary start with `"generated": true` plus a character file per new person; it goes through `validateWorld`, `compose` and `validate` like an authored start, and the save embeds it. Generated people are new: the world's character pool is not used, and their names and ids never clash with it.
 
@@ -317,7 +333,7 @@ Task 5-2. Events that happen at a set time whatever the player does, unless the 
 
 1. **World**: title, summary and tags (`index.json` order; "Open folder" adds more).
 2. **Start**: title and summary for each start, the default selected. If a world has one start, this step is skipped.
-3. **Make my own start** (task 4-2): a world with `generatedStarts` adds "✦ Make my own start" to the start select; New game then opens the generator.
+3. **Make my own start** (task 4-2): a world with `generatedStarts`, or with no starts (R-0), adds "✦ Make my own start" after its starts; New game then opens the generator.
 4. **Who you play** (task 4-1): a start with a `playerSlot` adds a third select, "Play as <name>" (when it has a `player`) or "Make my own". New game with "Make my own" opens the character form; Start game there begins the game. Generated starts (task 4-2) will add their own entry.
 
 Phone layout: two stacked selects, nothing more.
@@ -336,6 +352,7 @@ In `tests/worlds.test.js` (task 1-1), except the picker smoke test (task 1-3):
 - Composing: the scalar, id-list, string-list and object merge rules, each with a small inline world.
 - A cast entry overrides location, relations and knows; a plain id uses the file.
 - `validateWorld`: missing start file, cast id not in pool, player not in cast, duplicate ids.
+- The minimum world (R-0, `tests/minimum-world.test.js`): only a title and a setting validates, composes and starts a generated game; so does the same world with a few regions.
 - A legacy folder composes to the same scenario it produced before (snapshot of the `newGame` state's characters, locations and clocks).
 - Every bundled world validates with no warnings, and every start in it starts a game and plays a turn.
 - Each converted bundled world's default start begins the same game as its legacy version.

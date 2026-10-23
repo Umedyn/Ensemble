@@ -1114,7 +1114,8 @@
         ${(w.needs || []).length ? fld(F, 'revealPressure', 'csv', 'Needs that count as pressure on secrets', { placeholder: (w.needs || []).map((n) => n.id).join(', ') }) : ''}
         ${fld(F, 'skillPenalties', 'json', 'Roll penalties (JSON)', { rows: 3, placeholder: '{"health": {"hurt": -1}, "needs": [{"need": "fatigue", "at": 0.8, "penalty": -1}]}' })}
         ${fld(F, 'tagThresholds', 'json', 'Card tags from needs (JSON)', { rows: 2, placeholder: '{"fatigue": {"at": 0.8, "tag": "exhausted"}}' })}
-        ${fld(F, 'generatedStarts', 'json', 'Generated starts (JSON)', { rows: 3, hint: 'see docs/WORLDS.md' })}
+        ${fld(F, 'date', 'json', 'Start date (JSON)', { rows: 1, placeholder: '{"day": 1, "hour": 9}', hint: 'for Make my own, and starts that give none' })}
+        ${fld(F, 'generatedStarts', 'json', 'Generated starts (JSON)', { rows: 3, hint: 'optional tuning; a world with no starts has them anyway (see docs/WORLDS.md)' })}
         ${fld(F, 'generatedSites', 'json', 'Generated sites (JSON)', { rows: 2, placeholder: '{"maxSites": 8, "keepDays": 3}' })}</section>
     </div>`;
   }

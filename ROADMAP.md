@@ -218,7 +218,7 @@ Everything a creator needs to build a world without touching JSON.
 
 Regions become a free-form tree with routes, and maps attach to any region, so one engine handles France 1942 (the world broad, France split into zones), a Japanese school story (Japan down to wards) and a galaxy of planets. Three concepts, and creators only meet the ones they use: **regions** (where the story can be), **routes** (how people travel) and **maps** (optional pictures). Every new field is optional: a flat list of regions stays a complete world. The model only sees the player's chain, what's near and a static outline, so depth costs nothing per turn. Source: the 2026-10-23 region update (task files R-0 to R-9). It replaces the Oct 22 update's eras and faction-presence sections; that update's other sections are in Phase 5 (lore scope, real people), Phase 7 (official real-world worlds), Content settings, Before publishing and Revenue.
 
-- [ ] **Open worlds** (R-0, goes first): a world with only a title and a setting plays (no starts, characters, skills or regions); "Make my own" by default; defaults for every `generatedStarts` field; a world start date. The minimum-world test guards everything after it.
+- [x] **Open worlds** (R-0, goes first): a world with only a title and a setting plays (no starts, characters, skills or regions); "Make my own" by default; defaults for every `generatedStarts` field; a world start date. The minimum-world test guards everything after it.
 - [ ] **The region tree** (R-1): `parent`, `label` and per-depth labels; chain and nearby helpers; control at any level; prompts carry the player's chain, nearby regions and a static outline; lore falls back up the chain; migration from flat lists.
 - [ ] **Routes** (R-2): kinds, times and `requires` (the timeline's precondition grammar), `risky` crossings as rolls; `neighbours` become border routes; long trips run as skips; multi-leg travel.
 - [ ] **Maps on any region and one zooming map** (R-3): a breadcrumb through the tree, node maps where there's no picture, travel buttons with kind and time.
@@ -228,6 +228,7 @@ Regions become a free-form tree with routes, and maps attach to any region, so o
 - [ ] **Start anywhere** (R-7): pick a start in a big tree by search or zoom, or "Surprise me"; `startable` on branches.
 - [ ] **Map focus by genre and stakes** (R-8): tactical local maps for tense stories, the city as the lived space for everyday ones; flavour sites in one call that turn tactical when danger arrives.
 - [ ] **Real places as a tree** (R-9): the base map tool writes countries, provinces and cities with routes.
+- [ ] **Recurring faces in generated starts** (later, after R-0): `generatedStarts.pool: true` lets generation draw side characters from the world's authored pool instead of only making new people. Off by default; lore figures stay out either way.
 
 ## Story tables (quality of life)
 

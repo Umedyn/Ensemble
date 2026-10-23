@@ -51,7 +51,7 @@ test('a world with generated starts may have no authored start', () => {
   assert.equal(w.starts.length, 0);
   assert.equal(w.generate, true);
   delete f['world.json'].generatedStarts;
-  assert.throws(() => E.Scenario.prepareWorld('zombie-holdout', f), /missing "starts" list/);
+  assert.equal(E.Scenario.prepareWorld('zombie-holdout', f).generate, true, 'no starts: Make my own, as if "generatedStarts": {}');
 });
 
 test('world extras and groups in rooms a start lacks: nowhere in particular, or left out; a room nobody has is an error', () => {

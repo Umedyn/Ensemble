@@ -2,6 +2,10 @@
   "format": 2,
   "id": "mars-station",
   "title": "Ares Deep",
+  "date": {
+    "day": 214,
+    "hour": 7
+  },
   "summary": "A five-person research outpost on the rim of Hellas Planitia, Mars, nine weeks from help. Everyone knows everyone's habits, not their secrets.",
   "tags": [
     "survival",

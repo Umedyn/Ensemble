@@ -128,7 +128,10 @@ test('starts are added, duplicated, renamed and removed, and the world stays val
   assert.ok(!files[`starts/${fresh}.json`]);
   loads('mars-station', files);
   const b = WE.blankWorld('Solo');
-  assert.match(WE.removeStart(b.files, 'start').error, /at least one start/);
+  assert.equal(WE.removeStart(b.files, 'start').error, undefined);
+  const open = loads(b.folder, b.files);
+  assert.equal(open.starts.length, 0);
+  assert.equal(open.generate, true, 'a world with no starts gets "Make my own"');
 });
 
 // ---------- rooms ----------

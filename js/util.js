@@ -86,6 +86,8 @@
 
   E.clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   E.clone = (o) => JSON.parse(JSON.stringify(o));
+  // Skills for a world that lists none.
+  E.DEFAULT_SKILLS = ['physical', 'technical', 'social', 'knowledge', 'stealth'];
   // Cuts at a word boundary with an ellipsis instead of mid-word.
   // Stable 32-bit hash (FNV-1a) for picks that must never change, like a stand-in portrait.
   E.hash = (s) => {

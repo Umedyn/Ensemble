@@ -289,7 +289,7 @@
       skills: world.skills, needs: world.needs || [], world: world.world || {}, factions: world.factions || [], regions: world.regions,
       locations: [{ id: 'here', name: 'Here', desc: '', connects: [] }], start: { day: 1, hour: 8 }, timeLabel: world.timeLabel,
     });
-    sc.skills = sc.skills || ['physical', 'technical', 'social', 'knowledge', 'stealth'];
+    sc.skills = sc.skills || E.DEFAULT_SKILLS.slice();
     sc.portraitSet = (world.portraitSet || []).slice();
     const room = ((sc.locations || [])[0] || {}).id;
     const others = Object.keys(pool).filter((id) => id !== editingId && pool[id]);

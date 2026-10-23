@@ -17,7 +17,7 @@
   };
   WE.slug = slug;
   WE.ID_RE = /^[a-z0-9][a-z0-9_-]*$/;
-  WE.SKILLS = ['physical', 'technical', 'social', 'knowledge', 'stealth'];
+  WE.SKILLS = E.DEFAULT_SKILLS;
   WE.LINK_KINDS = ['open', 'door', 'locked door', 'vent', 'hatch', 'window', 'stairs'];
 
   // ---------- paths ----------
@@ -258,7 +258,7 @@
   };
   WE.removeStart = function (files, id) {
     const w = WE.world(files);
-    if ((w.starts || []).length <= 1 && !w.generatedStarts) return { error: 'A world needs at least one start (or generated starts).' };
+    // A world left with no starts gets "Make my own" (R-0).
     w.starts = (w.starts || []).filter((x) => x !== id);
     delete files[WE.startFile(id)];
     return {};
