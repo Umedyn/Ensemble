@@ -287,3 +287,109 @@ test('the test-play payload is a copy, so later edits do not reach a running tes
   assert.equal(p.type, WE.TEST_WORLD);
   assert.equal(p.startId, 'start');
 });
+
+// ---------- the world's people (task 6-2) ----------
+
+const poolOf = (files) => Object.fromEntries(files['world.json'].characters.map((id) => [id, files[`characters/${id}.json`]]));
+const sorted = (o) => JSON.stringify(o, (k, v) => (v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort()) : v));
+
+test('every bundled character opens in the author form and saves back unchanged', () => {
+  for (const folder of ['mars-station', 'zombie-holdout']) {
+    const files = worldFiles(folder);
+    const base = E.Scenario.prepareWorld(folder, plain(files)).starts[0].scenario;
+    const pool = poolOf(files);
+    Object.keys(pool).forEach((id) => {
+      const sc = E.CharMaker.authorScenario(files['world.json'], base, pool, id);
+      const out = E.CharMaker.buildAuthor(sc, E.CharMaker.authorForm(sc, pool[id]), pool[id]);
+      assert.equal(out.errors, undefined, `${folder}/${id}: ${out.errors}`);
+      assert.equal(sorted(plain(out.character)), sorted(pool[id]), `${folder}/${id}`);
+    });
+  }
+});
+
+test('the author form has no point budget, only the cap, and sets what a player never does', () => {
+  const files = worldFiles('mars-station');
+  const pool = poolOf(files);
+  const sc = E.CharMaker.authorScenario(files['world.json'], null, pool, null);
+  const f = E.CharMaker.authorForm(sc, {});
+  Object.assign(f, { name: 'Lena Sato', roleText: 'cargo pilot', want: 'fly the lander home', traits: ['calm'] });
+  sc.skills.forEach((k) => (f.skills[k] = 4));
+  Object.assign(f, { knows: ['The lander is overdue.'], tier: 'secondary', pinned: true, tags: ['flight suit'], needs: { stress: 0.4 }, agendaMode: 'set' });
+  f.agenda = { goal: 'check the lander telemetry', hours: 6, visibility: '', steps: [{ text: 'reads the logs', contact: false }, { text: 'comes to ask about fuel', contact: true }] };
+  f.feelings.okafor = 30;
+  const out = E.CharMaker.buildAuthor(sc, f, {});
+  assert.equal(out.errors, undefined, String(out.errors));
+  const c = plain(out.character);
+  assert.equal(c.id, 'lena-sato');
+  assert.equal(c.role, 'cargo pilot');
+  assert.ok(Object.values(c.skills).every((v) => v === 4), 'no budget');
+  assert.ok(!('status' in c), 'no play state in a pool file');
+  assert.deepEqual(c.relations, { okafor: 30 }, 'only the feelings that were set');
+  assert.deepEqual(c.agenda, { goal: 'check the lander telemetry', steps: ['reads the logs', { text: 'comes to ask about fuel', contact: true }], hours: 6 });
+  assert.equal(c.tier, 'secondary');
+  assert.equal(c.pinned, true);
+  assert.deepEqual(c.needs, { stress: 0.4 });
+  f.skills.tech = 5;
+  assert.ok(E.CharMaker.buildAuthor(sc, f, {}).errors.some((e) => /^Tech must be from 0 to 4/.test(e)), 'the cap still holds');
+  f.skills.tech = 2;
+  f.needs.stress = 3;
+  assert.ok(E.CharMaker.buildAuthor(sc, f, {}).errors.some((e) => /Starting stress must be from 0 to 1/.test(e)));
+});
+
+test('an author portrait can be any image in the world folder', () => {
+  const files = worldFiles('mars-station');
+  const pool = poolOf(files);
+  const sc = E.CharMaker.authorScenario(files['world.json'], null, pool, 'okafor');
+  const f = E.CharMaker.authorForm(sc, pool.okafor);
+  f.portrait = 'portraits/okafor.png';
+  assert.equal(E.CharMaker.buildAuthor(sc, f, pool.okafor).character.portrait, 'portraits/okafor.png');
+  f.portrait = 'none';
+  assert.equal(E.CharMaker.buildAuthor(sc, f, pool.okafor).character.portrait, false);
+  f.portrait = 'standin';
+  assert.ok(!('portrait' in E.CharMaker.buildAuthor(sc, f, pool.okafor).character));
+});
+
+test('renaming a character follows casts, players, feelings, keys, the timeline and lore', () => {
+  const files = worldFiles('mars-station');
+  const w = files['world.json'];
+  w.timeline.push({ id: 'test-ev', when: { day: 300, hour: 9 }, scope: 'world', text: 'A message arrives.', who: ['raman'], preconditions: [{ alive: 'raman' }, { known: 'landing', by: 'raman' }] });
+  w.lore.push({ id: 'about-priya', title: 'Priya', level: 'character', ref: 'raman', text: 'She flew cargo before Mars.' });
+  const garage = files['starts/garage.json'];
+  garage.locations = [{ id: 'shed', name: 'Shed', connects: ['garage'], links: [{ to: 'garage', kind: 'locked door', key: ['raman'] }] }];
+  assert.match(WE.renameCharacter(files, 'raman', 'commons'), /already used/);
+  assert.equal(WE.renameCharacter(files, 'raman', 'priya'), '');
+  assert.ok(files['characters/priya.json'] && !files['characters/raman.json']);
+  assert.equal(files['characters/priya.json'].id, 'priya');
+  assert.ok(w.characters.includes('priya') && !w.characters.includes('raman'));
+  assert.equal(garage.player, 'priya');
+  assert.equal(files['characters/okafor.json'].relations.priya, 5);
+  assert.deepEqual(plain(garage.locations[0].links[0].key), ['priya']);
+  const ev = w.timeline.find((e) => e.id === 'test-ev');
+  assert.deepEqual(plain(ev.who), ['priya']);
+  assert.deepEqual(plain(ev.preconditions), [{ alive: 'priya' }, { known: 'landing', by: 'priya' }]);
+  assert.equal(w.lore.find((e) => e.id === 'about-priya').ref, 'priya');
+  loads('mars-station', files);
+});
+
+test('taking a character out of the world leaves it valid, and says what changed', () => {
+  const files = worldFiles('mars-station');
+  const w = files['world.json'];
+  w.timeline.push({ id: 'test-ev', when: { day: 300, hour: 9 }, scope: 'world', text: 'A message arrives.', who: ['bauer'], preconditions: [{ not: { alive: 'bauer' } }] });
+  w.lore.push({ id: 'about-lev', title: 'Lev', level: 'character', ref: 'bauer', text: 'He grows the soy.' });
+  const notes = WE.removeCharacter(files, 'bauer');
+  assert.ok(!files['characters/bauer.json'] && !w.characters.includes('bauer'));
+  assert.ok(!JSON.stringify(files).includes('"bauer"'), 'no reference is left');
+  assert.ok(notes.some((n) => /condition/.test(n)) && notes.some((n) => /now a topic/.test(n)));
+  assert.equal(w.lore.find((e) => e.id === 'about-lev').level, 'topic');
+  loads('mars-station', files);
+  // The player: the part passes to someone else in that start.
+  const n2 = WE.removeCharacter(files, 'raman');
+  assert.ok(n2.some((n) => /start "garage": .* is the player now/.test(n)));
+  loads('mars-station', files);
+});
+
+test('portraits get a free path under portraits/', () => {
+  const files = worldFiles('mars-station');
+  assert.equal(WE.portraitPath(files, {}, 'Juniper Vale.PNG'), 'portraits/juniper-vale.png');
+  assert.equal(WE.portraitPath(files, { 'portraits/okafor.png': {} }, 'x.png', 'okafor'), 'portraits/okafor-2.png');
+});

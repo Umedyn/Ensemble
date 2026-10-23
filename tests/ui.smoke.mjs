@@ -991,6 +991,72 @@ await check('creator: a new world from nothing, test played and exported', async
   await page.waitForFunction(() => [...document.querySelectorAll('#cWorld option')].some((o) => o.value === 'draft:harbor-watch'));
 });
 
+// Task 6-2: the Characters tab: edit someone in the shared form, make a new
+// person, import a Tavern card (one conversion call, review, image rights),
+// put them in a start, see them in test play, and export it all.
+await check('creator: create, edit and import characters', async (page) => {
+  await page.goto(BASE + 'creator.html');
+  await page.waitForFunction(() => document.querySelectorAll('#cWorld option').length > 1);
+  await page.selectOption('#cWorld', 'server:mars-station');
+  await page.waitForSelector('#cSvg');
+  await page.click('#cTabs [data-tab="characters"]');
+  await page.click('[data-csel="okafor"]');
+  await page.fill('#mkTrait', 'stubborn');
+  await page.press('#mkTrait', 'Enter');
+  await page.waitForFunction(() => /stubborn/.test(document.getElementById('cCharBody').textContent));
+  assert.equal(await page.locator('#cCharErrors li').count(), 0);
+  // A new person, built up in the author form.
+  await page.click('#cAddChar');
+  await page.fill('[data-f="name"]', 'Lena Sato');
+  await page.fill('[data-f="roleText"]', 'cargo pilot');
+  await page.fill('[data-f="want"]', 'fly the lander home');
+  await page.fill('#mkTrait', 'calm');
+  await page.press('#mkTrait', 'Enter');
+  await page.click('[data-skill="piloting"][data-step="1"]');
+  await page.selectOption('[data-af="agendaMode"]', 'none');
+  await page.waitForFunction(() => !document.querySelector('#cCharErrors li'));
+  await page.fill('[data-idof="character"]', 'lena-sato');
+  await page.press('[data-idof="character"]', 'Tab');
+  await page.waitForFunction(() => /Lena Sato/.test(document.getElementById('cCharList').textContent) && document.querySelector('[data-csel="lena-sato"]'));
+  // A card: what is used and what is left out, then the conversion and review.
+  await page.setInputFiles('#cCardFile', path.join(here, 'fixtures', 'cards', 'v2.png'));
+  await page.waitForSelector('#cCardConvert');
+  assert.match(await page.textContent('#cMain'), /Left out:.*scenario, first message, system prompt, other greetings/);
+  await page.click('#cCardConvert');
+  await page.waitForSelector('#cCardAdd');
+  assert.match(await page.textContent('#cMain'), /Left out a line written to the player/);
+  assert.equal(await page.inputValue('[data-f="name"]'), 'Juniper Vale');
+  await page.screenshot({ path: path.join(shots, 'creator-card-review.png') });
+  await page.check('#cCardRights');
+  await page.click('#cCardAdd');
+  await page.waitForSelector('[data-csel="juniper-vale"]');
+  // Into a start, and into the game.
+  await page.click('#cTabs [data-tab="starts"]');
+  await page.selectOption('#cCastAdd', 'juniper-vale');
+  await page.waitForFunction(() => /No problems/.test(document.getElementById('cValidation').textContent));
+  await page.click('#cTabs [data-tab="portraits"]');
+  assert.match(await page.textContent('#cMain'), /Juniper Vale: their own \(juniper-vale\.png\)/);
+  const [game] = await Promise.all([page.context().waitForEvent('page'), page.click('#cTest')]);
+  await game.waitForFunction(() => /turn 0$/.test(document.getElementById('sceneBar').textContent.trim()), null, { timeout: 15000 });
+  assert.match(await game.textContent('body'), /Juniper Vale/);
+  await game.close();
+  const [download] = await Promise.all([page.waitForEvent('download'), page.click('#cExport')]);
+  const E = helpers.loadEngine();
+  const files = {};
+  for (const e of E.Zip.read(new Uint8Array(fs.readFileSync(await download.path())))) files[e.name] = e.data;
+  const json = (n) => JSON.parse(E.Zip.text(files[`mars-station/${n}`]));
+  assert.ok(json('characters/okafor.json').traits.includes('stubborn'));
+  const lena = json('characters/lena-sato.json');
+  assert.equal(lena.role, 'cargo pilot');
+  assert.equal(lena.skills.piloting, 1);
+  assert.equal(lena.agenda, null);
+  const jv = json('characters/juniper-vale.json');
+  assert.equal(jv.portrait, 'portraits/juniper-vale.png');
+  assert.ok(!/pulled you/.test(jv.description), 'the line to the player stayed out');
+  assert.ok(files['mars-station/portraits/juniper-vale.png'], 'the card image is in the export');
+  assert.ok(json('world.json').characters.includes('juniper-vale') && json('world.json').characters.includes('lena-sato'));
+});
+
 // Task 1-8: fix your own feelings toward someone from their details.
 await check('correct your feelings from a card', async (page) => {
   await newGame(page);

@@ -29,6 +29,9 @@
   // World, groups and starts tabs (task 6-1).
   const gui = { sel: null, confirm: false };
   const sui = { sel: null, confirm: false, confirmRoom: null, newPerson: false, openRoom: null };
+  // Characters tab (task 6-2): the person being edited, the form's values and
+  // scenario, and a card being imported.
+  const cui = { sel: null, confirm: false, sc: null, form: null, errors: [], review: null, cf: null };
   const urls = new Map(); // asset path -> object URL
   const diskWorlds = new Map(); // "disk:folder" -> { folder, files, assets }
 
@@ -42,9 +45,10 @@
     // Task 5-3. Lore is public: no secrets; the future goes in the timeline.
     { id: 'lore', label: 'Lore', render: renderLoreTab },
     { id: 'timeline', label: 'Timeline', render: renderTimelineTab },
-    { id: 'characters', label: 'Characters', soon: 'phase 6' },
+    // Task 6-2.
+    { id: 'characters', label: 'Characters', render: renderCharactersTab },
     { id: 'starts', label: 'Starts', render: renderStartsTab },
-    { id: 'portraits', label: 'Portraits', soon: 'phase 6' },
+    { id: 'portraits', label: 'Portraits', render: renderPortraitsTab },
   ];
   function renderTabs() {
     $('cTabs').innerHTML = TABS.map((t) => `<button type="button" data-tab="${t.id}" ${t.soon ? `disabled title="Coming in ${t.soon}"` : ''} aria-pressed="${t.id === ui.tab}">${esc(t.label)}${t.soon ? '<span class="soon"> · soon</span>' : ''}</button>`).join('');
@@ -81,6 +85,7 @@
     Object.assign(tui, { sel: null, confirm: false, focus: null, startId: '', effectsError: '' });
     Object.assign(gui, { sel: null, confirm: false });
     Object.assign(sui, { sel: null, confirm: false, confirmRoom: null, newPerson: false, openRoom: null });
+    Object.assign(cui, { sel: null, confirm: false, sc: null, form: null, errors: [], review: null, cf: null });
     ui.autoIds = new Set();
     banner('');
     let saved = null;
@@ -123,7 +128,7 @@
     saveTimer = setTimeout(() => store.set(SAVE_KEY(c.folder), JSON.stringify({ files: c.files, at: Date.now(), draft: c.draft || undefined })), 400);
     clearTimeout(checkTimer);
     checkTimer = setTimeout(renderValidation, 250);
-    const PARTS = { all: render, canvas: renderCanvas, list: renderRegionList, lorelist: renderLoreList, evlist: renderEventList, startlist: renderStartList, grouplist: renderGroupList, genre: renderGenre, preview: renderPreview };
+    const PARTS = { all: render, canvas: renderCanvas, list: renderRegionList, lorelist: renderLoreList, evlist: renderEventList, startlist: renderStartList, charlist: renderCharList, grouplist: renderGroupList, genre: renderGenre, preview: renderPreview };
     (parts || ['all']).forEach((p) => PARTS[p] && PARTS[p]());
   }
 
@@ -166,6 +171,7 @@
     if (lui.sel) own($('cLoreProblems'), `lore "${lui.sel}"`);
     if (tui.sel) own($('cEventProblems'), `timeline "${tui.sel}"`);
     if (sui.sel) own($('cStartProblems'), `start "${sui.sel}"`);
+    if (cui.sel) own($('cCharProblems'), `character "${cui.sel}"`);
     if (gui.sel) own($('cGroupProblems'), `"${gui.sel}"`);
     const wp = $('cWorldProblems');
     if (wp) wp.innerHTML = r.problems.filter((p) => !/^start "/.test(p)).map((p) => `<div class="bad small">${esc(p)}</div>`).join('');
@@ -312,6 +318,7 @@
       if (ui.tab === 'world') renderGenre();
       if (ui.tab === 'groups') renderGroupList();
       if (ui.tab === 'starts') { renderStartList(); renderPreview(); }
+      if (ui.tab === 'characters') { renderCharList(); mountCharForm(); }
       renderValidation();
     } finally { rendering = false; }
     if (renderAgain) { renderAgain = false; render(); }
@@ -1339,6 +1346,203 @@
     if (t.dataset.connadd && t.value) { WE.connect([world(), st], t.dataset.connadd, t.value, null); return changed(); }
   });
 
+  // ---------- the characters tab (task 6-2) ----------
+  // The world's people in the shared character form (js/charform.js, author
+  // mode). An edit is saved when the form builds; until then its problems
+  // show under it. Card import: read the card, one conversion call, review
+  // the sheet in the same form, then add it.
+  const CM = E.CharMaker, Cards = E.Cards;
+  const pool = () => { const out = {}; (world().characters || []).forEach((id) => { if (cw.files[`characters/${id}.json`]) out[id] = cw.files[`characters/${id}.json`]; }); return out; };
+  // A composed start, for the form's header (Suggest) and the conversion.
+  function baseScenario() {
+    try {
+      const w = S.prepareWorld(cw.folder, JSON.parse(JSON.stringify(cw.files)));
+      const st = w.starts.find((s) => s.scenario);
+      return st ? st.scenario : null;
+    } catch (e) { return null; }
+  }
+  const worldImages = () => {
+    const out = new Set(Object.keys(cw.assets).filter((p) => p.startsWith('portraits/')));
+    Object.values(pool()).forEach((c) => { if (typeof c.portrait === 'string') out.add(c.portrait); });
+    return [...out].filter(E.isImagePath);
+  };
+  function renderCharactersTab() {
+    const c = cui.sel && cw.files[`characters/${cui.sel}.json`];
+    const main = cui.review ? reviewPanel() : c ? `<h3>${esc(c.name || cui.sel)} <span class="muted small">(${esc(cui.sel)})</span></h3>
+        <p class="muted small">Saved as you go, whenever the sheet is complete; until then the problems show below the form. Where they start, and how they feel in one start, is on the Starts tab.</p>
+        <div class="settings maker c-charform"><div id="cCharBody" class="maker-body"></div><ul id="cCharErrors" class="maker-errors fail" aria-live="polite"></ul></div>`
+      : '<p class="muted">Pick someone, add a character, or import a character card.</p>';
+    return `<div class="c-split">
+      <div class="c-scroll-col">${main}</div>
+      <aside class="c-panel"><section><h3>The world's people</h3><div id="cCharList" class="c-list"></div>
+        <button type="button" id="cAddChar" class="small">+ Character</button>
+        <label class="btn small" title="A SillyTavern/Tavern card: PNG or JSON">Import a card<input type="file" id="cCardFile" accept=".png,.json,image/png,application/json" hidden></label></section>
+        ${c && !cui.review ? `<section><label>Id <input value="${esc(cui.sel)}" data-idof="character" data-old="${esc(cui.sel)}"></label>
+          <div class="muted small">Starts, feelings, keys, timeline events and lore that name them follow a rename.</div>
+          <div class="small">${(() => { const s = WE.startsWith(cw.files, cui.sel); return s.length ? `In ${s.map((id) => esc((starts()[id] || {}).title || id)).join(', ')}.` : '<span class="muted">Not in any start yet: add them on the Starts tab.</span>'; })()}</div>
+          <div id="cCharProblems"></div>
+          <button type="button" id="cDelChar" class="small danger">${cui.confirm ? 'Click again to take them out of the world' : 'Delete character'}</button></section>` : ''}</aside></div>`;
+  }
+  function renderCharList() {
+    const el = $('cCharList');
+    if (!el) return;
+    el.innerHTML = Object.entries(pool()).map(([id, c]) => `<button type="button" data-csel="${esc(id)}" aria-pressed="${id === cui.sel && !cui.review}">${esc(c.name || id)} <span class="muted small">${esc(c.role || '')}${WE.startsWith(cw.files, id).length ? '' : ' · in no start'}</span></button>`).join('') || '<span class="muted">Nobody yet.</span>';
+  }
+  // The form lives in the tab's HTML, so it is mounted again after each redraw.
+  function mountCharForm() {
+    const body = $('cCharBody');
+    if (!body) return;
+    const sc = cui.sc || (cui.sc = CM.authorScenario(world(), baseScenario(), pool(), cui.review ? null : cui.sel));
+    if (!cui.form) cui.form = CM.authorForm(sc, cui.review ? cui.review.character : cw.files[`characters/${cui.sel}.json`]);
+    const cf = E.CharForm.create(body, $('cCharErrors'));
+    cf.open({
+      sc, form: cui.form, author: true, assetUrl, images: worldImages(),
+      onPortraitFile: async (file) => {
+        const path = WE.portraitPath(cw.files, cw.assets, file.name, cui.review ? cui.review.character.name : cui.sel);
+        cw.assets[path] = file;
+        return path;
+      },
+      onChange: (form) => {
+        if (cui.review) return;
+        const path = `characters/${cui.sel}.json`;
+        const out = CM.buildAuthor(sc, form, cw.files[path]);
+        cf.setErrors(out.errors || []);
+        if (out.character) { cw.files[path] = out.character; changed(['charlist']); }
+      },
+    });
+    cf.setErrors(cui.errors || []);
+    cui.cf = cf;
+  }
+  function selectChar(id) {
+    Object.assign(cui, { sel: id, confirm: false, sc: null, form: null, errors: [], review: null });
+  }
+  // ---------- card import ----------
+  function reviewPanel() {
+    const r = cui.review;
+    const card = r.card;
+    if (r.step === 'card') {
+      const used = Cards.used(card);
+      return `<h3>Import a character card: ${esc(card.name)} <span class="muted small">(card v${card.version})</span></h3>
+        <p class="small">One call to your model (routed with World building) turns the card into a person who lives in this world. It keeps the card's personality and leaves out its own story.</p>
+        <ul class="small"><li><b>Used:</b> ${['description', 'personality', 'examples'].filter((k) => used[k]).map((k) => (k === 'examples' ? 'example dialogue' : k)).join(', ') || 'only the name'}.</li>
+          ${Cards.dropped(card).length ? `<li><b>Left out:</b> the card's ${Cards.dropped(card).join(', ')}.</li>` : ''}</ul>
+        ${used.description ? `<details class="small"><summary>The card's description</summary><p>${esc(used.description)}</p></details>` : ''}
+        <div id="cCardNote" class="small" aria-live="polite">${r.busy ? 'Converting…' : r.error ? `<span class="bad">${esc(r.error)}</span>` : ''}</div>
+        <button type="button" id="cCardConvert" class="primary"${r.busy ? ' disabled' : ''}>Convert with the model</button> <button type="button" id="cCardCancel">Cancel</button>`;
+    }
+    return `<h3>Review: ${esc(card.name)}</h3>
+      <p class="small">Read it through and change anything; nothing is added until you press <b>Add to the world</b>.</p>
+      ${r.notes.length ? `<ul class="small c-notes">${r.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
+      ${r.image ? `<img src="${esc(r.imageUrl)}" alt="The card's image" class="portrait c-cardpic"><label class="c-check small"><input type="checkbox" id="cCardRights"${r.rights ? ' checked' : ''}> <span>Use the card's image as the portrait. I have the right to use this image.</span></label>` : ''}
+      <div class="settings maker c-charform"><div id="cCharBody" class="maker-body"></div><ul id="cCharErrors" class="maker-errors fail" aria-live="polite"></ul></div>
+      <button type="button" id="cCardAdd" class="primary">Add to the world</button> <button type="button" id="cCardCancel">Cancel</button>`;
+  }
+  async function readCard(file) {
+    try {
+      const { card, image } = Cards.fromFile(new Uint8Array(await file.arrayBuffer()), file.name);
+      if (cui.review && cui.review.imageUrl) URL.revokeObjectURL(cui.review.imageUrl);
+      cui.review = { step: 'card', card, image, imageUrl: image ? URL.createObjectURL(new Blob([image], { type: 'image/png' })) : null, notes: [], busy: false, error: '', rights: false };
+      cui.form = null; cui.sc = null; cui.errors = [];
+      banner('');
+    } catch (err) { banner(`Couldn't import that card: ${esc(err.message)}`, 'bad'); }
+    render();
+  }
+  async function convertCard() {
+    const r = cui.review;
+    const base = baseScenario();
+    if (!base) { r.error = 'The world has problems (see below), so it can\'t be described to the model yet. Fix them first.'; return render(); }
+    r.busy = true; r.error = '';
+    render();
+    try {
+      const out = await Cards.convert(base, r.card);
+      if (cui.review !== r) return;
+      Object.assign(r, { step: 'sheet', character: out.character, notes: out.notes, busy: false });
+    } catch (err) { r.busy = false; r.error = `The conversion failed: ${err.message}`; }
+    cui.sc = null; cui.form = null;
+    render();
+  }
+  function addCard() {
+    const r = cui.review;
+    const out = CM.buildAuthor(cui.sc, cui.form, {});
+    if (out.errors) { cui.errors = out.errors; if (cui.cf) cui.cf.setErrors(out.errors); return; }
+    const c = out.character;
+    const taken = WE.takenIds(cw.files);
+    if (taken.includes(c.id)) c.id = WE.slug(c.name, taken, 'person');
+    if (r.image && r.rights) {
+      const path = WE.portraitPath(cw.files, cw.assets, 'card.png', c.id);
+      cw.assets[path] = new Blob([r.image], { type: 'image/png' });
+      c.portrait = path;
+    }
+    cw.files[`characters/${c.id}.json`] = c;
+    world().characters = (world().characters || []).concat(c.id);
+    selectChar(c.id);
+    banner(`${esc(c.name)} joined the world's people. Add them to a start on the Starts tab.`);
+    changed();
+  }
+  $('cMain').addEventListener('click', (ev) => {
+    if (!cw || ui.tab !== 'characters') return;
+    const t = ev.target;
+    const sel = t.closest('[data-csel]');
+    if (sel) { selectChar(sel.dataset.csel); return render(); }
+    if (t.id === 'cAddChar') { selectChar(WE.newPerson(cw.files, { name: 'New person' })); return changed(); }
+    if (t.id === 'cCardConvert') return void convertCard();
+    if (t.id === 'cCardCancel') { cui.review = null; cui.form = null; cui.sc = null; return render(); }
+    if (t.id === 'cCardAdd') return addCard();
+    if (t.id === 'cDelChar') {
+      if (!cui.confirm) { cui.confirm = true; return render(); }
+      const notes = WE.removeCharacter(cw.files, cui.sel);
+      selectChar(null);
+      banner(notes.length ? esc(notes.join('; ')) : '');
+      return changed();
+    }
+  });
+  $('cMain').addEventListener('change', (ev) => {
+    if (!cw || ui.tab !== 'characters') return;
+    const t = ev.target;
+    if (t.id === 'cCardFile' && t.files && t.files[0]) { const f = t.files[0]; t.value = ''; return void readCard(f); }
+    if (t.id === 'cCardRights') { cui.review.rights = t.checked; return; }
+    if (t.dataset.idof === 'character') {
+      const to = t.value.trim();
+      const err = WE.renameCharacter(cw.files, t.dataset.old, to);
+      if (err) banner(esc(`"${to}" can't be used: ${err}.`), 'bad'); else { banner(''); selectChar(to); }
+      return changed();
+    }
+  });
+
+  // ---------- the portraits tab (task 6-2) ----------
+  // The world's stand-ins (portraitSet): people without their own portrait
+  // get one, picked by their id so it never changes.
+  function renderPortraitsTab() {
+    const set = world().portraitSet || [];
+    const people = Object.entries(pool());
+    const standin = (id) => set[E.hash(id) % set.length];
+    return `<div class="c-form">
+      <section><h3>Stand-in portraits</h3><p class="muted small">Pictures for people who have no portrait of their own, including the ones the story makes up during play. Use your own images only (or ones you have the right to use); the game never makes portraits.</p>
+        <div class="c-pics">${set.map((p, i) => { const u = assetUrl(p); return `<figure>${u ? `<img src="${esc(u)}" alt="" class="portrait">` : '<span class="muted small">not loaded</span>'}<figcaption class="small">${esc(p.split('/').pop())} <button type="button" class="small ghost" data-pdel="${i}" aria-label="Remove ${esc(p)}">✕</button></figcaption></figure>`; }).join('') || '<span class="muted">None: people without a portrait show their initials.</span>'}</div>
+        <label class="btn small">Add images<input type="file" id="cPortraitAdd" accept="image/*" multiple hidden></label></section>
+      <section><h3>Who gets which</h3><ul class="small">${people.map(([id, c]) => `<li>${esc(c.name || id)}: ${typeof c.portrait === 'string' ? `their own (${esc(c.portrait.split('/').pop())})` : c.portrait === false || !set.length ? 'initials' : `stand-in ${esc(standin(id).split('/').pop())}`}</li>`).join('')}</ul></section>
+    </div>`;
+  }
+  $('cMain').addEventListener('click', (ev) => {
+    if (!cw || ui.tab !== 'portraits') return;
+    const d = ev.target.closest('[data-pdel]');
+    if (!d) return;
+    const w = world();
+    w.portraitSet.splice(Number(d.dataset.pdel), 1);
+    if (!w.portraitSet.length) delete w.portraitSet;
+    changed();
+  });
+  $('cMain').addEventListener('change', (ev) => {
+    if (!cw || ui.tab !== 'portraits' || ev.target.id !== 'cPortraitAdd') return;
+    const w = world();
+    [...ev.target.files].forEach((file) => {
+      const path = WE.portraitPath(cw.files, cw.assets, file.name);
+      cw.assets[path] = file;
+      w.portraitSet = (w.portraitSet || []).concat(path);
+    });
+    changed();
+  });
+
   // ---------- test play ----------
   // The game opens in a new tab and asks for the world; the creator sends
   // the files as they are now (images as Blobs). Nothing is exported.
@@ -1488,6 +1692,7 @@
     });
   }
   (async () => {
+    E.loadSettings(); // Suggest and card conversion use the game's model settings
     renderTabs();
     if (location.protocol !== 'file:') {
       try { (await S.listServer()).forEach((w) => addOption('server:' + w.folder, w.title || w.folder)); }

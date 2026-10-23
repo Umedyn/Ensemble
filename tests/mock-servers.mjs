@@ -30,6 +30,12 @@ function answer(user) {
     const m = /"when":\{"day":(\d+)/.exec(user);
     return JSON.stringify({ events: [{ when: { day: m ? Number(m[1]) : 2, hour: 10 }, scope: 'world', region: null, text: 'Mission Control schedules a routine systems check across every module.', visibility: 'heard', effects: null }] });
   }
+  // Character card import (task 6-2): one line written to the player, which the engine leaves out.
+  if (user.includes('=== A CHARACTER CARD ===')) {
+    return JSON.stringify({ pronouns: 'she/her', age: 34, role: 'keeps the old harbor light', traits: ['dry', 'patient', 'honest'], want: 'keep the light burning whatever happens',
+      voice: 'Few words, all of them true.', appearance: 'Wiry and sunburnt, with salt-stiff hair.', description: 'Juniper has kept the light for ten years and logs every ship in a ledger. She pulled you out of the surf.',
+      secret: null, guard: 'medium', skills: { tech: 2, science: 1, athletics: 2, social: 1 } });
+  }
   if (user.includes('=== MAKING A CHARACTER ===')) {
     if (user.includes('personality traits')) return JSON.stringify({ traits: ['sharp-eyed', 'restless', 'loyal'] });
     if (user.includes('how this character talks')) return JSON.stringify({ voice: 'Quick and wry, trails off when nervous.' });

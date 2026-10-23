@@ -62,6 +62,8 @@ function promptsFor(folder) {
   out.narrateSkip = P.narrateSkip(state, 'Keep busy.', skipFrame, [{ after: '1d', text: 'Days pass.' }],
     npcs.filter((id) => id !== npcs[2]).map((id) => ({ id, doing: 'resting' })), skipRes, present);
   out.chapter = P.chapter(state);
+  // Character card import (task 6-2): the v2 fixture card.
+  out.cardConvert = ((p) => `${p.system}\n\n${p.user}`)(P.cardConvert(state.scenario, E.Cards.fromFile(new Uint8Array(fs.readFileSync(path.join(__dirname, 'fixtures', 'cards', 'v2.png')))).card));
   Object.assign(out, genPrompts(E, folder), sitePrompts(E, state), researchPrompts(E, folder));
   return out;
 }

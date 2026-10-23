@@ -940,6 +940,27 @@ Reply with JSON only:
 ${CHAR_ASK[field][0]} Keep to the setting and to what the player has filled in.
 Reply with JSON only: ${CHAR_ASK[field][1]}`;
 
+  // ---------- character cards (task 6-2) ----------
+  // A Tavern card turned into a sheet for this world. System: the generated
+  // starts' header (setting, genre, rules, places, groups, names in use).
+  // User: only the card's description, personality and example dialogue; its
+  // scenario, first message and system prompt are never sent.
+  P.cardConvert = function (sc, card) {
+    const names = (sc.characterData || []).map((c) => c.name).filter((n) => n !== card.name);
+    const u = E.Cards.used(card);
+    const lines = ['=== A CHARACTER CARD ===', `Name: ${card.name}`];
+    if (u.description) lines.push(`Description:\n${u.description}`);
+    if (u.personality) lines.push(`Personality:\n${u.personality}`);
+    if (u.examples) lines.push(`How they talk (examples):\n${u.examples}`);
+    lines.push(`
+=== TASK ===
+Turn this character into a person who lives in the world above. Keep their personality, manner and voice; give them a role, a want and a past that fit this world. Leave out whatever the card says about a scene, a meeting or a relationship with the reader: they haven't met the player. Write about them in the third person, never to "you".
+Reply with JSON only:
+{"pronouns":"she/her","age":30,"role":"their place in this world, a few words","people":"a people or origin, or null","traits":["three","short","traits"],"want":"what they want, one phrase","voice":"how they talk, one sentence","appearance":"one or two sentences, the first a good one-line look","description":"who they are here, one or two sentences","secret":"something they hide, only if the card implies one, or null","guard":"low|medium|high","skills":{${(sc.skills || []).map((k) => `"${k}":1`).join(',')}}}
+- skills from 0 to 4.`);
+    return { system: P.genHeader(sc, { names: new Set(names) }), user: lines.join('\n') };
+  };
+
   // ---------- generated starts (task 4-2) ----------
   // System: the same header for every step of a job (setting, genre, rules,
   // geography, groups, names already used), so KoboldCpp reuses it. User:

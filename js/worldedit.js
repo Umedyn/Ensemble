@@ -425,6 +425,92 @@
     return st.playerSlot;
   };
 
+  // ---------- the world's people (task 6-2) ----------
+  // Every place a character id is used, outside its own file: the pool,
+  // casts and players, feelings (files, cast entries, player slots), keys to
+  // locked doors, timeline "who" and conditions, and lore about them.
+  const loreAll = (files) => [].concat(
+    ...eachStartAndWorld(files).map((s) => (Array.isArray(s.lore) ? s.lore : [])),
+    ...Object.entries(files).filter(([p]) => /^lore\/[^/]+\.json$/.test(p)).map(([, d]) => (Array.isArray(d) ? d : [d])),
+  ).filter(isObj);
+  const conditionsOf = (p) => (!isObj(p) ? [] : p.not ? [p].concat(conditionsOf(p.not)) : [p]);
+  // fn(id) → the new id, or null to drop the reference.
+  function eachCharacterRef(files, fn, notes) {
+    const w = WE.world(files);
+    const keys = (o) => {
+      if (!isObj(o)) return;
+      Object.keys(o).forEach((k) => { const v = fn(k); if (v === k) return; const val = o[k]; delete o[k]; if (v) o[v] = val; });
+    };
+    w.characters = (w.characters || []).map(fn).filter(Boolean);
+    Object.keys(files).filter((p) => p.startsWith('characters/')).forEach((p) => keys(files[p] && files[p].relations));
+    Object.values(WE.starts(files)).forEach((st) => {
+      (st.cast || []).forEach((c) => { if (isObj(c)) { c.id = fn(c.id) || c.id; keys(c.relations); } });
+      st.cast = (st.cast || []).map((c) => (typeof c === 'string' ? fn(c) : c)).filter(Boolean);
+      if (st.player) st.player = fn(st.player) || st.player;
+      if (st.playerSlot) { keys(st.playerSlot.relationsDefault); keys(st.playerSlot.castFeelings); }
+    });
+    eachStartAndWorld(files).forEach((s) => (s.locations || []).forEach((l) => (l.links || []).forEach((k) => {
+      if (Array.isArray(k.key)) { k.key = k.key.map(fn).filter(Boolean); if (!k.key.length) delete k.key; }
+    })));
+    events(files).forEach((ev) => {
+      if (Array.isArray(ev.who)) { ev.who = ev.who.map(fn).filter(Boolean); if (!ev.who.length) delete ev.who; }
+      if (!ev.preconditions) return;
+      const kept = ev.preconditions.filter((p) => conditionsOf(p).every((q) => {
+        if (q.alive != null && !fn(q.alive)) return false;
+        if (q.known != null && q.by != null && !fn(q.by)) return false;
+        if (q.alive != null) q.alive = fn(q.alive);
+        if (q.by != null) q.by = fn(q.by);
+        return true;
+      }));
+      if (kept.length < ev.preconditions.length && notes) notes.push(`timeline "${ev.id}" lost a condition about them`);
+      ev.preconditions = kept;
+      if (!kept.length) delete ev.preconditions;
+    });
+    loreAll(files).forEach((e) => {
+      if (e.level !== 'character' || !e.ref) return;
+      const v = fn(e.ref);
+      if (v) e.ref = v;
+      else { e.level = 'topic'; delete e.ref; if (notes) notes.push(`lore "${e.id}" is now a topic (it only comes up by its keywords)`); }
+    });
+  }
+  // → error text, or '' when renamed.
+  WE.renameCharacter = function (files, from, to) {
+    to = String(to || '').trim();
+    if (from === to) return '';
+    if (!WE.ID_RE.test(to)) return 'ids are lowercase letters, digits, - or _';
+    if (WE.takenIds(files).includes(to)) return `"${to}" is already used by someone or somewhere`;
+    const file = files[`characters/${from}.json`];
+    if (!file) return `no character "${from}"`;
+    file.id = to;
+    files[`characters/${to}.json`] = file;
+    delete files[`characters/${from}.json`];
+    eachCharacterRef(files, (x) => (x === from ? to : x));
+    return '';
+  };
+  // Takes someone out of the world: every start's cast (the player part
+  // passes on), feelings, keys, the timeline and lore. → notes for the page
+  WE.removeCharacter = function (files, id) {
+    const notes = [];
+    Object.keys(WE.starts(files)).forEach((sid) => {
+      if (WE.castIds(files[WE.startFile(sid)]).includes(id)) notes.push(...WE.removeFromCast(files, sid, id).map((n) => `start "${sid}": ${n}`));
+    });
+    eachCharacterRef(files, (x) => (x === id ? null : x), notes);
+    delete files[`characters/${id}.json`];
+    return notes;
+  };
+  // The starts someone is in.
+  WE.startsWith = (files, id) => Object.entries(WE.starts(files)).filter(([, st]) => WE.castIds(st).includes(id)).map(([sid]) => sid);
+  // A free path under portraits/ for an image file name.
+  WE.portraitPath = function (files, assets, name, base) {
+    const ext = (String(name).match(/\.(png|jpe?g|webp|gif|svg)$/i) || [, 'png'])[1].toLowerCase();
+    const stem = slug(base || String(name).replace(/\.[^.]+$/, ''), [], 'portrait');
+    const used = new Set(Object.keys(assets || {}).concat(WE.world(files).portraitSet || []));
+    Object.keys(files).forEach((p) => { if (p.startsWith('characters/') && files[p] && typeof files[p].portrait === 'string') used.add(files[p].portrait); });
+    let path = `portraits/${stem}.${ext}`;
+    for (let i = 2; used.has(path); i++) path = `portraits/${stem}-${i}.${ext}`;
+    return path;
+  };
+
   // ---------- groups ----------
   const eachStartAndWorld = (files) => [WE.world(files), ...Object.values(WE.starts(files))];
   const events = (files) => eachStartAndWorld(files).flatMap((s) => (Array.isArray(s.timeline) ? s.timeline : [])).filter(isObj);

@@ -277,6 +277,106 @@
     return out;
   };
 
+  // ---------- the author's editor (task 6-2) ----------
+  // The creator edits the world's people with the same form in author mode:
+  // free role and people text, no point budget (only the 0–4 cap), feelings
+  // toward everyone in the pool, and the fields a player never sets (what
+  // they know, an agenda, the default tier, tags, needs). base: a composed
+  // start of the world (its header for Suggest), or null; pool: {id: file}.
+  CM.authorScenario = function (world, base, pool, editingId) {
+    const sc = E.clone(base || {
+      title: world.title, worldTitle: world.title, setting: world.setting || '', rules: world.rules || [], tags: world.tags || [],
+      skills: world.skills, needs: world.needs || [], world: world.world || {}, factions: world.factions || [], regions: world.regions,
+      locations: [{ id: 'here', name: 'Here', desc: '', connects: [] }], start: { day: 1, hour: 8 }, timeLabel: world.timeLabel,
+    });
+    sc.skills = sc.skills || ['physical', 'technical', 'social', 'knowledge', 'stealth'];
+    sc.portraitSet = (world.portraitSet || []).slice();
+    const room = ((sc.locations || [])[0] || {}).id;
+    const others = Object.keys(pool).filter((id) => id !== editingId && pool[id]);
+    sc.characters = others;
+    sc.characterData = others.map((id) => Object.assign(E.clone(pool[id]), { id, status: Object.assign({ health: 'ok' }, pool[id].status, { location: room }) }));
+    delete sc.player;
+    sc.playerSlot = { location: room, freeform: true, roles: [], peoples: [], skillPoints: sc.skills.length * CM.MAX_SKILL, maxSkill: CM.MAX_SKILL };
+    sc.reservedIds = Object.keys(pool).filter((id) => id !== editingId);
+    sc.author = true;
+    return sc;
+  };
+  // A character file → author form values (formFrom plus the author fields).
+  CM.authorForm = function (sc, data) {
+    const d = isObj(data) ? data : {};
+    const f = CM.formFrom(sc, d);
+    f.id = d.id || '';
+    if (typeof d.portrait === 'string' && E.isImagePath(d.portrait)) f.portrait = d.portrait;
+    f.knows = Array.isArray(d.knows) ? d.knows.filter((x) => typeof x === 'string') : [];
+    f.agendaMode = d.agenda === undefined ? 'model' : d.agenda === null ? 'none' : 'set';
+    const a = isObj(d.agenda) ? d.agenda : {};
+    f.agenda = {
+      goal: typeof a.goal === 'string' ? a.goal : '', hours: Number.isFinite(a.hours) ? a.hours : null, visibility: a.visibility || '',
+      steps: (Array.isArray(a.steps) ? a.steps : []).map((s) => (typeof s === 'string' ? { text: s, contact: false } : { text: String((s && s.text) || ''), contact: !!(s && s.contact) })),
+    };
+    f.tier = ['local', 'secondary'].includes(d.tier) ? d.tier : '';
+    f.pinned = d.pinned === true;
+    f.tags = Array.isArray(d.tags) ? d.tags.filter((x) => typeof x === 'string') : [];
+    f.needs = isObj(d.needs) ? Object.assign({}, d.needs) : {};
+    return f;
+  };
+  // The form → { character } (a pool file) or { errors }. original: the file
+  // being edited; fields the form doesn't show (status, anything newer) are
+  // kept, and an unchanged file comes back as it was.
+  CM.buildAuthor = function (sc, form, original) {
+    const f = form || {};
+    const scb = E.clone(sc);
+    if (typeof f.portrait === 'string' && E.isImagePath(f.portrait) && !scb.portraitSet.includes(f.portrait)) scb.portraitSet.push(f.portrait);
+    const out = CM.build(scb, f);
+    if (out.errors) return out;
+    const made = out.character;
+    const o = isObj(original) ? original : {};
+    const c = E.clone(o);
+    const set = (k, v) => {
+      const empty = v === undefined || v === '' || (Array.isArray(v) && !v.length) || (isObj(v) && !Object.keys(v).length);
+      if (empty) delete c[k]; else c[k] = v;
+    };
+    c.id = f.id || made.id;
+    ['name', 'pronouns', 'role', 'traits', 'want'].forEach((k) => (c[k] = made[k]));
+    ['people', 'age', 'description', 'appearance', 'voice', 'secret'].forEach((k) => set(k, made[k]));
+    if (made.secret) c.guard = made.guard;
+    if (made.portrait === undefined) delete c.portrait; else c.portrait = made.portrait;
+    const keep = (from, had) => {
+      const r = {};
+      Object.entries(from).forEach(([k, v]) => { if (v !== 0 || (isObj(had) && k in had)) r[k] = v; });
+      return r;
+    };
+    set('skills', keep(made.skills, o.skills));
+    set('relations', keep(made.relations, o.relations));
+    set('knows', (f.knows || []).map((x) => text(x, 400)).filter(Boolean));
+    if (f.agendaMode === 'model') delete c.agenda;
+    else if (f.agendaMode === 'none') c.agenda = null;
+    else {
+      const a = f.agenda || {};
+      const ag = { goal: text(a.goal, 200), steps: (a.steps || []).map((s) => ({ text: text(s.text, 200), contact: !!s.contact })).filter((s) => s.text).map((s) => (s.contact ? s : s.text)) };
+      if (Number.isFinite(Number(a.hours)) && a.hours !== null && a.hours !== '') ag.hours = Number(a.hours);
+      if (a.visibility) ag.visibility = a.visibility;
+      c.agenda = ag;
+    }
+    set('tier', f.tier || undefined);
+    set('pinned', f.pinned ? true : undefined);
+    set('tags', (f.tags || []).map((x) => text(x, 100)).filter(Boolean));
+    const needs = {};
+    const errors = [];
+    Object.entries(f.needs || {}).forEach(([k, v]) => {
+      if (v === '' || v == null) return;
+      if (!(sc.needs || []).some((n) => n.id === k)) return;
+      const n = Number(v);
+      if (!(n >= 0 && n <= 1)) errors.push(`Starting ${k} must be from 0 to 1.`);
+      else needs[k] = n;
+    });
+    set('needs', needs);
+    const locIds = new Set((sc.locations || []).map((l) => l.id));
+    const check = Object.assign({}, c, { status: Object.assign({}, c.status, { location: sc.playerSlot.location }) });
+    errors.push(...E.Scenario.characterProblems(check, sc, locIds, sc.characters.concat(c.id)));
+    return errors.length ? { errors } : { character: c };
+  };
+
   // ---------- Suggest (one field from the model) ----------
   // A game state for the draft, so the prompt header is the one the game
   // will use (and KoboldCpp's cache is warm for the first turn). Missing
