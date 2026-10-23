@@ -74,7 +74,7 @@ Static servers can't list directories, so `world.json` lists its starts and char
 | `characters` | string[] | the character pool (ids in `characters/`) |
 | `starts` | string[] | start ids in `starts/`; the first is the default. May be empty when the world has `generatedStarts` |
 | `generatedStarts` | object | optional (task 4-2): lets players build a start. See [Generated starts](#generated-starts) |
-| `generatedSites` | object | optional (task 4-4): `{maxSites, keepDays}` (defaults 8 and 3; 1–30 and 1–60): the engine builds places the story goes that the map doesn't have. See [Generated sites](#generated-sites) |
+| `generatedSites` | object | optional (task 4-4): `{maxSites, keepDays, library}` (defaults 8 and 3; 1–30 and 1–60): the engine builds places the story goes that the map doesn't have. `library` (task 6-3) is a list of setting tags, such as `["modern"]`: shared site maps whose `setting` overlaps join the world's own. See [Generated sites](#generated-sites) |
 | `sites` | string[] | optional: library site maps in `sites/<id>.json`, used first when a new place fits one (task 4-4) |
 | `locations`, `clocks` | | optional world-wide ones (rare); usually per start. A location may set `region` (default: the start's `region`) |
 | `regions` | object[] | the map above the rooms (task 3-1): `{id, name, controller, tags, status, neighbours, lore}`. `controller` is a group id or `null`; `tags` up to 6 (30 characters each); `status` up to 120 characters; `lore` a summary up to 400, always in the prompt (no secrets or future events; the heavier detail goes in `region` lore entries, below). `startable: true` marks the regions a generated start can begin in (none marked: all). Neighbour links are made two-way when validated. Starts change them by `id`. Once a world has regions, every start needs `region` and every location a known region |
@@ -206,7 +206,24 @@ Sites **fade unless something happened there**: a fact of weight 2+ recorded whi
   "entrances": [{ "room": "loading-bay", "kind": "roller door", "watched": true }] }
 ```
 
-Rooms use the start room format (task 3-3). `type`, `credit` and `license` are required. A new place uses a map when a word of its kind matches the map's `type` or a tag; among several, the pick is seeded by the site id, so it is the same every time. Ids that clash with the game's are renamed. The maps travel in the composed scenario (`siteMaps`), so saves keep them. The shared cross-world library comes with task 6-3. `tests/fixtures/chrome-district/` is the worked example (the Saints' chop shop).
+Rooms use the start room format (task 3-3). `type`, `credit` and `license` are required. A new place uses a map when a word of its kind matches the map's `type` or a tag; the world's own maps come before shared ones, and among several the pick is seeded by the site id, so it is the same every time. Ids that clash with the game's are renamed. The maps travel in the composed scenario (`siteMaps`), so saves keep them. `tests/fixtures/chrome-district/` is the worked example (the Saints' chop shop).
+
+**Drawn maps** (task 6-3, made in the creator's Sites tab). All optional, so a map without them is laid out by the game as before:
+
+| field | notes |
+|---|---|
+| `image`, `width`, `height` | the battlemap or floor plan, beside the map (`sites/<id>.png`), and its size in pixels. In play the place is drawn on it: the picture shows only through rooms the player knows, dimmed where they only remember them, with a "?" past a door into an unknown room |
+| `grid` | `{"square": 50, "unit": "5 ft"}`: pixels per square and what a square measures. **For measuring only**, never squares to move on: a room without a `size` gets one from its area (under 10 squares small, under 30 medium, else large), and its description gets "about 30 × 20 ft" for the narrator |
+| `rooms[].shape` | the room as a polygon on the image, `[[x, y], …]` (3+ points inside it) |
+| `links[].at`, `entrances[].at` | where the door or way in is drawn; a link without one is drawn in the middle of the edge the two rooms share |
+| `spots` | `[{kind, room, at, label}]`, kind `guard post`, `cover`, `hide`, `loot` or `spawn`. In play a spot is a feature of its room (its label, or the kind); a group the people step puts in a room with a guard post holds it; someone it doesn't place starts at a spawn point. Authored features are what exists; where the author marks nothing, play may still infer features (task 3-6) |
+| `setting` | setting tags (`modern`, `cyberpunk`, `fantasy`…) for the shared library |
+
+Validation warns (without refusing the map) about a `secure` room with more than one way in, shapes that overlap on the same level, and a door between rooms whose shapes don't touch (stairs, hatches and vents may join rooms anywhere).
+
+### The shared library
+
+`library/index.json` (`{"sites": [{id, name, type, tags, setting, rooms}]}`, one entry per map, made by `Scenario.libraryEntry`) and `library/sites/<id>.json` with their images. Bundled maps are original or CC0 only: the roadside diner (modern) and the chop shop (cyberpunk). A world that sets `generatedSites.library` gets the shared maps whose `setting` overlaps, after its own (a world map with the same id wins); Harmon's uses `["modern"]`, so a trip to "the diner" uses the drawn diner. In the game, **Open folder** on a library folder (an `index.json` with `sites`, and no `world.json`) adds its maps; the creator's **Export for the library** makes such a folder. `npm run check` validates the library and keeps the index in step.
 
 ## Lore
 

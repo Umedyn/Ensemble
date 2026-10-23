@@ -606,5 +606,65 @@
     debris: '<symbol id="sd-debris" viewBox="0 0 10 10"><path d="M1 5L5 2L9 4L6 8Z" class="sd-rock"/></symbol>',
     lock: '<symbol id="sd-lock" viewBox="0 0 9 11"><path d="M2.2 5V3.4a2.3 2.3 0 0 1 4.6 0V5" class="sd-lock-shackle"/><rect x="1" y="5" width="7" height="5.5" rx="1" class="sd-lock-body"/></symbol>',
   };
+  // ---------- a site map drawn on its own image (task 6-3) ----------
+  // map: { url, width, height }; rooms: {id: {name, shape, outside}} for the
+  // rooms of the place; view: { inView, remembered, here, links: [{a, b,
+  // kind, at}] (kinds as last seen), tokens, tokenSvg, seed }. The picture
+  // shows only through rooms the player knows (a mask), dimmed where they
+  // only remember it; unknown rooms are not drawn, only a "?" past a door
+  // from a known room (rule 11). The image is the author's; nothing is
+  // invented on top of it.
+  SD.renderImage = function (map, rooms, view) {
+    view = view || {};
+    const W = map.width, H = map.height;
+    const inView = new Set((view.inView || []).filter((id) => rooms[id]));
+    const remembered = new Set((view.remembered || []).filter((id) => rooms[id] && !inView.has(id)));
+    const known = (id) => inView.has(id) || remembered.has(id);
+    const ids = Object.keys(rooms).filter((id) => Array.isArray(rooms[id].shape) && rooms[id].shape.length >= 3).sort();
+    const pts = (poly) => poly.map((p) => `${n1(p[0])},${n1(p[1])}`).join(' ');
+    const Geo = E.Sites.Geo;
+    const mid = `sdmask-${String(view.seed || 'map').replace(/[^a-z0-9_-]/gi, '')}`;
+    const unit = W / 100;
+    const out = [`<rect class="sd-img-fog" x="0" y="0" width="${W}" height="${H}"/>`,
+      `<mask id="${mid}"><rect x="0" y="0" width="${W}" height="${H}" fill="black"/>${ids.filter(known).map((id) => `<polygon points="${pts(rooms[id].shape)}" fill="white"/>`).join('')}</mask>`,
+      map.url ? `<image href="${esc(map.url)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="none" mask="url(#${mid})"/>` : ''];
+    ids.filter(known).forEach((id) => {
+      const r = rooms[id];
+      const c = Geo.centroid(r.shape);
+      const cls = `map-room${id === view.here ? ' here' : ''}${remembered.has(id) ? ' sd-remembered' : ''}${r.outside ? ' outside' : ''}`;
+      out.push(`<g class="${cls}" tabindex="0" role="button" data-room="${esc(id)}" aria-label="${esc(r.name)}"><polygon class="sd-img-room" points="${pts(r.shape)}"/>` +
+        `<text class="sd-img-label" x="${n1(c[0])}" y="${n1(Geo.bbox(r.shape).y + unit * 3)}" text-anchor="middle" style="font-size:${n1(unit * 2.4)}px">${esc(r.name)}</text></g>`);
+    });
+    // Doors: at the link's point, else the middle of the shared edge.
+    (view.links || []).forEach((k) => {
+      if (!known(k.a) && !known(k.b)) return;
+      const A = rooms[k.a], B = rooms[k.b];
+      if (!A || !B || !A.shape || !B.shape) return;
+      const s = Array.isArray(k.at) ? { mid: k.at } : Geo.shared(A.shape, B.shape, unit);
+      if (!s) return;
+      const [x, y] = s.mid;
+      const word = { open: 'opening', 'locked door': 'locked door' }[k.kind] || k.kind;
+      out.push(`<g class="sd-img-door sd-img-${String(k.kind).replace(/\s+/g, '-')}"><title>${esc(word)}</title><rect x="${n1(x - unit)}" y="${n1(y - unit)}" width="${n1(unit * 2)}" height="${n1(unit * 2)}" rx="${n1(unit / 3)}"/></g>`);
+      const unknown = known(k.a) ? (known(k.b) ? null : k.b) : k.a;
+      if (unknown) {
+        const c = Geo.centroid(rooms[unknown].shape);
+        const len = Math.hypot(c[0] - x, c[1] - y) || 1;
+        out.push(`<text class="sd-img-unknown" x="${n1(x + ((c[0] - x) / len) * unit * 4)}" y="${n1(y + ((c[1] - y) / len) * unit * 4 + unit)}" text-anchor="middle" style="font-size:${n1(unit * 3)}px">?</text>`);
+      }
+    });
+    // Tokens in a row (wrapping) around the middle of their room.
+    const r = Math.max(8, Math.round(unit * 1.6));
+    Object.entries(view.tokens || {}).forEach(([id, list]) => {
+      if (!known(id) || !rooms[id] || !rooms[id].shape || !view.tokenSvg) return;
+      const c = Geo.centroid(rooms[id].shape);
+      const step = 2 * r + 4, cols = Math.max(1, Math.min(list.length, 4));
+      list.forEach((t, i) => {
+        const col = i % cols, row = Math.floor(i / cols);
+        out.push(view.tokenSvg(t, n1(c[0] + (col - (cols - 1) / 2) * step), n1(c[1] + row * step), r));
+      });
+    });
+    return `<svg class="map-svg sd-image" viewBox="0 0 ${W} ${H}" role="img" aria-label="Map">${out.join('')}</svg>`;
+  };
+
   SD.defs = (used) => Object.keys(DEFS).filter((k) => !used || used.has(k)).map((k) => DEFS[k]).join('');
 })(typeof window !== 'undefined' ? window : globalThis);

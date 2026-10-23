@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500">
+  <!-- Roadside diner floor plan. Original, CC0 (Ensemble, task 6-3). Grid: 50 px = 5 ft. -->
+  <rect width="800" height="500" fill="#d9d4c7"/>
+  <defs><pattern id="g" width="50" height="50" patternUnits="userSpaceOnUse"><path d="M50 0H0V50" fill="none" stroke="#000" stroke-opacity="0.08"/></pattern>
+    <pattern id="tile" width="25" height="25" patternUnits="userSpaceOnUse"><rect width="25" height="25" fill="#efe8d8"/><rect width="12.5" height="12.5" fill="#d8cfbb"/><rect x="12.5" y="12.5" width="12.5" height="12.5" fill="#d8cfbb"/></pattern></defs>
+  <rect x="0" y="380" width="800" height="120" fill="#7b7d7a"/>
+  <g stroke="#f2f2f2" stroke-width="3"><line x1="120" y1="420" x2="120" y2="500"/><line x1="240" y1="420" x2="240" y2="500"/><line x1="360" y1="420" x2="360" y2="500"/><line x1="480" y1="420" x2="480" y2="500"/></g>
+  <rect x="40" y="140" width="480" height="240" fill="url(#tile)"/>
+  <rect x="520" y="140" width="240" height="160" fill="#c9cfd2"/>
+  <rect x="520" y="300" width="240" height="80" fill="#b59f7c"/>
+  <rect x="40" y="40" width="160" height="100" fill="#dfe8ea"/>
+  <g fill="#a33a33"><rect x="60" y="160" width="40" height="70" rx="6"/><rect x="60" y="250" width="40" height="70" rx="6"/><rect x="160" y="160" width="40" height="70" rx="6"/><rect x="160" y="250" width="40" height="70" rx="6"/></g>
+  <g fill="#6d4c33"><rect x="105" y="170" width="50" height="50"/><rect x="105" y="260" width="50" height="50"/></g>
+  <rect x="300" y="160" width="200" height="30" fill="#8a6a4a"/>
+  <g fill="#a33a33"><circle cx="320" cy="210" r="10"/><circle cx="360" cy="210" r="10"/><circle cx="400" cy="210" r="10"/><circle cx="440" cy="210" r="10"/><circle cx="480" cy="210" r="10"/></g>
+  <g fill="#8d9599"><rect x="540" y="160" width="200" height="30"/><rect x="600" y="220" width="80" height="50"/></g>
+  <g fill="#7a6345"><rect x="540" y="315" width="40" height="50"/><rect x="600" y="315" width="40" height="50"/><rect x="660" y="315" width="80" height="25"/></g>
+  <g fill="#ffffff" stroke="#999"><rect x="60" y="60" width="40" height="30"/><rect x="140" y="60" width="40" height="30"/></g>
+  <rect width="800" height="500" fill="url(#g)"/>
+  <g fill="none" stroke="#2b2b2b" stroke-width="10" stroke-linejoin="square">
+    <path d="M40 140V380H260M300 380H520V140Z"/><path d="M520 140H760V380H720M680 380H520"/><path d="M520 300H620M660 300H760"/><path d="M520 140V200M520 240V300"/>
+    <path d="M40 140V40H200V140M100 140H40M140 140H200"/>
+  </g>
+</svg>

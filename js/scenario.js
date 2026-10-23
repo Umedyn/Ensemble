@@ -244,7 +244,7 @@
     (Array.isArray(world.sites) ? world.sites : []).forEach((id) => {
       const m = (bundle.siteMaps || {})[id];
       if (!m) problems.push(`missing sites/${id}.json`);
-      else problems.push(...E.Sites.mapProblems(m, id));
+      else { problems.push(...E.Sites.mapProblems(m, id)); warnings.push(...E.Sites.mapWarnings(m, id)); }
     });
     problems.push(...loreWorldProblems(bundle, startIds, warnings));
     problems.push(...timelineWorldProblems(bundle, startIds, warnings));
@@ -298,6 +298,74 @@
     return warnings;
   };
 
+  // ---------- the shared site map library (task 6-3) ----------
+  // library/index.json: { "sites": [{ id, name, type, tags, setting, rooms }] },
+  // with the maps in library/sites/<id>.json and their images beside them.
+  // The page sets S.library once ({ maps: {id: map}, assets: {path: File},
+  // errors }); a world that asks for it (generatedSites.library: setting
+  // tags) gets the maps whose "setting" overlaps, marked library: true, after
+  // its own (a world map with the same id wins).
+  S.library = { maps: {}, assets: {}, errors: [] };
+  S.libraryFor = function (world, own) {
+    const lib = world.generatedSites && world.generatedSites.library;
+    const want = new Set((Array.isArray(lib) ? lib : []).map((t) => String(t).toLowerCase()));
+    const out = {};
+    if (!want.size) return out;
+    Object.values(S.library.maps || {}).forEach((m) => {
+      if ((own && own[m.id]) || !(m.setting || []).some((t) => want.has(String(t).toLowerCase()))) return;
+      out[m.id] = Object.assign(E.clone(m), { library: true });
+    });
+    return out;
+  };
+  // An index and its maps → { maps, errors }: each map checked, listed and
+  // matching its index entry.
+  S.buildLibrary = function (index, mapsById) {
+    const maps = {};
+    const errors = [];
+    const list = index && Array.isArray(index.sites) ? index.sites : null;
+    if (!list) return { maps, errors: ['the library index needs a "sites" list'] };
+    list.forEach((entry) => {
+      const id = entry && entry.id;
+      const m = mapsById[id];
+      if (!m) return errors.push(`library: missing sites/${id}.json`);
+      const p = E.Sites.mapProblems(m, id);
+      if (p.length) return errors.push(...p.map((x) => `library: ${x}`));
+      maps[id] = m;
+    });
+    return { maps, errors };
+  };
+  // The index entry for a map (what the library's index.json lists).
+  S.libraryEntry = (m) => ({ id: m.id, name: m.name || m.id, type: m.type, tags: m.tags || [], setting: m.setting || [], rooms: (m.rooms || []).length });
+  S.loadLibraryServer = async function () {
+    const index = await getJSON('library/index.json');
+    const mapsById = {};
+    await Promise.all((index.sites || []).map(async (e) => { try { mapsById[e.id] = await getJSON(`library/sites/${e.id}.json`); } catch (err) { /* reported below */ } }));
+    return Object.assign(S.buildLibrary(index, mapsById), { assets: {} });
+  };
+  // A picked folder that is a library (index.json with "sites", and no
+  // world.json) → { maps, assets, errors }, or null when it isn't one.
+  S.readLibraryFiles = async function (fileList) {
+    const files = Array.from(fileList);
+    const byPath = new Map(files.map((f) => [f.webkitRelativePath || f.name, f]));
+    if ([...byPath.keys()].some((p) => /(^|\/)(world|scenario)\.json$/.test(p))) return null;
+    const idxPath = [...byPath.keys()].find((p) => /(^|\/)index\.json$/.test(p));
+    if (!idxPath) return null;
+    let index;
+    try { index = JSON.parse(await byPath.get(idxPath).text()); } catch (e) { return null; }
+    if (!index || !Array.isArray(index.sites)) return null;
+    const dir = idxPath.slice(0, idxPath.length - 'index.json'.length);
+    const mapsById = {};
+    const assets = {};
+    for (const [p, f] of byPath) {
+      if (!p.startsWith(dir)) continue;
+      const rel = p.slice(dir.length);
+      const m = /^sites\/([^/]+)\.json$/.exec(rel);
+      if (m) { try { mapsById[m[1]] = JSON.parse(await f.text()); } catch (e) { /* reported as missing */ } }
+      else if (E.isImagePath(rel)) assets[rel] = f;
+    }
+    return Object.assign(S.buildLibrary(index, mapsById), { assets });
+  };
+
   // ---------- loading ----------
   // Which files a world (or legacy scenario) needs besides its root file.
   S.neededFiles = function (rootJson, legacy) {
@@ -321,6 +389,8 @@
       (world.characters || []).forEach((id) => { if (files[`characters/${id}.json`]) characters[id] = files[`characters/${id}.json`]; });
       const siteMaps = {};
       (Array.isArray(world.sites) ? world.sites : []).forEach((id) => { if (files[`sites/${id}.json`]) siteMaps[id] = files[`sites/${id}.json`]; });
+      // Shared maps for the world's setting (task 6-3), after its own.
+      Object.assign(siteMaps, S.libraryFor(world, siteMaps));
       bundle = { world, starts, characters, siteMaps, legacy: false };
     } else if (files['scenario.json']) {
       bundle = S.fromLegacy(Object.assign({}, files['scenario.json'], {

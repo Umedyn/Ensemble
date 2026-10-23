@@ -150,6 +150,16 @@
 
   $('folderInput').addEventListener('change', async (ev) => {
     if (!ev.target.files.length) return;
+    // A site map library (task 6-3) instead of a world: its maps join the
+    // shared ones; worlds that ask for them get them at New game.
+    const lib = await E.Scenario.readLibraryFiles(ev.target.files);
+    if (lib) {
+      E.Scenario.library = { maps: Object.assign({}, E.Scenario.library.maps, lib.maps), assets: {}, errors: lib.errors };
+      libraryAssets = Object.assign({}, libraryAssets, lib.assets);
+      alert(`Added ${Object.keys(lib.maps).length} site map${Object.keys(lib.maps).length === 1 ? '' : 's'} to the library.${lib.errors.length ? `\n\nSkipped:\n${lib.errors.join('\n')}` : ''}`);
+      ev.target.value = '';
+      return;
+    }
     try {
       const { worlds, errors } = await E.Scenario.loadFromFiles(ev.target.files);
       worlds.forEach((w, i) => { loaded.set('disk:' + w.folder, w); diskAssets.set(w.folder, w.assets || {}); addScenarioOption('disk:' + w.folder, w.title + ' (disk)', i === 0); });
@@ -1113,6 +1123,30 @@
     const site = E.Sites.playerSite(state);
     return E.SiteDraw.render(plan, rooms, { inView, remembered, here, seed: `${sc.worldId}:${site === E.Sites.HOME ? sc.startId : site}`, links, tokens, tokenSvg });
   }
+  // A place built from a site map drawn on an image (task 6-3): what the
+  // player knows is decided here, as for the detailed map; doors out of
+  // sight as last seen (a locked one just a door).
+  function imageMapSvg(site, m, here, tokens) {
+    const ids = E.Sites.rooms(state, site).map((l) => l.id);
+    const inView = E.Engine.visibleRooms(state).filter((id) => ids.includes(id));
+    const remembered = ids.filter((id) => !inView.includes(id) && state.seenRooms.includes(id));
+    const rooms = {};
+    ids.forEach((id) => { const l = state.locations[id]; if (l.shape) rooms[id] = { name: l.name, shape: l.shape, outside: !!l.outside }; });
+    const links = [];
+    const seen = new Set();
+    ids.forEach((a) => {
+      const l = state.locations[a];
+      const ways = (l.links || []).filter((k) => k.kind !== 'route').map((k) => ({ to: k.to, kind: k.kind, at: k.at })).concat((l.connects || []).map((to) => ({ to, kind: 'open' })));
+      ways.forEach((k) => {
+        const key = [a, k.to].sort().join('|');
+        if (!ids.includes(k.to) || seen.has(key)) return;
+        seen.add(key);
+        const live = inView.includes(a) || inView.includes(k.to);
+        links.push({ a, b: k.to, at: k.at, kind: live ? E.Engine.linkShown(state, a, k.to) || k.kind : k.kind === 'locked door' ? 'door' : k.kind });
+      });
+    });
+    return E.SiteDraw.renderImage({ url: siteMapUrl(m), width: m.width, height: m.height }, rooms, { inView, remembered, here, links, tokens, tokenSvg, seed: site });
+  }
   // Decoration drops out when the map is drawn small (task 3-7).
   function sizeDetailedMap() {
     const svg = document.querySelector('#mapPane svg.sd');
@@ -1130,8 +1164,10 @@
     const roomName = (id) => (seen(id) ? state.locations[id].name : 'unknown room');
     const site = E.Sites.playerSite(state);
     const lm = site === E.Sites.HOME ? state.scenario.localMap : null;
+    const im = site !== E.Sites.HOME ? E.Sites.imageMap(state, site) : null;
     let svg;
-    if (lm) {
+    if (im) svg = imageMapSvg(site, im, here, tokens);
+    else if (lm) {
       const url = portraitUrl(lm.image);
       const rooms = Object.entries(lm.rooms).map(([id, r]) => `<g class="map-room${id === here ? ' here' : ''}" tabindex="0" role="button" data-room="${esc(id)}" aria-label="${esc(roomName(id))}"><rect class="floor" x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" style="fill-opacity:0.15"/>${roomTokens(tokens[id] || [], r.x, r.y, r.w, r.h)}</g>`).join('');
       svg = `<svg class="map-svg" viewBox="0 0 ${lm.width} ${lm.height}" role="img" aria-label="Map">${url ? `<image href="${esc(url)}" x="0" y="0" width="${lm.width}" height="${lm.height}"/>` : ''}${rooms}</svg>`;
@@ -1436,6 +1472,15 @@
   const diskAssets = new Map(); // world folder -> { path: File }
   const assetUrls = new Map(); // "folder/path" -> object URL
   const portraitUrl = (path) => assetUrl(state.scenario.folder, path);
+  // Site maps from the shared library (task 6-3) have their images there:
+  // picked with Open folder (object URLs) or on the server.
+  let libraryAssets = {};
+  const siteMapUrl = (m) => {
+    if (!m.library) return portraitUrl(m.image);
+    const f = libraryAssets[m.image];
+    if (f) { const key = 'library/' + m.image; if (!assetUrls.has(key)) assetUrls.set(key, URL.createObjectURL(f)); return assetUrls.get(key); }
+    return location.protocol === 'file:' ? null : `library/${m.image.split('/').map(encodeURIComponent).join('/')}`;
+  };
   function assetUrl(folder, path) {
     const files = diskAssets.get(folder);
     if (files && files[path]) {
@@ -2077,6 +2122,10 @@
     E.loadSettings();
     applyAppearance(E.settings.appearance);
     initTimeSteps();
+    // The shared site map library (task 6-3), before the worlds that use it.
+    if (location.protocol !== 'file:') {
+      try { E.Scenario.library = await E.Scenario.loadLibraryServer(); } catch (e) { /* no library/: worlds use their own maps */ }
+    }
     await loadServerList();
     if (firstRun) openSetup();
     else checkConnection(false);

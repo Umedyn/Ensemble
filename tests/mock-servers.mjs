@@ -53,6 +53,8 @@ function answer(user) {
       intents: [{ id: 'bauer', action: 'hovers nervously near the log panel', says: 'Probably just a sensor issue.', visible: true },
         { id: 'okafor', action: 'heads to Ops to draft a storm plan', visible: true, move_to: 'ops' }], events: [] };
     // Generated sites (task 4-4): heading for the pharmacy asks for a new place.
+    // Task 6-3: a site map drawn in the creator fits a tavern.
+    if (/=== PLAYER ACTION[^\n]*\n"[^"\n]*tavern/i.test(user)) Object.assign(out.player, { summary: 'go to the tavern', needs_roll: false, move_to: null, new_place: { name: 'the tavern', kind: 'tavern', region: 'main-street' } });
     if (/=== PLAYER ACTION[^\n]*\n"[^"\n]*pharmacy/i.test(user)) Object.assign(out.player, { summary: 'go to the pharmacy', needs_roll: false, move_to: null, new_place: { name: 'the pharmacy', kind: 'pharmacy', region: 'main-street' } });
     if (user.includes('WORLD event is due')) out.events.push({ text: 'Halvorsen Aerospace announces emergency cost cuts.', scope: 'world', visibility: 'heard',
       effects: { groups: [{ id: 'sponsor', stance: 'cutting costs; reviewing every crewed mission' }], new_clock: { name: 'Funding review', max: 8, perHour: 0.1, fireText: 'The board votes.' } } });

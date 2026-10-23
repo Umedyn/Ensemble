@@ -833,7 +833,7 @@ await check('phone: the world view fits and the level switch works', async (page
 await check('creator: draw a region on a map image, export, and play the export', async (page) => {
   await page.goto(BASE + 'creator.html');
   await page.waitForFunction(() => document.querySelectorAll('#cWorld option').length > 1);
-  assert.ok(await page.locator('#cTabs [data-tab="sites"]').isDisabled(), 'later tabs are shown, not ready');
+  assert.equal(await page.locator('#cTabs button:disabled').count(), 0, 'every tab is ready (task 6-3)');
   await page.selectOption('#cWorld', 'server:mars-station');
   await page.waitForSelector('#cSvg');
   assert.match(await page.textContent('#cValidation'), /No problems/);
@@ -1055,6 +1055,101 @@ await check('creator: create, edit and import characters', async (page) => {
   assert.ok(!/pulled you/.test(jv.description), 'the line to the player stayed out');
   assert.ok(files['mars-station/portraits/juniper-vale.png'], 'the card image is in the export');
   assert.ok(json('world.json').characters.includes('juniper-vale') && json('world.json').characters.includes('lena-sato'));
+});
+
+// Task 6-3: the Sites tab. Draw a tavern on a battlemap (three rooms, two
+// doors, a way in, a spot), tag it, save it to the world, see the matching
+// box pick it and the preview draw it; then play the exported world: a trip
+// to "the tavern" builds the place from the map, drawn on its image in fog.
+// The library export opens in the game as a library folder.
+await check('creator: draw a site map on a battlemap, save it to the world, and play it', async (page) => {
+  page.on('dialog', (d) => d.accept());
+  await page.goto(BASE + 'creator.html');
+  await page.waitForFunction(() => document.querySelectorAll('#cWorld option').length > 1);
+  await page.selectOption('#cWorld', 'server:zombie-holdout');
+  await page.waitForSelector('#cSvg');
+  await page.click('#cTabs [data-tab="sites"]');
+  await page.click('#cNewSite');
+  await page.setInputFiles('#cSiteImage', path.join(here, 'fixtures', 'battlemap-tavern.svg'));
+  await page.waitForSelector('#cSiteSvg image');
+  await page.fill('[data-path="grid.square"]', '50');
+  await page.fill('[data-path="grid.unit"]', '5 ft');
+  // Image coordinates → where to click on screen.
+  const at = (x, y) => page.evaluate(([x, y]) => { const s = document.getElementById('cSiteSvg'); const p = s.createSVGPoint(); p.x = x; p.y = y; const q = p.matrixTransform(s.getScreenCTM()); return [q.x, q.y]; }, [x, y]);
+  const click = async (x, y) => { const [cx, cy] = await at(x, y); await page.mouse.click(cx, cy); };
+  const draw = async (corners) => {
+    await page.click('[data-xmode="draw"]');
+    for (const [x, y] of corners) await click(x, y);
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => document.querySelector('[data-xmode="select"][aria-pressed="true"]'));
+  };
+  // Corners a little off: they snap to the 50 px grid.
+  await draw([[4, 6], [296, 3], [303, 397], [2, 395]]);
+  await page.fill('[data-path="rooms.0.name"]', 'Common Room');
+  await page.fill('[data-path="rooms.0.desc"]', 'Long tables, a cold hearth and a bar along the wall.');
+  await draw([[302, 4], [597, 2], [598, 198], [304, 203]]);
+  await page.fill('[data-path="rooms.1.name"]', 'Kitchen');
+  await page.fill('[data-path="rooms.1.desc"]', 'A black stove and a hanging rack of pans.');
+  await draw([[303, 204], [596, 202], [597, 396], [302, 398]]);
+  await page.fill('[data-path="rooms.2.name"]', 'Cellar');
+  await page.fill('[data-path="rooms.2.desc"]', 'Barrels in the dark under a low ceiling.');
+  await page.click('[data-xmode="door"]');
+  await click(301, 100);
+  await click(301, 300);
+  await page.click('[data-xmode="entrance"]');
+  await click(2, 200);
+  await page.selectOption('#cSpotKind', 'loot');
+  await page.click('[data-xmode="spot"]');
+  await click(500, 300);
+  await page.fill('[data-path="type"]', 'tavern');
+  await page.fill('[data-path="tags"]', 'inn, pub');
+  await page.fill('[data-path="credit"]', 'Ensemble test fixture');
+  await page.fill('[data-path="license"]', 'CC0-1.0');
+  assert.equal(await page.locator('#cSiteSvg .c-sdoor').count(), 2);
+  assert.equal(await page.locator('#cSiteSvg .c-sentr').count(), 1);
+  assert.equal(await page.locator('#cSiteSvg .c-sspot').count(), 1);
+  await page.screenshot({ path: path.join(shots, 'creator-sites.png') });
+  await page.click('#cSiteSaveWorld');
+  await page.waitForFunction(() => /No problems/.test(document.getElementById('cValidation').textContent));
+  assert.match(await page.textContent('#cMain'), /In the world/);
+  await page.fill('[data-xm="kind"]', 'the old tavern');
+  assert.match(await page.textContent('#cSiteMatch'), /New site ← picked/);
+  await page.click('#cSitePreview');
+  await page.waitForSelector('#cSiteCanvas svg.sd-image');
+  assert.equal(await page.locator('#cSiteCanvas .c-tok').count(), 2, 'sample people in the preview');
+  // Export the library folder and the world.
+  const E = helpers.loadEngine();
+  const unzip = async (download, dir) => {
+    fs.rmSync(dir, { recursive: true, force: true });
+    for (const e of E.Zip.read(new Uint8Array(fs.readFileSync(await download.path())))) {
+      fs.mkdirSync(path.dirname(path.join(dir, e.name)), { recursive: true });
+      fs.writeFileSync(path.join(dir, e.name), e.data);
+    }
+  };
+  const [libZip] = await Promise.all([page.waitForEvent('download'), page.click('#cSiteExport')]);
+  const libDir = path.join(shots, 'creator-site-library');
+  await unzip(libZip, libDir);
+  const [worldZip] = await Promise.all([page.waitForEvent('download'), page.click('#cExport')]);
+  const out = path.join(shots, 'creator-site-world');
+  await unzip(worldZip, out);
+  const map = JSON.parse(fs.readFileSync(path.join(out, 'zombie-holdout', 'sites', 'new-site.json'), 'utf8'));
+  assert.deepEqual(map.rooms[0].shape, [[0, 0], [300, 0], [300, 400], [0, 400]], 'snapped to the grid');
+  assert.ok(fs.existsSync(path.join(out, 'zombie-holdout', 'sites', 'new-site.svg')), 'the image is in the export');
+  // Play it.
+  await page.goto(BASE);
+  await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
+  await page.setInputFiles('#folderInput', path.join(libDir, 'new-site-library'));
+  await page.setInputFiles('#folderInput', path.join(out, 'zombie-holdout'));
+  await page.waitForFunction(() => [...document.querySelectorAll('#scenarioSelect option')].some((o) => o.value === 'disk:zombie-holdout'));
+  await page.selectOption('#scenarioSelect', 'disk:zombie-holdout');
+  await page.selectOption('#startSelect', 'herd');
+  await newGame(page);
+  await act(page, 'I head to the tavern on Main Street.');
+  assert.match(await page.textContent('#sceneBar'), /Common Room/, 'arrived at the way in');
+  await page.waitForSelector('#mapPane svg.sd-image image');
+  assert.equal(await page.locator('#mapPane .sd-image .map-room').count(), 1, 'only the room you are in shows; the rest is fog');
+  assert.ok(await page.locator('#mapPane .sd-img-unknown').count(), 'a "?" past each door');
+  await page.screenshot({ path: path.join(shots, 'site-image-map.png') });
 });
 
 // Task 1-8: fix your own feelings toward someone from their details.

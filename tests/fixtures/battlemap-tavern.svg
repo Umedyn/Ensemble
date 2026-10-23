@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="600" height="400">
+  <!-- A small tavern battlemap for the Sites tab smoke test (task 6-3). Original, CC0. Grid: 50 px = 5 ft. -->
+  <rect width="600" height="400" fill="#b8a27f"/>
+  <rect x="0" y="0" width="300" height="400" fill="#9c7a52"/>
+  <rect x="300" y="0" width="300" height="200" fill="#c7c2b5"/>
+  <rect x="300" y="200" width="300" height="200" fill="#6f6355"/>
+  <g fill="#5a3d24"><rect x="40" y="60" width="80" height="50"/><rect x="40" y="170" width="80" height="50"/><rect x="40" y="280" width="80" height="50"/><rect x="200" y="40" width="40" height="300"/></g>
+  <g fill="#8a8f93"><rect x="330" y="20" width="240" height="40"/><circle cx="450" cy="130" r="35"/></g>
+  <g fill="#7b5a37"><circle cx="360" cy="260" r="25"/><circle cx="420" cy="260" r="25"/><circle cx="360" cy="330" r="25"/><circle cx="500" cy="300" r="40"/></g>
+  <g stroke="#000" stroke-opacity="0.15"><path d="M50 0V400M100 0V400M150 0V400M200 0V400M250 0V400M300 0V400M350 0V400M400 0V400M450 0V400M500 0V400M550 0V400"/><path d="M0 50H600M0 100H600M0 150H600M0 200H600M0 250H600M0 300H600M0 350H600"/></g>
+  <g fill="none" stroke="#2b2118" stroke-width="8"><rect x="4" y="4" width="592" height="392"/><path d="M300 0V80M300 120V280M300 320V400M300 200H420M480 200H600"/></g>
+</svg>

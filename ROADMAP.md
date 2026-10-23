@@ -142,7 +142,7 @@ Make your own character and start, and have the engine fill in the world around 
 - [x] **Generated sites**: on-the-fly local maps for places the story goes (a gang base, a corporate floor, a ruined farmhouse), with rooms, named characters, standees and loot. They're attached to a region and either kept or discarded after the visit. Triggered by the player's intent (`move_to` an unknown place) or by an event.
   - **Library first**: look for a matching authored site map (below) by type, tags and size. If one fits, use its layout and have the model fill in only the people, names and details. Otherwise generate the site data and let the layout styles draw it.
   - Generation produces the site data described in phase 3 (rooms, links with kinds, entrances, features, people with posts or patrols), validated before use; a bad piece is regenerated alone.
-- [ ] **Site map library** (task 6-3, with the site map editor): authored maps (battlemaps, floor plans) that creators and modders draw and tag once, for reuse by any story that needs that kind of place.
+- [x] **Site map library** (task 6-3, with the site map editor): authored maps (battlemaps, floor plans) that creators and modders draw and tag once, for reuse by any story that needs that kind of place.
   - A site map is an image plus data: room shapes drawn on it, doors and their kinds, entrances, spots (guard post, cover, hiding place, loot), and an optional grid scale for battlemaps. **Grids are for measurement only** (room sizes and distances the narrator can use: "the guard is thirty feet away"), never for movement: play stays free-form, not a tactics simulator.
   - Tags for matching: `type` (warehouse, tavern, starship deck…), genre and setting tags (cyberpunk, fantasy, modern), size and room count.
   - Sources, in order: the world's own `sites/` (done in 4-4, with matching by type and tags), then a shared library folder (bundled maps plus ones the player adds with Open folder). The pick among matches is deterministic, so a reload picks the same map.
@@ -178,8 +178,8 @@ Make your own character and start, and have the engine fill in the world around 
 
 Everything a creator needs to build a world without touching JSON.
 
-- [ ] Tabs: World (setting, rules, tags, skills, needs, event rates), Groups, Map (from phase 3), Sites, Lore, Timeline, Characters, Starts, Portraits. (All but Sites done; Sites is 6-3.)
-- [ ] **Site map editor** (Sites tab): load a battlemap or floor-plan image, draw room shapes, mark doors and their kinds, entrances and spots, set the grid scale, tag it, and save it to the world's `sites/` or export it for the shared library. Also: open a generated site and save it as an authored map.
+- [x] Tabs: World (setting, rules, tags, skills, needs, event rates), Groups, Map (from phase 3), Sites, Lore, Timeline, Characters, Starts, Portraits.
+- [x] **Site map editor** (Sites tab): load a battlemap or floor-plan image, draw room shapes, mark doors and their kinds, entrances and spots, set the grid scale, tag it, and save it to the world's `sites/` or export it for the shared library. Also: open a generated site and save it as an authored map.
 - [x] **Character editor**, including **character card import** (SillyTavern/Tavern PNG or JSON): one conversion call, a review step, then add to the cast. It keeps the card's personality and drops the card's original scenario framing.
 - [x] Export as a folder (or a zip); import an existing world to edit it; validation errors shown inline. (task 6-1)
 - [x] Test play: start the edited world straight from the creator. (task 6-1)

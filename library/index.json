@@ -1,0 +1,36 @@
+{
+  "format": 1,
+  "note": "Shared site maps (task 6-3): original or CC0 only. Each entry is generated from its map (Scenario.libraryEntry); npm run check keeps them in step.",
+  "sites": [
+    {
+      "id": "diner",
+      "name": "Roadside diner",
+      "type": "diner",
+      "tags": [
+        "restaurant",
+        "cafe",
+        "truck stop",
+        "roadside"
+      ],
+      "setting": [
+        "modern"
+      ],
+      "rooms": 5
+    },
+    {
+      "id": "chop-shop",
+      "name": "Chop shop",
+      "type": "warehouse",
+      "tags": [
+        "chop shop",
+        "gang",
+        "garage",
+        "industrial"
+      ],
+      "setting": [
+        "cyberpunk"
+      ],
+      "rooms": 6
+    }
+  ]
+}

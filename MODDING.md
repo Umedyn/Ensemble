@@ -26,7 +26,9 @@ Mods made and shared by the community are the responsibility of their creators. 
 
 ## Site maps
 
-Battlemaps and floor plans can be turned into site maps (planned: the Sites tab of the world maker): draw the rooms, doors and entrances on the image and tag it ("warehouse", "cyberpunk"), and any story that needs that kind of place can use it. Fill in `credit` and `license` for every map you share. Many battlemaps sold online don't allow redistribution, so only share maps you made or have the right to share.
+Battlemaps and floor plans can be turned into site maps in the creator's **Sites** tab: load the image, set the grid if it has one (for measuring only: play is never square by square), draw each room's outline, click the line between two rooms to put a door there, mark ways in from outside and spots (guard post, cover, hiding place, loot, where people turn up), and give it a type and tags ("tavern", "inn, pub"). **Save to the world** puts it in your world's `sites/`, and any story heading to that kind of place uses it instead of making one up; the matching box shows which map a place would get. **Export for the library** makes a folder anyone can add with **Open folder** in the game, for worlds whose setting tags match its `setting`. You can also keep a place the game made during play (**From a save…**). The format is in `docs/WORLDS.md` › Generated sites.
+
+Fill in `credit` and `license` for every map you share. Many battlemaps sold online don't allow redistribution, so only share maps you made or have the right to share. Maps bundled with Ensemble (`library/`) are original or CC0 only.
 
 ## Content
 

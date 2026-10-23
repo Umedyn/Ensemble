@@ -240,6 +240,18 @@ button:disabled { opacity: .5; cursor: default; }
 .sd .sd-remote { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 4 4; fill: none; }
 .sd-fu { fill: var(--map-furn); stroke: var(--map-furn-line); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .sd-fd { fill: var(--map-furn-line); stroke: none; }
+/* A site map drawn on its own image (task 6-3) */
+.sd-image .sd-img-fog { fill: var(--bg); }
+.sd-image .sd-img-room { fill: transparent; stroke: var(--line-strong); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.sd-image .map-room.here .sd-img-room { stroke: var(--accent); stroke-width: 3; }
+.sd-image .map-room:focus .sd-img-room, .sd-image .map-room:hover .sd-img-room { stroke: var(--focus); }
+.sd-image .map-room.sd-remembered .sd-img-room { fill: var(--bg); fill-opacity: 0.45; }
+.sd-image .sd-img-label { fill: var(--text); paint-order: stroke; stroke: var(--bg); stroke-width: 3px; pointer-events: none; }
+.sd-image .sd-img-door rect { fill: var(--panel); stroke: var(--text); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.sd-image .sd-img-locked-door rect { fill: var(--bad); }
+.sd-image .sd-img-open rect { fill: var(--map-floor); stroke-dasharray: 3 2; }
+.sd-image .sd-img-window rect, .sd-image .sd-img-vent rect, .sd-image .sd-img-hatch rect { fill: var(--map-screen); }
+.sd-image .sd-img-unknown { fill: var(--muted); pointer-events: none; }
 .sd-fl { stroke: var(--map-furn-line); stroke-width: 1; vector-effect: non-scaling-stroke; fill: none; }
 .sd-screen { fill: var(--map-screen); }
 .sd-arch { fill: none; stroke: var(--map-furn-line); stroke-width: 2; }

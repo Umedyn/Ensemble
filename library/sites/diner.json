@@ -1,0 +1,31 @@
+{
+  "id": "diner",
+  "name": "Roadside diner",
+  "type": "diner",
+  "tags": ["restaurant", "cafe", "truck stop", "roadside"],
+  "setting": ["modern"],
+  "credit": "Ensemble (original, task 6-3)",
+  "license": "CC0-1.0",
+  "image": "sites/diner.svg",
+  "width": 800,
+  "height": 500,
+  "grid": { "square": 50, "unit": "5 ft" },
+  "entry": "parking-lot",
+  "rooms": [
+    { "id": "parking-lot", "name": "Parking Lot", "desc": "Cracked asphalt and faded bays under one tall sign.", "outside": true, "shape": [[0, 380], [800, 380], [800, 500], [0, 500]], "links": [{ "to": "dining-room", "kind": "door", "at": [280, 380] }, { "to": "storeroom", "kind": "door", "at": [700, 380] }] },
+    { "id": "dining-room", "name": "Dining Room", "desc": "Red vinyl booths, a long counter and a dead jukebox.", "shape": [[40, 140], [520, 140], [520, 380], [40, 380]], "links": [{ "to": "kitchen", "kind": "door" }, { "to": "restroom", "kind": "door" }] },
+    { "id": "kitchen", "name": "Kitchen", "desc": "Steel counters, a cold grill and a hanging rack of pans.", "shape": [[520, 140], [760, 140], [760, 300], [520, 300]], "links": [{ "to": "storeroom", "kind": "door" }] },
+    { "id": "storeroom", "name": "Storeroom", "desc": "Shelves of cans and sacks, and the back door to the lot.", "shape": [[520, 300], [760, 300], [760, 380], [520, 380]] },
+    { "id": "restroom", "name": "Restroom", "desc": "Two stalls, a cracked mirror and a window too small to climb.", "size": "small", "shape": [[40, 40], [200, 40], [200, 140], [40, 140]] }
+  ],
+  "entrances": [
+    { "room": "dining-room", "kind": "glass front door", "watched": false, "at": [280, 380] },
+    { "room": "storeroom", "kind": "back door", "watched": false, "at": [700, 380] }
+  ],
+  "spots": [
+    { "kind": "cover", "room": "dining-room", "at": [130, 240], "label": "booths" },
+    { "kind": "loot", "room": "storeroom", "at": [600, 340], "label": "canned goods" },
+    { "kind": "hide", "room": "restroom", "at": [160, 90], "label": "stall" },
+    { "kind": "spawn", "room": "parking-lot", "at": [400, 450] }
+  ]
+}

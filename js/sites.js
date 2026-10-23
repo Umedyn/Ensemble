@@ -41,13 +41,84 @@
     if (g == null) return [];
     if (!isObj(g)) return ['"generatedSites" must be an object like {"maxSites": 8, "keepDays": 3}'];
     const out = [];
-    Object.keys(g).filter((k) => !['maxSites', 'keepDays'].includes(k)).forEach((k) => out.push(`generatedSites: unknown field "${k}"`));
+    Object.keys(g).filter((k) => !['maxSites', 'keepDays', 'library'].includes(k)).forEach((k) => out.push(`generatedSites: unknown field "${k}"`));
+    if (g.library != null && !(Array.isArray(g.library) && g.library.length && g.library.every((t) => typeof t === 'string' && t.trim()))) out.push('generatedSites: "library" must be a list of setting tags, like ["modern"]');
     if (g.maxSites != null && !(Number.isInteger(g.maxSites) && g.maxSites >= 1 && g.maxSites <= 30)) out.push('generatedSites: "maxSites" must be a whole number from 1 to 30');
     if (g.keepDays != null && !(Number.isInteger(g.keepDays) && g.keepDays >= 1 && g.keepDays <= 60)) out.push('generatedSites: "keepDays" must be a whole number from 1 to 60');
     return out;
   };
-  // A library map (sites/<id>.json): { id, name, type, tags, rooms, entry,
-  // entrances, credit, license }. Rooms are the room format of a start.
+  // ---------- geometry (task 6-3) ----------
+  // Room shapes on a map image: polygons [[x, y], …] in image pixels.
+  const G = (ST.Geo = {});
+  const d2 = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2;
+  G.segDist = function (p, a, b) {
+    const l2 = d2(a, b);
+    if (!l2) return Math.sqrt(d2(p, a));
+    const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * (b[0] - a[0]) + (p[1] - a[1]) * (b[1] - a[1])) / l2));
+    return Math.sqrt(d2(p, [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])]));
+  };
+  G.edgeDist = (p, poly) => Math.min(...poly.map((a, i) => G.segDist(p, a, poly[(i + 1) % poly.length])));
+  G.inside = function (p, poly) {
+    let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const [xi, yi] = poly[i], [xj, yj] = poly[j];
+      if ((yi > p[1]) !== (yj > p[1]) && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  };
+  G.area = (poly) => Math.abs(poly.reduce((s, a, i) => { const b = poly[(i + 1) % poly.length]; return s + a[0] * b[1] - b[0] * a[1]; }, 0)) / 2;
+  G.centroid = function (poly) {
+    let a = 0, x = 0, y = 0;
+    poly.forEach((p, i) => { const q = poly[(i + 1) % poly.length]; const c = p[0] * q[1] - q[0] * p[1]; a += c; x += (p[0] + q[0]) * c; y += (p[1] + q[1]) * c; });
+    if (Math.abs(a) < 1e-9) return [poly.reduce((s, p) => s + p[0], 0) / poly.length, poly.reduce((s, p) => s + p[1], 0) / poly.length];
+    return [x / (3 * a), y / (3 * a)];
+  };
+  G.bbox = (poly) => { const xs = poly.map((p) => p[0]), ys = poly.map((p) => p[1]); return { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) }; };
+  // Where two shapes meet: the corners of each within tol of the other's
+  // edges. → { a, b, mid } (the stretch they share), or null.
+  G.shared = function (A, B, tol) {
+    tol = tol == null ? 8 : tol;
+    const pts = A.filter((p) => G.edgeDist(p, B) <= tol).concat(B.filter((p) => G.edgeDist(p, A) <= tol));
+    if (!pts.length) return null;
+    let best = [pts[0], pts[0]];
+    pts.forEach((p) => pts.forEach((q) => { if (d2(p, q) > d2(best[0], best[1])) best = [p, q]; }));
+    return { a: best[0], b: best[1], mid: [(best[0][0] + best[1][0]) / 2, (best[0][1] + best[1][1]) / 2].map(Math.round) };
+  };
+  // Shapes overlap when a corner of one lies well inside the other.
+  G.overlaps = (A, B, tol) => A.some((p) => G.inside(p, B) && G.edgeDist(p, B) > (tol || 8)) || B.some((p) => G.inside(p, A) && G.edgeDist(p, A) > (tol || 8));
+
+  // A grid's unit, "5 ft" → { n: 5, word: "ft" }.
+  const unitOf = (u) => { const m = String(u || '').match(/^\s*([\d.]+)\s*(.*)$/); return m ? { n: Number(m[1]) || 1, word: m[2].trim() } : { n: 1, word: String(u || '').trim() }; };
+  // Measuring only (play is free-form): a room's size from its area in grid
+  // squares, and "about 30 × 20 ft" for the narrator.
+  ST.roomSize = function (shape, grid) {
+    if (!grid || !(grid.square > 0) || !Array.isArray(shape) || shape.length < 3) return null;
+    const squares = G.area(shape) / (grid.square * grid.square);
+    return squares < 10 ? 'small' : squares < 30 ? 'medium' : 'large';
+  };
+  ST.dims = function (shape, grid) {
+    if (!grid || !(grid.square > 0) || !Array.isArray(shape) || shape.length < 3) return null;
+    const u = unitOf(grid.unit);
+    const b = G.bbox(shape);
+    const r = (px) => Math.max(u.n, Math.round(px / grid.square) * u.n);
+    return `about ${r(b.w)} × ${r(b.h)}${u.word ? ' ' + u.word : ''}`;
+  };
+  // Where a door marker goes: the link's "at", else the middle of the edge
+  // the two rooms share, else null (no shapes, or they don't touch).
+  ST.doorAt = function (m, a, b) {
+    const ra = (m.rooms || []).find((r) => r.id === a), rb = (m.rooms || []).find((r) => r.id === b);
+    const k = ((ra && ra.links) || []).find((x) => x.to === b) || ((rb && rb.links) || []).find((x) => x.to === a);
+    if (k && Array.isArray(k.at)) return k.at;
+    if (!ra || !rb || !Array.isArray(ra.shape) || !Array.isArray(rb.shape)) return null;
+    const s = G.shared(ra.shape, rb.shape, m.width ? m.width / 100 : 8);
+    return s ? s.mid : null;
+  };
+
+  // A library map (sites/<id>.json): { id, name, type, tags, setting, rooms,
+  // entry, entrances, credit, license }, rooms in the room format of a start.
+  // Task 6-3 adds an image layer, all optional: image, width, height, grid
+  // {square, unit}, a shape per room, "at" on links and entrances, and spots.
+  ST.SPOTS = ['guard post', 'cover', 'hide', 'loot', 'spawn'];
   ST.mapProblems = function (m, id) {
     const where = `sites/${id}.json`;
     if (!isObj(m)) return [`${where} is not an object`];
@@ -56,30 +127,114 @@
     req(m.id === id, `has id "${m.id}"`);
     req(typeof m.type === 'string' && m.type.trim(), 'needs a "type" (warehouse, tavern, farmhouse…)');
     req(m.tags == null || (Array.isArray(m.tags) && m.tags.every((t) => typeof t === 'string')), '"tags" must be a list of words');
+    req(m.setting == null || (Array.isArray(m.setting) && m.setting.every((t) => typeof t === 'string' && t.trim())), '"setting" must be a list of setting tags, like ["modern"]');
     req(typeof m.credit === 'string' && m.credit.trim() && typeof m.license === 'string' && m.license.trim(), 'needs "credit" and "license"');
+    const hasImage = m.image != null;
+    if (hasImage) req(E.isImagePath(m.image) && m.width > 0 && m.height > 0, '"image" needs an image path, a "width" and a "height"');
+    const pt = (p) => Array.isArray(p) && p.length === 2 && p.every((n) => typeof n === 'number' && Number.isFinite(n)) && (!hasImage || (p[0] >= 0 && p[1] >= 0 && p[0] <= m.width && p[1] <= m.height));
+    if (m.grid != null) req(isObj(m.grid) && m.grid.square > 0 && (m.grid.unit == null || (typeof m.grid.unit === 'string' && m.grid.unit.length <= 20)), '"grid" must be {"square": pixels, "unit": "5 ft"}');
     const rooms = Array.isArray(m.rooms) ? m.rooms : [];
     req(rooms.length >= ST.ROOMS[0], `needs at least ${ST.ROOMS[0]} rooms`);
     const ids = new Set(rooms.map((r) => r && r.id));
     rooms.forEach((r) => {
       req(r && typeof r.id === 'string' && /^[a-z0-9][a-z0-9_-]*$/.test(r.id) && r.name && r.desc, 'every room needs an id, a name and a desc');
+      if (r && r.shape != null) req(hasImage && Array.isArray(r.shape) && r.shape.length >= 3 && r.shape.every(pt), `room "${r.id}": "shape" needs at least 3 points inside the image`);
       (r && r.links || []).forEach((k) => {
         req(k && ids.has(k.to), `room "${r.id}" links to unknown "${k && k.to}"`);
         req(k && ST.KINDS.includes(k.kind), `room "${r.id}": link kind must be one of ${ST.KINDS.join(', ')}`);
+        if (k && k.at != null) req(hasImage && pt(k.at), `room "${r.id}": the door to "${k.to}" must be "at" a point inside the image`);
       });
     });
     req(ids.has(m.entry), `"entry" must be one of its rooms`);
-    (m.entrances || []).forEach((e) => req(e && ids.has(e.room), `entrance in unknown room "${e && e.room}"`));
+    (m.entrances || []).forEach((e) => {
+      req(e && ids.has(e.room), `entrance in unknown room "${e && e.room}"`);
+      if (e && e.at != null) req(hasImage && pt(e.at), `the entrance in "${e.room}" must be "at" a point inside the image`);
+    });
+    if (m.spots != null && !Array.isArray(m.spots)) req(false, '"spots" must be a list of {kind, room, at, label}');
+    (Array.isArray(m.spots) ? m.spots : []).forEach((sp) => {
+      req(isObj(sp) && ST.SPOTS.includes(sp.kind), `a spot's "kind" must be one of ${ST.SPOTS.join(', ')}`);
+      req(isObj(sp) && ids.has(sp.room), `spot in unknown room "${sp && sp.room}"`);
+      if (isObj(sp) && sp.at != null) req(hasImage && pt(sp.at), `a spot in "${sp.room}" must be "at" a point inside the image`);
+      if (isObj(sp)) req(sp.label == null || (typeof sp.label === 'string' && sp.label.trim() && sp.label.length <= 30), 'a spot\'s "label" must be short text (30 characters)');
+    });
+    return out;
+  };
+  // What a map's author should look at, without stopping it loading: a
+  // secure room with more than one way in, shapes that overlap, a door
+  // between rooms whose shapes don't touch.
+  ST.mapWarnings = function (m, id) {
+    const out = [];
+    if (!isObj(m) || !Array.isArray(m.rooms)) return out;
+    const where = `sites/${id}.json`;
+    const ways = (rid) => new Set(m.rooms.flatMap((r) => (!r ? [] : r.id === rid ? (r.links || []).map((k) => k.to).concat(r.connects || []) : (r.links || []).some((k) => k.to === rid) || (r.connects || []).includes(rid) ? [r.id] : [])));
+    m.rooms.filter((r) => r && r.secure).forEach((r) => {
+      const n = ways(r.id).size + (m.entrances || []).filter((e) => e && e.room === r.id).length;
+      if (n > 1) out.push(`${where}: room "${r.id}" is secure (one way in) but has ${n} ways in`);
+    });
+    const shaped = m.rooms.filter((r) => r && Array.isArray(r.shape) && r.shape.length >= 3);
+    const tol = m.width ? m.width / 100 : 8;
+    shaped.forEach((a, i) => shaped.slice(i + 1).forEach((b) => {
+      if ((a.level || 0) === (b.level || 0) && G.overlaps(a.shape, b.shape, tol)) out.push(`${where}: rooms "${a.id}" and "${b.id}" overlap`);
+    }));
+    shaped.forEach((a) => (a.links || []).forEach((k) => {
+      const b = shaped.find((x) => x.id === k.to);
+      if (b && !['stairs', 'hatch', 'vent'].includes(k.kind) && !Array.isArray(k.at) && !G.shared(a.shape, b.shape, tol)) out.push(`${where}: rooms "${a.id}" and "${b.id}" are joined by a ${k.kind}, but their shapes don't touch`);
+    }));
     return out;
   };
   // Library maps that fit a kind of place: the type or a tag among the
-  // kind's words. The pick is seeded by the site id, so a reload picks the same.
-  ST.libraryMatch = function (sc, kind, seed) {
+  // kind's words. A world's own maps come before the shared library's
+  // (task 6-3). The pick is seeded by the site id, so a reload picks the same.
+  ST.libraryFits = function (sc, kind) {
     const words = norm(kind).split(' ').filter((w) => w.length > 2).map((w) => w.replace(/s$/, ''));
     const fits = Object.values(sc.siteMaps || {}).filter((m) => {
       const keys = [m.type].concat(m.tags || []).map((t) => norm(t).replace(/s$/, ''));
       return words.some((w) => keys.some((k) => k === w || k.split(' ').includes(w)));
     }).sort((a, b) => (a.id < b.id ? -1 : 1));
+    const own = fits.filter((m) => !m.library);
+    return own.length ? own : fits;
+  };
+  ST.libraryMatch = function (sc, kind, seed) {
+    const fits = ST.libraryFits(sc, kind);
     return fits.length ? fits[E.hash(String(seed)) % fits.length] : null;
+  };
+  // A site built in play → a site map to keep (task 6-3): its rooms as they
+  // were laid out (size, level, outside, secure, authored features and ways),
+  // without the route back, the people, live state (doors, feature states)
+  // or anything the engine inferred during play. No image: the generated
+  // plan stays its layout. credit and license are left for the author.
+  ST.toMap = function (state, siteId) {
+    const s = state.sites && state.sites[siteId];
+    if (!s || s.stub) throw new Error(`"${(s && s.name) || siteId}" was never built, so there is no map to keep.`);
+    const own = ST.rooms(state, siteId);
+    const ids = new Set(own.map((l) => l.id));
+    const rooms = own.map((l) => {
+      // (Measurements added from a grid come back when the map is used again.)
+      const r = { id: l.id, name: l.name, desc: String(l.desc || l.name).replace(/ \(about [^)]+\)\.$/, '.') };
+      ['size', 'level', 'outside', 'secure', 'shape'].forEach((k) => { if (l[k] != null) r[k] = E.clone(l[k]); });
+      const feats = (l.features || []).filter((f) => !(f && f.inferred)).map((f) => (isObj(f) ? (f.state != null ? { name: f.name, state: f.state } : f.name) : f));
+      if (feats.length) r.features = feats;
+      const inferredTo = new Set((l.links || []).filter((k) => k.inferred).map((k) => k.to));
+      const links = (l.links || []).filter((k) => k.kind !== 'route' && !k.inferred && ids.has(k.to)).map((k) => Object.assign({ to: k.to, kind: k.kind }, Array.isArray(k.at) ? { at: k.at } : {}));
+      if (links.length) r.links = links;
+      const connects = (l.connects || []).filter((c) => ids.has(c) && !inferredTo.has(c) && !links.some((k) => k.to === c));
+      if (connects.length) r.connects = connects;
+      return r;
+    });
+    const map = { id: slug(s.name) || siteId, name: s.name, type: norm(s.kind).split(' ').pop() || 'place', tags: [...new Set(norm(s.kind).split(' ').filter((w) => w.length > 2))],
+      credit: '', license: '', entry: s.entry, rooms };
+    const entrances = (s.entrances || []).filter((e) => e && ids.has(e.room)).map((e) => Object.assign({}, e));
+    if (entrances.length) map.entrances = entrances;
+    // A map drawn on an image keeps it.
+    const from = s.map && (state.scenario.siteMaps || {})[s.map];
+    if (from && from.image) Object.assign(map, { image: from.image, width: from.width, height: from.height }, from.grid ? { grid: E.clone(from.grid) } : {});
+    return map;
+  };
+  // A site's map when it has an image (drawn as the local map), or null.
+  ST.imageMap = function (state, site) {
+    const s = state.sites && state.sites[site];
+    const m = s && s.map && (state.scenario.siteMaps || {})[s.map];
+    return m && m.image ? m : null;
   };
 
   // ---------- deciding (the intent step's "new_place") ----------
@@ -172,14 +327,27 @@
     return id;
   };
 
-  // A library map's rooms, with ids made unique in this game.
+  // A library map's rooms, with ids made unique in this game. A drawn map
+  // (task 6-3) brings its shapes (for the image map); with a grid, a room's
+  // size comes from its area when the author set none, and its description
+  // gets its measurements for the narrator. Spots become features of their
+  // rooms ("guard post", "cover"); guard posts and spawn points also go to
+  // the people step (posts, spawn).
   ST.fromMap = function (state, map, siteId) {
     const used = takenIds(state, [siteId]);
     const ids = {};
     map.rooms.forEach((r) => { ids[r.id] = used.has(r.id) ? fresh(used, `${siteId}-${r.id}`, 'room') : (used.add(r.id), r.id); });
+    const spots = Array.isArray(map.spots) ? map.spots.filter((sp) => isObj(sp) && ids[sp.room]) : [];
     const rooms = map.rooms.map((r) => {
       const out = E.clone(r);
       out.id = ids[r.id];
+      if (!out.size && ST.roomSize(r.shape, map.grid)) out.size = ST.roomSize(r.shape, map.grid);
+      const dims = ST.dims(r.shape, map.grid);
+      if (dims) out.desc = `${String(out.desc || '').replace(/\.?\s*$/, '')} (${dims}).`;
+      const feats = (out.features || []).slice();
+      const has = (n) => feats.some((f) => norm(typeof f === 'string' ? f : f.name) === norm(n));
+      spots.filter((sp) => sp.room === r.id && sp.kind !== 'spawn').forEach((sp) => { const n = text(sp.label, 30) || sp.kind; if (!has(n) && feats.length < 6) feats.push(n); });
+      if (feats.length) out.features = feats;
       out.links = (r.links || []).map((k) => Object.assign({}, k, { to: ids[k.to] }));
       out.connects = [...new Set((r.connects || []).map((c) => ids[c]).concat(out.links.map((k) => k.to)))];
       return out;
@@ -187,7 +355,8 @@
     // Links both ways.
     rooms.forEach((r) => r.connects.forEach((c) => { const o = rooms.find((x) => x.id === c); if (o && !o.connects.includes(r.id)) o.connects.push(r.id); }));
     const entrances = (map.entrances || []).map((e) => Object.assign({}, e, { room: ids[e.room] }));
-    return { rooms, entry: ids[map.entry], entrances, warnings: [] };
+    const roomsWith = (kind) => [...new Set(spots.filter((sp) => sp.kind === kind).map((sp) => ids[sp.room]))];
+    return { rooms, entry: ids[map.entry], entrances, posts: roomsWith('guard post'), spawn: roomsWith('spawn'), warnings: [] };
   };
 
   // The model's layout → { rooms, entry, entrances, warnings } or { error }.
@@ -257,7 +426,8 @@
       const role = text(x.role, 60);
       if (!name || !role || names.has(norm(name))) return warnings.push(`person "${x.name || '?'}" skipped (needs a new name and a role)`);
       names.add(norm(name));
-      const loc = roomOf(x.room) || layout.entry;
+      // Someone the model didn't place starts at a spawn point, else the way in.
+      const loc = roomOf(x.room) || (layout.spawn || [])[0] || layout.entry;
       extras.push(Object.assign({ id: fresh(used, name, 'someone'), name, role, location: loc, note: E.StartGen.clip(x.note, 200) }, text(x.pronouns, 20) ? { pronouns: text(x.pronouns, 20) } : {}));
     });
     const groupIds = new Set((state.scenario.factions || []).map((f) => f.id));
@@ -269,6 +439,8 @@
       const st = { id: fresh(used, label, 'group'), label, count: E.Scenario.parseCount(g.count), location: loc, state: ['calm', 'alert', 'hostile'].includes(g.state) ? g.state : 'calm', note: E.StartGen.clip(g.note, 200) };
       if (groupIds.has(g.faction)) st.faction = g.faction;
       if (g.post === true || g.post === loc || norm(g.post) === norm(rooms.find((r) => r.id === loc).name)) st.post = loc;
+      // A group in a room the map marks as a guard post holds it (task 6-3).
+      else if ((layout.posts || []).includes(loc) && !Array.isArray(g.patrol)) st.post = loc;
       else if (Array.isArray(g.patrol)) {
         let loop = g.patrol.map(roomOf).filter(Boolean);
         const linked = (a, b) => rooms.find((r) => r.id === a).connects.includes(b);

@@ -5,7 +5,7 @@ const path = require('path');
 const vm = require('vm');
 
 const ROOT = path.join(__dirname, '..');
-const ENGINE_FILES = ['util', 'llm', 'recorder', 'memory', 'lore', 'timeline', 'genres', 'prompts', 'engine', 'scenario', 'charmaker', 'startgen', 'sites', 'layouts', 'sitedraw', 'mapdraw', 'zip', 'cards', 'mapedit', 'loreedit', 'worldedit', 'research'];
+const ENGINE_FILES = ['util', 'llm', 'recorder', 'memory', 'lore', 'timeline', 'genres', 'prompts', 'engine', 'scenario', 'charmaker', 'startgen', 'sites', 'layouts', 'sitedraw', 'mapdraw', 'zip', 'cards', 'mapedit', 'loreedit', 'worldedit', 'siteedit', 'research'];
 
 // extraGlobals lets a test provide browser objects such as localStorage.
 function loadEngine(extraGlobals = {}) {
@@ -38,6 +38,17 @@ function worldFiles(folder) {
 // A loaded world (Scenario.prepareWorld): every start composed and validated.
 function readWorld(folder, E = loadEngine()) {
   return E.Scenario.prepareWorld(path.basename(folder), worldFiles(folder));
+}
+
+// The shared site map library (task 6-3) from a folder (default: library/),
+// set on E so worlds that ask for it get its maps. → { maps, errors }
+function loadLibrary(E, dir = path.join(ROOT, 'library')) {
+  const read = (rel) => JSON.parse(fs.readFileSync(path.join(dir, rel), 'utf8'));
+  const index = read('index.json');
+  const maps = {};
+  (index.sites || []).forEach((e) => { try { maps[e.id] = read(`sites/${e.id}.json`); } catch (err) { /* reported as missing */ } });
+  E.Scenario.library = Object.assign(E.Scenario.buildLibrary(index, maps), { assets: {} });
+  return E.Scenario.library;
 }
 
 // The flat scenario, not yet validated: a legacy folder's scenario.json as it
@@ -91,4 +102,4 @@ function fixedRng(E, values) {
   E.rng = () => values[Math.min(i++, values.length - 1)];
 }
 
-module.exports = { ROOT, loadEngine, worldFiles, readWorld, readScenario, scenarioFolders, newGame, mockLLM, fixedRng };
+module.exports = { ROOT, loadEngine, loadLibrary, worldFiles, readWorld, readScenario, scenarioFolders, newGame, mockLLM, fixedRng };

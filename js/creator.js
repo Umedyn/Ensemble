@@ -32,6 +32,10 @@
   // Characters tab (task 6-2): the person being edited, the form's values and
   // scenario, and a card being imported.
   const cui = { sel: null, confirm: false, sc: null, form: null, errors: [], review: null, cf: null };
+  // Sites tab (task 6-3): the map and room being edited, the tool, the view,
+  // the matching box and a save being read.
+  const XUI = () => ({ sel: null, room: null, mode: 'select', drawing: [], vb: null, snap: true, doorKind: 'door', spotKind: 'cover', preview: false, confirm: false, roomConfirm: false, match: { kind: '', setting: '' }, save: null });
+  const xui = XUI();
   const urls = new Map(); // asset path -> object URL
   const diskWorlds = new Map(); // "disk:folder" -> { folder, files, assets }
 
@@ -41,7 +45,8 @@
     { id: 'world', label: 'World', render: renderWorldTab },
     { id: 'groups', label: 'Groups', render: renderGroupsTab },
     { id: 'map', label: 'Map', render: renderMapTab },
-    { id: 'sites', label: 'Sites', soon: 'phase 6' },
+    // Task 6-3.
+    { id: 'sites', label: 'Sites', render: renderSitesTab },
     // Task 5-3. Lore is public: no secrets; the future goes in the timeline.
     { id: 'lore', label: 'Lore', render: renderLoreTab },
     { id: 'timeline', label: 'Timeline', render: renderTimelineTab },
@@ -86,6 +91,7 @@
     Object.assign(gui, { sel: null, confirm: false });
     Object.assign(sui, { sel: null, confirm: false, confirmRoom: null, newPerson: false, openRoom: null });
     Object.assign(cui, { sel: null, confirm: false, sc: null, form: null, errors: [], review: null, cf: null });
+    Object.assign(xui, XUI());
     ui.autoIds = new Set();
     banner('');
     let saved = null;
@@ -128,7 +134,7 @@
     saveTimer = setTimeout(() => store.set(SAVE_KEY(c.folder), JSON.stringify({ files: c.files, at: Date.now(), draft: c.draft || undefined })), 400);
     clearTimeout(checkTimer);
     checkTimer = setTimeout(renderValidation, 250);
-    const PARTS = { all: render, canvas: renderCanvas, list: renderRegionList, lorelist: renderLoreList, evlist: renderEventList, startlist: renderStartList, charlist: renderCharList, grouplist: renderGroupList, genre: renderGenre, preview: renderPreview };
+    const PARTS = { all: render, canvas: renderCanvas, list: renderRegionList, lorelist: renderLoreList, evlist: renderEventList, startlist: renderStartList, charlist: renderCharList, sitecanvas: renderSiteCanvas, sitelist: renderSiteList, grouplist: renderGroupList, genre: renderGenre, preview: renderPreview };
     (parts || ['all']).forEach((p) => PARTS[p] && PARTS[p]());
   }
 
@@ -172,6 +178,7 @@
     if (tui.sel) own($('cEventProblems'), `timeline "${tui.sel}"`);
     if (sui.sel) own($('cStartProblems'), `start "${sui.sel}"`);
     if (cui.sel) own($('cCharProblems'), `character "${cui.sel}"`);
+    if (ui.tab === 'sites') renderSiteChecks();
     if (gui.sel) own($('cGroupProblems'), `"${gui.sel}"`);
     const wp = $('cWorldProblems');
     if (wp) wp.innerHTML = r.problems.filter((p) => !/^start "/.test(p)).map((p) => `<div class="bad small">${esc(p)}</div>`).join('');
@@ -319,6 +326,7 @@
       if (ui.tab === 'groups') renderGroupList();
       if (ui.tab === 'starts') { renderStartList(); renderPreview(); }
       if (ui.tab === 'characters') { renderCharList(); mountCharForm(); }
+      if (ui.tab === 'sites') { renderSiteCanvas(); renderSiteMatch(); }
       renderValidation();
     } finally { rendering = false; }
     if (renderAgain) { renderAgain = false; render(); }
@@ -1543,6 +1551,423 @@
     changed();
   });
 
+  // ---------- the sites tab (task 6-3) ----------
+  // Site maps: rooms drawn on a battlemap or floor plan, doors on the edges
+  // they share, entrances, spots, tags. A map is a draft until it is saved to
+  // the world (world.sites); the game then uses it when a story goes to a
+  // place of its type. Logic in js/siteedit.js; drawing in play is
+  // SiteDraw.renderImage, used here for the preview.
+  const SE = E.SiteEdit;
+  const SITE_HINTS = {
+    select: 'Click a room to edit it. Drag a corner to move it, Alt-click a corner to remove it, double-click an edge to add one. Drag empty space to pan; scroll to zoom.',
+    draw: 'Click to add corners (they snap to the grid when it is on). Click the first corner or press Enter to finish; Backspace removes the last corner; Esc cancels.',
+    door: 'Click on the line between two rooms to put a door there (the kind picked above).',
+    entrance: 'Click on a room\'s outer wall to mark a way in from outside.',
+    spot: 'Click inside a room to mark a spot (the kind picked above).',
+  };
+  const curSite = () => (xui.sel && cw.files[SE.path(xui.sel)]) || null;
+  function renderSitesTab() {
+    const list = SE.maps(cw.files);
+    if (xui.sel && !cw.files[SE.path(xui.sel)]) xui.sel = null;
+    const m = curSite();
+    const shared = Object.values(S.library.maps || {});
+    return `<div class="c-map">
+      <div class="c-canvas-col">${m ? `${siteToolbar(m)}<div id="cSiteCanvas" class="c-canvas"></div><div class="c-hint">${esc(m.image ? (xui.preview ? 'The map as the game draws it, everything in view, with sample people.' : SITE_HINTS[xui.mode]) : 'No image: the game lays the rooms out from their links (shown here). Load a battlemap or floor plan to draw the rooms on it.')}</div>`
+        : '<p class="muted c-intro">Site maps are places a story can go: a battlemap or floor plan with its rooms drawn on it, its doors and ways in, and tags. When the story heads somewhere new, the game uses a map whose type or tags fit before making one up. Make one, copy a shared one, or keep a place the game made during play.</p>'}</div>
+      <aside class="c-panel">
+        <section><h3>Site maps</h3><div class="c-list" id="cSiteList">${siteListHtml(list)}</div>
+          <button type="button" id="cNewSite" class="small">+ Site map</button>
+          ${shared.length ? `<select id="cSiteCopy" aria-label="Copy a shared map"><option value="">Copy a shared map…</option>${shared.map((x) => `<option value="${esc(x.id)}">${esc(x.name || x.id)} (${esc(x.type)}${(x.setting || []).length ? `, ${esc(x.setting.join(', '))}` : ''})</option>`).join('')}</select>` : ''}
+          <label class="btn small" title="Keep a place the game made during play">From a save…<input type="file" id="cSiteSave" accept=".json,application/json" hidden></label>
+          ${xui.save ? `<div class="c-kvrow"><select id="cSiteKeepSel" aria-label="A place from the save">${xui.save.sites.map((x) => `<option value="${esc(x.id)}">${esc(x.name)} (${x.rooms} rooms)</option>`).join('')}</select><button type="button" id="cSiteKeep" class="small">Keep as a site map</button></div>` : ''}</section>
+        ${m ? siteForm(m) : ''}
+        <section class="c-test"><h3>Test the matching</h3>
+          <label>A place the story heads to <input data-xm="kind" value="${esc(xui.match.kind)}" placeholder="the old tavern by the river"></label>
+          <label>The world's setting <span class="muted small">(for shared maps)</span><input data-xm="setting" value="${esc(xui.match.setting)}" placeholder="${esc(((world().generatedSites || {}).library || ['modern']).join(', '))}"></label>
+          <div id="cSiteMatch" aria-live="polite"></div></section>
+      </aside></div>`;
+  }
+  function siteToolbar(m) {
+    const F = SE.path(xui.sel);
+    return `<div class="c-toolbar" role="toolbar" aria-label="Site map tools">
+      ${['select', 'draw', 'door', 'entrance', 'spot'].map((k) => `<button type="button" data-xmode="${k}" aria-pressed="${!xui.preview && xui.mode === k}"${m.image ? '' : ' disabled'}>${({ select: 'Select', draw: 'Draw room', door: 'Door', entrance: 'Way in', spot: 'Spot' })[k]}</button>`).join('')}
+      <select id="cDoorKind" aria-label="Kind of door">${E.Sites.KINDS.map((k) => `<option${k === xui.doorKind ? ' selected' : ''}>${k}</option>`).join('')}</select>
+      <select id="cSpotKind" aria-label="Kind of spot">${E.Sites.SPOTS.map((k) => `<option${k === xui.spotKind ? ' selected' : ''}>${k}</option>`).join('')}</select>
+      <span class="sep"></span>
+      <label class="btn">${m.image ? 'Change image' : 'Load image'}<input type="file" id="cSiteImage" accept="image/*" hidden></label>
+      <span class="c-grid-fields">${fld(F, 'grid.square', 'int', 'Grid', { min: 1, placeholder: 'px', aria: 'Grid square in pixels', live: 'sitecanvas' })}${fld(F, 'grid.unit', 'text', null, { placeholder: '5 ft', aria: 'What a square measures' })}</span>
+      <label class="c-check small"><input type="checkbox" id="cSnap"${xui.snap ? ' checked' : ''}> snap</label>
+      <button type="button" id="cSitePreview" aria-pressed="${xui.preview}">Preview</button>
+      <span class="zoom"><button type="button" data-xzoom="in" aria-label="Zoom in">+</button><button type="button" data-xzoom="out" aria-label="Zoom out">−</button><button type="button" data-xzoom="reset" aria-label="Reset the view">⟲</button></span>
+    </div>`;
+  }
+  function siteForm(m) {
+    const id = xui.sel, F = SE.path(id);
+    const listed = (world().sites || []).includes(id);
+    const rooms = idList(m.rooms);
+    return `<section><h3>${esc(m.name || id)} <span class="muted small">(${esc(id)})</span></h3>
+        <div class="small">${listed ? '<b class="good">In the world</b>: stories use it.' : '<b>Draft</b>: not in the world yet.'}</div>
+        <div id="cSiteProblems"></div>
+        ${listed ? '<button type="button" id="cSiteOut" class="small">Take out of the world</button>' : '<button type="button" id="cSiteSaveWorld" class="small primary">Save to the world</button>'}
+        <button type="button" id="cSiteExport" class="small" title="A folder for the shared library: open it with Open folder in the game, or add it to library/">Export for the library</button>
+        <button type="button" id="cSiteDel" class="small danger">${xui.confirm ? 'Click again to delete' : 'Delete'}</button>
+        ${fld(F, 'name', 'text', 'Name', { live: 'sitelist', max: 60 })}
+        ${fld(F, 'type', 'text', 'Type', { hint: 'what kind of place: tavern, warehouse, farmhouse', live: 'sitelist' })}
+        ${fld(F, 'tags', 'csv', 'Tags', { hint: 'other words a story might use for it' })}
+        ${fld(F, 'setting', 'csv', 'Setting', { hint: 'for the shared library: modern, cyberpunk, fantasy…' })}
+        ${rooms.length ? fld(F, 'entry', 'text', 'The way in', { options: rooms, blank: 'pick a room' }) : ''}
+        <div class="c-row2">${fld(F, 'credit', 'text', 'Credit')}${fld(F, 'license', 'text', 'License', { placeholder: 'CC0-1.0' })}</div>
+        <p class="muted small">Share only maps you made or have the right to share; many battlemaps sold online don't allow it.</p></section>
+      <section><h3>Rooms</h3><div class="c-list">${(m.rooms || []).map((r) => `<button type="button" data-xroom="${esc(r.id)}" aria-pressed="${r.id === xui.room}">${esc(r.name || r.id)}${m.image && !r.shape ? ' <span class="muted small">(not drawn)</span>' : ''}</button>`).join('') || '<span class="muted">No rooms yet.</span>'}</div>
+        <button type="button" id="cSiteAddRoom" class="small">+ Room${m.image ? ' (draw it after)' : ''}</button></section>
+      ${roomFormSite(m)}`;
+  }
+  function roomFormSite(m) {
+    const j = (m.rooms || []).findIndex((r) => r.id === xui.room);
+    if (j < 0) return '';
+    const r = m.rooms[j], F = SE.path(xui.sel), p = `rooms.${j}`;
+    const others = (m.rooms || []).filter((o) => o.id !== r.id);
+    const name = (id) => ((m.rooms || []).find((o) => o.id === id) || { name: id }).name;
+    const links = SE.links(m).filter((k) => k.a === r.id || k.b === r.id);
+    const auto = E.Sites.roomSize(r.shape, m.grid);
+    return `<section><h3>${esc(r.name || r.id)}</h3>
+      ${fld(F, `${p}.name`, 'text', 'Name', { max: 40, live: 'sitecanvas' })}
+      ${fld(F, `${p}.desc`, 'text', 'Description', { rows: 2 })}
+      <div class="c-row2">${fld(F, `${p}.size`, 'text', 'Size', { blank: auto ? `${auto} (from the grid)` : 'medium', options: ['small', 'medium', 'large'].map((x) => ({ id: x, name: x })) })}${fld(F, `${p}.level`, 'int', 'Level', { min: -3, maxv: 5, placeholder: '0' })}</div>
+      ${E.Sites.dims(r.shape, m.grid) ? `<div class="muted small">The narrator hears it is ${esc(E.Sites.dims(r.shape, m.grid))}.</div>` : ''}
+      ${fld(F, `${p}.features`, 'features', 'Features', { hint: 'what exists in play; "camera=on" for one the story tracks' })}
+      <div class="c-checks">${fld(F, `${p}.outside`, 'bool', 'Outside')}${fld(F, `${p}.secure`, 'bool', 'Secure (one way in)')}</div>
+      <div class="small">Ways through</div>
+      ${links.map((k) => { const o = k.a === r.id ? k.b : k.a; const key = `${k.a}|${k.b}`; return `<div class="c-conn"><span>${esc(name(o))}</span><select data-xlinkkind="${esc(key)}" aria-label="Kind of way to ${esc(name(o))}">${E.Sites.KINDS.map((x) => `<option${x === k.kind ? ' selected' : ''}>${x}</option>`).join('')}</select><button type="button" class="small ghost" data-xlinkdel="${esc(key)}" aria-label="Remove the way to ${esc(name(o))}">✕</button></div>`; }).join('')}
+      ${others.length ? `<select data-xlinkadd="${esc(r.id)}" aria-label="Join to"><option value="">Join to…</option>${options(others.filter((o) => !SE.link(m, r.id, o.id)).map((o) => ({ id: o.id, name: o.name || o.id })))}</select>` : ''}
+      ${(m.entrances || []).map((e, k) => (e.room === r.id ? `<div class="c-kvrow"><span class="small">Way in:</span>${fld(F, `entrances.${k}.kind`, 'text', null, { aria: 'Kind of way in', placeholder: 'back door' })}${fld(F, `entrances.${k}.watched`, 'bool', 'watched')}${delBtn(F, 'entrances', k, 'way in')}</div>` : '')).join('')}
+      ${(m.spots || []).map((s, k) => (s.room === r.id ? `<div class="c-kvrow"><span class="small">Spot:</span>${fld(F, `spots.${k}.kind`, 'text', null, { options: E.Sites.SPOTS.map((x) => ({ id: x, name: x })), aria: 'Kind of spot' })}${fld(F, `spots.${k}.label`, 'text', null, { placeholder: s.kind, aria: 'Label', max: 30 })}${delBtn(F, 'spots', k, 'spot')}</div>` : '')).join('')}
+      <button type="button" id="cSiteDelRoom" class="small danger">${xui.roomConfirm ? 'Click again to remove' : 'Remove room'}</button></section>`;
+  }
+  const siteListHtml = (list) => list.map((x) => `<button type="button" data-xsel="${esc(x.id)}" aria-pressed="${x.id === xui.sel}">${esc(x.map.name || x.id)} <span class="muted small">${esc(x.map.type || '')}${x.listed ? '' : ' · draft'}</span></button>`).join('') || '<span class="muted">None yet.</span>';
+  function renderSiteList() { const el = $('cSiteList'); if (el) el.innerHTML = siteListHtml(SE.maps(cw.files)); }
+  function renderSiteChecks() {
+    const el = $('cSiteProblems');
+    const m = curSite();
+    if (!el || !m) return;
+    const r = SE.check(m, xui.sel);
+    const strip = (x) => x.replace(/^sites\/[^:]+: /, '');
+    el.innerHTML = r.problems.map((x) => `<div class="bad small">${esc(strip(x))}</div>`).join('') + r.warnings.map((x) => `<div class="muted small">⚠ ${esc(strip(x))}</div>`).join('');
+  }
+  function renderSiteMatch() {
+    const el = $('cSiteMatch');
+    if (!el || !xui.match.kind.trim()) { if (el) el.innerHTML = ''; return; }
+    const setting = (xui.match.setting.trim() ? xui.match.setting : ((world().generatedSites || {}).library || []).join(',')).split(',').map((x) => x.trim()).filter(Boolean);
+    const r = SE.testMatch(cw.files, xui.match.kind, setting, xui.sel);
+    el.innerHTML = r.fits.length ? `<ol class="c-picks">${r.fits.map((f) => `<li>${esc(f.name)}${f.library ? ' <span class="muted small">shared</span>' : ''}${f.id === r.pick ? ' <b>← picked</b>' : ''}</li>`).join('')}</ol><div class="muted small">The pick depends on the place's id ("${esc(r.seed)}"), so the same place always gets the same map. The world's own maps come before shared ones.</div>`
+      : '<div class="muted small">No map fits: the game would lay out the place itself.</div>';
+  }
+  const siteUrl = (m) => assetUrl(m.image);
+  function renderSiteCanvas() {
+    const el = $('cSiteCanvas');
+    const m = curSite();
+    if (!el || !m) return;
+    if (!m.image || xui.preview) { el.innerHTML = sitePreview(m); return; }
+    const W = m.width, H = m.height;
+    const vb = xui.vb || [0, 0, W, H];
+    const unit = vb[2] / 120;
+    const pts = (poly) => poly.map((p) => p.join(',')).join(' ');
+    const G = E.Sites.Geo;
+    const out = [`<image href="${esc(siteUrl(m) || '')}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="none"/>`];
+    const sq = m.grid && m.grid.square;
+    if (sq > 0) out.push(`<defs><pattern id="cGridPat" width="${sq}" height="${sq}" patternUnits="userSpaceOnUse"><path d="M${sq} 0H0V${sq}" class="c-grid"/></pattern></defs><rect x="0" y="0" width="${W}" height="${H}" fill="url(#cGridPat)" pointer-events="none"/>`);
+    (m.rooms || []).filter((r) => Array.isArray(r.shape) && r.shape.length >= 3).forEach((r) => {
+      const c = G.centroid(r.shape);
+      out.push(`<g class="c-sroom${r.id === xui.room ? ' sel' : ''}" data-xroomg="${esc(r.id)}"><polygon points="${pts(r.shape)}"/><text x="${Math.round(c[0])}" y="${Math.round(c[1])}" text-anchor="middle" style="font-size:${(unit * 2.6).toFixed(1)}px">${esc(r.name || r.id)}</text></g>`);
+    });
+    SE.links(m).forEach((k) => {
+      const at = E.Sites.doorAt(m, k.a, k.b);
+      if (at) out.push(`<rect class="c-sdoor" x="${at[0] - unit}" y="${at[1] - unit}" width="${unit * 2}" height="${unit * 2}"><title>${esc(k.kind)}</title></rect>`);
+    });
+    (m.entrances || []).filter((e) => Array.isArray(e.at)).forEach((e) => out.push(`<circle class="c-sentr" cx="${e.at[0]}" cy="${e.at[1]}" r="${unit * 1.4}"><title>${esc(e.kind || 'way in')}</title></circle>`));
+    (m.spots || []).filter((s) => Array.isArray(s.at)).forEach((s) => out.push(`<g class="c-sspot"><circle cx="${s.at[0]}" cy="${s.at[1]}" r="${unit * 1.3}"/><text x="${s.at[0]}" y="${s.at[1] + unit * 0.6}" text-anchor="middle" style="font-size:${(unit * 1.8).toFixed(1)}px">${esc(s.kind[0].toUpperCase())}</text><title>${esc(s.label || s.kind)}</title></g>`));
+    const sel = (m.rooms || []).find((r) => r.id === xui.room);
+    if (sel && sel.shape && xui.mode === 'select') out.push(sel.shape.map((p, i) => `<circle class="c-handle" data-xi="${i}" cx="${p[0]}" cy="${p[1]}" r="${unit}"/>`).join(''));
+    if (xui.drawing.length) {
+      out.push(`<polyline class="c-draw" points="${pts(xui.drawing)}" style="stroke-width:${unit / 3}"/>`);
+      out.push(xui.drawing.map((p, i) => `<circle class="c-draw-pt${i === 0 ? ' first' : ''}" cx="${p[0]}" cy="${p[1]}" r="${i === 0 ? unit * 1.3 : unit * 0.8}"/>`).join(''));
+    }
+    el.innerHTML = `<svg id="cSiteSvg" class="c-site-svg" viewBox="${vb.join(' ')}" role="img" aria-label="Site map being edited">${out.join('')}</svg>` +
+      (siteUrl(m) ? '' : `<div class="c-missing">The image <b>${esc(m.image)}</b> isn't loaded. Pick it again with <b>Change image</b> (shapes stay where they are).</div>`);
+  }
+  // As the game draws it: the image map (everything in view, sample people),
+  // or the generated plan when there is no image.
+  function sitePreview(m) {
+    const rooms = {};
+    (m.rooms || []).forEach((r) => (rooms[r.id] = { name: r.name || r.id, shape: r.shape, outside: !!r.outside, features: (r.features || []).map((f) => (typeof f === 'string' ? { name: f } : { name: f.name, state: f.state })) }));
+    const ids = Object.keys(rooms);
+    if (!ids.length) return '<p class="muted">Add a room to see the map.</p>';
+    const other = ids.find((id) => id !== m.entry);
+    const tokens = { [m.entry || ids[0]]: [{ kind: 'character', id: 'you', label: 'You', player: true }] };
+    if (other) tokens[other] = [{ kind: 'standee', id: 'sample', label: 'a few people', count: 3 }];
+    const tokenSvg = (t, cx, cy, r) => `<g class="c-tok${t.player ? ' you' : ''}"><circle cx="${cx}" cy="${cy}" r="${r}"/><text x="${cx}" y="${cy + r * 0.35}" text-anchor="middle" style="font-size:${(r * 1.1).toFixed(1)}px">${t.player ? 'You' : t.count}</text><title>${esc(t.label)}</title></g>`;
+    try {
+      if (m.image && ids.some((id) => rooms[id].shape)) {
+        return E.SiteDraw.renderImage({ url: siteUrl(m), width: m.width, height: m.height }, rooms, { inView: ids, remembered: [], here: m.entry, seed: `preview-${xui.sel}`,
+          links: SE.links(m).map((k) => ({ a: k.a, b: k.b, kind: k.kind, at: k.at })), tokens, tokenSvg });
+      }
+      const plan = E.Layouts.plan(m.rooms, { seed: `preview:${xui.sel}` });
+      return E.SiteDraw.render(plan, rooms, { inView: ids, remembered: [], here: m.entry, seed: `preview:${xui.sel}`, links: {}, tokens, tokenSvg });
+    } catch (e) { return `<div class="muted small">The map can't be drawn yet: ${esc(e.message)}</div>`; }
+  }
+  const siteToSvg = (ev) => {
+    const svg = $('cSiteSvg');
+    const pt = svg.createSVGPoint();
+    pt.x = ev.clientX; pt.y = ev.clientY;
+    const mx = svg.getScreenCTM();
+    const r = mx ? pt.matrixTransform(mx.inverse()) : { x: 0, y: 0 };
+    return [r.x, r.y];
+  };
+  function finishSiteDrawing() {
+    const m = curSite();
+    if (!m || xui.drawing.length < 3) return;
+    const sel = (m.rooms || []).find((r) => r.id === xui.room);
+    if (sel && !sel.shape) sel.shape = xui.drawing.map((p) => p.map(Math.round));
+    else xui.room = SE.addRoom(m, undefined, xui.drawing);
+    xui.drawing = [];
+    xui.mode = 'select';
+    changed();
+  }
+  function zoomSite(f, at) {
+    const m = curSite();
+    const full = [0, 0, m.width, m.height];
+    const [x, y, w, h] = xui.vb || full;
+    const nw = Math.min(full[2] * 3, Math.max(full[2] / 12, w * f)), nh = h * (nw / w);
+    const [px, py] = at || [x + w / 2, y + h / 2];
+    xui.vb = [px - (px - x) * (nw / w), py - (py - y) * (nh / h), nw, nh];
+    renderSiteCanvas();
+  }
+  let sdrag = null;
+  $('cMain').addEventListener('pointerdown', (ev) => {
+    if (!cw || ui.tab !== 'sites' || !ev.target.closest || !ev.target.closest('#cSiteSvg')) return;
+    const m = curSite();
+    const handle = ev.target.closest('.c-handle');
+    sdrag = { start: [ev.clientX, ev.clientY], moved: false, vb: (xui.vb || [0, 0, m.width, m.height]).slice(), vertex: handle && !ev.altKey ? Number(handle.dataset.xi) : null };
+    if (sdrag.vertex != null) { try { $('cSiteSvg').setPointerCapture(ev.pointerId); } catch (e) {} }
+  });
+  $('cMain').addEventListener('pointermove', (ev) => {
+    if (!sdrag || !cw || ui.tab !== 'sites') return;
+    const dx = ev.clientX - sdrag.start[0], dy = ev.clientY - sdrag.start[1];
+    if (!sdrag.moved && Math.hypot(dx, dy) < 4) return;
+    sdrag.moved = true;
+    const m = curSite();
+    if (sdrag.vertex != null) {
+      const r = m.rooms.find((x) => x.id === xui.room);
+      r.shape[sdrag.vertex] = SE.snap(siteToSvg(ev), m.grid, xui.snap);
+      renderSiteCanvas();
+    } else if (xui.mode === 'select') {
+      const rect = $('cSiteSvg').getBoundingClientRect();
+      const [x, y, w, h] = sdrag.vb;
+      xui.vb = [x - dx * (w / rect.width), y - dy * (h / rect.height), w, h];
+      renderSiteCanvas();
+    }
+  });
+  $('cMain').addEventListener('pointerup', (ev) => {
+    if (!sdrag || !cw || ui.tab !== 'sites') return;
+    const d = sdrag;
+    sdrag = null;
+    const m = curSite();
+    if (d.vertex != null && d.moved) return changed(['sitecanvas']);
+    if (d.moved || !ev.target.closest || !ev.target.closest('#cSiteSvg')) return;
+    const raw = siteToSvg(ev);
+    const p = SE.snap(raw, m.grid, xui.snap);
+    const unit = (xui.vb || [0, 0, m.width])[2] / 120;
+    if (xui.mode === 'select') {
+      const handle = ev.target.closest('.c-handle');
+      if (handle && ev.altKey) {
+        const r = m.rooms.find((x) => x.id === xui.room);
+        r.shape = E.MapEdit.removeVertex(r.shape, Number(handle.dataset.xi));
+        return changed(['sitecanvas']);
+      }
+      xui.room = SE.roomAt(m, raw);
+      xui.roomConfirm = false;
+      return render();
+    }
+    if (xui.mode === 'draw') {
+      if (xui.drawing.length >= 3 && Math.hypot(raw[0] - xui.drawing[0][0], raw[1] - xui.drawing[0][1]) <= unit * 2) return finishSiteDrawing();
+      xui.drawing.push(p);
+      return renderSiteCanvas();
+    }
+    if (xui.mode === 'door') {
+      const e = SE.edgeAt(m, raw, unit * 2.5);
+      if (!e || !e.b) return banner('Click on the line between two rooms to put a door there.');
+      SE.setLink(m, e.a, e.b, xui.doorKind, e.at);
+      banner('');
+      return changed();
+    }
+    if (xui.mode === 'entrance') {
+      const e = SE.edgeAt(m, raw, unit * 2.5);
+      if (!e || !e.room) return banner(e ? 'That line is between two rooms: use Door for it.' : 'Click on a room\'s outer wall.');
+      SE.addEntrance(m, e.room, e.at);
+      xui.room = e.room;
+      banner('');
+      return changed();
+    }
+    if (xui.mode === 'spot') {
+      const room = SE.roomAt(m, raw);
+      if (!room) return banner('Click inside a room to mark a spot there.');
+      SE.addSpot(m, xui.spotKind, room, p);
+      xui.room = room;
+      banner('');
+      return changed();
+    }
+  });
+  $('cMain').addEventListener('dblclick', (ev) => {
+    if (!cw || ui.tab !== 'sites' || xui.mode !== 'select' || !ev.target.closest || !ev.target.closest('#cSiteSvg')) return;
+    const m = curSite();
+    const r = (m.rooms || []).find((x) => x.id === xui.room);
+    if (!r || !r.shape) return;
+    const p = siteToSvg(ev);
+    const e = E.MapEdit.nearestEdge(r.shape, p);
+    if (e.dist > (xui.vb || [0, 0, m.width])[2] / 40) return;
+    r.shape = E.MapEdit.insertVertex(r.shape, e.index, SE.snap(p, m.grid, xui.snap));
+    changed(['sitecanvas']);
+  });
+  $('cMain').addEventListener('wheel', (ev) => {
+    if (!cw || ui.tab !== 'sites' || !ev.target.closest || !ev.target.closest('#cSiteSvg')) return;
+    ev.preventDefault();
+    zoomSite(ev.deltaY > 0 ? 1.15 : 1 / 1.15, siteToSvg(ev));
+  }, { passive: false });
+  document.addEventListener('keydown', (ev) => {
+    if (!cw || ui.tab !== 'sites' || xui.mode !== 'draw' || /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
+    if (ev.key === 'Enter') { ev.preventDefault(); finishSiteDrawing(); }
+    else if (ev.key === 'Escape') { xui.drawing = []; renderSiteCanvas(); }
+    else if (ev.key === 'Backspace') { ev.preventDefault(); xui.drawing.pop(); renderSiteCanvas(); }
+  });
+  // An image file into the working copy (fetched from a URL, or picked).
+  async function copyImage(url, path) {
+    try {
+      const res = url && (await fetch(url));
+      if (res && res.ok) { cw.assets[path] = await res.blob(); urls.delete(path); return true; }
+    } catch (e) { /* reported below */ }
+    return false;
+  }
+  $('cMain').addEventListener('click', async (ev) => {
+    if (!cw || ui.tab !== 'sites') return;
+    const t = ev.target;
+    const m = curSite();
+    const sel = t.closest('[data-xsel]');
+    if (sel) { Object.assign(xui, { sel: sel.dataset.xsel, room: null, vb: null, drawing: [], confirm: false, roomConfirm: false, preview: false }); return render(); }
+    if (t.id === 'cNewSite') { Object.assign(xui, { sel: SE.newMap(cw.files), room: null, vb: null, drawing: [], mode: 'select' }); return changed(); }
+    if (t.id === 'cSiteKeep') {
+      const sid = $('cSiteKeepSel').value;
+      const id = SE.fromSave(cw.files, xui.save.state, sid);
+      const map = cw.files[SE.path(id)];
+      const from = xui.save.state.sites[sid].map && (xui.save.state.scenario.siteMaps || {})[xui.save.state.sites[sid].map];
+      let note = '';
+      if (map.image && from) {
+        const ok = await copyImage(from.library ? `library/${from.image}` : assetUrl(from.image), map.image);
+        if (!ok) note = ` Its image (${from.image}) isn't here: load it again with Change image.`;
+      }
+      Object.assign(xui, { sel: id, room: null, save: null, vb: null });
+      banner(`Kept "${esc(map.name)}" as a draft site map. Add a credit and a license, check the rooms, then save it to the world.${esc(note)}`);
+      return changed();
+    }
+    const room = t.closest('[data-xroom]');
+    if (room) { xui.room = room.dataset.xroom; xui.roomConfirm = false; return render(); }
+    if (!m) return;
+    const mode = t.closest('[data-xmode]');
+    if (mode) { Object.assign(xui, { mode: mode.dataset.xmode, drawing: [], preview: false }); return render(); }
+    const z = t.closest('[data-xzoom]');
+    if (z) { if (z.dataset.xzoom === 'reset') { xui.vb = null; return renderSiteCanvas(); } return zoomSite(z.dataset.xzoom === 'in' ? 1 / 1.4 : 1.4); }
+    if (t.id === 'cSitePreview') { xui.preview = !xui.preview; return render(); }
+    if (t.id === 'cSiteAddRoom') { xui.room = SE.addRoom(m); if (m.image) xui.mode = 'draw'; return changed(); }
+    if (t.id === 'cSiteSaveWorld') {
+      const r = SE.saveToWorld(cw.files, xui.sel);
+      banner(r.error ? esc(r.error) : `${esc(m.name || xui.sel)} is in the world: stories heading to a ${esc(m.type)} can use it.`, r.error ? 'bad' : '');
+      return changed();
+    }
+    if (t.id === 'cSiteOut') { SE.takeOut(cw.files, xui.sel); return changed(); }
+    if (t.id === 'cSiteDel') {
+      if (!xui.confirm) { xui.confirm = true; return render(); }
+      if (m.image) delete cw.assets[m.image];
+      SE.removeMap(cw.files, xui.sel);
+      Object.assign(xui, { sel: null, room: null, confirm: false });
+      return changed();
+    }
+    if (t.id === 'cSiteDelRoom') {
+      if (!xui.roomConfirm) { xui.roomConfirm = true; return render(); }
+      SE.removeRoom(m, xui.room);
+      Object.assign(xui, { room: null, roomConfirm: false });
+      return changed();
+    }
+    const ld = t.closest('[data-xlinkdel]');
+    if (ld) { const [a, b] = ld.dataset.xlinkdel.split('|'); SE.removeLink(m, a, b); return changed(); }
+    if (t.id === 'cSiteExport') {
+      const lib = SE.libraryFiles(m);
+      const dir = `${m.id}-library`;
+      const entries = Object.entries(lib).map(([p, j]) => ({ name: `${dir}/${p}`, data: E.Zip.utf8(JSON.stringify(j, null, 2) + '\n') }));
+      let missing = '';
+      if (m.image) {
+        try {
+          const a = cw.assets[m.image];
+          const data = a ? new Uint8Array(await a.arrayBuffer()) : new Uint8Array(await (await fetch(siteUrl(m))).arrayBuffer());
+          entries.push({ name: `${dir}/${m.image}`, data });
+        } catch (e) { missing = ` The image (${m.image}) wasn't loaded, so it isn't in it.`; }
+      }
+      download(`${dir}.zip`, new Blob([E.Zip.build(entries)], { type: 'application/zip' }));
+      const p = SE.check(m, m.id).problems;
+      banner(`Exported ${esc(dir)}.zip: unzip it and open the folder with Open folder in the game, or add its map to library/ (and its entry to library/index.json).${esc(missing)}${p.length ? ' It still has problems the game will refuse.' : ''}`, p.length || missing ? 'bad' : '');
+    }
+  });
+  $('cMain').addEventListener('change', async (ev) => {
+    if (!cw || ui.tab !== 'sites') return;
+    const t = ev.target;
+    const m = curSite();
+    if (t.id === 'cSiteCopy' && t.value) {
+      const src = S.library.maps[t.value];
+      const id = SE.addCopy(cw.files, src);
+      const map = cw.files[SE.path(id)];
+      if (map.image && !(await copyImage(`library/${src.image}`, map.image))) banner(`Copied; its image (${esc(src.image)}) couldn't be fetched: load it with Change image.`, 'bad');
+      Object.assign(xui, { sel: id, room: null, vb: null, mode: 'select', preview: false });
+      return changed();
+    }
+    if (t.id === 'cSiteSave' && t.files && t.files[0]) {
+      const f = t.files[0];
+      t.value = '';
+      try {
+        const found = SE.savedSites(JSON.parse(await f.text()));
+        if (!found.sites.length) { banner('That save has no places the game made during play.'); return; }
+        xui.save = found;
+        banner('');
+      } catch (e) { banner(`That file isn't a save: ${esc(e.message)}`, 'bad'); }
+      return render();
+    }
+    if (!m) return;
+    if (t.id === 'cDoorKind') { xui.doorKind = t.value; return; }
+    if (t.id === 'cSpotKind') { xui.spotKind = t.value; return; }
+    if (t.id === 'cSnap') { xui.snap = t.checked; return; }
+    if (t.id === 'cSiteImage' && t.files && t.files[0]) {
+      const file = t.files[0];
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const path = `sites/${xui.sel}.${(file.name.split('.').pop() || 'png').toLowerCase()}`;
+        if (m.image && m.image !== path) delete cw.assets[m.image];
+        SE.setImage(m, path, img.naturalWidth || 800, img.naturalHeight || 600);
+        cw.assets[path] = file;
+        urls.set(path, url);
+        xui.vb = null;
+        changed();
+      };
+      img.onerror = () => banner(`That file couldn't be read as an image: ${esc(file.name)}`, 'bad');
+      img.src = url;
+      return;
+    }
+    if (t.dataset.xlinkkind) { const [a, b] = t.dataset.xlinkkind.split('|'); SE.setLink(m, a, b, t.value); return changed(); }
+    if (t.dataset.xlinkadd && t.value) { SE.setLink(m, t.dataset.xlinkadd, t.value, 'door'); return changed(); }
+  });
+  $('cMain').addEventListener('input', (ev) => {
+    if (!cw || ui.tab !== 'sites' || !ev.target.dataset.xm) return;
+    xui.match[ev.target.dataset.xm] = ev.target.value;
+    renderSiteMatch();
+  });
+
   // ---------- test play ----------
   // The game opens in a new tab and asks for the world; the creator sends
   // the files as they are now (images as Blobs). Nothing is exported.
@@ -1573,7 +1998,8 @@
     a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
   }
-  // Every image the world uses: the map, floor plans, portraits, stand-ins.
+  // Every image the world uses: the map, floor plans, portraits, stand-ins,
+  // site maps.
   function imagePaths() {
     const w = world();
     const out = new Set(Object.keys(cw.assets));
@@ -1583,6 +2009,7 @@
     Object.entries(cw.files).forEach(([path, j]) => {
       if (path.startsWith('characters/') && j && j.portrait) out.add(j.portrait);
       if (path.startsWith('starts/') && j && j.localMap) out.add(j.localMap.image);
+      if (path.startsWith('sites/') && j && j.image) out.add(j.image);
     });
     return [...out].filter(E.isImagePath);
   }
@@ -1695,6 +2122,9 @@
     E.loadSettings(); // Suggest and card conversion use the game's model settings
     renderTabs();
     if (location.protocol !== 'file:') {
+      // The shared site map library (task 6-3): worlds that ask for it, the
+      // Sites tab's copies and its matching box.
+      try { S.library = await S.loadLibraryServer(); } catch (e) { /* no library/ */ }
       try { (await S.listServer()).forEach((w) => addOption('server:' + w.folder, w.title || w.folder)); }
       catch (e) { /* opened without the server: folder picker only */ }
     }
