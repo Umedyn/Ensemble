@@ -7,7 +7,7 @@
 // add their own.
 (function () {
   const E = window.Ensemble;
-  const S = E.Scenario, M = E.MapEdit, D = E.MapDraw;
+  const S = E.Scenario, M = E.MapEdit, D = E.MapDraw, LE = E.LoreEdit;
   const $ = (id) => document.getElementById(id);
   const esc = D.esc;
   const store = {
@@ -21,6 +21,10 @@
   let cw = null;
   // Map tab state.
   const ui = { tab: 'map', mode: 'select', sel: null, drawing: [], room: '', vb: null, autoIds: new Set(), confirmDelete: false };
+  // Lore and timeline tabs (task 5-3): the entry or event being edited, the
+  // region a link from the map points at, and the lore test box's inputs.
+  const lui = { sel: null, confirm: false, focus: null, test: { startId: '', room: '', action: '', scene: '' } };
+  const tui = { sel: null, confirm: false, focus: null, startId: '', effectsError: '' };
   const urls = new Map(); // asset path -> object URL
   const diskWorlds = new Map(); // "disk:folder" -> { folder, files, assets }
 
@@ -30,9 +34,9 @@
     { id: 'groups', label: 'Groups', soon: 'phase 6' },
     { id: 'map', label: 'Map', render: renderMapTab },
     { id: 'sites', label: 'Sites', soon: 'phase 6' },
-    // Lore entries load and play (task 5-1); their editor is task 5-3. Lore is public: no secrets.
-    { id: 'lore', label: 'Lore', soon: 'phase 5' },
-    { id: 'timeline', label: 'Timeline', soon: 'phase 5' },
+    // Task 5-3. Lore is public: no secrets; the future goes in the timeline.
+    { id: 'lore', label: 'Lore', render: renderLoreTab },
+    { id: 'timeline', label: 'Timeline', render: renderTimelineTab },
     { id: 'characters', label: 'Characters', soon: 'phase 6' },
     { id: 'starts', label: 'Starts', soon: 'phase 6' },
     { id: 'portraits', label: 'Portraits', soon: 'phase 6' },
@@ -77,6 +81,8 @@
     const original = normalise(JSON.parse(JSON.stringify(files)));
     cw = { folder, files: original, assets: Object.assign({}, assets || {}), server: !!server, original };
     Object.assign(ui, { mode: 'select', sel: null, drawing: [], room: '', vb: null, confirmDelete: false });
+    Object.assign(lui, { sel: null, confirm: false, focus: null, test: { startId: '', room: '', action: '', scene: '' } });
+    Object.assign(tui, { sel: null, confirm: false, focus: null, startId: '', effectsError: '' });
     ui.autoIds = new Set();
     banner('');
     let saved = null;
@@ -103,7 +109,8 @@
     saveTimer = setTimeout(() => store.set(SAVE_KEY(cw.folder), JSON.stringify({ files: cw.files, at: Date.now() })), 400);
     clearTimeout(checkTimer);
     checkTimer = setTimeout(renderValidation, 250);
-    (parts || ['all']).forEach((p) => (p === 'all' ? render() : p === 'canvas' ? renderCanvas() : p === 'list' ? renderRegionList() : null));
+    (parts || ['all']).forEach((p) => (p === 'all' ? render() : p === 'canvas' ? renderCanvas() : p === 'list' ? renderRegionList()
+      : p === 'lorelist' ? renderLoreList() : p === 'evlist' ? renderEventList() : null));
   }
 
   // ---------- validation ----------
@@ -136,6 +143,14 @@
       const mine = r.problems.filter((p) => p.includes(`"${ui.sel}"`));
       form.innerHTML = mine.map((p) => `<div class="bad small">${esc(p)}</div>`).join('');
     }
+    // The lore entry or timeline event being edited: its own problems and warnings.
+    const own = (el, key) => {
+      if (!el) return;
+      el.innerHTML = r.problems.filter((p) => p.includes(key)).map((p) => `<div class="bad small">${esc(p)}</div>`).join('') +
+        r.warnings.filter((p) => p.includes(key)).map((p) => `<div class="muted small">${esc(p)}</div>`).join('');
+    };
+    if (lui.sel) own($('cLoreProblems'), `lore "${lui.sel}"`);
+    if (tui.sel) own($('cEventProblems'), `timeline "${tui.sel}"`);
   }
 
   // ---------- images ----------
@@ -229,6 +244,7 @@
       <fieldset class="c-neigh"><legend>Neighbours</legend>${others.map((o) => `<label><input type="checkbox" data-neigh="${esc(o.id)}"${M.areNeighbours(w, r.id, o.id) ? ' checked' : ''}> ${esc(o.name)}${touching.has(o.id) ? ' <span class="muted small">(touching)</span>' : ''}</label>`).join('') || '<span class="muted">No other regions.</span>'}
         ${touching.size ? '<button type="button" id="cAddTouching" class="small">Add touching regions</button>' : ''}</fieldset>
       <div class="muted small">${w.map ? (sh ? (sh.polygon ? `Outlined with ${sh.polygon.length} corners.` : 'Placed as a point.') : 'Not on the map yet: draw it or place it as a point.') : ''}</div>
+      ${(() => { const u = LE.regionUse(cw.files, r.id); return `<div class="small c-uses">Lore: <button type="button" class="linkish" data-golore="${esc(r.id)}">${u.lore} entr${u.lore === 1 ? 'y' : 'ies'}</button> · Timeline: <button type="button" class="linkish" data-gotimeline="${esc(r.id)}">${u.events} event${u.events === 1 ? '' : 's'}</button></div>`; })()}
       <button type="button" id="cDeleteRegion" class="small danger">${ui.confirmDelete ? 'Click again to delete' : 'Delete region'}</button>`;
   }
   function renderRegionList() {
@@ -261,13 +277,23 @@
     el.innerHTML = D.worldSvg({ g, regions: w.regions || [], factions: w.factions, selected: ui.sel, imageUrl, viewBox: vb, id: 'cSvg', view: 'world', label: 'Map being edited', rooms: placed, overlay })
       + (w.map && !imageUrl ? `<div class="c-missing">The image <b>${esc(w.map.image)}</b> isn't loaded. Pick it again with <b>Change image</b> (shapes stay where they are).</div>` : '');
   }
+  // Replacing the tab blurs a focused field, whose change handler may ask
+  // for another render while this one runs: that one waits and runs after.
+  let rendering = false, renderAgain = false;
   function render() {
-    renderTabs();
-    if (!cw) return;
-    const tab = TABS.find((t) => t.id === ui.tab);
-    $('cMain').innerHTML = tab && tab.render ? tab.render() : '';
-    if (ui.tab === 'map') { renderRegionList(); renderCanvas(); }
-    renderValidation();
+    if (rendering) { renderAgain = true; return; }
+    rendering = true;
+    try {
+      renderTabs();
+      if (!cw) return;
+      const tab = TABS.find((t) => t.id === ui.tab);
+      $('cMain').innerHTML = tab && tab.render ? tab.render() : '';
+      if (ui.tab === 'map') { renderRegionList(); renderCanvas(); }
+      if (ui.tab === 'lore') { renderLoreList(); renderLoreTest(); }
+      if (ui.tab === 'timeline') renderEventList();
+      renderValidation();
+    } finally { rendering = false; }
+    if (renderAgain) { renderAgain = false; render(); }
   }
 
   // ---------- map tab events ----------
@@ -457,6 +483,359 @@
     if (!r) return;
     if (t.dataset.field === 'controller') { r.controller = t.value || null; return changed(); }
     if (t.dataset.neigh) { M.setNeighbour(w, r.id, t.dataset.neigh, t.checked); return changed(); }
+  });
+
+  // ---------- links between tabs ----------
+  // Region chips in lore and the timeline open the map with that region
+  // selected; the map's region form links back to its lore and events.
+  $('cMain').addEventListener('click', (ev) => {
+    if (!cw) return;
+    const go = ev.target.closest('[data-goregion],[data-golore],[data-gotimeline]');
+    if (!go) return;
+    if (go.dataset.goregion) { ui.tab = 'map'; ui.sel = go.dataset.goregion; ui.confirmDelete = false; }
+    else if (go.dataset.golore) { ui.tab = 'lore'; lui.focus = go.dataset.golore; }
+    else { ui.tab = 'timeline'; tui.focus = go.dataset.gotimeline; }
+    render();
+  });
+  const regionName = (id) => { const r = LE.refs(cw.files).regions.find((x) => x.id === id); return r ? r.name : id; };
+  const regionChip = (id) => (id ? `<button type="button" class="linkish small" data-goregion="${esc(id)}" title="Show on the map">◈ ${esc(regionName(id))}</button>` : '');
+  const options = (list, value, blank) => (blank != null ? `<option value=""${!value ? ' selected' : ''}>${esc(blank)}</option>` : '') +
+    list.map((x) => `<option value="${esc(x.id)}"${x.id === value ? ' selected' : ''}>${esc(x.name)}</option>`).join('');
+
+  // ---------- the lore tab (task 5-3) ----------
+  const LEVEL_LABEL = { world: 'World', region: 'Region', location: 'Room', character: 'Person', topic: 'Topic' };
+  function renderLoreTab() {
+    return `<div class="c-split">
+      <div class="c-scroll-col">
+        <p class="muted small">Lore is public knowledge: the narrator may use any of it. Secrets go in a character's secret, and things that haven't happened yet go in the timeline. Each turn the game includes the entries for the player's room, region and the people there, plus any whose keywords the player or the last scene uses, best first within about a tenth of the context.</p>
+        <div id="cLoreList" class="c-groups"></div>
+        <section class="c-test"><h3>Test the selection</h3>${loreTestForm()}<div id="cLoreTest" aria-live="polite"></div></section>
+      </div>
+      <aside class="c-panel" id="cLoreForm">${loreForm()}</aside>
+    </div>`;
+  }
+  function renderLoreList() {
+    const el = $('cLoreList');
+    if (!el) return;
+    el.innerHTML = LE.loreGroups(cw.files).map((g) => {
+      const key = `${g.level}|${g.ref || ''}`;
+      const focus = lui.focus && g.level === 'region' && g.ref === lui.focus;
+      // Rooms and people without entries stay out of the way.
+      if (!g.items.length && ['location', 'character'].includes(g.level)) return '';
+      return `<section class="c-group${focus ? ' focus' : ''}" data-group="${esc(key)}">
+        <h4>${esc(g.label)} <span class="muted small">${esc(LEVEL_LABEL[g.level] || g.level)}</span> ${g.level === 'region' ? regionChip(g.ref) : ''}
+          <button type="button" class="small" data-loreadd="${esc(key)}" aria-label="Add an entry to ${esc(g.label)}">+ entry</button></h4>
+        ${g.items.map((it) => { const e = it.entry; return `<button type="button" class="c-item" data-loresel="${esc(e.id)}" aria-pressed="${e.id === lui.sel}">${esc(e.title || e.id)}${e.alwaysOn ? ' <span class="muted small">always on</span>' : ''}${e.priority && e.priority !== 3 ? ` <span class="muted small">priority ${e.priority}</span>` : ''}${it.file !== 'world.json' ? ` <span class="muted small">${esc(it.file)}</span>` : ''}</button>`; }).join('') || '<div class="muted small">No entries.</div>'}
+      </section>`;
+    }).join('') + `<p class="small"><button type="button" class="small" data-loreadd="location|">+ entry about a room</button> <button type="button" class="small" data-loreadd="character|">+ entry about a person</button></p>`;
+    const f = el.querySelector('.c-group.focus');
+    if (f && f.scrollIntoView) f.scrollIntoView({ block: 'nearest' });
+  }
+  function loreForm() {
+    const it = lui.sel && LE.findLore(cw.files, lui.sel);
+    if (!it) return '<p class="muted">Pick an entry, or add one to a group.</p>';
+    const e = it.entry;
+    const refs = LE.refs(cw.files);
+    const refList = { region: refs.regions, location: refs.rooms, character: refs.characters }[e.level];
+    const words = String(e.text || '').trim().split(/\s+/).filter(Boolean).length;
+    return `<h3>${esc(e.title || e.id)} <span class="muted small">(${esc(e.id)})</span></h3>
+      <div id="cLoreProblems"></div>
+      <label>Title <input data-lf="title" value="${esc(e.title || '')}" maxlength="${E.Lore.LIMITS.title}"></label>
+      <label>About <select data-lf="level">${E.Lore.LEVELS.map((l) => `<option value="${l}"${e.level === l ? ' selected' : ''}>${LEVEL_LABEL[l]}</option>`).join('')}</select></label>
+      ${refList ? `<label>Which ${esc(LEVEL_LABEL[e.level].toLowerCase())} <select data-lf="ref">${options(refList, e.ref)}</select></label>${e.level === 'region' ? regionChip(e.ref) : ''}` : ''}
+      ${e.level === 'world' ? `<label class="c-check"><input type="checkbox" data-lf="alwaysOn"${e.alwaysOn ? ' checked' : ''}> Always in the prompt (keep these few and short)</label>` : ''}
+      <label>Priority <select data-lf="priority">${[5, 4, 3, 2, 1].map((n) => `<option value="${n}"${(e.priority || 3) === n ? ' selected' : ''}>${n}${n === 3 ? ' (normal)' : n === 5 ? ' (first)' : n === 1 ? ' (last)' : ''}</option>`).join('')}</select></label>
+      <div class="c-field"><span>Keywords <span class="muted small">(whole words, any case; include nicknames and other spellings)</span></span>
+        <div class="c-chips">${(e.keywords || []).map((k, i) => `<button type="button" class="chip" data-kwdel="${i}" aria-label="Remove keyword ${esc(k)}">${esc(k)} ✕</button>`).join('')}</div>
+        <input id="cKwAdd" placeholder="Add keywords, then Enter (commas for several)" aria-label="Add keywords"></div>
+      <label>Text <span class="muted small" id="cLoreTextCount">${String(e.text || '').length}/${E.Lore.LIMITS.text} · ${words} words (40–80 works best)</span><textarea data-lf="text" rows="6" maxlength="${E.Lore.LIMITS.text}">${esc(e.text || '')}</textarea></label>
+      <fieldset class="c-neigh"><legend>Sources <span class="muted small">(for you; never sent to the model)</span></legend>
+        ${(e.sources || []).map((s, i) => `<div class="c-source"><input data-src="${i}" data-srcf="title" value="${esc(s.title || '')}" placeholder="Title" aria-label="Source title"><input data-src="${i}" data-srcf="url" value="${esc(s.url || '')}" placeholder="https://…" aria-label="Source link">${/^https?:\/\//.test(s.url || '') ? `<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer" class="small">open</a>` : ''}<button type="button" class="small ghost" data-srcdel="${i}" aria-label="Remove source">✕</button></div>`).join('')}
+        <button type="button" id="cSrcAdd" class="small">+ Source</button></fieldset>
+      <div class="muted small">Stored in ${esc(it.file)}.</div>
+      <button type="button" id="cDeleteLore" class="small danger">${lui.confirm ? 'Click again to delete' : 'Delete entry'}</button>`;
+  }
+  function loreTestForm() {
+    const refs = LE.refs(cw.files);
+    const t = lui.test;
+    return `<div class="c-testform">
+      ${refs.starts.length > 1 ? `<label>Start <select data-lt="startId">${options(refs.starts, t.startId || refs.starts[0].id)}</select></label>` : ''}
+      <label>The player is in <select data-lt="room">${options(refs.rooms, t.room, 'where the start begins')}</select></label>
+      <label>The player's action <input data-lt="action" value="${esc(t.action)}" placeholder="Ask Ruth about the convoy"></label>
+      <label>The last scene <span class="muted small">(optional)</span><textarea data-lt="scene" rows="2">${esc(t.scene)}</textarea></label></div>`;
+  }
+  let testTimer = null;
+  function renderLoreTest() {
+    const el = $('cLoreTest');
+    if (!el) return;
+    const t = lui.test;
+    const r = LE.testSelection(cw.files, cw.folder, t);
+    if (r.error) { el.innerHTML = `<div class="bad small">${esc(r.error)}</div>`; return; }
+    el.innerHTML = `<div class="small"><b>${r.picks.length} entr${r.picks.length === 1 ? 'y' : 'ies'}</b>, about ${r.used} of ${r.budget} tokens.</div>` +
+      (r.picks.length ? `<ol class="c-picks">${r.picks.map((p) => `<li><button type="button" class="linkish" data-loresel="${esc(p.id)}">${esc(p.title)}</button> <span class="muted small">${esc(p.why)} · ~${p.tokens}</span></li>`).join('')}</ol>` : '<div class="muted small">Nothing would be included.</div>') +
+      (r.always.length ? `<div class="muted small">Always in the header: ${r.always.map((a) => `${esc(a.title)} (~${a.tokens})`).join(', ')}.</div>` : '');
+  }
+  $('cMain').addEventListener('click', (ev) => {
+    if (!cw || ui.tab !== 'lore') return;
+    const t = ev.target;
+    const add = t.closest('[data-loreadd]');
+    if (add) {
+      const [level, ref] = add.dataset.loreadd.split('|');
+      const refs = LE.refs(cw.files);
+      const fallback = { location: refs.rooms, character: refs.characters, region: refs.regions }[level];
+      lui.sel = LE.addLore(cw.files, level, ref || (fallback && fallback[0] ? fallback[0].id : undefined));
+      lui.confirm = false;
+      return changed();
+    }
+    const sel = t.closest('[data-loresel]');
+    if (sel) { lui.sel = sel.dataset.loresel; lui.confirm = false; return render(); }
+    const it = lui.sel && LE.findLore(cw.files, lui.sel);
+    if (!it) return;
+    const e = it.entry;
+    const kw = t.closest('[data-kwdel]');
+    if (kw) { e.keywords.splice(Number(kw.dataset.kwdel), 1); return changed(); }
+    if (t.id === 'cSrcAdd') { e.sources = (e.sources || []).concat([{ title: '', url: '' }]); return changed(); }
+    const sd = t.closest('[data-srcdel]');
+    if (sd) { e.sources.splice(Number(sd.dataset.srcdel), 1); if (!e.sources.length) delete e.sources; return changed(); }
+    if (t.id === 'cDeleteLore') {
+      if (!lui.confirm) { lui.confirm = true; return render(); }
+      LE.removeLore(cw.files, lui.sel);
+      lui.sel = null;
+      lui.confirm = false;
+      return changed();
+    }
+  });
+  $('cMain').addEventListener('input', (ev) => {
+    if (!cw || ui.tab !== 'lore') return;
+    const t = ev.target;
+    if (t.dataset.lt) {
+      lui.test[t.dataset.lt] = t.value;
+      clearTimeout(testTimer);
+      testTimer = setTimeout(renderLoreTest, 250);
+      return;
+    }
+    const it = lui.sel && LE.findLore(cw.files, lui.sel);
+    if (!it) return;
+    const e = it.entry;
+    if (t.dataset.lf === 'title') { e.title = t.value; return changed(['lorelist']); }
+    if (t.dataset.lf === 'text') {
+      e.text = t.value;
+      const c = $('cLoreTextCount');
+      if (c) c.textContent = `${t.value.length}/${E.Lore.LIMITS.text} · ${t.value.trim().split(/\s+/).filter(Boolean).length} words (40–80 works best)`;
+      return changed([]);
+    }
+    if (t.dataset.src != null) {
+      e.sources[Number(t.dataset.src)][t.dataset.srcf] = t.value;
+      return changed([]);
+    }
+  });
+  $('cMain').addEventListener('change', (ev) => {
+    if (!cw || ui.tab !== 'lore') return;
+    const t = ev.target;
+    if (t.dataset.lt) { lui.test[t.dataset.lt] = t.value; return renderLoreTest(); }
+    const it = lui.sel && LE.findLore(cw.files, lui.sel);
+    if (!it) return;
+    const e = it.entry;
+    if (t.dataset.lf === 'level') { LE.setLevel(cw.files, e, t.value); return changed(); }
+    if (t.dataset.lf === 'ref') { e.ref = t.value; return changed(); }
+    if (t.dataset.lf === 'priority') { if (Number(t.value) === 3) delete e.priority; else e.priority = Number(t.value); return changed(); }
+    if (t.dataset.lf === 'alwaysOn') { if (t.checked) e.alwaysOn = true; else delete e.alwaysOn; return changed(); }
+    if (t.id === 'cKwAdd' && t.value.trim()) { LE.addKeywords(e, t.value); return changed(); }
+  });
+  $('cMain').addEventListener('keydown', (ev) => {
+    if (!cw || ui.tab !== 'lore' || ev.target.id !== 'cKwAdd' || ev.key !== 'Enter') return;
+    ev.preventDefault();
+    const it = lui.sel && LE.findLore(cw.files, lui.sel);
+    if (!it || !ev.target.value.trim()) return;
+    LE.addKeywords(it.entry, ev.target.value);
+    ev.target.value = ''; // so the blur as it is replaced doesn't add them again
+    changed();
+    const inp = $('cKwAdd');
+    if (inp) inp.focus();
+  });
+
+  // ---------- the timeline tab (task 5-3) ----------
+  function renderTimelineTab() {
+    const refs = LE.refs(cw.files);
+    const w = world();
+    const cfg = E.Timeline.config(w);
+    return `<div class="c-split">
+      <div class="c-scroll-col">
+        <div class="c-toolbar">
+          ${refs.starts.length > 1 ? `<label class="small">Past and future as seen from <select id="cTlStart">${options(refs.starts, tui.startId || refs.starts[0].id)}</select></label>` : ''}
+          <button type="button" id="cAddEvent">+ Event</button>
+        </div>
+        <p class="muted small">Events before the start become facts and the "Before the story" chapter. Later ones happen on their date if their conditions still hold; the model never sees one before it is due.</p>
+        <fieldset class="c-neigh c-project"><legend>When nothing is planned</legend>
+          <label class="c-check"><input type="checkbox" id="cProjOn"${cfg ? ' checked' : ''}> Let the model plan likely events for the next few days (an exam, a holiday, a delivery), so the story keeps its pace</label>
+          ${cfg ? `<label class="c-inline">Days ahead <input type="number" id="cProjDays" min="1" max="14" value="${cfg.days}"></label> <label class="c-inline">At most <input type="number" id="cProjMax" min="1" max="5" value="${cfg.max}"> at a time</label>` : ''}
+        </fieldset>
+        <div id="cEventList"></div>
+      </div>
+      <aside class="c-panel" id="cEventForm">${eventForm()}</aside>
+    </div>`;
+  }
+  function renderEventList() {
+    const el = $('cEventList');
+    if (!el) return;
+    const sc = world();
+    const { past, future } = LE.splitEvents(cw.files, tui.startId);
+    const row = (x) => {
+      const e = x.ev;
+      const when = e.when && Number.isFinite(e.when.day) ? E.Timeline.fmt(sc, e.when) : '(no date)';
+      const focus = tui.focus && LE.eventMentions(e, tui.focus);
+      return `<button type="button" class="c-item c-event${focus ? ' focus' : ''}" data-evsel="${esc(e.id)}" aria-pressed="${e.id === tui.sel}"><span class="when">${esc(when)}</span> ${esc(E.shorten(e.text || e.id, 110))}
+        <span class="muted small">${esc(e.scope || '?')}${e.region ? ` · ${esc(regionName(e.region))}` : ''}${(e.preconditions || []).length ? ` · ${e.preconditions.length} condition${e.preconditions.length === 1 ? '' : 's'}` : ''}${e.onBroken === 'diverge' ? ' · diverges' : ''}${e.visibility === 'hidden' ? ' · hidden' : ''}${x.file !== 'world.json' ? ` · ${esc(x.file)}` : ''}</span></button>`;
+    };
+    el.innerHTML = `<section class="c-group"><h4>Before the start <span class="muted small">the past</span></h4>${past.map(row).join('') || '<div class="muted small">No past events.</div>'}</section>
+      <section class="c-group"><h4>From the start on <span class="muted small">the future</span></h4>${future.map(row).join('') || '<div class="muted small">No future events.</div>'}</section>`;
+    const f = el.querySelector('.c-event.focus');
+    if (f && f.scrollIntoView) f.scrollIntoView({ block: 'nearest' });
+  }
+  const PRE_LABEL = { alive: 'is alive', controls: 'holds a region', clock: 'a pressure is at least', world: 'a world value is', event: 'knows about an event', words: 'knows something (words)' };
+  function preRow(row, i, refs) {
+    const by = `<select data-pre="${i}" data-pf="by" aria-label="Who knows">${options(refs.characters, row.by, 'the player')}</select>`;
+    const sel = (f, list, v, blank) => `<select data-pre="${i}" data-pf="${f}">${options(list, v, blank)}</select>`;
+    const inp = (f, v, type, ph) => `<input data-pre="${i}" data-pf="${f}" value="${esc(v ?? '')}"${type ? ` type="${type}"` : ''}${ph ? ` placeholder="${esc(ph)}"` : ''}>`;
+    const values = {
+      alive: sel('a', refs.characters, row.a),
+      controls: `${sel('a', refs.groups, row.a, 'no one')} holds ${sel('b', refs.regions, row.b)}`,
+      clock: `${refs.clocks.length ? sel('a', refs.clocks, row.a) : inp('a', row.a, null, 'clock id')} ≥ ${inp('b', row.b, 'number')}`,
+      world: `${refs.worldKeys.length ? sel('a', refs.worldKeys.map((k) => ({ id: k, name: k })), row.a) : inp('a', row.a, null, 'world key')} is ${inp('b', row.b, null, 'exact value')}`,
+      event: `${by} knows about ${sel('a', refs.events.filter((x) => x.id !== tui.sel).map((x) => ({ id: x.id, name: E.shorten(x.name, 50) })), row.a)}`,
+      words: `${by} knows ${inp('a', row.a, null, 'convoy, coast')}`,
+    }[row.kind];
+    return `<div class="c-pre"><select data-pre="${i}" data-pf="kind" aria-label="Kind of condition">${LE.PRE_ROWS.map((k) => `<option value="${k}"${k === row.kind ? ' selected' : ''}>${esc(PRE_LABEL[k])}</option>`).join('')}</select>
+      <label class="c-check small"><input type="checkbox" data-pre="${i}" data-pf="negate"${row.negate ? ' checked' : ''}> not</label>
+      <div class="c-pre-values">${values}</div><button type="button" class="small ghost" data-predel="${i}" aria-label="Remove condition">✕</button></div>`;
+  }
+  function eventForm() {
+    const x = tui.sel && LE.findEvent(cw.files, tui.sel);
+    if (!x) return '<p class="muted">Pick an event, or add one.</p>';
+    const e = x.ev;
+    const refs = LE.refs(cw.files);
+    const w = e.when || {};
+    const isPast = Number.isFinite(w.day) && Number.isFinite(w.hour) && E.Timeline.at(w) < LE.startHours(cw.files, tui.startId);
+    const effectsText = e.effects == null ? '' : JSON.stringify(e.effects, null, 2);
+    return `<h3>${esc(e.id)} ${isPast ? '<span class="muted small">(before the start)</span>' : ''}</h3>
+      <div id="cEventProblems"></div>
+      <label>Id <input data-ef="id" value="${esc(e.id)}" aria-describedby="cEvIdNote"></label><div class="muted small" id="cEvIdNote">Conditions that point at this event follow a rename.</div>
+      <div class="c-row2"><label>${esc(world().timeLabel || 'Day')} <input type="number" data-ef="day" min="0" value="${esc(w.day ?? '')}"></label><label>Hour <input type="number" data-ef="hour" min="0" max="23" value="${esc(w.hour ?? '')}"></label></div>
+      <div class="c-row2"><label>Scope <select data-ef="scope">${['regional', 'world'].map((s) => `<option value="${s}"${e.scope === s ? ' selected' : ''}>${s === 'regional' ? 'nearby (regional)' : 'far away (world)'}</option>`).join('')}</select></label>
+        <label>Region <select data-ef="region">${options(refs.regions, e.region, e.scope === 'world' ? 'none in particular' : 'pick a region')}</select></label></div>
+      ${regionChip(e.region)}
+      <label>What happens <span class="muted small" id="cEvTextCount">${String(e.text || '').length}/${E.Timeline.TEXT_MAX}</span><textarea data-ef="text" rows="3" maxlength="${E.Timeline.TEXT_MAX}">${esc(e.text || '')}</textarea></label>
+      <label>Who hears of it <select data-ef="visibility">${[['heard', 'news reaches the player (default)'], ['seen', 'the player sees it'], ['hidden', 'only the people involved know']].map(([v, l]) => `<option value="${v}"${(e.visibility || 'heard') === v ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
+      <fieldset class="c-neigh"><legend>People involved</legend>${refs.characters.map((c) => `<label><input type="checkbox" data-efwho="${esc(c.id)}"${(e.who || []).includes(c.id) ? ' checked' : ''}> ${esc(c.name)}</label>`).join('') || '<span class="muted">No characters.</span>'}</fieldset>
+      ${isPast ? '<p class="muted small">Before the start, an event becomes a fact (a private one for the people involved, when hidden). Conditions and effects don\'t apply: write the world as it is at the start.</p>' : `
+      <fieldset class="c-neigh"><legend>Only if <span class="muted small">(all must hold when it is due)</span></legend>
+        ${(e.preconditions || []).map((p, i) => preRow(LE.rowOf(p), i, refs)).join('') || '<div class="muted small">No conditions: it always happens.</div>'}
+        <button type="button" id="cAddPre" class="small">+ Condition</button></fieldset>
+      <label>If a condition broke <select data-ef="onBroken"><option value="drop"${e.onBroken !== 'diverge' ? ' selected' : ''}>drop it: it doesn't happen</option><option value="diverge"${e.onBroken === 'diverge' ? ' selected' : ''}>diverge: the model writes what happens instead</option></select></label>
+      <div class="c-field"><span>Effects <span class="muted small">(JSON; checked when it happens)</span></span>
+        <select id="cAddEffect" aria-label="Add an effect"><option value="">Add an effect…</option>${Object.keys(E.Engine.EFFECTS).map((k) => `<option value="${k}">${esc(k.replace(/_/g, ' '))}</option>`).join('')}</select>
+        <textarea data-ef="effects" rows="6" spellcheck="false" aria-describedby="cEffectsError">${esc(effectsText)}</textarea>
+        <div id="cEffectsError" class="bad small">${esc(tui.effectsError)}</div></div>`}
+      <div class="muted small">Stored in ${esc(x.file)}.</div>
+      <button type="button" id="cDeleteEvent" class="small danger">${tui.confirm ? 'Click again to delete' : 'Delete event'}</button>`;
+  }
+  const currentEvent = () => { const x = tui.sel && LE.findEvent(cw.files, tui.sel); return x ? x.ev : null; };
+  function setPre(e, i, row) { e.preconditions[i] = LE.preOf(row); }
+  $('cMain').addEventListener('click', (ev) => {
+    if (!cw || ui.tab !== 'timeline') return;
+    const t = ev.target;
+    if (t.id === 'cAddEvent') { tui.sel = LE.addEvent(cw.files, tui.startId); tui.confirm = false; tui.effectsError = ''; return changed(); }
+    const sel = t.closest('[data-evsel]');
+    if (sel) { tui.sel = sel.dataset.evsel; tui.confirm = false; tui.effectsError = ''; return render(); }
+    const e = currentEvent();
+    if (!e) return;
+    if (t.id === 'cAddPre') { e.preconditions = (e.preconditions || []).concat([LE.preOf(LE.newRow('alive', LE.refs(cw.files)))]); return changed(); }
+    const del = t.closest('[data-predel]');
+    if (del) { e.preconditions.splice(Number(del.dataset.predel), 1); if (!e.preconditions.length) delete e.preconditions; return changed(); }
+    if (t.id === 'cDeleteEvent') {
+      if (!tui.confirm) { tui.confirm = true; return render(); }
+      LE.removeEvent(cw.files, tui.sel);
+      tui.sel = null;
+      tui.confirm = false;
+      return changed();
+    }
+  });
+  $('cMain').addEventListener('input', (ev) => {
+    if (!cw || ui.tab !== 'timeline') return;
+    const t = ev.target;
+    const e = currentEvent();
+    if (!e) return;
+    if (t.dataset.ef === 'text') {
+      e.text = t.value;
+      const c = $('cEvTextCount');
+      if (c) c.textContent = `${t.value.length}/${E.Timeline.TEXT_MAX}`;
+      return changed(['evlist']);
+    }
+    if (t.dataset.ef === 'day' || t.dataset.ef === 'hour') {
+      e.when = Object.assign({}, e.when);
+      e.when[t.dataset.ef] = t.value === '' ? null : Number(t.value);
+      return changed(['evlist']);
+    }
+    if (t.dataset.ef === 'effects') {
+      const v = t.value.trim();
+      try {
+        const parsed = v ? JSON.parse(v) : null;
+        if (parsed != null && (typeof parsed !== 'object' || Array.isArray(parsed))) throw new Error('effects must be an object, like {"world": [...]}');
+        if (parsed == null) delete e.effects; else e.effects = parsed;
+        tui.effectsError = '';
+      } catch (err) { tui.effectsError = `Not saved yet: ${err.message}`; }
+      const el = $('cEffectsError');
+      if (el) el.textContent = tui.effectsError;
+      return changed([]);
+    }
+    if (t.dataset.pre != null && (t.dataset.pf === 'a' || t.dataset.pf === 'b') && t.tagName === 'INPUT') {
+      const i = Number(t.dataset.pre);
+      const row = LE.rowOf(e.preconditions[i]);
+      row[t.dataset.pf] = t.value;
+      setPre(e, i, row);
+      return changed([]);
+    }
+  });
+  $('cMain').addEventListener('change', (ev) => {
+    if (!cw || ui.tab !== 'timeline') return;
+    const t = ev.target;
+    if (t.id === 'cTlStart') { tui.startId = t.value; return render(); }
+    if (t.id === 'cProjOn' || t.id === 'cProjDays' || t.id === 'cProjMax') {
+      LE.setProjection(cw.files, $('cProjOn').checked, $('cProjDays') && $('cProjDays').value, $('cProjMax') && $('cProjMax').value);
+      return changed(t.id === 'cProjOn' ? ['all'] : []);
+    }
+    const e = currentEvent();
+    if (!e) return;
+    if (t.dataset.ef === 'id') {
+      const id = t.value.trim();
+      if (!/^[a-z0-9][a-z0-9_-]*$/.test(id) || LE.findEvent(cw.files, id)) { banner(`"${esc(id)}" can't be used: ids are lowercase letters, digits, - or _, and each is used once.`, 'bad'); return render(); }
+      LE.renameEvent(cw.files, e.id, id);
+      tui.sel = id;
+      banner('');
+      return changed();
+    }
+    // A new date may move it across the start (past ↔ future): redraw the form.
+    if (t.dataset.ef === 'day' || t.dataset.ef === 'hour') return changed();
+    if (t.dataset.ef === 'scope') { e.scope = t.value; return changed(); }
+    if (t.dataset.ef === 'region') { if (t.value) e.region = t.value; else delete e.region; return changed(); }
+    if (t.dataset.ef === 'visibility') { if (t.value === 'heard') delete e.visibility; else e.visibility = t.value; return changed(['evlist']); }
+    if (t.dataset.ef === 'onBroken') { if (t.value === 'drop') delete e.onBroken; else e.onBroken = t.value; return changed(['evlist']); }
+    if (t.dataset.efwho) {
+      const who = new Set(e.who || []);
+      if (t.checked) who.add(t.dataset.efwho); else who.delete(t.dataset.efwho);
+      if (who.size) e.who = [...who]; else delete e.who;
+      return changed([]);
+    }
+    if (t.id === 'cAddEffect' && t.value) { LE.addEffect(e, t.value, LE.refs(cw.files)); tui.effectsError = ''; return changed(); }
+    if (t.dataset.pre != null) {
+      const i = Number(t.dataset.pre);
+      let row = LE.rowOf(e.preconditions[i]);
+      if (t.dataset.pf === 'kind') row = Object.assign(LE.newRow(t.value, LE.refs(cw.files)), { negate: row.negate });
+      else if (t.dataset.pf === 'negate') row.negate = t.checked;
+      else row[t.dataset.pf] = t.value;
+      setPre(e, i, row);
+      return changed(t.dataset.pf === 'kind' ? ['all'] : ['evlist']);
+    }
   });
 
   // ---------- export ----------

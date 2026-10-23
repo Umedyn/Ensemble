@@ -155,10 +155,10 @@ Make your own character and start, and have the engine fill in the world around 
 - [x] **Canon timeline.** Past events seed facts and a "chapter zero" summary. Future events are dated, with **preconditions** the engine checks (a character alive, a group controls a region, a clock above a value, a fact known). They fire on their date as a regional or world event, outside the normal rationing. When a precondition breaks, the creator chooses per event: `drop`, or `diverge` (the model writes the altered version).
 - [x] The downtime skip treats the next canon event as a stopping point, like a clock.
 - [x] **Projected events**: when nothing is planned for the next few days, the model plans a few likely public events (an exam, Golden Week, a delivery) from where things stand and the timeline's pacing, checked like authored ones; worlds can turn it off or tune it (`projectTimeline`). Covers worlds whose canon has run out and worlds with no future timeline at all.
-- [ ] Creator tabs: lore editor and timeline editor.
+- [x] Creator tabs: lore editor and timeline editor.
 
 **Lore from wikis and other sources**
-- [ ] **Lore sources**: optional `sources` on each entry (title + URL). Shown in the creator, never sent to the model.
+- [x] **Lore sources**: optional `sources` on each entry (title + URL). Shown in the creator, never sent to the model.
 - [ ] **Lore packet import**: a `lore/` folder of entries that outside tools can produce, validated like everything else and reviewed in the lore editor before use.
 - [ ] **Research helper** (outside the game, e.g. a Claude Code skill or a `tools/` script, using the biggest model available since it's a one-time authoring step). For each source page it:
   - writes entries **as of the start date**; anything later goes to the canon timeline as dated future events, never into lore (otherwise the narrator "knows the future");

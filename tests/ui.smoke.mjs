@@ -854,6 +854,30 @@ await check('creator: draw a region on a map image, export, and play the export'
   await page.fill('[data-field="tags"]', 'cramped');
   await page.waitForFunction(() => /No problems/.test(document.getElementById('cValidation').textContent));
   await page.screenshot({ path: path.join(shots, 'creator-map.png') });
+  // Task 5-3: a lore entry for the station, tried in the test box.
+  assert.match(await page.textContent('#cRegionForm'), /Lore: 1 entry/);
+  await page.click('#cTabs [data-tab="lore"]');
+  await page.click('[data-loreadd="region|station"]');
+  await page.fill('[data-lf="title"]', 'Airlock drill');
+  await page.fill('[data-lf="text"]', 'Every sol at noon the crew runs a two-minute airlock drill, and nobody skips it twice.');
+  await page.fill('#cKwAdd', 'drill, airlock');
+  await page.press('#cKwAdd', 'Enter');
+  assert.match(await page.textContent('#cLoreForm .c-chips'), /drill[\s\S]*airlock/);
+  await page.fill('[data-lt="action"]', 'Ask about the drill.');
+  await page.waitForFunction(() => /Airlock drill the player's region; "drill" in the action/.test(document.getElementById('cLoreTest').textContent));
+  await page.screenshot({ path: path.join(shots, 'creator-lore.png') });
+  // And a timeline event with a condition that diverges when it breaks.
+  await page.click('#cTabs [data-tab="timeline"]');
+  assert.match(await page.textContent('#cEventList'), /Before the start[\s\S]*Sol 1, 10:00[\s\S]*From the start on[\s\S]*Sol 216, 14:00/);
+  await page.click('#cAddEvent');
+  await page.fill('[data-ef="text"]', 'Mission Control runs a surprise systems audit over the uplink.');
+  await page.click('#cAddPre');
+  await page.selectOption('[data-pre="0"][data-pf="kind"]', 'world');
+  await page.selectOption('[data-pre="0"][data-pf="a"]', 'comms');
+  await page.fill('[data-pre="0"][data-pf="b"]', 'online, 14-minute delay');
+  await page.selectOption('[data-ef="onBroken"]', 'diverge');
+  await page.waitForFunction(() => /No problems/.test(document.getElementById('cValidation').textContent));
+  await page.screenshot({ path: path.join(shots, 'creator-timeline.png') });
   const [download] = await Promise.all([page.waitForEvent('download'), page.click('#cExport')]);
   const bytes = new Uint8Array(fs.readFileSync(await download.path()));
   const E = helpers.loadEngine();
@@ -873,6 +897,11 @@ await check('creator: draw a region on a map image, export, and play the export'
   assert.equal(sc.map.regions.station.polygon.length, 4);
   assert.equal(sc.regions.find((r) => r.id === 'station').controller, 'sponsor');
   assert.equal(sc.region, 'crater-rim');
+  const drill = sc.lore.find((e) => e.title === 'Airlock drill');
+  assert.ok(drill && drill.ref === 'station' && drill.keywords.includes('airlock'), 'the lore entry was exported');
+  const audit = sc.timeline.find((ev) => /surprise systems audit/.test(ev.text));
+  assert.deepEqual(JSON.parse(JSON.stringify(audit.preconditions)), [{ world: 'comms', is: 'online, 14-minute delay' }]);
+  assert.equal(audit.onBroken, 'diverge');
   // Play it: open the exported folder in the game and look at the world map.
   await page.goto(BASE);
   await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
