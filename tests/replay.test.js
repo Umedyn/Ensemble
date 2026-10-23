@@ -286,3 +286,41 @@ test('playtest: the scene that walked Jordan back out of the office is a relocat
   assert.equal(E.Engine.findRelocation(state, prose, 'floor').to, "back out of Manager's Office", '"You slip out of the office, leaving it unlocked"');
   assert.doesNotMatch(E.Engine.trimPlayerEnding(prose), /Just looking for supplies," you say/);
 });
+
+// DeepSeek v4.1 flash, 2026-10-22 (playtest-coffee-skips): a friend answered every
+// scene with "Keep drinking coffee" and the until-something-major step.
+test('playtest: facts and chapter summaries are cut at a sentence or word, never mid-word', async () => {
+  const r = await replay('playtest-coffee-skips');
+  const s = r.state;
+  const scrubber = s.facts.find((f) => /scrubber bed has been run well past its swap interval/.test(f.text));
+  assert.ok(scrubber, 'the major event is still a fact');
+  assert.match(scrubber.text, /straight off the board\.$/, 'was "...The only spare cartridge is"');
+  assert.ok(!s.facts.some((f) => /intercom twice, sa$/.test(f.text)), 'was "...keys the intercom twice, sa"');
+  s.chapters.forEach((c) => assert.match(c.summary, /[.!?…"”]$/, `chapter ${c.title}: ${c.summary.slice(-40)}`));
+});
+
+test('playtest: compound beat markers ([+0h06], [+1d 20h]) are read, not left in the scene', async () => {
+  const r = await replay('playtest-coffee-skips');
+  const left = r.state.log.filter((l) => l.type === 'scene').flatMap((l) => l.text.match(/\[\s*\+[^\]]*\]/g) || []);
+  assert.deepEqual(left, []);
+  assert.deepEqual([...r.E.Engine.parseBeats('[+0h06] A.\n\n[+0h22] B.\n\n[+1d 20h] C.', 3000).map((b) => b.at)], [0, 22, 2640]);
+});
+
+test('playtest: a region tag that is too long is refused, not cut mid-word', async () => {
+  const r = await replay('playtest-coffee-skips');
+  const tags = [...r.state.regions.station.tags];
+  assert.ok(!tags.includes('commons losing pressure at the'), tags.join(' | '));
+  assert.ok(tags.every((t) => t.length <= 30));
+  const report = r.E.Engine.telemetry.find((t) => (t.guards || []).some((g) => /tag too long for station/.test(g.detail)));
+  assert.ok(report, 'the refusal shows in the turn report');
+});
+
+test('playtest: a one-hour skip is described in hours, not "about 0 days" of "a long stretch"', async () => {
+  const r = await replay('playtest-coffee-skips', { until: 5 });
+  const intents = r.E.LLM.calls.filter((c) => c.kind === 'intent');
+  const short = intents.find((c) => /Sol 215, 18:51 → Sol 215, 19:51/.test(c.user));
+  assert.match(short.user, /\(about 1 hour\)/);
+  assert.doesNotMatch(short.user, /long stretch/);
+  const narrate = r.E.LLM.calls.filter((c) => c.kind === 'narrate').pop();
+  assert.doesNotMatch(narrate.user, /about 0 days/);
+});

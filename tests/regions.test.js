@@ -95,10 +95,18 @@ test('add_tag and remove_tag change a region\'s tags, up to six, and reject unkn
   assert.deepEqual([...res.director[0].effects], ['Main Street: on fire', 'Main Street: no longer overrun']);
   const bad = regional(E, state, { add_tag: [{ region: 'shire', tag: 'quiet' }], remove_tag: [{ region: 'main-street', tag: 'flooded' }] });
   assert.deepEqual(guards(bad, 'effect rejected'), ['add_tag: unknown region "shire"', 'remove_tag: main-street has no tag "flooded"']);
+  // A full region drops its oldest event tag (playtest-coffee-skips); authored tags stay.
+  const def = state.scenario.regions.find((x) => x.id === 'junction');
+  def.tags = ['a'];
   state.regions.junction.tags = ['a', 'b', 'c', 'd', 'e', 'f'];
   const full = regional(E, state, { add_tag: [{ region: 'junction', tag: 'g' }] });
-  assert.match(guards(full, 'effect rejected')[0], /already has 6 tags/);
-  assert.equal(state.regions.junction.tags.length, 6);
+  assert.deepEqual([...state.regions.junction.tags], ['a', 'c', 'd', 'e', 'f', 'g']);
+  assert.match(full.director[0].effects[0], /: g \(no longer b\)$/);
+  def.tags = ['a', 'c', 'd', 'e', 'f', 'g'];
+  const authored = regional(E, state, { add_tag: [{ region: 'junction', tag: 'h' }] });
+  assert.match(guards(authored, 'effect rejected')[0], /already has 6 tags/);
+  const long = regional(E, state, { add_tag: [{ region: 'main-street', tag: 'commons losing pressure at the chase' }] });
+  assert.match(guards(long, 'effect rejected')[0], /tag too long/);
 });
 
 test('region_status sets a region\'s status line and rejects unknown regions', () => {

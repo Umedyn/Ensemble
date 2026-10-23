@@ -613,11 +613,19 @@ Reply with the new beats only.`;
     return [].concat(state.scenario.majorSeeds || [], seedTexts(state, 'regional').slice(0, 3), seedTexts(state, 'world').slice(0, 3));
   }
 
+  // How long a downtime lasts, in words: "about 3 days", "about 5 hours"
+  // (playtest-coffee-skips: a one-hour skip was "about 0 days" and "a long stretch").
+  function spanWords(frame) {
+    if (frame.days >= 1) return `about ${frame.days} ${frame.days === 1 ? 'day' : 'days'}`;
+    const h = Math.round((frame.spanMinutes || frame.days * 1440) / 60);
+    return h >= 1 ? `about ${h} ${h === 1 ? 'hour' : 'hours'}` : 'under an hour';
+  }
+
   P.layouts.skipIntent = ['skipFrame', 'lore', 'people','agendaDuring', 'lastScene', 'skipTask'];
   P.skipIntent = (state, action, plan, frame, res, agendaSteps) =>
     P.build('skipIntent', { state, pc: state.characters[state.player], action, plan, frame, res, agendaSteps: agendaSteps || [] });
 
-  B.skipFrame = ({ state, pc, action, frame }) => `=== DOWNTIME: ${frame.startTime} → ${frame.endTime} (about ${frame.days} days) ===
+  B.skipFrame = ({ state, pc, action, frame }) => `=== DOWNTIME: ${frame.startTime} → ${frame.endTime} (${spanWords(frame)}) ===
 ${pc.name} was in ${state.locations[frame.startLoc] ? state.locations[frame.startLoc].name : frame.startLoc} when it began.
 ${pc.name}'s plan for the downtime: "${action || 'keep to routine'}"
 ${worldLines(state)}`;
@@ -626,7 +634,7 @@ ${worldLines(state)}`;
   B.agendaDuring = ({ state, agendaSteps }) => (agendaSteps.length
     ? ['\n=== WHAT PEOPLE GOT DONE (their own plans; hint at hidden ones at most) ==='].concat(agendaSteps.map((a) => `- ${a.text}${a.visibility === 'hidden' ? ' (hidden from the player)' : ''}`))
     : null);
-  B.skipTask = ({ state, pc, plan, res }) => {
+  B.skipTask = ({ state, pc, plan, res, frame }) => {
     const who = plan.agenda && state.characters[plan.agenda.id];
     const ends = plan.reason === 'agenda'
       ? `The downtime ends when ${who.name} comes to find ${pc.name}: "${plan.agenda.text}". Set "major_event" to null; ${who.name} is with ${pc.name} at the end, and your positions should fit that moment.`
@@ -641,7 +649,7 @@ ${worldLines(state)}`;
     const reg = Eng().nearbyRegions(state).length ? '"region":"region_id",' : '';
     return `
 === TASK ===
-This covers a long stretch of downtime. ${ends}
+${frame.days >= 1 ? 'This covers a long stretch of downtime.' : 'This covers a short stretch of time.'} ${ends}
 Reply with JSON only:
 {"montage":[{"after":"2d","text":"one or two sentences"}],
  "events":[{"text":"one sentence","scope":"local|regional|world","who":["character_id"],"where":"location_id",${reg}"visibility":"heard","moves":[],"effects":null}],
@@ -664,7 +672,7 @@ Guidelines:
   };
 
   B.downtimeFrame = ({ state, pc, here, loc, present, action, frame }) => `=== DOWNTIME FRAME ===
-From ${frame.startTime} to ${frame.endTime} (about ${frame.days} days).
+From ${frame.startTime} to ${frame.endTime} (${spanWords(frame)}).
 ${pc.name}'s plan for the downtime: "${action || 'keep to routine'}"
 When it ends, ${pc.name} is in ${loc ? loc.name : here} with ${present.length ? present.map((id) => name(state, id)).join(', ') : 'no one'}.
 ${worldLines(state)}`;
@@ -679,10 +687,12 @@ ${worldLines(state)}`;
     : null);
   B.narrateSkipTask = ({ pc, loc, frame }) => {
     const useDays = frame.days >= 2;
-    const endMark = useDays ? `[+${frame.days}d]` : `[+${Math.round(frame.days * 24)}h]`;
+    const mins = frame.spanMinutes || Math.round(frame.days * 1440);
+    const useMins = !useDays && mins < 180;
+    const endMark = useDays ? `[+${frame.days}d]` : useMins ? `[+${mins}m]` : `[+${Math.round(mins / 60)}h]`;
     return `
 === TASK ===
-Write 3 or 4 beats in second person ("you" is ${pc.name}), 250–350 words in total. Start each beat on its own line with a time marker since the downtime began: ${useDays ? '[+0d], [+3d], [+8d]' : '[+0h], [+6h], [+15h]'} and so on.
+Write 3 or 4 beats in second person ("you" is ${pc.name}), 250–350 words in total. Start each beat on its own line with a time marker since the downtime began: ${useDays ? '[+0d], [+3d], [+8d]' : useMins ? '[+0m], [+20m], [+45m]' : '[+0h], [+6h], [+15h]'} and so on.
 1. The first beats are a brief montage of the downtime, starting after the last scene (never retell it), a few sentences each: how the days pass, how people get along, the small things. ${pc.name} follows their plan and treats people according to the feelings in STATUS.
 2. The final beat starts with ${endMark} and is a live scene in present tense: the thing that ends the downtime hits ${loc ? loc.name : 'where ' + pc.name + ' is'}, and the people there react in their own voices.
 Hard rules:

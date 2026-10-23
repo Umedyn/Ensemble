@@ -9,7 +9,7 @@
       turn: state.turn,
       chapter: state.chapter,
       about: f.about || [],
-      text: String(f.text).slice(0, 220),
+      text: E.clip(f.text, 220),
       known_by: f.known_by && f.known_by.length ? f.known_by : ['all'],
       weight: E.clamp(Math.round(Number(f.weight) || 1), 1, 3),
     };
@@ -91,7 +91,7 @@
     state.chapters.push({
       n,
       title: String(summary.title || `Chapter ${n}`).slice(0, 80),
-      summary: String(summary.summary || '').slice(0, 700),
+      summary: E.clip(summary.summary || '', 700),
       fromTurn: state.chapterStartTurn,
       toTurn: state.turn,
       reason,
