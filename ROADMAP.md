@@ -160,13 +160,18 @@ Make your own character and start, and have the engine fill in the world around 
 **Lore from wikis and other sources**
 - [x] **Lore sources**: optional `sources` on each entry (title + URL). Shown in the creator, never sent to the model.
 - [ ] **Lore packet import**: a `lore/` folder of entries that outside tools can produce, validated like everything else and reviewed in the lore editor before use.
-- [ ] **Research helper** (outside the game, e.g. a Claude Code skill or a `tools/` script, using the biggest model available since it's a one-time authoring step). For each source page it:
-  - writes entries **as of the start date**; anything later goes to the canon timeline as dated future events, never into lore (otherwise the narrator "knows the future");
-  - splits **secrets** out of public lore into character `secret` fields or private facts, since lore can reach the narrator and the narrator must never see secrets;
-  - writes **small entries**: 40–80 words, one topic each (a person, place, group or custom); a long page becomes several entries;
-  - lists **keywords including aliases** (names, nicknames, titles, spellings), since matching runs on the player's own words;
-  - tags each entry's **level** (world, region, location, character) and keeps the page URL in `sources`;
-  - summarizes **in its own words**, with no copied text (Wikipedia and most fan wikis are CC BY-SA, which would attach share-alike terms to copied text).
+- [ ] **Research helper** (outside the game, e.g. a Claude Code skill or a `tools/` script, using the biggest model available since it's a one-time authoring step). **All web work happens at build time** (authoring a world, or importing a real place), never during play: play stays offline apart from the model backend, sends no place names anywhere, and never waits on a fetch. A place the story reaches without lore is handled as generated sites are, from the model's own knowledge, checked by the engine.
+  - **What to research comes from the world, not from crawling.** Lore is for what the model doesn't know or would get wrong about this world: the places the story uses, its groups and people, where it differs from reality, things after the model's training cutoff or too obscure for it. General knowledge (grasshoppers, how cars work) is never researched. The helper builds a topic list from the world data (regions, groups, named characters, starting areas, tags and setting); the creator approves or trims it, and only those topics are fetched. It never follows links.
+  - **Relevance and caps**: an entry must connect to something in the world (a region, group or person, or a keyword the story will likely use); generic encyclopedia facts are dropped. A few entries per region and topic (about 3–5), and few world entries.
+  - Optional: ask the model about a topic first ("what do you know about …"), and skip the topic when its answer already matches the source.
+  - Real places: the real-place map import (task 4-5) fetches each region's Wikipedia summary along with its boundaries, and the helper turns those into lore for review.
+  - For each source page it:
+    - writes entries **as of the start date**; anything later goes to the canon timeline as dated future events, never into lore (otherwise the narrator "knows the future");
+    - splits **secrets** out of public lore into character `secret` fields or private facts, since lore can reach the narrator and the narrator must never see secrets;
+    - writes **small entries**: 40–80 words, one topic each (a person, place, group or custom); a long page becomes several entries;
+    - lists **keywords including aliases** (names, nicknames, titles, spellings), since matching runs on the player's own words;
+    - tags each entry's **level** (world, region, location, character) and keeps the page URL in `sources`;
+    - summarizes **in its own words**, with no copied text (Wikipedia and most fan wikis are CC BY-SA, which would attach share-alike terms to copied text).
 - Franchise worlds built this way are fine for players' own play and mods; they are never shipped, bundled or featured (see "Shipped scenarios are original").
 
 ## Phase 6: Creator suite
