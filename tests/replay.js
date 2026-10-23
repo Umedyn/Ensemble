@@ -29,12 +29,14 @@ function applySettings(E, s) {
   });
 }
 
-// replay(fixtureOrName, { until }) → { E, state, steps: [{ index, action, state, result, error }] }
-// until: stop after this many actions (default: all). Each step's state is a copy.
+// replay(fixtureOrName, { until, setup }) → { E, state, steps: [{ index, action, state, result, error }] }
+// until: stop after this many actions (default: all). setup(E): runs before the
+// first action, to turn engine behaviour the recording predates off. Each step's state is a copy.
 async function replay(fixture, opts = {}) {
   if (typeof fixture === 'string') fixture = loadFixture(fixture);
   const E = loadEngine();
   applySettings(E, fixture.settings);
+  if (opts.setup) opts.setup(E);
   E.LLM.perf = async () => null;
   const state = E.Engine.migrate(JSON.parse(JSON.stringify(fixture.start)));
   const actions = fixture.actions || [];

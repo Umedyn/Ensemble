@@ -114,7 +114,7 @@ test('skipping past an emergency: it plays out without the player, hurts only th
   assert.equal(state.crisis.turn, state.turn, 'the storm is the next emergency');
 });
 
-test('right after an emergency a random stop grows out of the people, and a major event hurts only those it reaches', async () => {
+test('right after an emergency a random stop grows out of the people, lands where the player is, and hurts only those it reaches', async () => {
   const { E, state } = newGame();
   fixedRng(E, [0.01]);
   quietSkip(state);
@@ -132,8 +132,10 @@ test('right after an emergency a random stop grows out of the people, and a majo
   const intent = calls.find((c) => c.kind === 'intent').user;
   assert.match(intent, /a turning point that grows out of the people, not another disaster/);
   assert.match(intent, /"harm":\[\{"id":"character_id","health":"hurt\|badly_hurt\|dead"\}\],"effects"/);
-  assert.equal(state.characters.sorensen.status.health, 'hurt', 'Lev was in the lab');
-  assert.equal(state.characters.okafor.status.health, 'ok', 'Okafor was in the commons');
+  // Kit sat that emergency out, so this one happens where Kit is, whatever "where" says.
+  assert.match(intent, /Kit Navarro has sat things out long enough: this one happens where they are \(commons\) and to them/);
+  assert.equal(state.characters.sorensen.status.health, 'ok', 'Lev was in the lab');
+  assert.equal(state.characters.okafor.status.health, 'hurt', 'Okafor was in the commons, with Kit');
 });
 
 test('without an open emergency, a random stop is any major event and the montage rule still holds', async () => {
@@ -210,4 +212,170 @@ test('a pressure may hurt "all" or "outside" when it goes off, and may repeat; b
   assert.deepEqual([thirst.fireHarm, thirst.repeat], ['all', true], 'after "Stored water runs low"');
   const starving = find(readScenario('zombie-holdout').clocks, 'starving');
   assert.deepEqual([starving.fireHarm, starving.repeat], ['all', true]);
+});
+
+// playtest-coffee-bystander (DeepSeek v4.1 flash, 2026-10-23): seven skips of
+// coffee, and everything happened around Kit, never to them. A skip settled
+// Kit's needs like everyone's, so four sols awake cost nothing.
+test('a skip settles the player\'s needs only when their plan covers them; the rest climb', async () => {
+  const { E, state } = newGame();
+  const un = (a) => [...E.Engine.unmetNeeds(state, a)];
+  assert.deepEqual(un(''), [], 'no plan: routine');
+  assert.deepEqual(un('keep to my usual routine'), []);
+  assert.deepEqual(un('Keep drinking coffee'), ['hunger', 'fatigue', 'stress']);
+  assert.deepEqual(un('Eat a meal, then nap'), ['stress']);
+  assert.deepEqual(un('Sleep in my bunk and eat when I wake'), [], 'sleep is rest too');
+  fixedRng(E, [0.999]);
+  quietSkip(state);
+  model(E, { intent: () => ({ montage: [], events: [], major_event: null, positions: [], player_where: 'commons' }) });
+  const okaforBefore = state.characters.okafor.needs.fatigue;
+  await E.Engine.runTurn(state, 'Keep drinking coffee', 'major');
+  assert.equal(state.characters.navarro.needs.fatigue, 1, '20 hours awake on coffee');
+  assert.ok(state.characters.okafor.needs.fatigue < okaforBefore, 'everyone else kept to routine');
+});
+
+test('a need left too long stops the skip and happens to the player: they collapse and get hurt', async () => {
+  const { E, state } = newGame();
+  fixedRng(E, [0.999]);
+  quietSkip(state);
+  const pc = state.characters.navarro;
+  pc.needs.fatigue = 1;
+  pc.needsOver = { fatigue: 11 };
+  const plan = E.Engine.planMajorSkip(state, 'Keep drinking coffee');
+  assert.equal(plan.reason, 'body');
+  assert.equal(plan.hours, 1, 'twelve hours past the limit is all a body lasts');
+  assert.equal(E.Engine.planMajorSkip(state, 'Sleep it off').reason, 'clock', 'a plan with sleep in it has no such stop');
+  const calls = model(E, { intent: () => ({ montage: [], events: [], major_event: null, positions: [], player_where: 'commons' }) });
+  const out = await E.Engine.runTurn(state, 'Keep drinking coffee', 'major');
+  assert.equal(out.plan.reason, 'body');
+  assert.equal(pc.status.health, 'hurt');
+  assert.equal(pc.needs.fatigue, 0.3, 'they slept where they fell');
+  assert.match(guards(out.res, 'body gives out')[0], /Kit Navarro blacks out from exhaustion and goes down hard against a bulkhead. \(Fatigue at its limit; the plan "Keep drinking coffee" left no room for sleep\)/);
+  assert.match(calls.find((c) => c.kind === 'intent').user, /The downtime ends when Kit Navarro's body gives out: their plan left no room for sleep, and Kit Navarro blacks out from exhaustion and goes down hard against a bulkhead./);
+  assert.match(calls.find((c) => c.kind === 'intent').user, /The plan leaves out food and sleep and rest: show it wearing on Kit Navarro\./);
+  assert.match(calls.find((c) => c.kind === 'narrate').user, /=== WHAT ENDS IT ===\nKit Navarro blacks out from exhaustion and goes down hard against a bulkhead./);
+  assert.equal(state.crisis, undefined, 'the player\'s own collapse is no emergency for the next turn');
+});
+
+test('exhaustion hurts at most badly; going without food long enough kills, and the story ends', async () => {
+  const { E, state } = newGame();
+  const pc = state.characters.navarro;
+  pc.status.health = 'badly_hurt';
+  quietSkip(state);
+  model(E, { intent: () => ({ montage: [], events: [], major_event: null, positions: [], player_where: 'commons' }) });
+  pc.needs.fatigue = 1; pc.needsOver = { fatigue: 12 };
+  fixedRng(E, [0.999]);
+  await E.Engine.runTurn(state, 'Keep drinking coffee', 'major');
+  assert.equal(pc.status.health, 'badly_hurt');
+  pc.needs.hunger = 1; pc.needsOver = { hunger: 48 };
+  fixedRng(E, [0.999]);
+  await E.Engine.runTurn(state, 'Keep drinking coffee', 'major');
+  assert.equal(pc.status.health, 'dead');
+  assert.equal(state.flags.gameOver, true);
+});
+
+test('sitting out two emergencies brings a reckoning: the one who thinks least of the player comes to confront them', async () => {
+  const { E, state } = newGame();
+  fixedRng(E, [0.999]);
+  quietSkip(state);
+  state.characters.okafor.status.location = 'ops';
+  state.ignored = ['The storm hits.'];
+  state.crisis = { turn: state.turn, text: 'The recycler grinds to a halt.', who: ['okafor', 'bauer'] };
+  const calls = model(E, {
+    intent: () => ({ crisis: { outcome: 'Teo and Okafor get the loop isolated.', harm: [] }, montage: [], events: [], major_event: null, player_where: 'commons',
+      positions: [{ id: 'okafor', where: 'ops', doing: 'logging the fault' }] }),
+  });
+  const out = await E.Engine.runTurn(state, 'Keep drinking coffee', 'major');
+  assert.equal(out.plan.reason, 'reckoning');
+  assert.equal(out.plan.hours, E.Engine.RECKONING_HOURS);
+  assert.equal(out.plan.reckoning.id, 'okafor', 'the lowest regard for Kit');
+  assert.match(calls.find((c) => c.kind === 'intent').user, /The downtime ends when Dr\. Imani Okafor comes to confront Kit Navarro, who has sat out 2 emergencies \("The storm hits\."; "The recycler grinds to a halt\."\)/);
+  assert.equal(state.characters.okafor.status.location, 'commons', 'she comes to Kit, whatever the positions say');
+  assert.match(calls.find((c) => c.kind === 'narrate').user, /- Dr\. Imani Okafor: in Commons, comes to confront Kit Navarro/);
+  assert.ok(state.facts.some((f) => /confront Kit Navarro about sitting out the emergencies/.test(f.text) && f.known_by.includes('okafor')));
+  assert.deepEqual([...state.ignored], [], 'the slate is clean');
+  assert.ok(guards(out.res, 'reckoning').length);
+});
+
+test('a played turn that ignores an emergency counts like a skip: trust drops and the count grows; dealing with one clears it', async () => {
+  const { E, state } = newGame();
+  const answer = (v) => model(E, { intent: () => ({ player: { summary: 'x', crisis_answered: v }, intents: [], events: [] }) });
+  state.crisis = { turn: state.turn, text: 'The CO2 alarm goes continuous.', who: ['okafor', 'bauer'] };
+  const before = state.characters.okafor.relations.navarro;
+  const calls = answer(false);
+  const out = await E.Engine.runTurn(state, 'I keep drinking coffee.', 'hour');
+  assert.match(calls.find((c) => c.kind === 'intent').user, /Set "player"\."crisis_answered" to true only if/);
+  assert.match(calls.find((c) => c.kind === 'intent').user, /"crisis_answered":false/);
+  assert.equal(state.characters.okafor.relations.navarro, before - E.Engine.CRISIS_TRUST);
+  assert.deepEqual([...state.ignored], ['The CO2 alarm goes continuous.']);
+  assert.match(guards(out.res, 'crisis ignored')[0], /the action didn't deal with it; trust toward Kit Navarro −6/);
+  state.crisis = { turn: state.turn, text: 'The scrubber fan seizes.', who: ['okafor'] };
+  answer(true);
+  await E.Engine.runTurn(state, 'I go fix the scrubber fan.', 'hour');
+  assert.deepEqual([...state.ignored], []);
+});
+
+test('with no word from the model, a played turn deals with an emergency only if the action names it', async () => {
+  const { E, state } = newGame();
+  model(E);
+  state.crisis = { turn: state.turn, text: 'The scrubber fan seizes.', who: ['okafor'] };
+  await E.Engine.runTurn(state, 'I check the scrubber.', 'hour');
+  assert.deepEqual([...state.ignored], []);
+  state.crisis = { turn: state.turn, text: 'The scrubber fan seizes.', who: ['okafor'] };
+  await E.Engine.runTurn(state, 'I drink coffee.', 'hour');
+  assert.equal(state.ignored.length, 1);
+});
+
+test('the reckoning comes in a played turn too: the one who has had enough walks in and is told to confront the player', async () => {
+  const { E, state } = newGame();
+  state.characters.okafor.status.location = 'ops';
+  state.ignored = ['The storm hits.', 'The recycler grinds to a halt.'];
+  const calls = model(E);
+  const out = await E.Engine.runTurn(state, 'I drink coffee.', 'hour');
+  const intent = calls.find((c) => c.kind === 'intent').user;
+  assert.match(intent, /=== SOMEONE HAS HAD ENOUGH ===\nDr\. Imani Okafor has come to confront Kit Navarro, who has sat out 2 emergencies/);
+  assert.match(intent, /\{"id":"okafor"/, 'she is present and gets an intent');
+  assert.ok(guards(out.res, 'reckoning').length);
+  assert.deepEqual([...state.ignored], []);
+});
+
+test("every world's needs have a limit: built-in ones, a plain one for any other need, and the world's own", () => {
+  const { E, state } = newGame();
+  state.scenario.needs.push({ id: 'oxygen', label: 'Oxygen', perHour: 0.1 });
+  const ox = E.Engine.needLimit(state, 'oxygen');
+  assert.equal(ox.text, 'gives out, worn down by oxygen');
+  assert.deepEqual([...E.Engine.unmetNeeds(state, 'Swap my oxygen bottle')].includes('oxygen'), false);
+  assert.ok([...E.Engine.unmetNeeds(state, 'Drink coffee')].includes('oxygen'));
+  state.scenario.needs.find((n) => n.id === 'fatigue').limit = { relief: ['coffee'], text: 'nods off over the console', grace: 2 };
+  const f = E.Engine.needLimit(state, 'fatigue');
+  assert.equal(f.text, 'nods off over the console');
+  assert.equal(f.grace, 2);
+  assert.equal(f.missing, 'sleep', 'fields the world leaves out keep the built-in');
+  assert.ok(![...E.Engine.unmetNeeds(state, 'Drink coffee')].includes('fatigue'));
+});
+
+test("a need's limit is checked when a world is loaded", () => {
+  const E = loadEngine();
+  const sc = readScenario('mars-station');
+  sc.needs[0].limit = { relief: 'eat', worst: 'gone', grace: -1, after: 1.5 };
+  let problems = '';
+  try { E.Scenario.validate(sc); } catch (err) { problems = err.message; }
+  assert.match(problems, /need "hunger" limit: "relief" must be a list of words/);
+  assert.match(problems, /"worst" must be ok, hurt, badly_hurt or dead/);
+  assert.match(problems, /"grace" must be hours/);
+  assert.match(problems, /"after" must be between 0 and 1/);
+});
+
+test('timeline news ends a skip but is no emergency, and the model repeating it as an event is dropped', async () => {
+  const { E, state } = newGame();
+  fixedRng(E, [0.999]);
+  quietSkip(state);
+  state.clocks.forEach((c) => { c.perHour = 0; });
+  const canon = state.scenario.timeline.find((t) => t.id === 'halvorsen-review');
+  model(E, { intent: () => ({ montage: [], major_event: null, positions: [], player_where: 'commons', events: [{ text: canon.text, scope: 'world' }] }) });
+  const out = await E.Engine.runTurn(state, '', 'major');
+  assert.equal(out.plan.reason, 'canon');
+  assert.equal(state.crisis, undefined);
+  assert.ok(guards(out.res, 'event dropped').some((g) => /repeats the timeline event/.test(g)));
+  assert.equal(state.facts.filter((f) => f.text === canon.text).length, 1);
 });

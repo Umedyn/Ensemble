@@ -274,7 +274,7 @@
   };
 
   // ---------- intent ----------
-  P.layouts.intent = ['now', 'lore', 'knownPlaces', 'private', 'extrasHere', 'standees', 'offstage', 'background', 'agendaDue', 'lastScene', 'crisisNow', 'intentAction', 'intentTask'];
+  P.layouts.intent = ['now', 'lore', 'knownPlaces', 'private', 'extrasHere', 'standees', 'offstage', 'background', 'agendaDue', 'lastScene', 'crisisNow', 'reckoningNow', 'intentAction', 'intentTask'];
   // Places beyond the start's rooms (task 4-4): the rooms of the place the
   // player is in (made during the story, so not in the header) and the
   // places the story knows of. Only in worlds that build new places.
@@ -395,7 +395,15 @@
   B.crisisNow = ({ state, due }) => {
     if (!due.crisis) return null;
     const pc = state.characters[state.player].name;
-    return `\n=== STILL HAPPENING ===\nThe last scene ended on an emergency: "${due.crisis.text}" It is still happening as this span starts and plays out during it whatever ${pc} does. If ${pc}'s action doesn't deal with it, the others act on it without ${pc} (in their intents and the events), and it costs something real.`;
+    return `\n=== STILL HAPPENING ===\nThe last scene ended on an emergency: "${due.crisis.text}" It is still happening as this span starts and plays out during it whatever ${pc} does. If ${pc}'s action doesn't deal with it, the others act on it without ${pc} (in their intents and the events), and it costs something real. Set "player"."crisis_answered" to true only if ${pc}'s action deals with it (helps, goes to it, answers what they were asked), else false.`;
+  };
+  // Someone who has had enough of the player sitting emergencies out walks in
+  // (playtest-coffee-bystander); the engine has already brought them here.
+  B.reckoningNow = ({ state, due }) => {
+    if (!due.reckoning) return null;
+    const pc = state.characters[state.player].name;
+    const c = state.characters[due.reckoning.id];
+    return `\n=== SOMEONE HAS HAD ENOUGH ===\n${c.name} has come to confront ${pc}, who has sat out ${due.reckoning.sat.length} emergencies (${due.reckoning.sat.map((t) => `"${t}"`).join('; ')}). ${c.name}'s intent this span is that confrontation, and it comes with something real, true to who they are: an ultimatum, a decision about ${pc} made without them, or something taken away.`;
   };
   B.intentAction = ({ action, stepLabel }) => `\n=== PLAYER ACTION (time passing: ${stepLabel}) ===\n"${action}"\nThe player's action takes up this whole span. Others act during the same span.`;
   B.intentTask = ({ state, sc, present, stepId, due, action }) => {
@@ -453,7 +461,7 @@ ${intentExample(state, present, action, due)}`;
     const groups = groupsHere(state, action).map((g) => `  {"id":"${g.id}","action":"one sentence","visible":true,"move_to":null}`);
     const anyGroups = Eng().engagedStandees(state, action).length;
     const site = hasSite(state) ? `${lockedHere(state).length ? ',"unlock":null' : ''},"new_feature":null` : '';
-    return `{"player":{"summary":"the player's action restated as a concrete attempt","needs_roll":false,"skill":null,"difficulty":"normal","move_to":null${anyGroups ? ',"against":null,"single_out":null' : ''}${site}},
+    return `{"player":{"summary":"the player's action restated as a concrete attempt","needs_roll":false,"skill":null,"difficulty":"normal","move_to":null${anyGroups ? ',"against":null,"single_out":null' : ''}${site}${due && due.crisis ? ',"crisis_answered":false' : ''}},
  "intents":[${intents.length ? '\n' + intents.join(',\n') + '\n ' : ''}],${groups.length ? `\n "group_intents":[\n${groups.join(',\n')}\n ],` : ''}
  "events":[{"text":"one sentence","scope":"local","who":["character_id"],"where":"location_id","visibility":"heard","moves":[]}]${state.scenario.inventExtras ? ',\n "new_extras":[]' : ''}${canon}}`.replace('"move_to":null', E.Sites.enabled(state.scenario) ? '"move_to":null,"new_place":null' : '"move_to":null');
   }
@@ -652,7 +660,12 @@ ${worldLines(state)}`;
     : null);
   B.skipTask = ({ state, pc, plan, res, frame, action }) => {
     const who = plan.agenda && state.characters[plan.agenda.id];
-    const ends = plan.reason === 'agenda'
+    const rk = plan.reckoning && state.characters[plan.reckoning.id];
+    const ends = plan.reason === 'body'
+      ? `The downtime ends when ${pc.name}'s body gives out: their plan left no room for ${Eng().needLimit(state, plan.body.need).missing}, and ${plan.body.text} Set "major_event" to null; your positions should fit that moment (who is there, who finds them).`
+      : plan.reason === 'reckoning'
+      ? `The downtime ends when ${rk.name} comes to confront ${pc.name}, who has sat out ${plan.reckoning.sat.length} emergencies (${plan.reckoning.sat.map((t) => `"${t}"`).join('; ')}). ${rk.name} has had enough and comes with something real, true to who they are: an ultimatum, a decision about ${pc.name} made without them, or something taken away. Set "major_event" to null; ${rk.name} is with ${pc.name} at the end, and your positions should fit that moment.`
+      : plan.reason === 'agenda'
       ? `The downtime ends when ${who.name} comes to find ${pc.name}: "${plan.agenda.text}". Set "major_event" to null; ${who.name} is with ${pc.name} at the end, and your positions should fit that moment.`
       : plan.reason === 'clock'
       ? `The downtime ends because a pressure comes to a head: "${res.events[res.events.length - 1] || plan.clock.name}". Set "major_event" to null; your positions should fit that moment.`
@@ -666,12 +679,16 @@ ${worldLines(state)}`;
       : plan.crisis
       ? `The downtime ends with a turning point that grows out of the people, not another disaster: a secret coming out, an agenda or a quarrel coming to a head, a discovery, or the fallout of what already went wrong forcing a hard choice. No new equipment failure, accident or natural disaster. Write it in "major_event".`
       : `The downtime ends with a MAJOR EVENT that you choose: something serious and unexpected that demands a response right now. ${majorKinds(state)}${majorIdeas(state).length ? ` Ideas: ${majorIdeas(state).join('; ')}.` : ''}`;
+    // A player who keeps sitting things out is in this one (playtest-coffee-bystander).
+    const here = state.characters[state.player].status.location;
+    const onPlayer = plan.onPlayer ? ` ${pc.name} has sat things out long enough: this one happens where they are (${here}) and to them, so they can't stay out of it; "where" is ${here}, and they may be among those it hurts.` : '';
     const reg = Eng().nearbyRegions(state).length ? '"region":"region_id",' : '';
+    const climb = Eng().unmetNeeds(state, action);
     const writesMajor = plan.reason === 'random' || (plan.reason === 'canon' && plan.canonMode === 'diverge');
     const harmShape = '[{"id":"character_id","health":"hurt|badly_hurt|dead"}]';
     return `
 === TASK ===
-${frame.days >= 1 ? 'This covers a long stretch of downtime.' : 'This covers a short stretch of time.'} ${plan.crisis ? `It starts with an emergency ${pc.name}'s plan ignores: the last scene ended on "${plan.crisis.text}" ` : ''}${ends}
+${frame.days >= 1 ? 'This covers a long stretch of downtime.' : 'This covers a short stretch of time.'} ${plan.crisis ? `It starts with an emergency ${pc.name}'s plan ignores: the last scene ended on "${plan.crisis.text}" ` : ''}${ends}${onPlayer}
 Reply with JSON only:
 {${plan.crisis ? `"crisis":{"outcome":"one or two sentences","harm":${harmShape}},\n ` : ''}"montage":[{"after":"2d","text":"one or two sentences"}],
  "events":[{"text":"one sentence","scope":"local|regional|world","who":["character_id"],"where":"location_id",${reg}"visibility":"heard","moves":[],"effects":null}],
@@ -680,7 +697,7 @@ Reply with JSON only:
  "player_where":"location_id"}
 Guidelines:${plan.crisis ? `
 - crisis: how that emergency plays out first, without ${pc.name}, in "outcome", and what it costs: ignored emergencies cost something real. List anyone it hurts in "harm" (only people who were there), or [] if the cost is something else.` : ''}
-- montage: 2 to 4 moments in order, spread across the downtime ("after" = time since it began, like "3d" or "10h"), all after the last scene (never retell it). How people pass the time, relationships shifting, small incidents, secrets being worked on. ${pc.name} does only what their plan says ("${action || 'keep to routine'}"): no repairs, decisions or leading anyone that the plan doesn't name. Others deal with what comes up, or fail to.${writesMajor ? `
+- montage: 2 to 4 moments in order, spread across the downtime ("after" = time since it began, like "3d" or "10h"), all after the last scene (never retell it). How people pass the time, relationships shifting, small incidents, secrets being worked on. ${pc.name} does only what their plan says ("${action || 'keep to routine'}"): no repairs, decisions or leading anyone that the plan doesn't name. Others deal with what comes up, or fail to.${climb.length ? ` The plan leaves out ${climb.map((id) => Eng().needLimit(state, id).missing).filter((w, i, a) => a.indexOf(w) === i).join(' and ')}: show it wearing on ${pc.name}.` : ''}${writesMajor ? `
 - major_event.harm: anyone it hurts (only people it names or who are where it happens), or []. Danger here is real.` : ''}
 - events: 0 to 2 newsworthy things during the downtime, with concrete effects for regional/world ones (use only existing ids/keys: ${effectIds(state)}).
 - positions: one entry for EVERY other character: ${Eng().cast(state, { alive: true, includePlayer: false }).join(', ')}. Locations: ${Object.keys(state.locations).join(', ')}.
@@ -740,7 +757,7 @@ characters: ${Eng().cast(state).join(', ')}
 locations: ${Object.keys(state.locations).join(', ')}
 world keys: ${Object.keys(state.world).join(', ') || '(none)'}
 groups: ${(state.factions || []).map((f) => f.id).join(', ') || '(none)'}
-clocks: ${state.clocks.filter((c) => !c.fired).map((c) => c.id).join(', ') || '(none)'}
+clocks (higher = closer to going off; a negative delta puts it off): ${state.clocks.filter((c) => !c.fired).map((c) => `${c.id} ("${c.name}")`).join(', ') || '(none)'}
 ${updateSiteIds(state)}${Object.keys(state.standees || {}).length ? `unnamed groups (count, state, location only): ${Object.values(state.standees).map((g) => `${g.id} (${g.count}, ${g.state}) in ${g.location}`).join(', ')}\n` : ''}${Object.keys(state.extras || {}).length ? `minor people (facts and location only): ${Object.values(state.extras).map((x) => `${x.id}${x.location ? ' in ' + x.location : ''}`).join(', ')}\n` : ''}${sc.needs.length ? `needs: ${sc.needs.map((n) => n.id).join(', ')}\n` : ''}present this turn: ${[state.player].concat(present).join(', ')}`;
   // Doors next to the player, features with a state there, and unknown rooms (task 3-6).
   function updateSiteParts(state) {

@@ -675,6 +675,19 @@
     sc.needs = sc.needs || [];
     req(Array.isArray(sc.needs) && sc.needs.every((n) => n && n.id), '"needs" must be a list of {id, label, perHour}');
     const needIds = (Array.isArray(sc.needs) ? sc.needs : []).map((n) => n && n.id);
+    // What happens to a player who goes without it too long (playtest-coffee-bystander).
+    (Array.isArray(sc.needs) ? sc.needs : []).forEach((n) => {
+      const l = n && n.limit;
+      if (l == null) return;
+      const where = `need "${n.id}" limit`;
+      req(isObj(l), `${where} must be an object`);
+      if (!isObj(l)) return;
+      req(l.relief == null || (Array.isArray(l.relief) && l.relief.length && l.relief.every((w) => typeof w === 'string' && w.trim())), `${where}: "relief" must be a list of words`);
+      ['missing', 'text'].forEach((k) => req(l[k] == null || (typeof l[k] === 'string' && l[k].trim()), `${where}: "${k}" must be text`));
+      req(l.worst == null || ['ok', 'hurt', 'badly_hurt', 'dead'].includes(l.worst), `${where}: "worst" must be ok, hurt, badly_hurt or dead`);
+      req(l.grace == null || (typeof l.grace === 'number' && l.grace >= 0), `${where}: "grace" must be hours (0 or more)`);
+      req(l.after == null || (typeof l.after === 'number' && l.after >= 0 && l.after < 1), `${where}: "after" must be between 0 and 1`);
+    });
     if (sc.skillPenalties != null) {
       const sp = sc.skillPenalties;
       req(typeof sp === 'object' && !Array.isArray(sp), '"skillPenalties" must be an object with "health" and/or "needs"');

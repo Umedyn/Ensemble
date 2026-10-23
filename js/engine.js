@@ -1514,17 +1514,27 @@
 
   // routine = long downtime: people eat and sleep, so hunger/fatigue settle
   // toward normal instead of climbing; stress drifts toward a calm baseline.
+  // routine.climb: the player's needs their plan doesn't cover, which climb anyway.
   Eng.advanceTime = function (state, hours, res, routine) {
     state.time.hour += hours;
     while (state.time.hour >= 24) { state.time.hour -= 24; state.time.day += 1; }
+    const climb = (routine && routine.climb) || [];
     state.scenario.needs.forEach((n) => {
       Eng.cast(state, { alive: true }).forEach((id) => {
         const c = state.characters[id];
         const v = c.needs[n.id] || 0;
+        const unmet = id === state.player && climb.includes(n.id);
         // People in the background live their routine: needs settle, not climb.
-        c.needs[n.id] = routine || Eng.tier(state, id) === 'secondary'
+        const settles = !unmet && (routine || Eng.tier(state, id) === 'secondary');
+        c.needs[n.id] = settles
           ? E.clamp(0.35 + (v - 0.35) * Math.exp(-hours / 24), 0, 1)
           : E.clamp(v + (n.perHour || 0) * hours, 0, 1);
+        // How long the player has been at a need's limit (the body gives out after a while).
+        if (id === state.player) {
+          c.needsOver = c.needsOver || {};
+          if (c.needs[n.id] < 1) delete c.needsOver[n.id];
+          else if (!settles && n.perHour > 0) c.needsOver[n.id] = (c.needsOver[n.id] || 0) + Math.min(hours, (v + n.perHour * hours - 1) / n.perHour);
+        }
       });
     });
     state.clocks.slice().forEach((cl) => {
@@ -1669,10 +1679,90 @@
     });
   };
 
+  // ---------- the player's body and conscience during a skip ----------
+  // A skip settles the player's needs only when their plan covers them (rule 3:
+  // they do only what the plan says). A need that runs out stops the skip and
+  // happens to the player (playtest-coffee-skips 2: four sols awake on coffee,
+  // and nothing ever happened to Kit).
+  Eng.NEED_LIMITS = {
+    fatigue: { relief: /\b(sleep|slept|rest|nap|bed|bunk|doze|lie down|turn in)/, missing: 'sleep', text: 'collapses from exhaustion', worst: 'badly_hurt', after: 0.3, grace: 12 },
+    hunger: { relief: /\b(eat|ate|food|meal|cook|breakfast|lunch|dinner|supper|snack|ration)/, missing: 'food', text: 'collapses, weak from hunger', worst: 'dead', after: 0.6, grace: 48 },
+    thirst: { relief: /\b(water|drink)/, missing: 'water', text: 'collapses from thirst', worst: 'dead', after: 0.6, grace: 12 },
+    stress: { relief: /\b(rest|relax|sleep|talk|read|music|game|exercise|walk|meditat|pray|unwind)/, missing: 'rest', text: 'breaks down under the strain', worst: 'ok', after: 0.6, grace: 24 },
+    fear: { relief: /\b(rest|relax|sleep|talk|hide|pray|meditat|unwind)/, missing: 'rest', text: 'freezes up, overwhelmed by fear', worst: 'ok', after: 0.6, grace: 12 },
+  };
+  const ROUTINE_PLAN = /\b(routine|usual|normal|daily|chores|duties|shifts?|carry on|get on with|keep busy)\b/;
+  const wordsPattern = (words) => new RegExp('\\b(' + words.map((w) => String(w).toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', 'i');
+  // A need's limit in any world: the built-in one for its id, or a plain one
+  // (its own name is its relief), with the world's own `limit` fields on top.
+  Eng.needLimit = function (state, id) {
+    const n = state.scenario.needs.find((x) => x.id === id);
+    if (!n) return null;
+    const label = String(n.label || n.id).toLowerCase();
+    const base = Eng.NEED_LIMITS[id] || { relief: wordsPattern(label.split(/\s+/).concat(id)), missing: label, text: `gives out, worn down by ${label}`, worst: 'hurt', after: 0.6, grace: 24 };
+    const own = n.limit || {};
+    const lim = Object.assign({}, base, own);
+    if (Array.isArray(own.relief) && own.relief.length) lim.relief = wordsPattern(own.relief);
+    return lim;
+  };
+  // The player's needs their skip plan leaves out. An empty or routine plan covers them all.
+  Eng.unmetNeeds = function (state, action) {
+    const t = String(action || '').toLowerCase();
+    if (!t.trim() || ROUTINE_PLAN.test(t)) return [];
+    return state.scenario.needs.map((n) => n.id).filter((id) => { const lim = Eng.needLimit(state, id); return lim && !lim.relief.test(t); });
+  };
+  function bodyStop(state, action) {
+    const pc = state.characters[state.player];
+    let best = null;
+    Eng.unmetNeeds(state, action).forEach((id) => {
+      const n = state.scenario.needs.find((x) => x.id === id);
+      if (!(n.perHour > 0)) return;
+      // Time to the limit, then the hours a body lasts past it.
+      const lim = Eng.needLimit(state, id);
+      const hours = Math.max(1, Math.ceil((1 - (pc.needs[id] || 0)) / n.perHour + lim.grace - ((pc.needsOver || {})[id] || 0)));
+      if (!best || hours < best.hours) best = { hours, need: id, text: `${pc.name} ${lim.text}.` };
+    });
+    return best;
+  }
+  function bodyGivesOut(state, body, action, res) {
+    const pc = state.characters[state.player];
+    const lim = Eng.needLimit(state, body.need);
+    const label = (state.scenario.needs.find((n) => n.id === body.need) || {}).label || body.need;
+    const now = Math.max(0, HEALTH.indexOf(pc.status.health));
+    if (HEALTH.indexOf(lim.worst) > now) Eng.harm(state, state.player, HEALTH[now + 1], res, `no ${lim.missing}`);
+    pc.needs[body.need] = lim.after;
+    if (pc.needsOver) delete pc.needsOver[body.need];
+    E.Memory.addFact(state, { about: [state.player], text: body.text, known_by: ['all'], weight: 2 });
+    guard(res, 'resolve', 'body gives out', `${body.text} (${label} at its limit; the plan "${action}" left no room for ${lim.missing})`);
+  }
+
+  // Sitting out emergencies has a reckoning: after RECKONING_AFTER of them in a
+  // row, the person who thinks least of the player comes to confront them.
+  Eng.RECKONING_AFTER = 2;
+  Eng.RECKONING_HOURS = 3;
+  // In a skip, the open emergency it is about to sit out counts too.
+  function reckoningStop(state, countOpen = true) {
+    const open = countOpen && Eng.openCrisis(state);
+    const sat = (state.ignored || []).concat(open ? [open.text] : []);
+    if (sat.length < Eng.RECKONING_AFTER) return null;
+    const pid = state.player;
+    const who = Eng.crisisPeople(state).sort((a, b) => (state.characters[a].relations[pid] || 0) - (state.characters[b].relations[pid] || 0))[0];
+    return who ? { hours: Eng.RECKONING_HOURS, id: who, sat: sat.slice(-3) } : null;
+  }
+
   // ---------- skipping to the next major event ----------
   // Fast-forwards without the model: stops at the first clock to fire, a
-  // random major event, or the horizon, whichever comes first.
-  Eng.planMajorSkip = function (state) {
+  // random major event, or the horizon, whichever comes first; earlier than
+  // that, the player's body giving out or someone coming to confront them.
+  Eng.planMajorSkip = function (state, action) {
+    const plan = planWorldStop(state);
+    const body = bodyStop(state, action);
+    const reckon = reckoningStop(state);
+    if (body && body.hours < plan.hours && (!reckon || body.hours <= reckon.hours)) return { hours: body.hours, reason: 'body', body };
+    if (reckon && reckon.hours < plan.hours) return { hours: reckon.hours, reason: 'reckoning', reckoning: reckon };
+    return plan;
+  };
+  function planWorldStop(state) {
     const sc = state.scenario;
     const horizon = (sc.majorHorizonDays ?? 30) * 24;
     const meanDays = E.Genres.pacing(sc).majorEventDays;
@@ -2390,7 +2480,7 @@
       (p.corrections || []).forEach((c) => applyCorrection(state, c));
       (p.pins || []).forEach((x) => applyPin(state, x));
       endLoc = state.characters[state.player].status.location;
-      Eng.advanceTime(state, minutes / 60, { events: [] }, !!p.routine);
+      Eng.advanceTime(state, minutes / 60, { events: [] }, p.routine === true ? true : p.routine || false);
       const entry = state.log.find((e) => e.turn === p.turn && e.type === 'scene');
       if (entry) entry.cutAt = cut;
       const actionEntry = state.log.find((e) => e.turn === p.turn && e.type === 'action');
@@ -2559,10 +2649,15 @@
   async function skipTurn(state, action, phase) {
     const timelineNotes = [];
     if (E.Timeline.needsProjection(state)) { phase('Planning the days ahead…'); await E.Timeline.project(state, timelineNotes); }
-    const plan = Eng.planMajorSkip(state);
+    const plan = Eng.planMajorSkip(state, action);
+    const routine = { climb: Eng.unmetNeeds(state, action) };
     // Skipping while the last scene's emergency is unanswered: it plays out
     // without the player, and it costs something (playtest-coffee-skips).
     plan.crisis = Eng.openCrisis(state);
+    // A player who keeps sitting things out can't stay out of the next major
+    // event: it happens where they are (playtest-coffee-bystander).
+    plan.onPlayer = plan.reason === 'random' && ((state.ignored || []).length + (plan.crisis ? 1 : 0) >= 1 || (state.skipStreak || 0) >= 2);
+    state.skipStreak = (state.skipStreak || 0) + 1;
     const tierChanges = Eng.promoteForAction(state, Eng.present(state), action, state.turn + 1);
     const pre = E.clone(state);
     delete pre.log; delete pre.pending; delete pre.undo;
@@ -2575,7 +2670,7 @@
     timelineNotes.forEach((n) => guard(res, 'resolve', n.type, n.detail));
 
     phase('Fast-forwarding…');
-    Eng.advanceTime(state, plan.hours, res, true);
+    Eng.advanceTime(state, plan.hours, res, routine);
     const agendaSteps = Eng.runAgendas(state, plan.hours, plan, res);
     frame.endTime = E.fmtTime(state);
     frame.days = Math.round(plan.hours / 24 * 10) / 10;
@@ -2607,8 +2702,15 @@
     // The emergency the player left: its outcome, its cost, and what the
     // people who needed them now think of them.
     if (plan.crisis) ignoredCrisis(state, plan.crisis, obj.crisis, res);
-    // what happened in the meantime
-    Eng.applyEvents(state, { events: Array.isArray(obj.events) ? obj.events : [] }, [], 'hours', res,
+    // what happened in the meantime, without the timeline event repeated as one
+    const norm = (t) => String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    const canonTexts = [plan.canonText].concat(canonRest.map((d) => d.ev.text)).filter(Boolean).map(norm);
+    const events = (Array.isArray(obj.events) ? obj.events : []).filter((e) => {
+      if (!(e && canonTexts.includes(norm(e.text)))) return true;
+      guard(res, 'resolve', 'event dropped', `repeats the timeline event: ${E.shorten(e.text, 80)}`);
+      return false;
+    });
+    Eng.applyEvents(state, { events }, [], 'hours', res,
       { regional: true, world: plan.hours >= 72 }, { local: 2, regional: 2, world: plan.hours >= 72 ? 1 : 0 }, true);
     // Other timeline events due at the same hour happen too (as news).
     if (canonRest.length) E.Timeline.resolveDue(state, canonRest, obj.canon, res);
@@ -2627,6 +2729,15 @@
       const text = stepSentence(c, plan.agenda);
       res.events.push(`[major] ${text}`);
       res.major = { text, scope: 'agenda', who: plan.agenda.id };
+    } else if (plan.reason === 'body') {
+      bodyGivesOut(state, plan.body, action, res);
+      res.events.push(`[major] ${plan.body.text}`);
+      res.major = { text: plan.body.text, scope: 'body', who: state.player };
+    } else if (plan.reason === 'reckoning') {
+      const c = state.characters[plan.reckoning.id];
+      const text = `${c.name} comes to confront ${state.characters[state.player].name} about sitting out the emergencies.`;
+      res.events.push(`[major] ${text}`);
+      res.major = { text, scope: 'reckoning', who: c.id };
     } else if (plan.reason !== 'clock') {
       const m = obj.major_event && typeof obj.major_event.text === 'string' ? obj.major_event : { text: 'Something goes badly wrong, and the routine ends.' };
       const text = E.clip(m.text, 240);
@@ -2634,7 +2745,7 @@
       const effects = applyEffects(state, m.effects, scope, res);
       const region = eventRegion(state, m, scope, res);
       // Who it hurts: people it names or who are where it happens.
-      const where = Eng.resolveLocation(state, m.where, false);
+      const where = plan.onPlayer ? state.characters[state.player].status.location : Eng.resolveLocation(state, m.where, false);
       const hit = new Set((Array.isArray(m.who) ? m.who : []).filter((id) => state.characters[id])
         .concat([state.player].concat(Eng.cast(state, { alive: true, includePlayer: false })).filter((id) => where && state.characters[id].status.location === where)));
       Eng.applyHarm(state, m.harm, hit, res, 'the major event');
@@ -2672,13 +2783,22 @@
         completeStep(state, c, res, 'ends the downtime');
       }
     }
+    // The person who has had enough comes to the player, and the slate is clean.
+    if (plan.reason === 'reckoning') {
+      const c = state.characters[plan.reckoning.id];
+      c.status.location = state.characters[state.player].status.location;
+      E.Memory.addFact(state, { about: [c.id, state.player], text: res.major.text, known_by: [c.id, state.player], weight: 2 });
+      guard(res, 'resolve', 'reckoning', `${c.name} confronts ${state.characters[state.player].name} after ${plan.reckoning.sat.length} emergencies sat out`);
+      state.ignored = [];
+    }
     res.outcomes.push({ id: state.player, action: action || 'keeps to routine through the downtime', visible: true, roll: null, moved: null });
     // A skip that ends on a clock, a timeline event or a major event closes a
     // chapter; one that ends with someone coming to talk doesn't (playtest-coffee-skips:
-    // a chapter every two turns). It also leaves an emergency for the next turn.
-    const majorEnd = ['clock', 'random', 'canon'].includes(plan.reason) && res.major;
-    if (majorEnd) {
-      state.flags.chapterWorthy = true;
+    // a chapter every two turns). A clock or a random major event also leaves an
+    // emergency for the next turn; timeline news doesn't (playtest-coffee-skips 2:
+    // the sponsor's review and a break in the dust became "emergencies").
+    if (['clock', 'random', 'canon'].includes(plan.reason) && res.major) state.flags.chapterWorthy = true;
+    if (['clock', 'random'].includes(plan.reason) && res.major) {
       state.crisis = { turn: state.turn, text: res.major.text, who: Eng.crisisPeople(state) };
     } else delete state.crisis;
 
@@ -2686,6 +2806,11 @@
     const doings = (Array.isArray(obj.positions) ? obj.positions.filter((p) => p && state.characters[p.id] && p.doing) : [])
       .map((p) => (plan.reason === 'agenda' && p.id === plan.agenda.id ? Object.assign({}, p, { doing: plan.agenda.text }) : p));
     if (plan.reason === 'agenda' && !doings.some((p) => p.id === plan.agenda.id)) doings.push({ id: plan.agenda.id, doing: plan.agenda.text });
+    if (plan.reason === 'reckoning') {
+      const i = doings.findIndex((p) => p.id === plan.reckoning.id);
+      const d = { id: plan.reckoning.id, doing: `comes to confront ${state.characters[state.player].name}` };
+      if (i >= 0) doings[i] = d; else doings.push(d);
+    }
     const narration = { skip: true, system, action, montage, doings, presentStart };
     const beats = await writeSkipScene(state, narration, { frame, res }, phase);
     const text = beatsText(beats);
@@ -2697,7 +2822,7 @@
     const witnesses = Eng.present(state);
     frame.startLoc = here;
     Eng.noteSeen(state, null, state.turn);
-    state.pending = { turn: state.turn, action: action || 'Keeps to routine through the downtime.', res, frame, present: witnesses, beats, pre, routine: true, narration };
+    state.pending = { turn: state.turn, action: action || 'Keeps to routine through the downtime.', res, frame, present: witnesses, beats, pre, routine, narration };
     phase('');
     return { prose: text, beats, res, plan };
   }
@@ -2716,12 +2841,28 @@
     const hurt = Eng.applyHarm(state, cr.harm, there, res, `while ${pc.name} stayed out of it`);
     res.events.unshift(outcome);
     E.Memory.addFact(state, { about: (crisis.who || []).filter((id) => state.characters[id]), text: outcome, known_by: ['all'], weight: 3 });
+    const cooled = sitOut(state, crisis);
+    guard(res, 'resolve', 'crisis ignored', `${E.shorten(crisis.text, 80)} → ${outcome}${hurt.length ? '' : ' (no one hurt)'}${trustNote(state, cooled)}`);
+  }
+  // Sitting an emergency out, in a skip or a played turn: it counts toward a
+  // reckoning, and the people it concerned trust the player less.
+  function sitOut(state, crisis) {
+    state.ignored = (state.ignored || []).concat(E.shorten(crisis.text, 120)).slice(-4);
     const cooled = (crisis.who || []).filter((id) => id !== state.player && Eng.alive(state, id));
     cooled.forEach((id) => {
       const c = state.characters[id];
       c.relations[state.player] = E.clamp((c.relations[state.player] || 0) - Eng.CRISIS_TRUST, -100, 100);
     });
-    guard(res, 'resolve', 'crisis ignored', `${E.shorten(crisis.text, 80)} → ${outcome}${hurt.length ? '' : ' (no one hurt)'}${cooled.length ? `; trust toward ${pc.name} −${Eng.CRISIS_TRUST}: ${cooled.map((id) => state.characters[id].name).join(', ')}` : ''}`);
+    return cooled;
+  }
+  const trustNote = (state, cooled) => (cooled.length ? `; trust toward ${state.characters[state.player].name} −${Eng.CRISIS_TRUST}: ${cooled.map((id) => state.characters[id].name).join(', ')}` : '');
+  // Did a played turn's action deal with the open emergency? The intent call
+  // says; without an answer, the action has to share a word with it.
+  function answersCrisis(intentObj, action, crisis) {
+    const said = intentObj && intentObj.player && intentObj.player.crisis_answered;
+    if (typeof said === 'boolean') return said;
+    const words = stems(crisis.text);
+    return [...stems(action)].some((w) => words.has(w));
   }
 
   // Montage moments the narrator gets: none where the player does more than
@@ -2959,12 +3100,21 @@
     const pre = E.clone(state);
     delete pre.log; delete pre.pending; delete pre.undo;
     state.turn += 1;
+    state.skipStreak = 0;
+    // Emergencies sat out in played turns count too: the person who has had
+    // enough walks in this span (playtest-coffee-bystander).
+    const reckon = reckoningStop(state, false);
+    if (reckon) {
+      state.characters[reckon.id].status.location = state.characters[state.player].status.location;
+      state.ignored = [];
+    }
     const present = Eng.present(state);
     const extrasPresent = Eng.extrasAt(state, state.characters[state.player].status.location).map((x) => x.id);
     const system = E.Prompts.header(state); // same prefix for all calls this turn
 
     const due = Eng.tiersDue(state, step.hours);
     due.crisis = crisis;
+    due.reckoning = reckon;
     // Canon events due this span, checked now; broken "diverge" ones are
     // rewritten by the intent call. They are outside the tier rationing.
     const canonDue = E.Timeline.due(state, step.hours);
@@ -2981,7 +3131,16 @@
     const siteNotes = [];
     await E.Sites.forIntent(state, intentObj, action, pre, phase, siteNotes);
     const res = Eng.resolve(state, intentObj, present, action, step.id, due);
-    if (crisis) res.crisisText = crisis.text;
+    if (crisis) {
+      res.crisisText = crisis.text;
+      if (answersCrisis(intentObj, action, crisis)) state.ignored = [];
+      else guard(res, 'resolve', 'crisis ignored', `${E.shorten(crisis.text, 80)}: the action didn't deal with it${trustNote(state, sitOut(state, crisis))}`);
+    }
+    if (reckon) {
+      const c = state.characters[reckon.id];
+      E.Memory.addFact(state, { about: [c.id, state.player], text: `${c.name} came to confront ${state.characters[state.player].name} about sitting out the emergencies.`, known_by: [c.id, state.player], weight: 2 });
+      guard(res, 'resolve', 'reckoning', `${c.name} confronts ${state.characters[state.player].name} after ${reckon.sat.length} emergencies sat out`);
+    }
     E.Timeline.resolveDue(state, canonDue, intentObj.canon, res);
     tierChanges.forEach((t) => guard(res, 'resolve', 'cast tier', t));
     extraNotes.forEach((t) => guard(res, 'resolve', 'extras', t));

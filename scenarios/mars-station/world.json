@@ -35,7 +35,10 @@
     {
       "id": "fatigue",
       "label": "Fatigue",
-      "perHour": 0.04
+      "perHour": 0.04,
+      "limit": {
+        "text": "blacks out from exhaustion and goes down hard against a bulkhead"
+      }
     },
     {
       "id": "stress",

@@ -287,10 +287,13 @@ test('playtest: the scene that walked Jordan back out of the office is a relocat
   assert.doesNotMatch(E.Engine.trimPlayerEnding(prose), /Just looking for supplies," you say/);
 });
 
+// Recorded before the player's body and the reckoning could stop a skip
+// (playtest-coffee-bystander): with them on, these skips would end elsewhere.
+const asRecorded = { setup: (E) => { E.Engine.needLimit = () => null; E.Engine.RECKONING_AFTER = Infinity; } };
 // DeepSeek v4.1 flash, 2026-10-22 (playtest-coffee-skips): a friend answered every
 // scene with "Keep drinking coffee" and the until-something-major step.
 test('playtest: facts and chapter summaries are cut at a sentence or word, never mid-word', async () => {
-  const r = await replay('playtest-coffee-skips');
+  const r = await replay('playtest-coffee-skips', asRecorded);
   const s = r.state;
   const scrubber = s.facts.find((f) => /scrubber bed has been run well past its swap interval/.test(f.text));
   assert.ok(scrubber, 'the major event is still a fact');
@@ -300,14 +303,14 @@ test('playtest: facts and chapter summaries are cut at a sentence or word, never
 });
 
 test('playtest: compound beat markers ([+0h06], [+1d 20h]) are read, not left in the scene', async () => {
-  const r = await replay('playtest-coffee-skips');
+  const r = await replay('playtest-coffee-skips', asRecorded);
   const left = r.state.log.filter((l) => l.type === 'scene').flatMap((l) => l.text.match(/\[\s*\+[^\]]*\]/g) || []);
   assert.deepEqual(left, []);
   assert.deepEqual([...r.E.Engine.parseBeats('[+0h06] A.\n\n[+0h22] B.\n\n[+1d 20h] C.', 3000).map((b) => b.at)], [0, 22, 2640]);
 });
 
 test('playtest: a region tag that is too long is refused, not cut mid-word', async () => {
-  const r = await replay('playtest-coffee-skips');
+  const r = await replay('playtest-coffee-skips', asRecorded);
   const tags = [...r.state.regions.station.tags];
   assert.ok(!tags.includes('commons losing pressure at the'), tags.join(' | '));
   assert.ok(tags.every((t) => t.length <= 30));
@@ -316,7 +319,7 @@ test('playtest: a region tag that is too long is refused, not cut mid-word', asy
 });
 
 test('playtest: a one-hour skip is described in hours, not "about 0 days" of "a long stretch"', async () => {
-  const r = await replay('playtest-coffee-skips', { until: 5 });
+  const r = await replay('playtest-coffee-skips', { ...asRecorded, until: 5 });
   const intents = r.E.LLM.calls.filter((c) => c.kind === 'intent');
   const short = intents.find((c) => /Sol 215, 18:51 → Sol 215, 19:51/.test(c.user));
   assert.match(short.user, /\(about 1 hour\)/);
@@ -326,7 +329,7 @@ test('playtest: a one-hour skip is described in hours, not "about 0 days" of "a 
 });
 
 test('playtest: a pressure that went off is listed the turn it happens, then leaves the prompts and the update ids', async () => {
-  const r = await replay('playtest-coffee-skips', { until: 3 });
+  const r = await replay('playtest-coffee-skips', { ...asRecorded, until: 3 });
   const byTurn = (kind) => r.E.LLM.calls.filter((c) => c.kind === kind);
   const [, n2, n3] = byTurn('narrate');
   assert.match(n2.user, /Dust storm arrival \(HAPPENED\)/, 'the turn the storm arrives');
@@ -339,7 +342,7 @@ test('playtest: a pressure that went off is listed the turn it happens, then lea
 });
 
 test('playtest: every ignored emergency costs the crew\'s trust, the montage keeps Kit to the coffee, and worn phrases reach the narrator', async () => {
-  const r = await replay('playtest-coffee-skips');
+  const r = await replay('playtest-coffee-skips', asRecorded);
   const s = r.state;
   const t3 = r.E.Engine.telemetry.find((t) => t.turn === 3);
   assert.match(t3.guards.find((g) => g.type === 'crisis ignored').detail, /^The dust storm arrives[^]*played out without Kit Navarro[^]*trust toward Kit Navarro −6/);
@@ -349,4 +352,20 @@ test('playtest: every ignored emergency costs the crew\'s trust, the montage kee
   assert.ok(r.E.LLM.calls.some((c) => c.kind === 'intent' && /a turning point that grows out of the people/.test(c.user)));
   const last = r.E.LLM.calls.filter((c) => c.kind === 'narrate').pop();
   assert.match(last.user, /=== WORN PHRASES[^\n]*===\n- "teo refills the pot without being asked"/);
+});
+
+// The same friend's play, replayed by the owner (playtest-coffee-bystander):
+// seven skips of coffee, and everything happened around Kit, never to them.
+// Only the first turns still line up with the recording; the rest of the
+// behaviour is in crisis.test.js.
+test('playtest: coffee instead of sleep catches up with Kit: their fatigue climbs through the skips and the third one ends with them collapsing', async () => {
+  const r = await replay('playtest-coffee-bystander', { until: 3 });
+  r.steps.forEach((s) => assert.equal(s.error, null, s.error && s.error.message));
+  assert.equal(r.steps[0].state.characters.navarro.needs.fatigue, 1, 'twenty hours awake');
+  assert.equal(r.steps[1].result.plan.reason, 'agenda');
+  const last = r.steps[2];
+  assert.equal(last.result.plan.reason, 'body');
+  assert.equal(last.state.characters.navarro.status.health, 'hurt');
+  assert.ok(last.result.res.guards.some((g) => g.type === 'body gives out' && /left no room for sleep/.test(g.detail)));
+  assert.equal(last.state.ignored.length, 1, 'the storm, sat out in the second skip, still counts');
 });

@@ -30,7 +30,11 @@
     {
       "id": "hunger",
       "label": "Hunger",
-      "perHour": 0.035
+      "perHour": 0.035,
+      "limit": {
+        "relief": ["eat", "food", "meal", "cook", "ration", "scavenge", "forage"],
+        "text": "goes down, too weak from hunger to stand"
+      }
     },
     {
       "id": "fatigue",
