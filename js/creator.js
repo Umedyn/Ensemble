@@ -7,13 +7,14 @@
 // add their own.
 (function () {
   const E = window.Ensemble;
-  const S = E.Scenario, M = E.MapEdit, D = E.MapDraw, LE = E.LoreEdit;
+  const S = E.Scenario, M = E.MapEdit, D = E.MapDraw, LE = E.LoreEdit, WE = E.WorldEdit;
   const $ = (id) => document.getElementById(id);
   const esc = D.esc;
   const store = {
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
     del(k) { try { localStorage.removeItem(k); } catch (e) {} },
+    keys() { try { return Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i)); } catch (e) { return []; } },
   };
   const SAVE_KEY = (folder) => `ensemble.creator.${folder}`;
 
@@ -25,20 +26,24 @@
   // region a link from the map points at, and the lore test box's inputs.
   const lui = { sel: null, confirm: false, focus: null, test: { startId: '', room: '', action: '', scene: '' } };
   const tui = { sel: null, confirm: false, focus: null, startId: '', effectsError: '' };
+  // World, groups and starts tabs (task 6-1).
+  const gui = { sel: null, confirm: false };
+  const sui = { sel: null, confirm: false, confirmRoom: null, newPerson: false, openRoom: null };
   const urls = new Map(); // asset path -> object URL
   const diskWorlds = new Map(); // "disk:folder" -> { folder, files, assets }
 
   // ---------- tabs ----------
   const TABS = [
-    { id: 'world', label: 'World', soon: 'phase 6' },
-    { id: 'groups', label: 'Groups', soon: 'phase 6' },
+    // Task 6-1.
+    { id: 'world', label: 'World', render: renderWorldTab },
+    { id: 'groups', label: 'Groups', render: renderGroupsTab },
     { id: 'map', label: 'Map', render: renderMapTab },
     { id: 'sites', label: 'Sites', soon: 'phase 6' },
     // Task 5-3. Lore is public: no secrets; the future goes in the timeline.
     { id: 'lore', label: 'Lore', render: renderLoreTab },
     { id: 'timeline', label: 'Timeline', render: renderTimelineTab },
     { id: 'characters', label: 'Characters', soon: 'phase 6' },
-    { id: 'starts', label: 'Starts', soon: 'phase 6' },
+    { id: 'starts', label: 'Starts', render: renderStartsTab },
     { id: 'portraits', label: 'Portraits', soon: 'phase 6' },
   ];
   function renderTabs() {
@@ -58,44 +63,52 @@
     (world().starts || []).forEach((id) => { if (cw.files[`starts/${id}.json`]) out[id] = cw.files[`starts/${id}.json`]; });
     return out;
   };
-  // A legacy folder becomes a new-format world as soon as it is opened.
-  function normalise(files) {
-    if (files['world.json']) return files;
-    const legacy = Object.assign({}, files['scenario.json'], {
-      characterData: (files['scenario.json'].characters || []).map((id) => files[`characters/${id}.json`] || null),
-    });
-    const b = S.fromLegacy(legacy);
-    const out = { 'world.json': Object.assign({ format: 2 }, b.world) };
-    Object.entries(b.starts).forEach(([id, st]) => (out[`starts/${id}.json`] = st));
-    Object.entries(b.characters).forEach(([id, c]) => (out[`characters/${id}.json`] = c));
-    return out;
-  }
+  const normalise = (files) => WE.fromFiles(files);
   function banner(html, cls) {
     const el = $('cBanner');
     el.className = `c-banner${html ? '' : ' hidden'}${cls ? ' ' + cls : ''}`;
     el.innerHTML = html || '';
   }
-  function open(folder, files, assets, server) {
+  // draft: a world that exists only in this browser (made with New world,
+  // or edits kept from a folder that isn't on the server).
+  function open(folder, files, assets, server, draft) {
     urls.forEach((u) => URL.revokeObjectURL(u));
     urls.clear();
     const original = normalise(JSON.parse(JSON.stringify(files)));
-    cw = { folder, files: original, assets: Object.assign({}, assets || {}), server: !!server, original };
+    cw = { folder, files: original, assets: Object.assign({}, assets || {}), server: !!server, original, draft: !!draft };
     Object.assign(ui, { mode: 'select', sel: null, drawing: [], room: '', vb: null, confirmDelete: false });
     Object.assign(lui, { sel: null, confirm: false, focus: null, test: { startId: '', room: '', action: '', scene: '' } });
     Object.assign(tui, { sel: null, confirm: false, focus: null, startId: '', effectsError: '' });
+    Object.assign(gui, { sel: null, confirm: false });
+    Object.assign(sui, { sel: null, confirm: false, confirmRoom: null, newPerson: false, openRoom: null });
     ui.autoIds = new Set();
     banner('');
     let saved = null;
     try { saved = JSON.parse(store.get(SAVE_KEY(folder))); } catch (e) { saved = null; }
-    if (saved && saved.files && saved.files['world.json']) {
+    if (draft) banner('This world is kept only in this browser until you export it. <button type="button" id="cDeleteDraft" class="small">Delete this draft</button>');
+    else if (saved && saved.files && saved.files['world.json']) {
       cw.files = saved.files;
       banner(`Restored your unsaved edits from ${esc(new Date(saved.at).toLocaleString())}. <button type="button" id="cDiscard" class="small">Discard edits</button>`);
     }
     $('cExport').disabled = false;
     $('cJson').disabled = false;
+    $('cTest').disabled = false;
     render();
   }
   $('cBanner').addEventListener('click', (ev) => {
+    if (ev.target.id === 'cDeleteDraft' && cw) {
+      if (!cw.confirmDraft) { cw.confirmDraft = true; ev.target.textContent = 'Click again to delete it for good'; return; }
+      store.del(SAVE_KEY(cw.folder));
+      const opt = Array.from($('cWorld').options).find((o) => o.value === 'draft:' + cw.folder);
+      if (opt) opt.remove();
+      cw = null;
+      $('cWorld').value = '';
+      ['cExport', 'cJson', 'cTest'].forEach((id) => ($(id).disabled = true));
+      $('cMain').innerHTML = '<div class="c-empty">Draft deleted. Pick a world to edit, or make a new one.</div>';
+      banner('');
+      return render();
+    }
+    if (ev.target.id === 'cNewGo') return newWorld($('cNewTitle').value);
     if (ev.target.id !== 'cDiscard' || !cw) return;
     store.del(SAVE_KEY(cw.folder));
     cw.files = JSON.parse(JSON.stringify(cw.original));
@@ -106,11 +119,12 @@
   // After every edit: autosave and validate (debounced), redraw the parts asked for.
   function changed(parts) {
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => store.set(SAVE_KEY(cw.folder), JSON.stringify({ files: cw.files, at: Date.now() })), 400);
+    const c = cw;
+    saveTimer = setTimeout(() => store.set(SAVE_KEY(c.folder), JSON.stringify({ files: c.files, at: Date.now(), draft: c.draft || undefined })), 400);
     clearTimeout(checkTimer);
     checkTimer = setTimeout(renderValidation, 250);
-    (parts || ['all']).forEach((p) => (p === 'all' ? render() : p === 'canvas' ? renderCanvas() : p === 'list' ? renderRegionList()
-      : p === 'lorelist' ? renderLoreList() : p === 'evlist' ? renderEventList() : null));
+    const PARTS = { all: render, canvas: renderCanvas, list: renderRegionList, lorelist: renderLoreList, evlist: renderEventList, startlist: renderStartList, grouplist: renderGroupList, genre: renderGenre, preview: renderPreview };
+    (parts || ['all']).forEach((p) => PARTS[p] && PARTS[p]());
   }
 
   // ---------- validation ----------
@@ -151,6 +165,10 @@
     };
     if (lui.sel) own($('cLoreProblems'), `lore "${lui.sel}"`);
     if (tui.sel) own($('cEventProblems'), `timeline "${tui.sel}"`);
+    if (sui.sel) own($('cStartProblems'), `start "${sui.sel}"`);
+    if (gui.sel) own($('cGroupProblems'), `"${gui.sel}"`);
+    const wp = $('cWorldProblems');
+    if (wp) wp.innerHTML = r.problems.filter((p) => !/^start "/.test(p)).map((p) => `<div class="bad small">${esc(p)}</div>`).join('');
   }
 
   // ---------- images ----------
@@ -291,6 +309,9 @@
       if (ui.tab === 'map') { renderRegionList(); renderCanvas(); }
       if (ui.tab === 'lore') { renderLoreList(); renderLoreTest(); }
       if (ui.tab === 'timeline') renderEventList();
+      if (ui.tab === 'world') renderGenre();
+      if (ui.tab === 'groups') renderGroupList();
+      if (ui.tab === 'starts') { renderStartList(); renderPreview(); }
       renderValidation();
     } finally { rendering = false; }
     if (renderAgain) { renderAgain = false; render(); }
@@ -855,6 +876,490 @@
     }
   });
 
+  // ---------- bound fields (task 6-1) ----------
+  // A form field bound to a path in one file of the working copy; typing
+  // and picking go through WorldEdit.set (kinds there). label is HTML.
+  // o: { rows, options: [{id, name}], blank, placeholder, max, min, maxv, step, live, hint, aria }
+  function fld(file, path, kind, label, o = {}) {
+    const v = WE.get(cw.files[file], path);
+    const attrs = `data-file="${esc(file)}" data-path="${esc(path)}" data-kind="${kind}"${o.live ? ` data-live="${o.live}"` : ''}${o.aria ? ` aria-label="${esc(o.aria)}"` : ''}`;
+    const ph = o.placeholder != null && o.placeholder !== '' ? ` placeholder="${esc(o.placeholder)}"` : '';
+    const hint = o.hint ? ` <span class="muted small">${o.hint}</span>` : '';
+    if (kind === 'bool' || kind === 'unseen') return `<label class="c-check"><input type="checkbox" ${attrs}${(kind === 'bool' ? v === true : v !== false) ? ' checked' : ''}> <span>${label}${hint}</span></label>`;
+    let input;
+    if (o.options) {
+      input = `<select ${attrs}>${o.blank != null ? `<option value="">${esc(o.blank)}</option>` : ''}${o.options.map((x) => `<option value="${esc(x.id)}"${String(v ?? '') === String(x.id) ? ' selected' : ''}>${esc(x.name)}</option>`).join('')}</select>`;
+    } else if (o.rows || kind === 'lines' || kind === 'json') {
+      input = `<textarea ${attrs} rows="${o.rows || 3}"${ph}${o.max ? ` maxlength="${o.max}"` : ''}${kind === 'json' ? ' spellcheck="false"' : ''}>${esc(WE.show(kind, v))}</textarea>`;
+    } else {
+      const num = kind === 'num' || kind === 'int';
+      input = `<input ${attrs}${num ? ` type="number" step="${o.step || (kind === 'int' ? 1 : 'any')}"${o.min != null ? ` min="${o.min}"` : ''}${o.maxv != null ? ` max="${o.maxv}"` : ''}` : ''} value="${esc(WE.show(kind, v))}"${ph}${o.max ? ` maxlength="${o.max}"` : ''}>`;
+    }
+    const err = ['json', 'num', 'int'].includes(kind) ? `<span class="bad small c-err" data-err="${esc(file + '|' + path)}"></span>` : '';
+    return label == null ? input + err : `<label>${label}${hint}${input}${err}</label>`;
+  }
+  const count = (file, path, max) => `<span class="muted small" data-count="${esc(file + '|' + path)}" data-max="${max}">${String(WE.get(cw.files[file], path) || '').length}/${max}</span>`;
+  function setField(t, parts) {
+    const file = cw.files[t.dataset.file];
+    if (!file) return;
+    const r = WE.set(file, t.dataset.path, t.dataset.kind, t.type === 'checkbox' ? t.checked : t.value);
+    const key = t.dataset.file + '|' + t.dataset.path;
+    $('cMain').querySelectorAll('[data-err]').forEach((el) => { if (el.dataset.err === key) el.textContent = r.error ? `Not saved yet: ${r.error}` : ''; });
+    $('cMain').querySelectorAll('[data-count]').forEach((el) => { if (el.dataset.count === key) el.textContent = `${t.value.length}/${el.dataset.max}`; });
+    if (r.error) return;
+    const m = t.dataset.file.match(/^starts\/(.+)\.json$/), c = t.dataset.path.match(/^cast\.(\d+)\./);
+    if (m && c) WE.tidyCastEntry(cw.files, m[1], Number(c[1]));
+    changed(parts.concat(t.dataset.live ? t.dataset.live.split(' ') : []));
+  }
+  $('cMain').addEventListener('input', (ev) => {
+    const t = ev.target;
+    if (!cw || !t.dataset || !t.dataset.path || t.type === 'checkbox' || t.tagName === 'SELECT') return;
+    setField(t, []);
+  });
+  $('cMain').addEventListener('change', (ev) => {
+    const t = ev.target;
+    if (!cw || !t.dataset || !t.dataset.path || !(t.type === 'checkbox' || t.tagName === 'SELECT')) return;
+    setField(t, ['all']);
+  });
+  // Key/value rows (world status, a clock's fireWorld).
+  function kvRows(file, path, list) {
+    const obj = WE.get(cw.files[file], path) || {};
+    return `<div class="c-kv">${Object.keys(obj).map((k) => `<div class="c-kvrow"><input value="${esc(k)}" data-rekey="${esc(`${file}|${path}|${k}`)}" aria-label="Key"${list ? ` list="${list}"` : ''}>${fld(file, `${path}.${k}`, 'str', null, { aria: `Value of ${k}` })}<button type="button" class="small ghost" data-delkey="${esc(`${file}|${path}|${k}`)}" aria-label="Remove ${esc(k)}">✕</button></div>`).join('')}
+      <button type="button" class="small" data-addkey="${esc(`${file}|${path}`)}">+ Key</button></div>`;
+  }
+  const addBtn = (file, path, tpl, label) => `<button type="button" class="small" data-add="${esc(`${file}|${path}`)}" data-tpl="${esc(JSON.stringify(tpl))}">${esc(label)}</button>`;
+  const delBtn = (file, path, i, what) => `<button type="button" class="small ghost" data-del="${esc(`${file}|${path}|${i}`)}" aria-label="Remove ${esc(what)}">✕</button>`;
+  // Generic list and key edits, on every tab.
+  $('cMain').addEventListener('click', (ev) => {
+    if (!cw) return;
+    const t = ev.target;
+    const add = t.closest('[data-add]'), del = t.closest('[data-del]'), addKey = t.closest('[data-addkey]'), delKey = t.closest('[data-delkey]'), addClock = t.closest('[data-addclock]');
+    if (add) { const [f, p] = add.dataset.add.split('|'); WE.addItem(cw.files[f], p, JSON.parse(add.dataset.tpl)); return changed(); }
+    if (addClock) { const [f, p] = addClock.dataset.addclock.split('|'); WE.addItem(cw.files[f], p, WE.newClock(cw.files)); return changed(); }
+    if (del) { const [f, p, i] = del.dataset.del.split('|'); WE.removeItem(cw.files[f], p, i); return changed(); }
+    if (addKey) {
+      const [f, p] = addKey.dataset.addkey.split('|');
+      const obj = WE.get(cw.files[f], p) || {};
+      let k = 'new-key';
+      for (let i = 2; k in obj; i++) k = `new-key-${i}`;
+      WE.set(cw.files[f], `${p}.${k}`, 'str', '');
+      return changed();
+    }
+    if (delKey) { const [f, p, k] = delKey.dataset.delkey.split('|'); WE.set(cw.files[f], `${p}.${k}`, 'text', ''); return changed(); }
+  });
+  $('cMain').addEventListener('change', (ev) => {
+    if (!cw || !ev.target.dataset.rekey) return;
+    const [f, p, k] = ev.target.dataset.rekey.split('|');
+    const err = WE.renameKey(WE.get(cw.files[f], p), k, ev.target.value);
+    banner(err ? esc(`"${ev.target.value}" can't be used: ${err}.`) : '', err ? 'bad' : '');
+    changed();
+  });
+  const idList = (list) => (list || []).filter((x) => x && x.id).map((x) => ({ id: x.id, name: x.name || x.label || x.id }));
+
+  // ---------- the world tab (task 6-1) ----------
+  function renderWorldTab() {
+    const w = world(), F = 'world.json';
+    const pace = E.Genres.pacing(Object.assign({}, w, { eventRates: {}, majorEventDays: null }));
+    const regions = idList(w.regions);
+    const seeds = (tier) => {
+      const list = (w.eventSeeds && w.eventSeeds[tier]) || [];
+      return `<div class="c-rows">${list.map((sd, i) => `<div class="c-kvrow">${fld(F, WE.seedPath(w, tier, i), 'str', null, { aria: `${tier} idea ${i + 1}` })}${regions.length ? `<select data-seedregion="${tier}|${i}" aria-label="Region">${options(regions, sd && sd.region, 'anywhere')}</select>` : ''}${delBtn(F, `eventSeeds.${tier}`, i, 'idea')}</div>`).join('')}
+        ${addBtn(F, `eventSeeds.${tier}`, '', '+ Idea')}</div>`;
+    };
+    return `<div class="c-form">
+      <div id="cWorldProblems"></div>
+      <section><h3>About</h3>
+        ${fld(F, 'title', 'text', 'Title', { max: 80 })}
+        ${fld(F, 'summary', 'text', 'Summary', { rows: 2, hint: 'one or two lines for the world picker' })}
+        ${fld(F, 'setting', 'str', 'Setting', { rows: 6, hint: 'always in the prompt: keep it broad, and put regional detail in region lore' })}
+        ${fld(F, 'rules', 'lines', 'Rules', { rows: 4, hint: 'one per line: what is and isn\'t possible here' })}</section>
+      <section><h3>Genre and tone</h3>
+        ${fld(F, 'tags', 'csv', 'Genre tags', { live: 'genre', hint: 'comma-separated, most important first', placeholder: Object.keys(E.Genres.table).join(', ') })}
+        <div id="cGenre" class="c-genre"></div>
+        <label>Tone note ${count(F, 'toneNote', 300)}${fld(F, 'toneNote', 'text', null, { rows: 2, max: 300 })}</label></section>
+      <section><h3>Time</h3><div class="c-row2">
+        ${fld(F, 'timeLabel', 'text', 'Name of a day', { placeholder: 'Day', hint: '("Sol", "Day")' })}
+        ${fld(F, 'wakeHour', 'int', 'Waking hour', { min: 0, maxv: 23, placeholder: '7' })}</div></section>
+      <section><h3>Skills</h3>${fld(F, 'skills', 'csv', 'Skills', { hint: 'comma-separated; what people roll for' })}</section>
+      <section><h3>Needs</h3>
+        ${(w.needs || []).length ? '' : '<p class="muted small">No needs: no bars and no need penalties. That suits worlds where bodies aren\'t the story.</p>'}
+        ${(w.needs || []).map((n, i) => `<div class="c-card"><div class="c-row3">
+          <label>Id <input value="${esc(n.id)}" data-idof="need" data-old="${esc(n.id)}"></label>
+          ${fld(F, `needs.${i}.label`, 'text', 'Label')}
+          ${fld(F, `needs.${i}.perHour`, 'num', 'Rises per hour', { step: 0.005, min: 0 })}</div>
+          <details><summary class="small">When it is pushed too far (JSON)</summary>${fld(F, `needs.${i}.limit`, 'json', null, { rows: 3, placeholder: '{"text": "blacks out from exhaustion"}' })}</details>
+          <button type="button" class="small danger" data-delneed="${esc(n.id)}">Remove need</button></div>`).join('')}
+        <button type="button" class="small" id="cAddNeed">+ Need</button></section>
+      <section><h3>Pacing</h3>
+        <p class="muted small">Blank uses what the genre tags give (shown greyed).</p>
+        <div class="c-row2">${fld(F, 'eventRates.regional', 'num', 'Hours between nearby events', { min: 1, placeholder: pace.eventRates.regional })}
+        ${fld(F, 'eventRates.world', 'num', 'Hours between far-away events', { min: 1, placeholder: pace.eventRates.world })}
+        ${fld(F, 'majorEventDays', 'num', 'Days to a major event (skipping)', { min: 1, placeholder: pace.majorEventDays })}
+        ${fld(F, 'majorHorizonDays', 'num', 'Longest skip, in days', { min: 1, placeholder: 30 })}
+        ${fld(F, 'tiers.demoteAfter', 'int', 'Turns before someone out of the scene fades back', { min: 1, placeholder: 4 })}
+        ${fld(F, 'tiers.maxLocal', 'int', 'Most people in the foreground', { min: 1, placeholder: 6 })}</div>
+        ${fld(F, 'inventExtras', 'bool', 'Let the story add minor people during play')}</section>
+      <section><h3>Event ideas</h3>
+        <h4 class="small">Nearby</h4>${seeds('regional')}
+        <h4 class="small">Far away</h4>${seeds('world')}
+        ${fld(F, 'majorSeeds', 'lines', 'Major events', { rows: 4, hint: 'one per line; used when a major event rolls' })}</section>
+      <section><h3>World status</h3><p class="muted small">Public values the story can change (power, weather, what's open). Starts may add or change them.</p>${kvRows(F, 'world')}</section>
+      <section><h3>Public facts</h3>${fld(F, 'facts', 'lines', null, { rows: 4, placeholder: 'One per line: true everywhere, known to everyone' })}</section>
+      <section><h3>Advanced</h3>
+        ${fld(F, 'revealSkills', 'csv', 'Skills that can pry secrets loose', { placeholder: 'social' })}
+        ${(w.needs || []).length ? fld(F, 'revealPressure', 'csv', 'Needs that count as pressure on secrets', { placeholder: (w.needs || []).map((n) => n.id).join(', ') }) : ''}
+        ${fld(F, 'skillPenalties', 'json', 'Roll penalties (JSON)', { rows: 3, placeholder: '{"health": {"hurt": -1}, "needs": [{"need": "fatigue", "at": 0.8, "penalty": -1}]}' })}
+        ${fld(F, 'tagThresholds', 'json', 'Card tags from needs (JSON)', { rows: 2, placeholder: '{"fatigue": {"at": 0.8, "tag": "exhausted"}}' })}
+        ${fld(F, 'generatedStarts', 'json', 'Generated starts (JSON)', { rows: 3, hint: 'see docs/WORLDS.md' })}
+        ${fld(F, 'generatedSites', 'json', 'Generated sites (JSON)', { rows: 2, placeholder: '{"maxSites": 8, "keepDays": 3}' })}</section>
+    </div>`;
+  }
+  function renderGenre() {
+    const el = $('cGenre');
+    if (!el) return;
+    const { known, free } = E.Genres.split(world().tags);
+    const DANGER = { lethal: 'people can die', serious: 'people can be badly hurt; death is rare', mild: 'harm is mostly social or emotional' };
+    el.innerHTML = known.map((k, i) => { const g = E.Genres.table[k]; return `<div class="small"><b>${esc(k)}</b>${i === 0 ? ' <span class="muted">(leads)</span>' : ''}: ${esc(g.tone)}${i === 0 ? `<br><span class="muted">A major event means ${esc(g.major)}. Danger: ${esc(DANGER[g.danger])}.</span>` : ''}</div>`; }).join('') +
+      (free.length ? `<div class="small muted">Passed on as written: ${esc(free.join(', '))}.</div>` : '') +
+      (!known.length && !free.length ? '<div class="small muted">No tags: the story plays as grounded survival by default.</div>' : '');
+  }
+  $('cMain').addEventListener('click', (ev) => {
+    if (!cw || ui.tab !== 'world') return;
+    const t = ev.target;
+    if (t.id === 'cAddNeed') { WE.addNeed(cw.files); return changed(); }
+    if (t.dataset.delneed) { WE.removeNeed(cw.files, t.dataset.delneed); return changed(); }
+  });
+  $('cMain').addEventListener('change', (ev) => {
+    if (!cw || ui.tab !== 'world') return;
+    const t = ev.target;
+    if (t.dataset.idof === 'need') {
+      const err = WE.renameNeed(cw.files, t.dataset.old, t.value);
+      banner(err ? esc(`"${t.value}" can't be used: ${err}.`) : '', err ? 'bad' : '');
+      return changed();
+    }
+    if (t.dataset.seedregion) { const [tier, i] = t.dataset.seedregion.split('|'); WE.setSeedRegion(world(), tier, Number(i), t.value); return changed(); }
+  });
+
+  // ---------- the groups tab (task 6-1) ----------
+  function renderGroupsTab() {
+    return `<div class="c-split">
+      <div class="c-scroll-col"><p class="muted small">Groups are the factions, crews and institutions of the world: who holds each region, who a group of people on the map belongs to, and whose stance the story can shift.</p>
+        <div id="cGroupList" class="c-list"></div><button type="button" id="cAddGroup" class="small">+ Group</button></div>
+      <aside class="c-panel" id="cGroupForm">${groupForm()}</aside></div>`;
+  }
+  function renderGroupList() {
+    const el = $('cGroupList');
+    if (!el) return;
+    const fs = world().factions || [];
+    el.innerHTML = fs.map((f) => `<button type="button" data-gsel="${esc(f.id)}" aria-pressed="${f.id === gui.sel}"><span class="swatch ${D.factionClass(fs, f.id)}"></span>${esc(f.name || f.id)}${f.stance ? ` <span class="muted small">${esc(E.shorten(f.stance, 60))}</span>` : ''}</button>`).join('') || '<span class="muted">No groups yet.</span>';
+  }
+  function groupForm() {
+    const w = world(), F = 'world.json';
+    const i = (w.factions || []).findIndex((f) => f.id === gui.sel);
+    if (i < 0) return '<p class="muted">Pick a group, or add one.</p>';
+    const f = w.factions[i];
+    const held = (w.regions || []).filter((r) => r.controller === f.id);
+    return `<h3><span class="swatch ${D.factionClass(w.factions, f.id)}"></span>${esc(f.name || f.id)}</h3>
+      <div id="cGroupProblems"></div>
+      <label>Id <input value="${esc(f.id)}" data-idof="group" data-old="${esc(f.id)}"></label><div class="muted small">Regions, groups on the map and timeline events that name it follow a rename.</div>
+      ${fld(F, `factions.${i}.name`, 'text', 'Name', { live: 'grouplist', max: 60 })}
+      ${fld(F, `factions.${i}.desc`, 'text', 'Who they are', { rows: 3 })}
+      ${fld(F, `factions.${i}.stance`, 'text', 'Stance at the start', { live: 'grouplist', hint: 'toward the player\'s people; starts may change it', max: 140 })}
+      ${fld(F, `factions.${i}.color`, 'int', 'Colour on the map', { blank: 'auto (from the id)', options: [1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({ id: String(n), name: `colour ${n}` })) })}
+      <div class="small">${held.length ? `Holds ${held.map((r) => regionChip(r.id)).join(', ')}` : '<span class="muted">Holds no region.</span>'}</div>
+      <button type="button" id="cDelGroup" class="small danger">${gui.confirm ? 'Click again to delete' : 'Delete group'}</button>`;
+  }
+  $('cMain').addEventListener('click', (ev) => {
+    if (!cw || ui.tab !== 'groups') return;
+    const t = ev.target;
+    const sel = t.closest('[data-gsel]');
+    if (sel) { gui.sel = sel.dataset.gsel; gui.confirm = false; return render(); }
+    if (t.id === 'cAddGroup') { gui.sel = WE.addGroup(cw.files); gui.confirm = false; return changed(); }
+    if (t.id === 'cDelGroup') {
+      if (!gui.confirm) { gui.confirm = true; return render(); }
+      const notes = WE.removeGroup(cw.files, gui.sel);
+      gui.sel = null; gui.confirm = false;
+      banner(notes.length ? esc(notes.join('; ')) : '');
+      return changed();
+    }
+  });
+  $('cMain').addEventListener('change', (ev) => {
+    if (!cw || ui.tab !== 'groups' || ev.target.dataset.idof !== 'group') return;
+    const t = ev.target;
+    const err = WE.renameGroup(cw.files, t.dataset.old, t.value.trim());
+    if (err) banner(esc(`"${t.value}" can't be used: ${err}.`), 'bad'); else { banner(''); gui.sel = t.value.trim(); }
+    changed();
+  });
+
+  // ---------- the starts tab (task 6-1) ----------
+  const startSel = () => { const ids = world().starts || []; if (!ids.includes(sui.sel)) sui.sel = ids[0] || null; return sui.sel; };
+  function renderStartsTab() {
+    const sid = startSel();
+    return `<div class="c-split">
+      <div class="c-scroll-col" id="cStartForm">${sid ? startForm(sid) : '<p class="muted">No starts: add one.</p>'}</div>
+      <aside class="c-panel"><section><h3>Starts</h3><div id="cStartList" class="c-list"></div>
+        <button type="button" id="cAddStart" class="small">+ Start</button> ${sid ? `<button type="button" id="cDupStart" class="small">Duplicate</button>
+        <button type="button" id="cDelStart" class="small danger">${sui.confirm ? 'Click again to delete' : 'Delete'}</button>` : ''}</section>
+        ${sid ? `<section><button type="button" data-testplay="${esc(sid)}">▶ Test play this start</button><div class="muted small">Opens the game in a new tab with the world as it is now, without exporting.</div></section>
+        <section><h3>Rooms</h3><div id="cPreview" class="c-preview"></div></section>` : ''}</aside></div>`;
+  }
+  function renderStartList() {
+    const el = $('cStartList');
+    if (!el) return;
+    el.innerHTML = Object.entries(starts()).map(([id, st]) => `<button type="button" data-ssel="${esc(id)}" aria-pressed="${id === sui.sel}">${esc(st.title || id)}${id === (world().starts || [])[0] ? ' <span class="muted small">default</span>' : ''}</button>`).join('');
+  }
+  // The local map as the game draws it, everything in view.
+  function renderPreview() {
+    const el = $('cPreview');
+    const st = sui.sel && starts()[sui.sel];
+    if (!el || !st) return;
+    const locs = [].concat(world().locations || [], st.locations || []).filter((l) => l && l.id);
+    try {
+      const seed = `${world().id || cw.folder}:${sui.sel}`;
+      const plan = E.Layouts.plan(locs, { type: (st.site || world().site || {}).type, seed });
+      const rooms = {};
+      locs.forEach((l) => (rooms[l.id] = { name: l.name || l.id, outside: !!l.outside, features: (l.features || []).map((f) => (typeof f === 'string' ? { name: f } : { name: f.name, state: f.state })) }));
+      el.innerHTML = E.SiteDraw.render(plan, rooms, { inView: Object.keys(plan.rooms), remembered: [], here: null, seed, links: {}, tokens: {}, tokenSvg: () => '' });
+    } catch (e) { el.innerHTML = `<div class="muted small">The map can't be drawn yet: ${esc(e.message)}</div>`; }
+  }
+  function startForm(sid) {
+    const w = world(), st = starts()[sid], F = WE.startFile(sid);
+    const roomList = idList(WE.roomsOf(cw.files, sid));
+    const cast = WE.castIds(st);
+    const person = (id) => WE.character(cw.files, id) || { name: id };
+    const castList = cast.map((id) => ({ id, name: person(id).name || id }));
+    const needs = w.needs || [];
+    return `<div class="c-form">
+      <div id="cStartProblems"></div>
+      <section><h3>Basics</h3>
+        <label>Id <input value="${esc(sid)}" data-idof="start" data-old="${esc(sid)}"></label>
+        ${fld(F, 'title', 'text', 'Title', { live: 'startlist', max: 80, placeholder: 'Sol 214: the recycler' })}
+        ${fld(F, 'summary', 'text', 'Summary', { rows: 2, hint: 'shown in the start picker: who you are and what\'s going on' })}
+        <div class="c-row3">${fld(F, 'start.day', 'int', esc(w.timeLabel || 'Day'), { min: 0 })}${fld(F, 'start.hour', 'int', 'Hour', { min: 0, maxv: 23 })}
+        ${fld(F, 'castLabel', 'text', 'Sidebar heading', { placeholder: 'Crew' })}</div>
+        ${(w.regions || []).length ? fld(F, 'region', 'text', 'Region', { options: idList(w.regions), blank: 'pick a region' }) : ''}</section>
+      <section><h3>Who you play</h3>
+        <label>The player <select id="cPlayer">${options(castList, st.player)}<option value=""${st.player ? '' : ' selected'}>no one: each player makes their own</option></select></label>
+        <label class="c-check"><input type="checkbox" id="cSlotOn"${st.playerSlot ? ' checked' : ''}${st.player ? '' : ' disabled'}> <span>Players may make their own character</span></label>
+        ${st.playerSlot ? slotForm(F, st, roomList, needs) : ''}</section>
+      <section><h3>Cast</h3>
+        ${(st.cast || []).map((c, i) => castCard(F, st, i, castList, roomList, needs)).join('') || '<p class="muted small">Nobody yet.</p>'}
+        <div class="c-kvrow"><select id="cCastAdd" aria-label="Add someone from the world's people"><option value="">Add someone from the world's people…</option>${options((w.characters || []).filter((id) => !cast.includes(id)).map((id) => ({ id, name: person(id).name || id })))}</select>
+          <button type="button" id="cNewPerson" class="small">+ New person</button></div>
+        ${sui.newPerson ? `<div class="c-card" id="cNewPersonForm"><div class="c-row3"><label>Name <input id="cNpName" maxlength="60"></label><label>Role <input id="cNpRole" placeholder="mechanic"></label><label>Pronouns <input id="cNpPronouns" placeholder="they/them"></label></div>
+          <button type="button" id="cNpAdd" class="small">Add to the cast</button> <span class="muted small">The rest of who they are (traits, want, secret, skills) comes with the character editor.</span></div>` : ''}</section>
+      <section><h3>Rooms</h3>
+        ${(w.locations || []).length ? '<p class="muted small">Rooms marked "every start" are kept in world.json and shared by all the starts.</p>' : ''}
+        ${(w.locations || []).map((l, j) => roomCard('world.json', st, l, j, castList)).join('')}
+        ${(st.locations || []).map((l, j) => roomCard(F, st, l, j, castList)).join('')}
+        <div class="c-kvrow"><input id="cNewRoom" placeholder="Name of a new room" aria-label="Name of a new room"><button type="button" id="cAddRoom" class="small">+ Room</button></div>
+        <div class="c-row2">${fld(F, 'site.type', 'text', 'Layout style', { blank: w.site && w.site.type ? `as every start (${w.site.type})` : 'generic', options: E.Layouts.STYLES.filter((x) => x !== 'generic').map((x) => ({ id: x, name: x === 'hall' ? 'hall (the biggest room in the middle)' : 'corridor (rooms off a spine)' })) })}</div>
+        <h4 class="small">Ways in from outside</h4>
+        ${(w.entrances || []).length ? `<p class="muted small">Every start: ${esc(w.entrances.map((e) => `${(roomList.find((r) => r.id === e.room) || { name: e.room }).name} (${e.kind}${e.watched ? ', watched' : ''})`).join(', '))}. A start's own list replaces it.</p>` : ''}
+        ${(st.entrances || []).map((e, k) => `<div class="c-kvrow">${fld(F, `entrances.${k}.room`, 'text', null, { options: roomList, aria: 'Room' })}${fld(F, `entrances.${k}.kind`, 'text', null, { placeholder: 'roller door', aria: 'Kind' })}${fld(F, `entrances.${k}.watched`, 'bool', 'watched')}${delBtn(F, 'entrances', k, 'way in')}</div>`).join('')}
+        ${roomList.length ? addBtn(F, 'entrances', { room: roomList[0].id, kind: 'door', watched: false }, '+ Way in') : ''}</section>
+      <section><h3>Pressures</h3><p class="muted small">Clocks that fill by the hour and go off at their maximum; a follow-up starts when its clock goes off.</p>
+        <datalist id="cWorldKeys">${[...new Set(Object.keys(w.world || {}).concat(Object.keys(st.world || {})))].map((k) => `<option value="${esc(k)}">`).join('')}</datalist>
+        ${clockRows(F, 'clocks', st.clocks, 0)}
+        <button type="button" class="small" data-addclock="${esc(F + '|clocks')}">+ Pressure</button></section>
+      <section><h3>Minor people</h3>
+        ${(st.extras || []).map((x, k) => `<div class="c-card"><div class="c-row3">${fld(F, `extras.${k}.id`, 'text', 'Id')}${fld(F, `extras.${k}.name`, 'text', 'Name', { max: 40 })}${fld(F, `extras.${k}.role`, 'text', 'Role', { max: 60 })}
+          ${fld(F, `extras.${k}.location`, 'null', 'Where', { options: roomList, blank: 'nowhere in particular' })}${fld(F, `extras.${k}.pronouns`, 'text', 'Pronouns', { max: 20 })}</div>
+          ${fld(F, `extras.${k}.note`, 'text', 'Note', { max: 200 })}${delBtn(F, 'extras', k, x.name || 'minor person')}</div>`).join('')}
+        ${addBtn(F, 'extras', { id: WE.uniqueId(cw.files, 'someone'), name: 'Someone', role: 'bystander', location: null }, '+ Minor person')}
+        <h4 class="small">Groups of people in rooms</h4>
+        ${(st.standees || []).map((g, k) => `<div class="c-card"><div class="c-row3">${fld(F, `standees.${k}.id`, 'text', 'Id')}${fld(F, `standees.${k}.label`, 'text', 'Label')}${fld(F, `standees.${k}.count`, 'int', 'How many', { min: 1, maxv: 999 })}
+          ${fld(F, `standees.${k}.location`, 'text', 'Where', { options: roomList, blank: 'pick a room' })}${fld(F, `standees.${k}.state`, 'text', 'State', { blank: 'calm', options: ['alert', 'hostile', 'down'].map((x) => ({ id: x, name: x })) })}
+          ${fld(F, `standees.${k}.faction`, 'text', 'Group', { blank: 'none', options: idList(w.factions) })}${fld(F, `standees.${k}.post`, 'text', 'Holds', { blank: 'no room', options: roomList })}
+          ${fld(F, `standees.${k}.patrol`, 'csv', 'Patrol (room ids)', { placeholder: roomList.slice(0, 2).map((r) => r.id).join(', ') })}</div>
+          ${fld(F, `standees.${k}.note`, 'text', 'Note (never shown to the player)', { max: 200 })}${delBtn(F, 'standees', k, g.label || 'group')}</div>`).join('')}
+        ${roomList.length ? addBtn(F, 'standees', { id: WE.uniqueId(cw.files, 'group'), label: 'group', count: 3, location: roomList[0].id }, '+ Group of people') : ''}</section>
+      <section><h3>Facts and opening</h3>
+        ${fld(F, 'facts', 'lines', 'Public facts for this start', { rows: 3 })}
+        ${fld(F, 'opening', 'str', 'Opening scene', { rows: 8, hint: 'the first thing the player reads; end on a moment that asks for a choice' })}</section>
+    </div>`;
+  }
+  function slotForm(F, st, roomList, needs) {
+    const skills = world().skills || WE.SKILLS;
+    const roles = st.playerSlot.roles || [];
+    return `<div class="c-card">
+      <div class="c-row3">${fld(F, 'playerSlot.location', 'text', 'Starts in', { options: roomList, blank: 'pick a room' })}
+        ${fld(F, 'playerSlot.skillPoints', 'int', 'Skill points', { min: 0 })}${fld(F, 'playerSlot.maxSkill', 'int', 'Highest skill', { min: 1, maxv: 4 })}</div>
+      ${fld(F, 'playerSlot.summary', 'text', 'Summary for "Make my own"', { rows: 2, max: 400 })}
+      ${fld(F, 'playerSlot.freeform', 'bool', 'Players may write their own role')}
+      ${st.player ? fld(F, 'playerSlot.keepDefault', 'bool', 'Keep the usual player in the story as someone else') : ''}
+      <h4 class="small">Roles</h4>
+      ${roles.map((r, j) => `<div class="c-card c-sub"><div class="c-row3">${fld(F, `playerSlot.roles.${j}.label`, 'text', 'Label')}${fld(F, `playerSlot.roles.${j}.id`, 'text', 'Id')}${fld(F, `playerSlot.roles.${j}.suggestedTraits`, 'csv', 'Suggested traits')}</div>
+        ${fld(F, `playerSlot.roles.${j}.desc`, 'text', 'Description')}
+        <div class="c-skills">${skills.map((k) => fld(F, `playerSlot.roles.${j}.skills.${k}`, 'int', esc(k), { min: 0, maxv: 4 })).join('')}</div>${delBtn(F, 'playerSlot.roles', j, r.label || 'role')}</div>`).join('')}
+      ${addBtn(F, 'playerSlot.roles', { id: WE.slug('role', roles.map((r) => r.id), 'role'), label: 'New role', desc: '', skills: {} }, '+ Role')}
+      ${fld(F, 'playerSlot.knows', 'lines', 'What they know at the start', { rows: 2 })}
+      ${needs.length ? `<div class="c-skills">${needs.map((n) => fld(F, `playerSlot.needs.${n.id}`, 'num', esc(n.label || n.id), { min: 0, maxv: 1, step: 0.05 })).join('')}</div>` : ''}
+      <details><summary class="small">Peoples and feelings (JSON)</summary>
+        ${fld(F, 'playerSlot.peoples', 'json', 'Peoples', { rows: 2, placeholder: '[{"id": "local", "label": "Harbor-born", "desc": "..."}]' })}
+        ${fld(F, 'playerSlot.relationsDefault', 'json', 'How they feel about the cast', { rows: 1, placeholder: '10, or {"okafor": 20}' })}
+        ${fld(F, 'playerSlot.castFeelings', 'json', 'How the cast feels about them', { rows: 1, placeholder: '0' })}</details></div>`;
+  }
+  function castCard(F, st, i, castList, roomList, needs) {
+    const c = st.cast[i];
+    const id = typeof c === 'string' ? c : c && c.id;
+    const file = WE.character(cw.files, id);
+    if (!file) return `<div class="c-card"><b class="bad">${esc(id)}</b>: no character file. ${delBtn(F, 'cast', i, id)}</div>`;
+    const where = file.status && (roomList.find((r) => r.id === file.status.location) || {}).name;
+    const p = `cast.${i}`;
+    return `<details class="c-card" data-castcard="${esc(id)}"${id === st.player ? ' open' : ''}><summary><b>${esc(file.name || id)}</b> <span class="muted small">${esc(file.role || '')}${id === st.player ? ' · the player' : ''}</span>
+        <button type="button" class="small ghost" data-uncast="${esc(id)}" aria-label="Take ${esc(file.name || id)} out of this start">✕</button></summary>
+      <div class="c-row3">${fld(F, `${p}.status.location`, 'text', 'Starts in', { options: roomList, blank: where ? `as in their file (${where})` : 'pick a room' })}
+        ${fld(F, `${p}.tier`, 'text', 'In the foreground', { blank: 'if in the player\'s room', options: [{ id: 'local', name: 'yes' }, { id: 'secondary', name: 'no, offstage' }] })}
+        ${fld(F, `${p}.pinned`, 'bool', 'Always in the foreground')}</div>
+      ${castList.length > 1 ? `<div class="small">Feelings toward the others <span class="muted">(−100 to 100; blank: as in their file)</span></div><div class="c-skills">${castList.filter((o) => o.id !== id).map((o) => fld(F, `${p}.relations.${o.id}`, 'int', esc(o.name), { min: -100, maxv: 100, placeholder: (file.relations || {})[o.id] ?? 0 })).join('')}</div>` : ''}
+      ${needs.length ? `<div class="c-skills">${needs.map((n) => fld(F, `${p}.needs.${n.id}`, 'num', esc(n.label || n.id), { min: 0, maxv: 1, step: 0.05, placeholder: (file.needs || {})[n.id] ?? 0 })).join('')}</div>` : ''}
+      ${fld(F, `${p}.knows`, 'lines', 'What they know here', { rows: 2, placeholder: (file.knows || []).join('\n') || 'One per line; private to them' })}</details>`;
+  }
+  const KIND_LABEL = { '': 'connected', open: 'open', door: 'door', 'locked door': 'locked door', vent: 'vent', hatch: 'hatch', window: 'window', stairs: 'stairs' };
+  // F: the file the room is kept in (the start's, or world.json for rooms
+  // every start shares); connections are read across both.
+  function roomCard(F, st, l, j, castList) {
+    const p = `locations.${j}`;
+    const holders = [world(), st];
+    const all = WE.roomsOf(cw.files, sui.sel);
+    const conns = WE.connections(holders, l.id);
+    const others = all.filter((o) => o.id !== l.id && !conns.some((c) => c.to === o.id));
+    const nameOf = (id) => (all.find((o) => o.id === id) || { name: id }).name;
+    const shared = F === 'world.json';
+    const open = sui.openRoom === l.id ? ' open' : '';
+    return `<details class="c-card" data-roomcard="${esc(l.id)}"${open}><summary><b>${esc(l.name || l.id)}</b> <span class="muted small">(${esc(l.id)})${shared ? ' every start' : ''} ${conns.length ? `· ${esc(conns.map((c) => nameOf(c.to)).join(', '))}` : '· not connected'}</span></summary>
+      <div class="c-row3">${fld(F, `${p}.name`, 'text', 'Name', { live: 'preview', max: 40 })}${fld(F, `${p}.size`, 'text', 'Size', { blank: 'medium', options: ['small', 'large'].map((x) => ({ id: x, name: x })) })}
+        ${fld(F, `${p}.level`, 'int', 'Level', { min: -3, maxv: 5, placeholder: '0 (ground)' })}
+        ${(world().regions || []).length ? fld(F, `${p}.region`, 'text', 'Region', { blank: 'the start\'s', options: idList(world().regions) }) : ''}</div>
+      ${fld(F, `${p}.desc`, 'text', 'Description', { rows: 2 })}
+      ${fld(F, `${p}.features`, 'features', 'Features', { live: 'preview', hint: 'up to 6, comma-separated; "camera=on" for one the story tracks' })}
+      <div class="c-checks">${fld(F, `${p}.outside`, 'bool', 'Outside')}${fld(F, `${p}.secure`, 'bool', 'One way in only')}${fld(F, `${p}.seen`, 'unseen', 'The player knows it at the start')}</div>
+      <div class="small">Ways through</div>
+      ${conns.map((c) => { const key = `${l.id}|${c.to}`; return `<div class="c-conn"><span>${esc(nameOf(c.to))}</span><select data-conn="${esc(key)}" aria-label="Kind of way to ${esc(nameOf(c.to))}">${Object.entries(KIND_LABEL).map(([k, lab]) => `<option value="${esc(k)}"${(c.kind || '') === k ? ' selected' : ''}>${esc(lab)}</option>`).join('')}</select>
+        ${c.kind === 'locked door' ? `<span class="small">key: ${castList.map((o) => `<label class="c-inline-check"><input type="checkbox" data-connkey="${esc(key)}" value="${esc(o.id)}"${(c.key || []).includes(o.id) ? ' checked' : ''}> ${esc(o.name)}</label>`).join('')}</span>` : ''}
+        <button type="button" class="small ghost" data-disconn="${esc(key)}" aria-label="Disconnect ${esc(nameOf(c.to))}">✕</button></div>`; }).join('')}
+      ${others.length ? `<select data-connadd="${esc(l.id)}" aria-label="Connect ${esc(l.name || l.id)} to"><option value="">Connect to…</option>${options(others.map((o) => ({ id: o.id, name: o.name || o.id })))}</select>` : ''}
+      ${shared ? '' : `<button type="button" class="small danger" data-delroom="${esc(l.id)}">${sui.confirmRoom === l.id ? 'Click again to remove' : 'Remove room'}</button>`}</details>`;
+  }
+  function clockRows(F, base, list, depth) {
+    return (list || []).map((c, i) => {
+      const p = `${base}.${i}`;
+      return `<div class="c-card${depth ? ' c-sub' : ''}"><div class="c-row3">${fld(F, `${p}.id`, 'text', 'Id')}${fld(F, `${p}.name`, 'text', 'Name', { max: 40 })}
+        ${fld(F, `${p}.value`, 'num', 'Now', { min: 0 })}${fld(F, `${p}.max`, 'num', 'Goes off at', { min: 1 })}${fld(F, `${p}.perHour`, 'num', 'Per hour', { min: 0, step: 0.005 })}
+        ${fld(F, `${p}.fireHarm`, 'text', 'Hurts', { blank: 'no one', options: [{ id: 'all', name: 'everyone' }, { id: 'outside', name: 'anyone outside' }] })}</div>
+        ${fld(F, `${p}.fireText`, 'text', 'When it goes off', { rows: 2 })}
+        ${fld(F, `${p}.repeat`, 'bool', 'Starts again after going off')}
+        <div class="small">World status it sets</div>${kvRows(F, `${p}.fireWorld`, 'cWorldKeys')}
+        ${(c.then || []).length ? `<div class="small">Then</div>${clockRows(F, `${p}.then`, c.then, depth + 1)}` : ''}
+        <button type="button" class="small" data-addclock="${esc(`${F}|${p}.then`)}">+ Follow-up</button> ${delBtn(F, base, i, c.name || 'pressure')}</div>`;
+    }).join('');
+  }
+  // A room card stays open across redraws while it is being edited.
+  $('cMain').addEventListener('toggle', (ev) => {
+    const d = ev.target;
+    if (d.dataset && d.dataset.roomcard) { if (d.open) sui.openRoom = d.dataset.roomcard; else if (sui.openRoom === d.dataset.roomcard) sui.openRoom = null; }
+  }, true);
+  $('cMain').addEventListener('click', (ev) => {
+    if (!cw || ui.tab !== 'starts') return;
+    const t = ev.target;
+    const sel = t.closest('[data-ssel]');
+    if (sel) { sui.sel = sel.dataset.ssel; sui.confirm = false; sui.confirmRoom = null; return render(); }
+    if (t.id === 'cAddStart') { sui.sel = WE.addStart(cw.files); sui.confirm = false; return changed(); }
+    const sid = sui.sel;
+    if (!sid) return;
+    const st = starts()[sid];
+    if (t.id === 'cDupStart') { sui.sel = WE.duplicateStart(cw.files, sid); return changed(); }
+    if (t.id === 'cDelStart') {
+      if (!sui.confirm) { sui.confirm = true; return render(); }
+      const r = WE.removeStart(cw.files, sid);
+      sui.confirm = false;
+      if (r.error) { banner(esc(r.error), 'bad'); return render(); }
+      sui.sel = null;
+      return changed();
+    }
+    const un = t.closest('[data-uncast]');
+    if (un) { ev.preventDefault(); const notes = WE.removeFromCast(cw.files, sid, un.dataset.uncast); banner(esc(notes.join('; '))); return changed(); }
+    if (t.id === 'cNewPerson') { sui.newPerson = !sui.newPerson; return render(); }
+    if (t.id === 'cNpAdd') {
+      const name = $('cNpName').value.trim();
+      if (!name) { banner('Give the new person a name first.', 'bad'); return; }
+      const id = WE.newPerson(cw.files, { name, role: $('cNpRole').value, pronouns: $('cNpPronouns').value });
+      WE.addToCast(cw.files, sid, id);
+      sui.newPerson = false;
+      banner('');
+      return changed();
+    }
+    if (t.id === 'cAddRoom') {
+      const name = $('cNewRoom').value.trim();
+      sui.openRoom = WE.addRoom(cw.files, sid, name || undefined);
+      return changed();
+    }
+    const dr = t.closest('[data-delroom]');
+    if (dr) {
+      if (sui.confirmRoom !== dr.dataset.delroom) { sui.confirmRoom = dr.dataset.delroom; return render(); }
+      const r = WE.removeRoom(cw.files, sid, dr.dataset.delroom);
+      sui.confirmRoom = null;
+      banner(r.error ? esc(r.error) : esc(r.notes.join('; ')), r.error ? 'bad' : '');
+      return changed();
+    }
+    const dc = t.closest('[data-disconn]');
+    if (dc) { const [a, b] = dc.dataset.disconn.split('|'); WE.disconnect([world(), st], a, b); return changed(); }
+  });
+  $('cMain').addEventListener('change', (ev) => {
+    if (!cw || ui.tab !== 'starts' || !sui.sel) return;
+    const t = ev.target;
+    const sid = sui.sel, st = starts()[sid];
+    if (t.dataset.idof === 'start') {
+      const err = WE.renameStart(cw.files, sid, t.value.trim());
+      if (err) banner(esc(`"${t.value}" can't be used: ${err}.`), 'bad'); else { banner(''); sui.sel = t.value.trim(); }
+      return changed();
+    }
+    if (t.id === 'cPlayer') {
+      if (t.value) st.player = t.value;
+      else { delete st.player; WE.ensureSlot(cw.files, sid); delete st.playerSlot.keepDefault; }
+      return changed();
+    }
+    if (t.id === 'cSlotOn') { if (t.checked) WE.ensureSlot(cw.files, sid); else delete st.playerSlot; return changed(); }
+    if (t.id === 'cCastAdd' && t.value) { WE.addToCast(cw.files, sid, t.value); return changed(); }
+    if (t.dataset.conn) {
+      const [a, b] = t.dataset.conn.split('|');
+      const c = WE.connections([world(), st], a).find((x) => x.to === b);
+      WE.connect([world(), st], a, b, t.value || null, c && c.key);
+      return changed();
+    }
+    if (t.dataset.connkey) {
+      const [a, b] = t.dataset.connkey.split('|');
+      const c = WE.connections([world(), st], a).find((x) => x.to === b) || {};
+      const key = new Set(c.key || []);
+      if (t.checked) key.add(t.value); else key.delete(t.value);
+      WE.connect([world(), st], a, b, 'locked door', [...key]);
+      return changed();
+    }
+    if (t.dataset.connadd && t.value) { WE.connect([world(), st], t.dataset.connadd, t.value, null); return changed(); }
+  });
+
+  // ---------- test play ----------
+  // The game opens in a new tab and asks for the world; the creator sends
+  // the files as they are now (images as Blobs). Nothing is exported.
+  const testTabs = new Map(); // window -> payload
+  function testPlay(startId) {
+    const win = window.open('index.html?testplay=1', '_blank');
+    if (!win) return banner('The browser blocked the new tab: allow pop-ups for this page, then try again.', 'bad');
+    testTabs.set(win, WE.testPlayPayload(cw.folder, cw.files, cw.assets, startId));
+  }
+  window.addEventListener('message', (ev) => {
+    const payload = testTabs.get(ev.source);
+    if (!payload || !ev.data || ev.data.type !== WE.TEST_READY) return;
+    ev.source.postMessage(payload, '*');
+    testTabs.delete(ev.source);
+  });
+  $('cMain').addEventListener('click', (ev) => {
+    const b = cw && ev.target.closest('[data-testplay]');
+    if (b) testPlay(b.dataset.testplay);
+  });
+  $('cTest').addEventListener('click', () => { if (cw) testPlay(ui.tab === 'starts' && sui.sel ? sui.sel : (world().starts || [])[0]); });
+
   // ---------- export ----------
   function download(name, blob) {
     const a = document.createElement('a');
@@ -908,6 +1413,7 @@
     if (!v) return;
     try {
       if (v.startsWith('disk:')) { const d = diskWorlds.get(v); return open(d.folder, d.files, d.assets, false); }
+      if (v.startsWith('draft:')) { const d = JSON.parse(store.get(SAVE_KEY(v.slice(6)))); return open(v.slice(6), d.files, {}, false, true); }
       const folder = v.slice('server:'.length);
       open(folder, await S.fetchWorldFiles(folder), {}, true);
     } catch (err) { banner(`Couldn't open that world: ${esc(err.message)}`, 'bad'); }
@@ -929,16 +1435,64 @@
     } catch (err) { banner(`Couldn't open that folder: ${esc(err.message)}`, 'bad'); }
     ev.target.value = '';
   });
+  // A zip of a world folder (the creator's own export, say).
+  const MIME = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml' };
+  $('cZip').addEventListener('change', async (ev) => {
+    const f = ev.target.files && ev.target.files[0];
+    ev.target.value = '';
+    if (!f) return;
+    try {
+      const z = WE.fromZip(E.Zip.read(new Uint8Array(await f.arrayBuffer())), f.name.replace(/\.zip$/i, ''));
+      const assets = {};
+      Object.entries(z.assets).forEach(([p, data]) => (assets[p] = new Blob([data], { type: MIME[(p.split('.').pop() || '').toLowerCase()] || 'application/octet-stream' })));
+      const d = { folder: z.folder, files: z.files, assets };
+      diskWorlds.set('disk:' + z.folder, d);
+      addOption('disk:' + z.folder, `${(z.files['world.json'] || z.files['scenario.json'] || {}).title || z.folder} (zip)`);
+      $('cWorld').value = 'disk:' + z.folder;
+      open(d.folder, d.files, d.assets, false);
+    } catch (err) { banner(`Couldn't open that zip: ${esc(err.message)}`, 'bad'); }
+  });
+  function addOption(value, label) {
+    let o = Array.from($('cWorld').options).find((x) => x.value === value);
+    if (!o) { o = document.createElement('option'); o.value = value; $('cWorld').appendChild(o); }
+    o.textContent = label;
+  }
+  const folders = () => Array.from($('cWorld').options).map((o) => o.value.replace(/^\w+:/, '')).filter(Boolean);
+
+  // New world (task 6-1): a blank world that loads as it is, kept in this
+  // browser as a draft until it is exported.
+  $('cNew').addEventListener('click', () => {
+    banner('<label>Title of the new world <input id="cNewTitle" maxlength="80" placeholder="The Lighthouse"></label> <button type="button" id="cNewGo" class="small">Create</button>');
+    const i = $('cNewTitle');
+    i.focus();
+    i.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') newWorld(i.value); });
+  });
+  function newWorld(title) {
+    const b = WE.blankWorld(title, folders());
+    store.set(SAVE_KEY(b.folder), JSON.stringify({ files: b.files, at: Date.now(), draft: true }));
+    addOption('draft:' + b.folder, `${b.files['world.json'].title} (draft)`);
+    $('cWorld').value = 'draft:' + b.folder;
+    ui.tab = 'world';
+    open(b.folder, b.files, {}, false, true);
+  }
+  // Drafts: working copies in this browser whose world isn't on the server.
+  function listDrafts() {
+    const taken = new Set(folders());
+    store.keys().filter((k) => k && k.startsWith('ensemble.creator.')).forEach((k) => {
+      const folder = k.slice('ensemble.creator.'.length);
+      if (taken.has(folder)) return;
+      let saved = null;
+      try { saved = JSON.parse(store.get(k)); } catch (e) { return; }
+      if (!saved || !saved.files || !saved.files['world.json']) return;
+      addOption('draft:' + folder, `${saved.files['world.json'].title || folder} (${saved.draft ? 'draft' : 'edits kept in this browser'})`);
+    });
+  }
   (async () => {
     renderTabs();
-    if (location.protocol === 'file:') return;
-    try {
-      (await S.listServer()).forEach((w) => {
-        const o = document.createElement('option');
-        o.value = 'server:' + w.folder;
-        o.textContent = w.title || w.folder;
-        $('cWorld').appendChild(o);
-      });
-    } catch (e) { /* opened without the server: folder picker only */ }
+    if (location.protocol !== 'file:') {
+      try { (await S.listServer()).forEach((w) => addOption('server:' + w.folder, w.title || w.folder)); }
+      catch (e) { /* opened without the server: folder picker only */ }
+    }
+    listDrafts();
   })();
 })();

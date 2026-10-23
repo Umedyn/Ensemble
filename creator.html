@@ -25,10 +25,13 @@
   <div class="brand">Ensemble Creator</div>
   <div class="group">
     <select id="cWorld" title="World to edit" aria-label="World to edit"><option value="">Pick a world…</option></select>
-    <label class="btn" title="Edit a world folder from your computer">Open folder<input type="file" id="cFolder" webkitdirectory directory multiple hidden></label>
+    <label class="btn" title="Edit a world folder from your computer (a legacy scenario folder is converted)">Open folder<input type="file" id="cFolder" webkitdirectory directory multiple hidden></label>
+    <label class="btn" title="Edit a world from a zip of its folder">Open zip<input type="file" id="cZip" accept=".zip,application/zip" hidden></label>
+    <button id="cNew" title="Start a world from a blank template">New world</button>
   </div>
   <div class="spacer"></div>
   <div class="group">
+    <button id="cTest" disabled title="Play the world as it is now in a new tab, without exporting">▶ Test play</button>
     <button id="cExport" disabled title="Download the whole world folder as a zip">Export zip</button>
     <button id="cJson" disabled title="Download only world.json">world.json</button>
     <a class="btn" href="index.html">Back to the game</a>
@@ -53,10 +56,12 @@
 <script src="js/startgen.js"></script>
 <script src="js/sites.js"></script>
 <script src="js/layouts.js"></script>
+<script src="js/sitedraw.js"></script>
 <script src="js/mapdraw.js"></script>
 <script src="js/zip.js"></script>
 <script src="js/mapedit.js"></script>
 <script src="js/loreedit.js"></script>
+<script src="js/worldedit.js"></script>
 <script src="js/creator.js"></script>
 </body>
 </html>

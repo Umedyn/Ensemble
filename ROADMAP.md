@@ -178,11 +178,11 @@ Make your own character and start, and have the engine fill in the world around 
 
 Everything a creator needs to build a world without touching JSON.
 
-- [ ] Tabs: World (setting, rules, tags, skills, needs, event rates), Groups, Map (from phase 3), Sites, Lore, Timeline, Characters, Starts, Portraits.
+- [ ] Tabs: World (setting, rules, tags, skills, needs, event rates), Groups, Map (from phase 3), Sites, Lore, Timeline, Characters, Starts, Portraits. (World, Groups, Map, Lore, Timeline and Starts done; Characters is 6-2, Sites 6-3, Portraits with 6-2.)
 - [ ] **Site map editor** (Sites tab): load a battlemap or floor-plan image, draw room shapes, mark doors and their kinds, entrances and spots, set the grid scale, tag it, and save it to the world's `sites/` or export it for the shared library. Also: open a generated site and save it as an authored map.
 - [ ] **Character editor**, including **character card import** (SillyTavern/Tavern PNG or JSON): one conversion call, a review step, then add to the cast. It keeps the card's personality and drops the card's original scenario framing.
-- [ ] Export as a folder (or a zip); import an existing world to edit it; validation errors shown inline.
-- [ ] Test play: start the edited world straight from the creator.
+- [x] Export as a folder (or a zip); import an existing world to edit it; validation errors shown inline. (task 6-1)
+- [x] Test play: start the edited world straight from the creator. (task 6-1)
 
 ## Phase 7: Genre proof
 

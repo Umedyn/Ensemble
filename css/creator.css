@@ -91,3 +91,32 @@ button.danger { color: var(--bad); }
 /* Drafts from the research helper (Phase 5) */
 .badge-draft { font-size: 0.6875rem; padding: 0 6px; border: 1px dashed var(--accent); border-radius: 999px; color: var(--accent); }
 .c-draft-note { border: 1px dashed var(--accent); border-radius: 6px; padding: 6px 10px; margin: 6px 0 10px; font-size: 0.8125rem; }
+/* World, groups and starts tabs (task 6-1) */
+.c-form { max-width: 60rem; padding: 10px 14px 24px; }
+.c-scroll-col .c-form { padding: 0; }
+.c-form section { border-bottom: 1px solid var(--line); padding: 6px 0 12px; }
+.c-form h3 { margin: 6px 0; font-size: 0.875rem; }
+.c-form h4 { margin: 8px 0 4px; }
+.c-form label { display: block; font-size: 0.8125rem; margin: 6px 0; }
+.c-form input:not([type="checkbox"]), .c-form textarea, .c-form select { width: 100%; }
+.c-form .c-check { display: flex; gap: 6px; align-items: baseline; }
+.c-form .c-check input { width: auto; }
+.c-row3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 0 10px; align-items: end; }
+.c-card { border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; margin: 6px 0; background: var(--panel); }
+.c-card.c-sub { background: var(--panel-2); }
+.c-card > summary { cursor: pointer; font-size: 0.8125rem; display: flex; gap: 6px; align-items: center; }
+.c-card > summary button { margin-left: auto; }
+.c-kv, .c-rows { margin: 4px 0; }
+.c-kvrow { display: flex; gap: 6px; align-items: center; margin: 4px 0; }
+.c-kvrow > * { flex: 1; min-width: 0; }
+.c-kvrow > button, .c-kvrow > .c-check { flex: none; }
+.c-form .c-kvrow select, .c-form .c-kvrow input:not([type="checkbox"]) { width: auto; flex: 1; min-width: 0; }
+.c-skills { display: grid; grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr)); gap: 0 8px; }
+.c-checks { display: flex; flex-wrap: wrap; gap: 0 16px; }
+.c-conn { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 0.8125rem; margin: 3px 0; }
+.c-form .c-conn select { width: auto; }
+.c-inline-check { display: inline-flex !important; gap: 3px; margin: 0 6px 0 0 !important; }
+.c-genre { border-left: 3px solid var(--accent); padding: 2px 8px; margin: 4px 0; }
+.c-genre > div { margin: 2px 0; }
+.c-err:empty { display: none; }
+.c-preview svg { width: 100%; height: auto; max-height: 50vh; }

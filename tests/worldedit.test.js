@@ -1,0 +1,289 @@
+// World, group and start editing for the creator (task 6-1): fields bound to
+// paths, a blank world that plays, starts, rooms and their references, the
+// cast and its overrides, groups and needs with their references, legacy
+// folders and zips.
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const path = require('path');
+const { loadEngine, worldFiles, newGame, mockLLM } = require('./helpers');
+
+const plain = (v) => JSON.parse(JSON.stringify(v));
+const E = loadEngine();
+const WE = E.WorldEdit;
+const loads = (folder, files) => {
+  const w = E.Scenario.prepareWorld(folder, plain(files));
+  w.starts.forEach((s) => assert.equal(s.error, undefined, `start "${s.id}": ${s.error}`));
+  return w;
+};
+
+// ---------- fields ----------
+
+test('a bound field sets, makes the objects on the way, and blank deletes', () => {
+  const o = {};
+  WE.set(o, 'eventRates.regional', 'num', '24');
+  assert.deepEqual(plain(o), { eventRates: { regional: 24 } });
+  WE.set(o, 'eventRates.regional', 'num', '');
+  assert.deepEqual(plain(o), {}, 'an emptied object goes too');
+  assert.match(WE.set(o, 'wakeHour', 'int', '7.5').error, /whole number/);
+  assert.match(WE.set(o, 'skillPenalties', 'json', '{"health":').error, /not valid JSON/);
+  assert.deepEqual(plain(o), {}, 'a bad value changes nothing');
+  WE.set(o, 'rules', 'lines', 'one\n\n  two  \n');
+  WE.set(o, 'tags', 'csv', 'survival, , horror, survival');
+  WE.set(o, 'features', 'features', 'forklift, camera=on');
+  assert.deepEqual(plain(o), { rules: ['one', 'two'], tags: ['survival', 'horror'], features: ['forklift', { name: 'camera', state: 'on' }] });
+  WE.set(o, 'opening', 'str', '');
+  assert.equal(o.opening, '', 'str keeps an empty text');
+  WE.set(o, 'seen', 'unseen', false);
+  assert.equal(o.seen, false);
+  WE.set(o, 'seen', 'unseen', true);
+  assert.ok(!('seen' in o), 'known rooms leave the field out');
+  WE.set(o, 'location', 'null', '');
+  assert.equal(o.location, null);
+  assert.equal(WE.show('features', o.features), 'forklift, camera=on');
+});
+
+test('setting inside a plain cast id turns it into an entry', () => {
+  const st = { cast: ['okafor', { id: 'bauer' }] };
+  WE.set(st, 'cast.0.status.location', 'text', 'lab');
+  assert.deepEqual(plain(st.cast[0]), { id: 'okafor', status: { location: 'lab' } });
+  WE.set(st, 'cast.1.relations.okafor', 'int', '', {});
+  assert.deepEqual(plain(st.cast[1]), { id: 'bauer' }, 'deleting nothing makes nothing');
+});
+
+test('renaming a key keeps its place', () => {
+  const o = { power: 'on', comms: 'up' };
+  assert.equal(WE.renameKey(o, 'power', 'grid'), '');
+  assert.deepEqual(Object.keys(o), ['grid', 'comms']);
+  assert.match(WE.renameKey(o, 'grid', 'comms'), /already used/);
+  assert.match(WE.renameKey(o, 'grid', 'a.b'), /without dots/);
+});
+
+// ---------- a blank world ----------
+
+test('a blank world loads, starts a game and plays a turn', async () => {
+  const b = WE.blankWorld('The Lighthouse', ['lighthouse']);
+  assert.equal(b.folder, 'lighthouse-2', 'the folder name is unique');
+  const w = loads(b.folder, b.files);
+  assert.deepEqual([...w.warnings], []);
+  const state = E.Engine.newGame(E.Scenario.startScenario(w, 'start'));
+  assert.equal(state.player, 'you');
+  mockLLM(E, ({ kind }) => (kind === 'intent' ? { intents: [] } : kind === 'update' ? {} : 'The room is quiet.'));
+  await E.Engine.runTurn(state, 'I look around.', 'hour');
+  assert.equal(state.turn, 1);
+});
+
+test('a world built up from blank: a room with a door, a new person, a group, a need and a pressure chain', () => {
+  const { folder, files } = WE.blankWorld('Harbor Watch');
+  const st = files['starts/start.json'];
+  const room = WE.addRoom(files, 'start', 'Boathouse');
+  WE.connect(st, 'main-room', room, 'locked door', ['you']);
+  const ana = WE.newPerson(files, { name: 'Ana Reyes', role: 'harbormaster' });
+  WE.addToCast(files, 'start', ana, room);
+  const g = WE.addGroup(files, 'Harbor Guild');
+  WE.addNeed(files, 'Sleep');
+  WE.set(files['world.json'], 'world.tide', 'str', 'low');
+  const clock = WE.newClock(files, 'Storm');
+  clock.fireWorld = { tide: 'storm surge' };
+  clock.then = [WE.newClock(files, 'Flood')];
+  clock.then[0].id = 'flood';
+  st.clocks.push(clock);
+  WE.set(st, 'cast.1.relations.you', 'int', '20');
+  const w = loads(folder, files);
+  const sc = w.starts[0].scenario;
+  assert.deepEqual([...sc.characters], ['you', 'ana-reyes']);
+  assert.equal(sc.characterData[1].status.location, 'boathouse');
+  assert.equal(sc.characterData[1].relations.you, 20);
+  const door = sc.locations.find((l) => l.id === 'main-room').links[0];
+  assert.deepEqual(plain(door), { to: 'boathouse', kind: 'locked door', key: ['you'] });
+  assert.ok(sc.locations.find((l) => l.id === 'boathouse').links.some((k) => k.to === 'main-room' && k.kind === 'locked door'), 'both sides');
+  assert.equal(sc.factions[0].id, g);
+  assert.equal(sc.needs[0].id, 'sleep');
+  const state = E.Engine.newGame(E.Scenario.startScenario(w, 'start'));
+  assert.ok(state.clocks.some((c) => c.id === 'storm'));
+});
+
+test('a blank world whose player makes their own character still loads', () => {
+  const { folder, files } = WE.blankWorld('Open Door');
+  delete files['starts/start.json'].player;
+  WE.ensureSlot(files, 'start');
+  loads(folder, files);
+});
+
+// ---------- starts ----------
+
+test('starts are added, duplicated, renamed and removed, and the world stays valid', () => {
+  const files = worldFiles('mars-station');
+  const dup = WE.duplicateStart(files, 'garage');
+  assert.equal(dup, 'garage-copy');
+  assert.deepEqual([...files['world.json'].starts], ['recycler', 'garage', 'garage-copy'], 'next to the original');
+  assert.match(files['starts/garage-copy.json'].title, /\(copy\)$/);
+  const fresh = WE.addStart(files, 'Sol 1: landing');
+  assert.equal(files[`starts/${fresh}.json`].region, 'station', 'a new start begins where the others do');
+  loads('mars-station', files);
+  assert.match(WE.renameStart(files, dup, 'garage'), /already a start/);
+  assert.equal(WE.renameStart(files, dup, 'night-shift'), '');
+  assert.ok(files['starts/night-shift.json'] && !files['starts/garage-copy.json']);
+  assert.equal(files['starts/night-shift.json'].id, 'night-shift');
+  WE.removeStart(files, fresh);
+  assert.ok(!files[`starts/${fresh}.json`]);
+  loads('mars-station', files);
+  const b = WE.blankWorld('Solo');
+  assert.match(WE.removeStart(b.files, 'start').error, /at least one start/);
+});
+
+// ---------- rooms ----------
+
+test('removing a room clears everything that points at it, and says so', () => {
+  const files = worldFiles('zombie-holdout');
+  const sid = files['world.json'].starts[0];
+  const st = files[`starts/${sid}.json`];
+  const target = st.locations.find((l) => (st.cast || []).some((c) => ((c.status && c.status.location) || (files[`characters/${c.id || c}.json`].status || {}).location) === l.id) && l.id !== st.locations[0].id) || st.locations[1];
+  const id = target.id;
+  st.entrances = (st.entrances || []).concat([{ room: id, kind: 'door', watched: false }]);
+  const r = WE.removeRoom(files, sid, id);
+  assert.ok(r.notes.length, 'notes for the page');
+  assert.ok(!st.locations.some((l) => l.id === id));
+  assert.ok(st.locations.every((l) => !(l.connects || []).includes(id) && !(l.links || []).some((k) => k.to === id)));
+  assert.ok(!(st.entrances || []).some((e) => e.room === id));
+  loads('zombie-holdout', files);
+});
+
+test('the last room of a start cannot be removed', () => {
+  const b = WE.blankWorld('Tiny');
+  assert.match(WE.removeRoom(b.files, 'start', 'main-room').error, /at least one room/);
+});
+
+test('connections are read from either side and change kind on both', () => {
+  const st = { locations: [{ id: 'a', connects: ['b'] }, { id: 'b' }, { id: 'c', links: [{ to: 'a', kind: 'vent' }] }] };
+  assert.deepEqual(plain(WE.connections(st, 'a')), [{ to: 'b', kind: null }, { to: 'c', kind: 'vent' }]);
+  WE.connect(st, 'a', 'b', 'door');
+  assert.deepEqual(plain(st.locations[1].links), [{ to: 'a', kind: 'door' }]);
+  WE.connect(st, 'a', 'b', null);
+  assert.ok(!st.locations[0].links && st.locations[0].connects.includes('b'), 'back to a plain connection');
+  WE.disconnect(st, 'c', 'a');
+  assert.deepEqual(plain(WE.connections(st, 'a')), [{ to: 'b', kind: null }]);
+});
+
+// ---------- the cast ----------
+
+test('a cast override that says what the file says is dropped', () => {
+  const files = worldFiles('mars-station');
+  const st = files['starts/garage.json'];
+  const i = st.cast.findIndex((c) => (c.id || c) === 'okafor');
+  const fileRel = files['characters/okafor.json'].relations.navarro;
+  WE.set(st, `cast.${i}.relations.navarro`, 'int', String(fileRel));
+  WE.tidyCastEntry(files, 'garage', i);
+  assert.ok(!(st.cast[i].relations && 'navarro' in st.cast[i].relations));
+  const solo = { cast: [{ id: 'okafor', relations: { navarro: fileRel } }] };
+  files['starts/solo.json'] = solo;
+  files['world.json'].starts.push('solo');
+  WE.tidyCastEntry(files, 'solo', 0);
+  assert.equal(solo.cast[0], 'okafor', 'nothing left: the plain id again');
+});
+
+test('taking the player out of the cast hands the part on, and drops feelings about them', () => {
+  const files = worldFiles('mars-station');
+  const st = files['starts/garage.json'];
+  const notes = WE.removeFromCast(files, 'garage', 'raman');
+  assert.ok(!WE.castIds(st).includes('raman'));
+  assert.ok(st.player && st.player !== 'raman');
+  assert.match(notes.join(' '), /is the player now/);
+  assert.ok(st.cast.every((c) => typeof c === 'string' || !(c.relations && 'raman' in c.relations)));
+  loads('mars-station', files);
+});
+
+test('joining a shared room to a start room writes only on the start side', () => {
+  const files = worldFiles('mars-station');
+  const w = files['world.json'], st = files['starts/garage.json'];
+  const id = WE.addRoom(files, 'garage', 'Dust shed');
+  WE.connect([w, st], 'garage', id, 'door');
+  assert.ok(!JSON.stringify(w.locations).includes(id), 'world.json is untouched');
+  assert.deepEqual(plain(WE.connections([w, st], 'garage').find((c) => c.to === id)), { to: id, kind: 'door' });
+  loads('mars-station', files);
+  WE.disconnect([w, st], 'garage', id);
+  assert.equal(WE.connections([w, st], id).length, 0);
+});
+
+test('a new person gets an id that clashes with nothing', () => {
+  const files = worldFiles('mars-station');
+  const id = WE.newPerson(files, { name: 'Commons', role: 'cook' });
+  assert.equal(id, 'commons-2', 'a room is already "commons"');
+  assert.ok(files['world.json'].characters.includes(id));
+  WE.addToCast(files, 'garage', id);
+  loads('mars-station', files);
+});
+
+// ---------- groups and needs ----------
+
+test('renaming a group follows regions, groups on the map and timeline events', () => {
+  const files = worldFiles('zombie-holdout');
+  const w = files['world.json'];
+  const held = (w.regions || []).find((r) => r.controller);
+  const from = held.controller;
+  w.timeline = (w.timeline || []).concat([{ id: 'test-ev', when: { day: 99, hour: 9 }, scope: 'world', text: 'Something shifts.', preconditions: [{ not: { controls: { group: from, region: held.id } } }], effects: { groups: [{ id: from, stance: 'wary' }] } }]);
+  assert.match(WE.renameGroup(files, from, 'Bad Id'), /lowercase/);
+  assert.equal(WE.renameGroup(files, from, 'renamed'), '');
+  assert.equal(held.controller, 'renamed');
+  const ev = w.timeline.find((e) => e.id === 'test-ev');
+  assert.equal(ev.preconditions[0].not.controls.group, 'renamed');
+  assert.equal(ev.effects.groups[0].id, 'renamed');
+  loads('zombie-holdout', files);
+  const notes = WE.removeGroup(files, 'renamed');
+  assert.ok(notes.length);
+  assert.equal(held.controller, null);
+  assert.ok(!ev.preconditions && !ev.effects);
+  loads('zombie-holdout', files);
+});
+
+test('renaming or removing a need follows it into thresholds, cast entries and character files', () => {
+  const files = worldFiles('mars-station');
+  assert.equal(WE.renameNeed(files, 'fatigue', 'tiredness'), '');
+  assert.ok(files['world.json'].needs.some((n) => n.id === 'tiredness'));
+  const st = files['starts/garage.json'];
+  assert.ok(st.cast.some((c) => c.needs && 'tiredness' in c.needs) && !st.cast.some((c) => c.needs && 'fatigue' in c.needs));
+  loads('mars-station', files);
+  WE.removeNeed(files, 'tiredness');
+  assert.ok(!JSON.stringify(files).includes('"tiredness"'));
+  loads('mars-station', files);
+});
+
+test('picking a region for an event idea turns it into {text, region}, and none back into text', () => {
+  const w = { eventSeeds: { regional: ['a quake'] } };
+  WE.setSeedRegion(w, 'regional', 0, 'rim');
+  assert.deepEqual(plain(w.eventSeeds.regional), [{ text: 'a quake', region: 'rim' }]);
+  assert.equal(WE.seedPath(w, 'regional', 0), 'eventSeeds.regional.0.text');
+  WE.setSeedRegion(w, 'regional', 0, '');
+  assert.deepEqual(plain(w.eventSeeds.regional), ['a quake']);
+});
+
+// ---------- importing ----------
+
+test('a legacy folder opens as a world that loads', () => {
+  const files = WE.fromFiles(worldFiles(path.join(__dirname, 'fixtures', 'legacy-scenario')));
+  assert.equal(files['world.json'].format, 2);
+  assert.deepEqual([...files['world.json'].starts], ['default']);
+  loads('legacy-scenario', files);
+});
+
+test('a zip of a world folder opens with its files and images', () => {
+  const files = worldFiles('mars-station');
+  const entries = Object.entries(files).map(([p, j]) => ({ name: `mars-station/${p}`, data: E.Zip.utf8(JSON.stringify(j)) }))
+    .concat([{ name: 'mars-station/maps/hellas.svg', data: E.Zip.utf8('<svg/>') }, { name: 'mars-station/notes.txt', data: E.Zip.utf8('x') }]);
+  const z = WE.fromZip(E.Zip.read(E.Zip.build(entries)));
+  assert.equal(z.folder, 'mars-station');
+  assert.deepEqual(Object.keys(z.files).sort(), Object.keys(files).sort());
+  assert.deepEqual(Object.keys(z.assets), ['maps/hellas.svg'], 'images only');
+  loads(z.folder, z.files);
+  const rootZip = WE.fromZip(E.Zip.read(E.Zip.build([{ name: 'world.json', data: E.Zip.utf8(JSON.stringify(files['world.json'])) }])));
+  assert.equal(rootZip.folder, 'mars-station', 'at the root: named by the world id');
+  assert.throws(() => WE.fromZip(E.Zip.read(E.Zip.build([{ name: 'a/b.txt', data: E.Zip.utf8('x') }]))), /No world\.json/);
+});
+
+test('the test-play payload is a copy, so later edits do not reach a running test', () => {
+  const b = WE.blankWorld('Copy');
+  const p = WE.testPlayPayload(b.folder, b.files, {}, 'start');
+  b.files['world.json'].title = 'Changed';
+  assert.equal(p.files['world.json'].title, 'Copy');
+  assert.equal(p.type, WE.TEST_WORLD);
+  assert.equal(p.startId, 'start');
+});

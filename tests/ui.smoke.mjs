@@ -833,7 +833,7 @@ await check('phone: the world view fits and the level switch works', async (page
 await check('creator: draw a region on a map image, export, and play the export', async (page) => {
   await page.goto(BASE + 'creator.html');
   await page.waitForFunction(() => document.querySelectorAll('#cWorld option').length > 1);
-  assert.ok(await page.locator('#cTabs [data-tab="world"]').isDisabled(), 'later tabs are shown, not ready');
+  assert.ok(await page.locator('#cTabs [data-tab="sites"]').isDisabled(), 'later tabs are shown, not ready');
   await page.selectOption('#cWorld', 'server:mars-station');
   await page.waitForSelector('#cSvg');
   assert.match(await page.textContent('#cValidation'), /No problems/);
@@ -913,6 +913,82 @@ await check('creator: draw a region on a map image, export, and play the export'
   await page.click('[data-mapview="world"]');
   assert.equal(await page.locator('#worldSvg image').count(), 1, 'the map image came from the export');
   assert.ok(await page.locator('.region-g[data-region="station"] polygon.fc-4').count(), 'drawn, in the sponsor\'s colour');
+});
+
+// Task 6-1: a world built entirely in the creator: New world, the World,
+// Groups and Starts tabs, test play in a new tab (a turn against the mock
+// model, the player's own game untouched), then export and load the zip.
+await check('creator: a new world from nothing, test played and exported', async (page) => {
+  await page.goto(BASE + 'creator.html');
+  await page.waitForFunction(() => document.querySelectorAll('#cWorld option').length > 1);
+  await page.click('#cNew');
+  await page.fill('#cNewTitle', 'Harbor Watch');
+  await page.click('#cNewGo');
+  await page.waitForSelector('[data-path="setting"]');
+  assert.match(await page.textContent('#cValidation'), /No problems/, 'a blank world loads as it is');
+  await page.fill('[data-path="setting"]', 'A fishing harbor on a cold northern coast, where the boats go out before dawn and everyone knows whose nets are whose.');
+  await page.fill('[data-path="tags"]', 'cozy, mystery');
+  await page.waitForFunction(() => /cozy \(leads\)[\s\S]*mystery/.test(document.getElementById('cGenre').textContent));
+  await page.click('#cAddNeed');
+  await page.fill('[data-idof="need"]', 'sleep');
+  await page.press('[data-idof="need"]', 'Tab');
+  await page.fill('[data-path="needs.0.label"]', 'Sleep');
+  await page.click('[data-addkey="world.json|world"]');
+  await page.fill('[data-rekey="world.json|world|new-key"]', 'weather');
+  await page.press('[data-rekey="world.json|world|new-key"]', 'Tab');
+  await page.fill('[data-path="world.weather"]', 'grey and calm');
+  await page.click('#cTabs [data-tab="groups"]');
+  await page.click('#cAddGroup');
+  await page.fill('[data-path="factions.0.name"]', 'Harbor Guild');
+  await page.waitForFunction(() => /Harbor Guild/.test(document.getElementById('cGroupList').textContent));
+  await page.click('#cTabs [data-tab="starts"]');
+  await page.fill('[data-path="title"]', 'First light');
+  await page.fill('#cNewRoom', 'Boathouse');
+  await page.click('#cAddRoom');
+  await page.selectOption('[data-connadd="boathouse"]', 'main-room');
+  await page.selectOption('[data-conn="boathouse|main-room"]', 'door');
+  await page.waitForSelector('#cPreview svg');
+  await page.click('#cNewPerson');
+  await page.fill('#cNpName', 'Ana Reyes');
+  await page.fill('#cNpRole', 'harbormaster');
+  await page.click('#cNpAdd');
+  await page.waitForSelector('[data-castcard="ana-reyes"]');
+  await page.click('[data-addclock="starts/start.json|clocks"]');
+  await page.fill('[data-path="clocks.0.name"]', 'Storm coming in');
+  await page.click('[data-addclock="starts/start.json|clocks.0.then"]');
+  await page.fill('[data-path="opening"]', 'The harbor bell rings twice in the fog, which it never does. Ana is already on the quay, coat buttoned wrong, looking at you.');
+  await page.waitForFunction(() => /No problems/.test(document.getElementById('cValidation').textContent));
+  await page.screenshot({ path: path.join(shots, 'creator-starts.png') });
+  // Test play: the game opens with the working copy and plays a turn.
+  const [game] = await Promise.all([page.context().waitForEvent('page'), page.click('#cTest')]);
+  game.on('pageerror', (e) => { throw e; });
+  await game.waitForFunction(() => /turn 0$/.test(document.getElementById('sceneBar').textContent.trim()), null, { timeout: 15000 });
+  assert.equal(await game.inputValue('#scenarioSelect'), 'test:harbor-watch');
+  assert.match(await game.textContent('#log'), /harbor bell rings twice/);
+  await act(game, 'I walk over to Ana.');
+  assert.equal(await game.evaluate(() => localStorage.getItem('ensemble.autosave')), null, "test play leaves the player's own game alone");
+  await game.close();
+  // Export: the zip loads as a world, and its start plays.
+  const [download] = await Promise.all([page.waitForEvent('download'), page.click('#cExport')]);
+  const E = helpers.loadEngine();
+  const out = path.join(shots, 'creator-new-world');
+  fs.rmSync(out, { recursive: true, force: true });
+  for (const e of E.Zip.read(new Uint8Array(fs.readFileSync(await download.path())))) {
+    fs.mkdirSync(path.dirname(path.join(out, e.name)), { recursive: true });
+    fs.writeFileSync(path.join(out, e.name), e.data);
+  }
+  const w = helpers.readWorld(path.join(out, 'harbor-watch'), E);
+  assert.equal(w.starts[0].error, undefined);
+  const sc = w.starts[0].scenario;
+  assert.deepEqual([...sc.characters], ['you', 'ana-reyes']);
+  assert.equal(sc.locations.find((l) => l.id === 'boathouse').links[0].kind, 'door');
+  assert.equal(sc.clocks[0].then.length, 1);
+  assert.equal(sc.world.weather, 'grey and calm');
+  assert.equal(sc.needs[0].id, 'sleep');
+  assert.equal(sc.factions[0].name, 'Harbor Guild');
+  // The draft survives a reload of the creator.
+  await page.reload();
+  await page.waitForFunction(() => [...document.querySelectorAll('#cWorld option')].some((o) => o.value === 'draft:harbor-watch'));
 });
 
 // Task 1-8: fix your own feelings toward someone from their details.

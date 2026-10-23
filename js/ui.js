@@ -692,7 +692,8 @@
     return [sc.worldTitle || sc.title, sc.startTitle].map(slug).filter(Boolean).join('-') || slug(sc.folder || sc.id) || 'game';
   }
 
-  function autosave() { if (state) store.set('ensemble.autosave', JSON.stringify(state)); }
+  // A test-play tab (task 6-1) never overwrites the player's own game.
+  function autosave() { if (state && !TEST_PLAY) store.set('ensemble.autosave', JSON.stringify(state)); }
 
   // obj: a Blob as it is, or anything else as JSON.
   function download(name, obj) {
@@ -2179,6 +2180,30 @@
     });
   }
 
+  // Test play (task 6-1): the creator opened this tab with ?testplay and
+  // sends its working copy once the page is ready. Only the tab that opened
+  // this one is listened to; the world goes through the same checks as any.
+  const TEST_PLAY = (() => { try { return new URLSearchParams(location.search).has('testplay'); } catch (e) { return false; } })();
+  function startTestPlay() {
+    if (!window.opener) { $('pickInfo').innerHTML = '<span class="fail">Test play starts from the creator: use ▶ Test play there.</span>'; showPickInfo(true); return; }
+    window.addEventListener('message', (ev) => {
+      const d = ev.data;
+      if (ev.source !== window.opener || !d || d.type !== E.WorldEdit.TEST_WORLD) return;
+      const key = 'test:' + d.folder;
+      let world;
+      try { world = E.Scenario.prepareWorld(d.folder, d.files); }
+      catch (e) { world = { folder: d.folder, title: (d.files['world.json'] || {}).title || d.folder, error: e.message }; }
+      loaded.set(key, world);
+      diskAssets.set(d.folder, d.assets || {});
+      addScenarioOption(key, `${worldLabel(world)} (test play)`, true);
+      renderStarts(d.startId);
+      showPickInfo(true);
+      document.title = `Test play: ${world.title} · Ensemble`;
+      if (!world.error) $('btnNew').click();
+    });
+    window.opener.postMessage({ type: E.WorldEdit.TEST_READY }, '*');
+  }
+
   async function boot() {
     const firstRun = store.get('ensemble.settings') === null && store.get('ensemble.setupDone') === null;
     E.loadSettings();
@@ -2187,6 +2212,7 @@
     await loadServerList();
     if (firstRun) openSetup();
     else checkConnection(false);
+    if (TEST_PLAY) return startTestPlay();
     const saved = store.get('ensemble.autosave');
     if (saved) {
       try {
