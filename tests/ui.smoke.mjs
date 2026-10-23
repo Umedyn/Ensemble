@@ -802,15 +802,19 @@ await check('world and regional views: regions by who holds them, the info strip
   assert.ok(await page.locator('#mapPane .map-room').count(), 'back to the rooms');
   assert.equal(await page.locator('#mapPane .sd-lock').count(), 1, "the office door is locked (task 3-6)");
   assert.match(await page.textContent('#mapPane'), /forklift/);
-  // Ares Deep has no map image: a node map from the neighbours.
+  // Ares Deep has its own map image (the Hellas rim) since the coffee-skips playtest;
+  // the node map for worlds without one is covered in worldmap.test.js.
   await page.selectOption('#scenarioSelect', 'server:mars-station');
   await newGame(page);
   await sceneReady(page);
   await page.click('[data-mapview="world"]');
-  assert.equal(await page.locator('#worldSvg image').count(), 0);
+  assert.equal(await page.locator('#worldSvg image').count(), 1, 'the Hellas rim');
   assert.equal(await page.locator('#worldSvg .region-g').count(), 4);
-  assert.equal(await page.locator('#worldSvg .region-edge').count(), 3);
-  await page.screenshot({ path: path.join(shots, 'map-world-nodes.png') });
+  assert.equal(await page.locator('#worldSvg .region-edge').count(), 0);
+  await page.screenshot({ path: path.join(shots, 'map-world-mars.png') });
+  await page.click('[data-mapview="region"]');
+  assert.match(await page.textContent('#worldSvg'), /Rover Garage/, 'rooms placed on the regional map');
+  await page.screenshot({ path: path.join(shots, 'map-region-mars.png') });
 });
 
 await check('phone: the world view fits and the level switch works', async (page) => {

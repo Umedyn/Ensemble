@@ -1099,7 +1099,7 @@
   }
 
   function renderSituation() {
-    const clocks = state.clocks.map((c) => {
+    const clocks = E.Engine.liveClocks(state).map((c) => {
       const pct = Math.round((c.value / c.max) * 100);
       return `<div class="clock"><div class="label"><span>${esc(c.name)}</span><span class="muted">${c.fired ? 'happened' : pct + '%'}</span></div>` +
         `<div class="bar ${pct >= 75 || c.fired ? 'danger' : ''}"><i style="width:${c.fired ? 100 : pct}%"></i></div></div>`;

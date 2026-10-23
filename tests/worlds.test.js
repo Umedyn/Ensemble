@@ -254,6 +254,12 @@ test('converted bundled worlds start the same game as their legacy versions', ()
     now.state.factions.forEach((f) => delete f.color);
     // And the canon past (task 5-2): its facts and chapter zero.
     now.state.facts = now.state.facts.filter((f) => !f.canon);
+    // And harmful, repeating pressures (playtest-coffee-skips): Ares Deep's thirst, Holdout's hunger.
+    const noHarm = (list) => (list || []).forEach((c) => {
+      delete c.fireHarm; delete c.repeat;
+      if (c.then) { c.then = c.then.filter((t) => t.id !== 'thirst'); noHarm(c.then); if (!c.then.length) delete c.then; }
+    });
+    noHarm(now.state.clocks);
     ['characters', 'locations', 'clocks', 'world', 'facts', 'factions', 'order', 'time', 'recent', 'player'].forEach((k) =>
       assert.deepEqual(plain(now.state[k]), plain(before.state[k]), `${folder}: state.${k}`));
     assert.equal(now.state.scenario.worldId, folder);

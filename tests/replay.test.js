@@ -324,3 +324,29 @@ test('playtest: a one-hour skip is described in hours, not "about 0 days" of "a 
   const narrate = r.E.LLM.calls.filter((c) => c.kind === 'narrate').pop();
   assert.doesNotMatch(narrate.user, /about 0 days/);
 });
+
+test('playtest: a pressure that went off is listed the turn it happens, then leaves the prompts and the update ids', async () => {
+  const r = await replay('playtest-coffee-skips', { until: 3 });
+  const byTurn = (kind) => r.E.LLM.calls.filter((c) => c.kind === kind);
+  const [, n2, n3] = byTurn('narrate');
+  assert.match(n2.user, /Dust storm arrival \(HAPPENED\)/, 'the turn the storm arrives');
+  assert.doesNotMatch(n3.user, /Dust storm arrival/, 'a turn later it is a fact, not a pressure');
+  const u3 = byTurn('update').pop();
+  assert.doesNotMatch(u3.user, /clocks: [^\n]*\bstorm\b(?!-)/, 'the update step was offered a clock that can no longer move');
+  const s = r.state;
+  assert.deepEqual(s.clocks.filter((c) => c.fired).map((c) => [c.id, c.firedTurn]), [['storm', 2]]);
+  assert.deepEqual([...r.E.Engine.liveClocks(s).map((c) => c.id)].sort(), ['battery', 'recycler', 'storm-clear']);
+});
+
+test('playtest: every ignored emergency costs the crew\'s trust, the montage keeps Kit to the coffee, and worn phrases reach the narrator', async () => {
+  const r = await replay('playtest-coffee-skips');
+  const s = r.state;
+  const t3 = r.E.Engine.telemetry.find((t) => t.turn === 3);
+  assert.match(t3.guards.find((g) => g.type === 'crisis ignored').detail, /^The dust storm arrives[^]*played out without Kit Navarro[^]*trust toward Kit Navarro −6/);
+  ['okafor', 'sorensen', 'raman', 'bauer'].forEach((id) => assert.ok(s.characters[id].relations.navarro < 0, `${id} was ${s.characters[id].relations.navarro}; 15/15 after nine ignored emergencies`));
+  const t10 = r.E.Engine.telemetry.find((t) => t.turn === 10);
+  assert.ok(t10.guards.some((g) => g.type === 'montage dropped' && /half-interval cartridge seated/.test(g.detail)));
+  assert.ok(r.E.LLM.calls.some((c) => c.kind === 'intent' && /a turning point that grows out of the people/.test(c.user)));
+  const last = r.E.LLM.calls.filter((c) => c.kind === 'narrate').pop();
+  assert.match(last.user, /=== WORN PHRASES[^\n]*===\n- "teo refills the pot without being asked"/);
+});

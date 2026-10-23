@@ -106,7 +106,7 @@
     const text = cleanText(version.text);
     const who = (ev.who || []).filter((id) => state.characters[id] && id !== state.player);
     const region = ev.region || (scope === 'regional' ? Eng().playerRegion(state) : null);
-    const effects = vis !== 'hidden' ? Eng().applyEffects(state, version.effects, scope, res) : [];
+    const effects = vis !== 'hidden' ? Eng().applyEffects(state, version.effects, scope, res, { lasting: true }) : [];
     let fact = null;
     if (vis === 'hidden') {
       if (who.length) fact = E.Memory.addFact(state, { about: who, text, known_by: who, weight: 2 });

@@ -1129,7 +1129,7 @@
     },
     add_tag: {
       list: true, max: 2,
-      apply(state, t) {
+      apply(state, t, scope, opts) {
         const r = region(state, t);
         if (r.reject) return r;
         const tag = String(t.tag || '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -1146,8 +1146,15 @@
           const i = r.now.tags.findIndex((x) => !authored.has(x.toLowerCase()));
           if (i < 0) return reject(`${t.region} already has ${E.Scenario.REGION_TAGS} tags; not adding "${tag}"`);
           [dropped] = r.now.tags.splice(i, 1);
+          if (state.regionTagUntil) delete state.regionTagUntil[`${t.region}|${dropped.toLowerCase()}`];
         }
         r.now.tags.push(tag);
+        // A tag an event adds fades after a few days, unless something renews it
+        // (playtest-coffee-skips: "co2 above emergency threshold" for weeks).
+        if (!(opts && opts.lasting)) {
+          state.regionTagUntil = state.regionTagUntil || {};
+          state.regionTagUntil[`${t.region}|${tag}`] = absHours(state) + Eng.REGION_TAG_HOURS;
+        }
         r.stamp('new tag');
         return `${r.def.name}: ${tag}${dropped ? ` (no longer ${dropped})` : ''}`;
       },
@@ -1161,6 +1168,7 @@
         const i = r.now.tags.findIndex((x) => x.toLowerCase() === tag);
         if (i < 0) return reject(`${t.region} has no tag "${t.tag}"`);
         const [gone] = r.now.tags.splice(i, 1);
+        if (state.regionTagUntil) delete state.regionTagUntil[`${t.region}|${gone.toLowerCase()}`];
         r.stamp('tag gone');
         return `${r.def.name}: no longer ${gone}`;
       },
@@ -1195,7 +1203,8 @@
 
   // Applies an event's effects. Returns the display lines; rejections become
   // 'effect rejected' guards on res.
-  function applyEffects(state, eff, scope, res) {
+  // opts.lasting: tags it adds don't fade (the timeline's authored events).
+  function applyEffects(state, eff, scope, res, opts) {
     const done = [];
     if (!eff || typeof eff !== 'object') return done;
     const no = (key, why) => guard(res, 'resolve', 'effect rejected', `${key}: ${why}`);
@@ -1213,7 +1222,7 @@
         items = [v];
       }
       items.forEach((it) => {
-        const out = h.apply(state, it, scope);
+        const out = h.apply(state, it, scope, opts || {});
         if (out && out.reject) no(key, out.reject);
         else if (out) done.push(out);
       });
@@ -1523,13 +1532,116 @@
       cl.value = E.clamp(cl.value + (cl.perHour || 0) * hours, 0, cl.max);
       if (cl.value >= cl.max) Eng.fireClock(state, cl, res);
     });
+    fadeRegionTags(state, res);
     // Downtime runs agendas itself (Eng.runAgendas), step by step.
     if (!routine) advanceAgendas(state, hours);
     advancePatrols(state, hours);
   };
 
+  // ---------- worn phrases ----------
+  // Runs of 4 to 12 words that two or more of the last four scenes share, with
+  // at least two content words that aren't names; longest first, 6 at most
+  // (playtest-coffee-skips: "the pot is the only instrument anyone trusts").
+  const JOINERS = new Set(['and', 'but', 'or', 'so', 'then', 'while', 'as', 'with', 'of', 'to', 'at', 'in', 'on', 'for']);
+  Eng.wornPhrases = function (state) {
+    const scenes = (state.log || []).filter((l) => l.type === 'scene').slice(-4).map((l) => String(l.text || ''));
+    if (scenes.length < 2) return [];
+    const names = new Set();
+    Object.values(state.characters).forEach((c) => String(c.name || '').toLowerCase().split(/[^a-z]+/).forEach((w) => names.add(w)));
+    const words = (t) => t.toLowerCase().replace(/[\u2018\u2019]/g, "'").replace(/[^a-z' ]+/g, ' ').split(/\s+/).filter(Boolean);
+    const scenesOf = new Map();
+    scenes.forEach((t, i) => {
+      const mine = new Set();
+      // Within a sentence or clause, and never starting or ending on a joining word.
+      t.split(/[.!?,;:\n\u2014\u2013]+|\s-\s/).forEach((clause) => {
+        const w = words(clause);
+        for (let n = 4; n <= 12; n++) {
+          for (let k = 0; k + n <= w.length; k++) {
+            if (JOINERS.has(w[k]) || JOINERS.has(w[k + n - 1])) continue;
+            mine.add(w.slice(k, k + n).join(' '));
+          }
+        }
+      });
+      mine.forEach((g) => { if (!scenesOf.has(g)) scenesOf.set(g, new Set()); scenesOf.get(g).add(i); });
+    });
+    const picked = [];
+    // Two phrases are the same when they share four words in a row.
+    const fours = (g) => { const w = g.split(' '); const out = []; for (let k = 0; k + 4 <= w.length; k++) out.push(w.slice(k, k + 4).join(' ')); return out; };
+    [...scenesOf.entries()]
+      .filter(([g, at]) => at.size >= 2 && [...contentWords(g)].filter((w) => !names.has(w)).length >= 2)
+      .map(([g]) => g)
+      .sort((a, b) => b.length - a.length)
+      .forEach((g) => { if (picked.length < 6 && !picked.some((p) => fours(g).some((f) => p.includes(f)))) picked.push(g); });
+    return picked;
+  };
+
+  // ---------- harm and open emergencies ----------
+  // Health only gets worse here, never back from the dead; the player by one
+  // step per blow. Death of the player ends the story (playtest-coffee-skips:
+  // nothing could hurt anyone, so the story could never end).
+  Eng.harm = function (state, id, health, res, why) {
+    const c = state.characters[id];
+    if (!c || !Eng.alive(state, id)) return { reject: `${id}: not a living character` };
+    const now = Math.max(0, HEALTH.indexOf(c.status.health));
+    let to = HEALTH.indexOf(health);
+    if (to < 0) return { reject: `${c.name}: bad health "${health}"` };
+    if (to <= now) return { reject: `${c.name}: no worse than ${E.healthWord(c.status.health)}` };
+    if (id === state.player) to = now + 1;
+    c.status.health = HEALTH[to];
+    if (HEALTH[to] === 'dead') {
+      state.flags.chapterWorthy = true;
+      if (id === state.player) state.flags.gameOver = true;
+    }
+    const line = `${c.name}: ${E.healthWord(HEALTH[to])}${why ? ` (${why})` : ''}`;
+    guard(res, 'resolve', 'harm', line);
+    return line;
+  };
+  // A model's harm list ([{id, health}], 3 at most), only for people in `allowed`.
+  Eng.applyHarm = function (state, list, allowed, res, why) {
+    if (!Array.isArray(list)) return [];
+    const done = [];
+    list.slice(0, 3).forEach((h) => {
+      const id = h && h.id;
+      if (!state.characters[id]) return guard(res, 'resolve', 'harm rejected', `unknown character "${id}"`);
+      if (allowed && !allowed.has(id)) return guard(res, 'resolve', 'harm rejected', `${state.characters[id].name} wasn't there`);
+      const out = Eng.harm(state, id, h.health, res, why);
+      if (out && out.reject) guard(res, 'resolve', 'harm rejected', out.reject);
+      else if (out) done.push(out);
+    });
+    return done;
+  };
+  // The emergency the last turn ended on, while it is still the next turn's
+  // problem: { turn, text, who }. Call before the turn number advances.
+  // Who an emergency concerns: everyone alive at the player's site, not just the
+  // room (playtest-coffee-skips: Kit was alone in the commons for every crisis).
+  Eng.crisisPeople = (state) => {
+    const site = E.Sites.playerSite(state);
+    return Eng.cast(state, { alive: true, includePlayer: false }).filter((id) => E.Sites.siteOf(state, state.characters[id].status.location) === site);
+  };
+  Eng.openCrisis = (state) => (state.crisis && state.crisis.turn === state.turn ? state.crisis : null);
+
+  // Pressures still in play: those that haven't gone off, and one that went off
+  // this turn. After that it lives on as a fact and in the journal, not in the
+  // Situation panel or the prompts (playtest-coffee-skips: six "(HAPPENED)" by Sol 328).
+  Eng.liveClocks = (state) => state.clocks.filter((c) => !c.fired || c.firedTurn === state.turn);
+
+  Eng.REGION_TAG_HOURS = 72;
+  function fadeRegionTags(state, res) {
+    Object.entries(state.regionTagUntil || {}).forEach(([key, until]) => {
+      if (until > absHours(state)) return;
+      delete state.regionTagUntil[key];
+      const cut = key.indexOf('|');
+      const r = state.regions && state.regions[key.slice(0, cut)];
+      const i = r ? r.tags.findIndex((x) => x.toLowerCase() === key.slice(cut + 1)) : -1;
+      if (i < 0) return;
+      r.tags.splice(i, 1);
+      guard(res, 'resolve', 'region tag faded', `${key.slice(0, cut)}: ${key.slice(cut + 1)}`);
+    });
+  }
+
   Eng.fireClock = function (state, cl, res) {
     cl.fired = true;
+    cl.firedTurn = state.turn;
     if (cl.fireWorld) {
       Object.assign(state.world, cl.fireWorld);
       // The update step can't undo these in the same turn (playtest-agenda-skips).
@@ -1540,6 +1652,16 @@
     res.events.push(text);
     E.Memory.addFact(state, { about: [], text, known_by: ['all'], weight: 3 });
     state.flags.chapterWorthy = true;
+    state.crisis = { turn: state.turn, text, who: Eng.crisisPeople(state) };
+    // An authored pressure can hurt people when it goes off: everyone, or
+    // everyone outside (thirst, cold, air running out).
+    if (cl.fireHarm) {
+      const ids = [state.player].concat(Eng.cast(state, { alive: true, includePlayer: false }))
+        .filter((id) => cl.fireHarm === 'all' || (state.locations[state.characters[id].status.location] || {}).outside);
+      ids.forEach((id) => Eng.harm(state, id, HEALTH[Math.min(3, HEALTH.indexOf(state.characters[id].status.health) + 1)], res, cl.name));
+    }
+    // A repeating pressure starts again: it keeps hurting until someone deals with it.
+    if (cl.repeat) { cl.fired = false; cl.value = 0; cl.lastFired = state.turn; }
     // Follow-up pressures: e.g. the storm arriving starts "Storm clears" and "Battery reserve".
     (cl.then || []).forEach((t) => {
       if (!t || !t.id || state.clocks.find((x) => x.id === t.id)) return;
@@ -1600,7 +1722,7 @@
     if (!text) return { error: 'empty tag' };
     if (text.length > 32 || text.split(' ').length > 5) return { error: 'tag too long (32 characters, 5 words at most)' };
     const low = text.toLowerCase();
-    if (MOODS.test(low) || low.split(' ').some((w) => MOODS.test(w)) || /on edge/.test(low) || state.scenario.needs.some((n) => low.includes(n.id) || low.includes((n.label || '').toLowerCase()))) {
+    if (MOODS.test(low) || low.split(' ').some((w) => MOODS.test(w)) || /\bon edge\b/.test(low) || state.scenario.needs.some((n) => low.includes(n.id) || low.includes((n.label || '').toLowerCase()))) {
       return { error: 'a feeling, not a tag (moods and needs are tracked separately)' };
     }
     const n = E.clamp(Math.round(Number(turns)) || Eng.TAG_TURNS, 1, 30);
@@ -1822,6 +1944,7 @@
         if (!c) return reject(label, 'unknown character');
         if (s.field === 'health') {
           if (!HEALTH.includes(s.value)) return reject(label, 'bad health value');
+          if (c.status.health === 'dead' && s.value !== 'dead') return reject(label, 'the dead stay dead');
           c.status.health = s.value;
           if (s.value === 'dead') {
             state.flags.chapterWorthy = true;
@@ -2437,6 +2560,9 @@
     const timelineNotes = [];
     if (E.Timeline.needsProjection(state)) { phase('Planning the days ahead…'); await E.Timeline.project(state, timelineNotes); }
     const plan = Eng.planMajorSkip(state);
+    // Skipping while the last scene's emergency is unanswered: it plays out
+    // without the player, and it costs something (playtest-coffee-skips).
+    plan.crisis = Eng.openCrisis(state);
     const tierChanges = Eng.promoteForAction(state, Eng.present(state), action, state.turn + 1);
     const pre = E.clone(state);
     delete pre.log; delete pre.pending; delete pre.undo;
@@ -2478,6 +2604,9 @@
       maxTokens: 900, temperature: 0.8,
     });
 
+    // The emergency the player left: its outcome, its cost, and what the
+    // people who needed them now think of them.
+    if (plan.crisis) ignoredCrisis(state, plan.crisis, obj.crisis, res);
     // what happened in the meantime
     Eng.applyEvents(state, { events: Array.isArray(obj.events) ? obj.events : [] }, [], 'hours', res,
       { regional: true, world: plan.hours >= 72 }, { local: 2, regional: 2, world: plan.hours >= 72 ? 1 : 0 }, true);
@@ -2504,6 +2633,11 @@
       const scope = ['regional', 'world'].includes(m.scope) ? m.scope : 'local';
       const effects = applyEffects(state, m.effects, scope, res);
       const region = eventRegion(state, m, scope, res);
+      // Who it hurts: people it names or who are where it happens.
+      const where = Eng.resolveLocation(state, m.where, false);
+      const hit = new Set((Array.isArray(m.who) ? m.who : []).filter((id) => state.characters[id])
+        .concat([state.player].concat(Eng.cast(state, { alive: true, includePlayer: false })).filter((id) => where && state.characters[id].status.location === where)));
+      Eng.applyHarm(state, m.harm, hit, res, 'the major event');
       res.events.push(`[major] ${text}`);
       E.Memory.addFact(state, { about: (m.who || []).filter((id) => state.characters[id]), text, known_by: ['all'], weight: 3 });
       if (scope !== 'local') { state.news.push({ scope, text, time: E.fmtTime(state), effects, region }); state.tierLast[scope] = absHours(state); }
@@ -2539,9 +2673,16 @@
       }
     }
     res.outcomes.push({ id: state.player, action: action || 'keeps to routine through the downtime', visible: true, roll: null, moved: null });
-    state.flags.chapterWorthy = true;
+    // A skip that ends on a clock, a timeline event or a major event closes a
+    // chapter; one that ends with someone coming to talk doesn't (playtest-coffee-skips:
+    // a chapter every two turns). It also leaves an emergency for the next turn.
+    const majorEnd = ['clock', 'random', 'canon'].includes(plan.reason) && res.major;
+    if (majorEnd) {
+      state.flags.chapterWorthy = true;
+      state.crisis = { turn: state.turn, text: res.major.text, who: Eng.crisisPeople(state) };
+    } else delete state.crisis;
 
-    const montage = Array.isArray(obj.montage) ? obj.montage.filter((x) => x && x.text).slice(0, 5) : [];
+    const montage = checkMontage(state, action, Array.isArray(obj.montage) ? obj.montage.filter((x) => x && x.text).slice(0, 5) : [], res);
     const doings = (Array.isArray(obj.positions) ? obj.positions.filter((p) => p && state.characters[p.id] && p.doing) : [])
       .map((p) => (plan.reason === 'agenda' && p.id === plan.agenda.id ? Object.assign({}, p, { doing: plan.agenda.text }) : p));
     if (plan.reason === 'agenda' && !doings.some((p) => p.id === plan.agenda.id)) doings.push({ id: plan.agenda.id, doing: plan.agenda.text });
@@ -2559,6 +2700,69 @@
     state.pending = { turn: state.turn, action: action || 'Keeps to routine through the downtime.', res, frame, present: witnesses, beats, pre, routine: true, narration };
     phase('');
     return { prose: text, beats, res, plan };
+  }
+
+  // The emergency the player didn't answer, during a skip: the model's outcome
+  // (or a plain one), the harm it names among the people who were there, a
+  // public fact, and those people's feelings toward the player drop. Engine-owned,
+  // so ignoring someone in trouble always costs something.
+  Eng.CRISIS_TRUST = 6;
+  function ignoredCrisis(state, crisis, cr, res) {
+    const pc = state.characters[state.player];
+    cr = cr && typeof cr === 'object' ? cr : {};
+    const outcome = typeof cr.outcome === 'string' && cr.outcome.trim() && !/^one or two sentences/i.test(cr.outcome.trim())
+      ? E.clip(cr.outcome, 220) : `The emergency played out without ${pc.name}.`;
+    const there = new Set((crisis.who || []).concat(state.player).filter((id) => state.characters[id]));
+    const hurt = Eng.applyHarm(state, cr.harm, there, res, `while ${pc.name} stayed out of it`);
+    res.events.unshift(outcome);
+    E.Memory.addFact(state, { about: (crisis.who || []).filter((id) => state.characters[id]), text: outcome, known_by: ['all'], weight: 3 });
+    const cooled = (crisis.who || []).filter((id) => id !== state.player && Eng.alive(state, id));
+    cooled.forEach((id) => {
+      const c = state.characters[id];
+      c.relations[state.player] = E.clamp((c.relations[state.player] || 0) - Eng.CRISIS_TRUST, -100, 100);
+    });
+    guard(res, 'resolve', 'crisis ignored', `${E.shorten(crisis.text, 80)} → ${outcome}${hurt.length ? '' : ' (no one hurt)'}${cooled.length ? `; trust toward ${pc.name} −${Eng.CRISIS_TRUST}: ${cooled.map((id) => state.characters[id].name).join(', ')}` : ''}`);
+  }
+
+  // Montage moments the narrator gets: none where the player does more than
+  // their plan (rule 3: "Kit cuts a brace…" from "keep drinking coffee"), and
+  // none that gives a secret away (rule 5). Both seen in playtest-coffee-skips.
+  // Words by stem, so "drinks" and "drinking" are the same word.
+  const stems = (t) => new Set([...contentWords(t)].map((w) => w.replace(/(ing|ed|es|s)$/, '')));
+  const namesOf = (c) => [c.name].concat(String(c.name || '').replace(/^(dr|mr|mrs|ms|mx|capt|sgt|prof)\.?\s+/i, '').split(/\s+/))
+    .filter((n) => n && n.length > 2).map((n) => n.toLowerCase());
+  // A montage moment gives a secret away when it names its keeper and shares 3+
+  // words with the secret itself, or 1+ with a confession word. Stricter than
+  // for a person's own lines: a montage is full of the station's everyday words.
+  function montageLeaks(state, id, text) {
+    const c = state.characters[id];
+    const words = new Set(text.toLowerCase().replace(/['’]s\b/g, '').split(/[^a-z'-]+/));
+    if (!namesOf(c).some((n) => words.has(n))) return false;
+    const secret = contentWords(c.secret);
+    const hits = [...contentWords(text)].filter((w) => secret.has(w)).length;
+    return hits >= 3 || (hits >= 1 && /\b(admit|admits|admitted|confess|confesses|confessed|reveal|reveals|revealed|owns up|comes clean)\b/i.test(text));
+  }
+
+  function checkMontage(state, action, montage, res) {
+    const names = namesOf(state.characters[state.player]);
+    const planWords = stems(action);
+    return montage.filter((m) => {
+      const t = String(m.text).trim();
+      const lead = t.toLowerCase();
+      const playerLeads = /^you\b/.test(lead) || names.some((n) => lead.startsWith(n + ' ') || lead.startsWith(n + "'"));
+      // The sentence the player leads: later ones are about others ("the number keeps climbing").
+      const first = t.split(/(?<=[.!?])\s/)[0];
+      if (playerLeads && planWords.size && ![...stems(first)].some((w) => planWords.has(w))) {
+        guard(res, 'resolve', 'montage dropped', `the player does more than their plan ("${action}"): ${E.shorten(t, 120)}`);
+        return false;
+      }
+      const leaker = Eng.cast(state, { alive: true, includePlayer: false }).find((id) => state.characters[id].secret && montageLeaks(state, id, t));
+      if (leaker) {
+        guard(res, 'resolve', 'leak deflected', `${state.characters[leaker].name}, in the montage: ${E.shorten(t, 120)}`);
+        return false;
+      }
+      return true;
+    });
   }
 
   async function writeSkipScene(state, n, p, phase) {
@@ -2751,6 +2955,7 @@
     // Nothing planned for the next few days: the model projects some (task 5-2).
     const timelineNotes = [];
     if (E.Timeline.needsProjection(state)) { phase('Planning the days ahead…'); await E.Timeline.project(state, timelineNotes); }
+    const crisis = Eng.openCrisis(state);
     const pre = E.clone(state);
     delete pre.log; delete pre.pending; delete pre.undo;
     state.turn += 1;
@@ -2759,6 +2964,7 @@
     const system = E.Prompts.header(state); // same prefix for all calls this turn
 
     const due = Eng.tiersDue(state, step.hours);
+    due.crisis = crisis;
     // Canon events due this span, checked now; broken "diverge" ones are
     // rewritten by the intent call. They are outside the tier rationing.
     const canonDue = E.Timeline.due(state, step.hours);
@@ -2775,6 +2981,7 @@
     const siteNotes = [];
     await E.Sites.forIntent(state, intentObj, action, pre, phase, siteNotes);
     const res = Eng.resolve(state, intentObj, present, action, step.id, due);
+    if (crisis) res.crisisText = crisis.text;
     E.Timeline.resolveDue(state, canonDue, intentObj.canon, res);
     tierChanges.forEach((t) => guard(res, 'resolve', 'cast tier', t));
     extraNotes.forEach((t) => guard(res, 'resolve', 'extras', t));

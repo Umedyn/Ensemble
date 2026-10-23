@@ -741,13 +741,20 @@
         sc.lore.forEach((e) => { if (isObj(e) && e.level === 'region' && !regionIds.has(e.ref)) problems.push(`lore "${e.id}" is about unknown region "${e.ref}"`); });
       }
     }
-    (sc.clocks || []).forEach((c) => {
-      req(c.id && c.name && c.max > 0, `clock "${c.id || '?'}" needs id, name and max`);
-      Object.keys(c.fireWorld || {}).forEach((k) => req(sc.world && k in sc.world, `clock "${c.id}" fireWorld key "${k}" not in world`));
+    // fireHarm: who it hurts when it goes off ("all" or "outside"); repeat: it
+    // starts again after going off (playtest-coffee-skips). Follow-ups nest.
+    const clockShape = (c, where) => {
+      Object.keys(c.fireWorld || {}).forEach((k) => req(sc.world && k in sc.world, `${where} "${c.id}" fireWorld key "${k}" not in world`));
+      req(c.fireHarm == null || ['all', 'outside'].includes(c.fireHarm), `${where} "${c.id}": "fireHarm" must be "all" or "outside"`);
+      req(c.repeat == null || typeof c.repeat === 'boolean', `${where} "${c.id}": "repeat" must be true or false`);
       (c.then || []).forEach((t) => {
         req(t.id && t.name && t.max > 0, `clock "${c.id}" has a follow-up ("then") without id, name and max`);
-        Object.keys(t.fireWorld || {}).forEach((k) => req(sc.world && k in sc.world, `follow-up clock "${t.id}" fireWorld key "${k}" not in world`));
+        clockShape(t, 'follow-up clock');
       });
+    };
+    (sc.clocks || []).forEach((c) => {
+      req(c.id && c.name && c.max > 0, `clock "${c.id || '?'}" needs id, name and max`);
+      clockShape(c, 'clock');
     });
     if (problems.length) throw new Error(`Scenario "${sc.title || sc.folder}" has problems:\n- ` + problems.join('\n- '));
     return sc;

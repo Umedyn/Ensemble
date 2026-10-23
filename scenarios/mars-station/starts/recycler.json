@@ -197,7 +197,18 @@
           "fireText": "Stored water drops below the safety margin. Every liter now has to be argued over.",
           "fireWorld": {
             "recycler": "failed; stored water below safety margin"
-          }
+          },
+          "then": [
+            {
+              "id": "thirst",
+              "name": "Thirst takes its toll",
+              "max": 10,
+              "perHour": 0.06,
+              "fireText": "A week on the margin shows: cracked lips, headaches, slow hands. Everyone is weaker than they were, and it will keep getting worse until there is water.",
+              "fireHarm": "all",
+              "repeat": true
+            }
+          ]
         }
       ]
     }

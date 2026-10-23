@@ -328,7 +328,9 @@
           "name": "Hunger weakens the group",
           "max": 10,
           "perHour": 0.1,
-          "fireText": "Days without real food take their toll: hands shake, tempers fray, and someone is going to make a desperate choice."
+          "fireText": "Days without real food take their toll: hands shake, tempers fray, and someone is going to make a desperate choice.",
+          "fireHarm": "all",
+          "repeat": true
         }
       ]
     }
