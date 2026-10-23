@@ -255,6 +255,155 @@
       "lore": "An automated Halvorsen relay and weather station a day's drive along the rim, the nearest other built thing on the planet."
     }
   ],
+  "map": {
+    "image": "maps/hellas.svg",
+    "width": 800,
+    "height": 560,
+    "regions": {
+      "station": {
+        "polygon": [
+          [
+            220,
+            175
+          ],
+          [
+            216,
+            95
+          ],
+          [
+            248,
+            45
+          ],
+          [
+            330,
+            26
+          ],
+          [
+            412,
+            45
+          ],
+          [
+            444,
+            95
+          ],
+          [
+            445,
+            165
+          ]
+        ]
+      },
+      "crater-rim": {
+        "polygon": [
+          [
+            0,
+            192
+          ],
+          [
+            220,
+            175
+          ],
+          [
+            445,
+            165
+          ],
+          [
+            640,
+            135
+          ],
+          [
+            650,
+            300
+          ],
+          [
+            560,
+            316
+          ],
+          [
+            460,
+            334
+          ],
+          [
+            240,
+            346
+          ],
+          [
+            0,
+            330
+          ]
+        ]
+      },
+      "basin-floor": {
+        "polygon": [
+          [
+            0,
+            330
+          ],
+          [
+            240,
+            346
+          ],
+          [
+            460,
+            334
+          ],
+          [
+            560,
+            316
+          ],
+          [
+            650,
+            300
+          ],
+          [
+            800,
+            300
+          ],
+          [
+            800,
+            560
+          ],
+          [
+            0,
+            560
+          ]
+        ]
+      },
+      "relay-mast": {
+        "polygon": [
+          [
+            640,
+            135
+          ],
+          [
+            800,
+            105
+          ],
+          [
+            800,
+            300
+          ],
+          [
+            650,
+            300
+          ]
+        ]
+      }
+    },
+    "locations": {
+      "suitroom": [
+        362,
+        154
+      ],
+      "garage": [
+        423,
+        136
+      ],
+      "surface": [
+        524,
+        208
+      ]
+    }
+  },
   "world": {
     "power": "solar arrays nominal",
     "comms": "online, 14-minute delay",
