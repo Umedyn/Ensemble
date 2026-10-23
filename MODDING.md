@@ -48,6 +48,20 @@ What you run on your own models and keys is up to you. Content and voices that r
 
 If an official hub for sharing worlds ever exists, uploads to it will follow user-upload rules: allowed, the uploader's responsibility, taken down on request, and never sold or featured by us. A scenario being free doesn't make it fair use there, since the service itself would be paid.
 
+How such a hub would work (planned, like Bethesda's Creations):
+
+- Community uploads are free, fan works included. Uploaders confirm they have the rights to what they upload and accept responsibility for it.
+- A registered DMCA agent, a published takedown and counter-notice process, and a repeat-offender policy. Takedowns are acted on promptly.
+- **Franchise content is never charged for, bundled, featured or placed behind a paywall.** A subscription pays for the service, not for access to someone else's franchise. Paid or featured content must be original or licensed, and original work gets the spotlight.
+- The maintainer's own fan mods are posted elsewhere under a personal handle, never on or through the official hub.
+- Until then, content shared on GitHub or Discord follows those platforms' takedown processes.
+
+## Lore packs and real people
+
+Lore is the game's wiki: the game pulls in only what fits where the player is and what's happening, so one world can hold very different lives. Planned add-on **lore packs** ("Tokyo school life", "Silicon Valley startups") plug into an existing world, a smaller way to contribute than a whole world. Write entries for what a small model gets wrong or vague, the world's deviations from reality, and the facts the story will lean on; short and specific beats long and general.
+
+Real public figures belong in lore, not in the cast: they're news and background, met only if the player seeks them out. In real-world maps, people in lore count as real unless marked `fictional: true`, and real people are never part of mature content, in any mode. Fictional characters from other works aren't real people; for them only copyright matters (see Responsibility for mods). Portraits or voices imitating a real person, including the actor who played a fictional character, aren't allowed in official spaces without permission.
+
 ## Making a world
 
 A world folder holds the setting and a pool of characters (`world.json`, `characters/`) plus one or more **starts** (`starts/`): different ways into the same world, as a different person, place or moment.

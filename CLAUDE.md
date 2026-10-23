@@ -82,6 +82,8 @@ These came from playtesting a 12B local model. Each has a test; don't loosen one
 - **Content rules are engine rules.** The minors safeguard (ROADMAP › Content settings) applies in every mode and backend and must not be weakened or made optional; it has a test. Everything else about mature content follows the world's rating and the player's settings.
 - **Generated content goes through the same validation as authored content**, one stage at a time (ROADMAP Phase 4).
 - **Lore never contains secrets or future events**; those belong in character secrets and the canon timeline.
+- **Lore and story are separate.** "Real person" is a property of lore; story characters are fictional unless promoted from lore, in which case they keep a `loreRef` and inherit it. Real people get the same every-mode guard style as minors (planned: ROADMAP › Content settings).
+- **Lore characters are only promoted by player action.** Generated casts never place them.
 
 ## License
 

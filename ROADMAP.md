@@ -135,10 +135,11 @@ Make your own character and start, and have the engine fill in the world around 
   - The same pattern applies to lore research (phase 5): one source page per call.
   - [x] Left over from 4-2: the ties step now gives each pressure an optional follow-up (`then`) and up to 3 regional event ideas for the start (`eventSeeds.regional`, ahead of the world's), with the same leak check as pressures; both show in the review.
 - [x] **Real-place map import** (task 4-5, done as a shared topographic base map plus `npm run basemap`: Natural Earth's world picture, countries, states and capitals; regions in pieces, places, the prompt budget for big maps; a `tools/` script or Claude Code skill, outside the game, like the lore research helper): builds a world's regions and locations from open data, for **open-world "make your own start" worlds** (the real world, the US, Mars). Story-driven worlds keep hand-made maps.
-- [ ] **World backdrop** (task 4-6, idea): far-off countries and fronts as context rather than play space, on the shared base map, with a status line each that world events can change, so stories set in one city know the wider picture. Decide after playtesting a real-world world (7-1).
-  - **City maps** work at either scale. Inside a big world they're the regional level. For "live your life" worlds (a school slice-of-life, a zombie outbreak in one town) **the city is the world map**: districts and neighbourhoods are regions, and the local level is a building, a street or a block. The three map levels are relative, not fixed to planet → country → room.
+  - **City maps** work at either scale. Inside a big world they're the regional level. For "live your life" worlds (a school slice-of-life, a zombie outbreak in one town) **the city is the world map**: districts and neighbourhoods are regions, and the local level is a building, a street or a block. ~~The three map levels are relative, not fixed to planet → country → room.~~ *Superseded by the region tree (Region rework below): regions nest as deep as each branch needs, and any region can carry a map.*
   - Sources: Natural Earth (countries, provinces, cities; public domain), US Census boundaries and places (public domain), the IAU/USGS list of Mars features (public domain), Wikidata coordinates (CC0), and OpenStreetMap or city open-data portals for cities (OSM is ODbL: attribution required and shared extracts stay ODbL, so check before bundling anything in a paid build).
   - Steps: name the place and detail level → fetch → project onto the creator's image (or draw a plain base map from the boundaries, avoiding image licensing) → simplify borders → compute neighbours from shared borders → write region and location data with `credit` and `license` → check and adjust in the map editor (3-5).
+  - Folded into the region rework (task R-9): the import will write a tree (country → states or provinces → cities) with routes.
+- ~~**World backdrop** (task 4-6)~~: superseded by the region tree; broad outer regions are the backdrop, detailed ones where the story is.
 - [x] **Review screen**: edit or reroll any generated room or character before starting. The result can be saved as a reusable start.
 - [x] **Generated sites**: on-the-fly local maps for places the story goes (a gang base, a corporate floor, a ruined farmhouse), with rooms, named characters, standees and loot. They're attached to a region and either kept or discarded after the visit. Triggered by the player's intent (`move_to` an unknown place) or by an event.
   - **Library first**: look for a matching authored site map (below) by type, tags and size. If one fits, use its layout and have the model fill in only the people, names and details. Otherwise generate the site data and let the layout styles draw it.
@@ -175,6 +176,21 @@ Make your own character and start, and have the engine fill in the world around 
     - summarizes **in its own words**, with no copied text (Wikipedia and most fan wikis are CC BY-SA, which would attach share-alike terms to copied text).
 - Franchise worlds built this way are fine for players' own play and mods; they are never shipped, bundled or featured (see "Shipped scenarios are original").
 
+**Lore scope** (decided 2026-10-22). The lorebook is the game's wiki: only entries relevant to where the player is and what's happening are pulled in, so one world supports very different lives (a Tokyo schoolgirl and a Silicon Valley CEO share the same map and lorebook).
+- [ ] **Official world lore stays broad**: countries, regions, major institutions, big factions, the era's defining events. Not every slice of life.
+- [ ] **Topic tags** on entries (`school`, `business`, `crime`, `military`, `nightlife`, …). The engine prefers entries matching the player character's role and tags and the scene, not just their location, so two players in the same city pull different lore. Scene keywords still bring in other topics when they come up.
+- [ ] **Fallback chain**: city → region → country → world. A place with no entries falls back to broader ones, so the narrator always has something grounded. Needs regions to know their parent: part of the region tree (task R-1).
+- [ ] **Generated local lore**: generated starts write a handful of local entries for the start (the school, the neighbourhood, the club) and save them with the start, so details stay consistent instead of being reinvented each turn.
+- [ ] **Add-on lore packs**: creator-made packs that plug into an existing world ("Tokyo school life", "Silicon Valley startups"), layered over the base lorebook. A smaller, easier way for modders to contribute than whole worlds. (Builds on lore packets, task 5-4.)
+- **What entries should focus on** (guidance for the research helper and creators): what a small model gets wrong or vague; era-specific facts it might mix up; the world's deviations from reality (fictional companies, altered events), which must be in lore or the model defaults to reality; and consistency anchors the story will lean on. Short, high-signal entries. The lorebook moves knowledge out of the model and into data, which is what lets a small local model hold its own; large models still benefit for deviations and consistency.
+
+**Real people** (decided 2026-10-22; the guard is in Content settings).
+- [ ] **Public figures live in the lorebook, not the cast.** They make the world feel real ("the Prime Minister announced tariffs") but don't enter scenes unless the player seeks them out. This applies to all lore characters, real or fictional: **promoted only by player action**.
+- [ ] **World flag**: worlds marked as historical fiction (every official real-world map) treat every lore entry about a person as a **real person** by default. A creator marks an invented figure in a real-world map with `fictional: true`.
+- [ ] **Lore vs story**: "real" is a property of lore only. The story's own cast (generated classmates, coworkers, the barista) is fictional by definition and never carries the flag. A lore person promoted into the story keeps a `loreRef`, and the engine reads real-person status through it.
+- Background: fiction about real public figures has real protections (especially clearly fictional or satirical work), but defamation still applies to plausible factual claims; the risk is with living people more than long-dead ones; sexual depictions of real people are restricted by law in many places and banned by most model providers; and an AI game improvises where a novelist chooses every line.
+- **Fictional worlds**: fictional characters (Han Solo) aren't real people, so no real-person rules apply; the only issue there is copyright, which the mod policy covers. "I want to hang out with Han Solo" promotes him; "did you know Han Solo made the Kessel Run…" is lore.
+
 ## Phase 6: Creator suite
 
 Everything a creator needs to build a world without touching JSON.
@@ -190,7 +206,35 @@ Everything a creator needs to build a world without touching JSON.
 - [ ] Two new original scenarios in very different genres, such as a resistance cell in an occupied city and a high-school slice-of-life. At least one uses a map image with regions, and one uses generated starts.
 - [ ] Fix whatever turns out to be survival-specific. Add a test named after each fix.
 - [ ] More layout styles (`office floor`, `club`, `compound`, `sewer`, …) for `js/layouts.js`, added when a new world's generated sites need them (from phase 3).
+- [ ] **Official real-world worlds** (decided 2026-10-22): "pick a place and live in it" worlds, such as the modern world and WWII, sharing the topographic base map (task 4-5).
+  - Geography from Natural Earth (public domain; done in 4-5). Historical border datasets exist, but licenses vary (some noncommercial, share-alike or GPL): check each against a possible paid build, or draw borders by hand.
+  - **Modern world**: real places, fictional people. Living politicians, celebrities and business owners stay as lore (Phase 5 › Real people); real companies get fictional stand-ins in the story.
+  - **WWII**: historical figures as distant presences (a radio broadcast, orders from above) rather than playable characters by default. If ever sold in Germany, check the rules on Nazi symbols in games (allowed in artistic works with an age rating, but needs care).
+  - Scale: hundreds of regions, rich detail in popular areas and broad strokes elsewhere, growing over time (the region tree, task R-1; real places as a tree, R-9).
+  - **Eras are separate worlds** sharing the base map, not one map that shifts across centuries (versioning every region's borders, rulers, groups and lore per period is too much authoring and too confusing for an 8K model). Within an era, the world still changes in play through region control, tags and the canon timeline. The Oct 22 notes' zone-and-era-layer format and faction presence were replaced by the region rework (tree, routes, maps on any region, `presence` in R-5).
 - [ ] More room kinds for the detailed map (3-7), added with the new settings (worlds) that need them: sci-fi (engine room or reactor, cryo, hangar; "cargo"/"hold" as warehouse) and medieval (great hall, chapel, forge, stable, throne room, courtyard). Break ties with the world's genre tags first ("hall", "bridge", "keep" mean different rooms in different genres), with tests that pin those words per genre.
+
+## Region rework (Phase 3 follow-up)
+
+Regions become a free-form tree with routes, and maps attach to any region, so one engine handles France 1942 (the world broad, France split into zones), a Japanese school story (Japan down to wards) and a galaxy of planets. Three concepts, and creators only meet the ones they use: **regions** (where the story can be), **routes** (how people travel) and **maps** (optional pictures). Every new field is optional: a flat list of regions stays a complete world. The model only sees the player's chain, what's near and a static outline, so depth costs nothing per turn. Source: the 2026-10-23 region update (task files R-0 to R-9). It replaces the Oct 22 update's eras and faction-presence sections; that update's other sections are in Phase 5 (lore scope, real people), Phase 7 (official real-world worlds), Content settings, Before publishing and Revenue.
+
+- [ ] **Open worlds** (R-0, goes first): a world with only a title and a setting plays (no starts, characters, skills or regions); "Make my own" by default; defaults for every `generatedStarts` field; a world start date. The minimum-world test guards everything after it.
+- [ ] **The region tree** (R-1): `parent`, `label` and per-depth labels; chain and nearby helpers; control at any level; prompts carry the player's chain, nearby regions and a static outline; lore falls back up the chain; migration from flat lists.
+- [ ] **Routes** (R-2): kinds, times and `requires` (the timeline's precondition grammar), `risky` crossings as rolls; `neighbours` become border routes; long trips run as skips; multi-leg travel.
+- [ ] **Maps on any region and one zooming map** (R-3): a breadcrumb through the tree, node maps where there's no picture, travel buttons with kind and time.
+- [ ] **Creator** (R-4): a tree view, route kinds, "attach a map", templates (one country, one city, planets), WORLDS.md rewritten in three steps.
+- [ ] **Presence and unknown regions** (R-5): several groups per region, contested ground; `known: false` branches revealed by the story.
+- [ ] **Generated regions** (R-6): `new_region` like `new_place`, one level up, fading like sites.
+- [ ] **Start anywhere** (R-7): pick a start in a big tree by search or zoom, or "Surprise me"; `startable` on branches.
+- [ ] **Map focus by genre and stakes** (R-8): tactical local maps for tense stories, the city as the lived space for everyday ones; flavour sites in one call that turn tactical when danger arrives.
+- [ ] **Real places as a tree** (R-9): the base map tool writes countries, provinces and cities with routes.
+
+## Story tables (quality of life)
+
+Small models drift to the most likely beat. Genre-aware random tables fix that: **the engine rolls, the model interprets**, with no extra calls. Source: the 2026-10-23 story tables update (tasks T-1, T-2).
+
+- [ ] **Tables, rolls and uses** (T-1): tables as data (weights, guides, danger, needs), layered defaults → genre → world → start, merged by id; seeded, recorded, no quick repeats; focus weighted by tension. Used for generated starts (mood, plot, theme, conflict, roles, rerollable in the review), events, off-screen beats and major skips, never for the player's own turns. Default entries written in Ensemble's own words.
+- [ ] **Creator Tables tab and table mods** (T-2): edit and test-roll tables; a `tables/` folder as a shareable mod type.
 
 ## Content settings
 
@@ -202,6 +246,7 @@ No phase dependency (it builds on the genre guidance blocks from phase 1); must 
 - [ ] **Mature content is opt-in**, off by default.
 - [ ] **Character age**: an `age` (or `adult: true`) on characters, required by validation once a world allows mature content.
 - [ ] **Hard rule in every mode, including bring-your-own API and local models**: when mature content is on and any character in the scene is under 18 or has no age set, the engine forces fade-to-black guidance and drops romantic or sexual intents involving them. A test pins it. Local roleplay models often have no guardrails, and the engine is the only layer that knows who's in the scene, so this lives in the engine.
+- [ ] **Real-person guard, in every mode** (like the minors rule; Phase 5 › Real people): a real person, or a story character promoted from one (`loreRef`), is never in mature content, and the narrator gets guidance to treat them as fiction and not invent scandalous claims presented as fact. Meeting them, arguing with them or working for them stays open. A test pins it.
 - **Hosted service only (Side B, later):** moderation on both input and output; only route to model providers whose terms allow adult fiction; real age assurance where required (UK and several US states); a payment processor that allows adult content.
 
 ## Voiced narration
@@ -219,7 +264,7 @@ No phase dependency beyond mood tags (phase 1, done). Reuses StreamTTS pieces.
 
 ## Later
 
-- **Director**: tension tracking that nudges events up or down to keep pacing interesting.
+- **Director**: tension tracking that nudges events up or down to keep pacing interesting. It can build on story tables (T-1) by adjusting their weights.
 - **Streaming narration**: show the scene as it's written. It doesn't depend on any phase, so it can go in whenever there's a gap.
 - **Arc memory** for long campaigns: summarize every ~5 chapters into an arc, keep weight-3 facts verbatim, and give each character a running "history with you" line.
 - **Save slots and autosave**, and an in-game **journal** (what you know, by person, and the chapters).
@@ -249,7 +294,9 @@ No phase dependency beyond mood tags (phase 1, done). Reuses StreamTTS pieces.
 - [ ] Check the name "Ensemble" for conflicts.
 - [ ] Short privacy note: everything stays in the browser; API calls go directly to the provider the player chose.
 - [ ] **Hosting**: turn on GitHub Pages for the repo so the game has a link for phones and friends.
-- [ ] `CREDITS.md` for any bundled portrait or icon sets, with their licenses.
+- [ ] `CREDITS.md` for any bundled portrait or icon sets, with their licenses (and Natural Earth, for the base map, though no credit is required).
+- [ ] **Promoted fictional lore characters need an age.** A character who is a minor in their lore is still a minor in the story, so lore characters promoted into the cast must carry an `age` (or `adult`), and the minors guard applies to them like anyone else.
+- [ ] **Actors and real people behind fictional characters.** A fictional character is fine, but a portrait or voice imitating the actor who played them (or any real person) falls under the real-person rules: not in bundled content, not in official spaces without permission, and hosted narration uses catalog voices only.
 - [ ] Before selling anything: a short EULA for the paid build, and a quick legal review of the license setup.
 
 ## Revenue (low-key, optional)
@@ -258,6 +305,7 @@ A long-term possibility, not a plan of record.
 
 - **Side A (now):** the public GitHub project. Free, open (PolyForm Noncommercial), set it up however you like. Ko-fi or donations; possibly a paid one-click desktop build (KoboldCpp and a model bundled) later.
 - **Side B (much later, only if Side A shows real demand):** a separate site focused on convenience. A subscription for an out-of-the-box setup, a community hub for user-made maps, worlds and characters, a curated voice catalog for narration, and hosted tokens with a small free daily allowance as a loss leader (free tier on a cheaper model; paid tiers get the stronger narrator).
+- **Hosting community mods on a Side B hub** (decided 2026-10-22; details in `MODDING.md`): like Bethesda's Creations. Free community uploads, including fan works, with the uploader responsible; paid or featured content must be original or licensed. Uploader terms (rights confirmed, responsibility accepted), a registered DMCA agent, a published takedown and counter-notice process, a repeat-offender policy, prompt takedowns. **Franchise content is never charged for, bundled, featured or put behind the paywall** (safe harbor weakens when a platform profits directly from infringing material it controls; the subscription pays for the service, not someone else's franchise). Original content gets the spotlight. **The owner's own fan mods stay off the company's platform** (an LLC doesn't shield your own acts, and the owner uploading makes it the company's content): post them elsewhere under a personal handle, not promoted through company channels. Personal franchise worlds for your own play are fine. On Side A, GitHub and Discord handle takedowns for content shared there.
 - Side B is a different kind of project: inference and TTS costs, accounts, billing, moderation, age assurance, privacy (GDPR), and hosting user uploads with a takedown process and a registered DMCA agent. Form an LLC and get a legal review of the terms before launching it.
 - **Order:** Side A with real players → community on existing platforms (Discord, itch.io/GitHub) → paid desktop build → Side B.
 - **A lighter Side B to consider:** a subscription for the polished app, the hub, cloud saves and premium content, with play on the user's own GPU or key and hosted tokens as an optional add-on.
