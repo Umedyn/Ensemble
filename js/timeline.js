@@ -31,7 +31,9 @@
   TL.config = (sc) => (sc.projectTimeline === false ? null : Object.assign({}, TL.PROJECT, isObj(sc.projectTimeline) ? sc.projectTimeline : {}));
 
   // Every event: the scenario's canon, then the ones projected in play.
-  TL.all = (state) => (Array.isArray(state.scenario.timeline) ? state.scenario.timeline.filter(isObj) : []).concat(state.timeline || []);
+  // Drafts ("draft": true, from the research helper) wait for review in the
+  // creator and never happen.
+  TL.all = (state) => (Array.isArray(state.scenario.timeline) ? state.scenario.timeline.filter((ev) => isObj(ev) && ev.draft !== true) : []).concat(state.timeline || []);
   const byTime = (a, b) => TL.at(a.when) - TL.at(b.when);
   // Not yet happened, dropped or seeded as the past; soonest first.
   TL.pending = (state) => TL.all(state).filter((ev) => !(state.canon || {})[ev.id]).sort(byTime);
@@ -294,6 +296,7 @@
       req(typeof ev.text === 'string' && ev.text.trim() && ev.text.length <= TL.TEXT_MAX, `"text" must be text of at most ${TL.TEXT_MAX} characters`);
       req(ev.visibility == null || TL.VISIBILITY.includes(ev.visibility), '"visibility" must be seen, heard or hidden');
       req(ev.onBroken == null || TL.ON_BROKEN.includes(ev.onBroken), '"onBroken" must be drop or diverge');
+      req(ev.draft == null || typeof ev.draft === 'boolean', '"draft" must be true or false');
       if (ev.scope === 'regional' && refs.regions && refs.regions.size) req(typeof ev.region === 'string', 'a regional event needs a "region"');
       if (ev.region != null && refs.regions) req(refs.regions.has(ev.region), `unknown region "${ev.region}"`);
       req(ev.who == null || (Array.isArray(ev.who) && ev.who.every((id) => !refs.characters || refs.characters.has(id))), '"who" must be a list of character ids');

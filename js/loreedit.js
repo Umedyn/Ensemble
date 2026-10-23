@@ -255,6 +255,26 @@
     if (Object.keys(cfg).length) w.projectTimeline = cfg; else delete w.projectTimeline;
   };
 
+  // ---------- drafts (from the research helper or an imported packet) ----------
+  // A draft is validated but unused until accepted: accepting drops the flag.
+  LE.drafts = (files) => ({
+    lore: LE.loreItems(files).filter((x) => x.entry.draft === true).map((x) => x.entry.id),
+    events: LE.events(files).filter((x) => x.ev.draft === true).map((x) => x.ev.id),
+  });
+  LE.accept = function (files, kind, id) {
+    const it = kind === 'event' ? LE.findEvent(files, id) : LE.findLore(files, id);
+    const obj = it && (kind === 'event' ? it.ev : it.entry);
+    if (!obj || obj.draft !== true) return false;
+    delete obj.draft;
+    return true;
+  };
+  // Accepts every draft of a kind ('lore' or 'event'); returns how many.
+  LE.acceptAll = function (files, kind) {
+    const ids = LE.drafts(files)[kind === 'event' ? 'events' : 'lore'];
+    ids.forEach((id) => LE.accept(files, kind === 'event' ? 'event' : 'lore', id));
+    return ids.length;
+  };
+
   // ---------- links to the map ----------
   // How much lore and timeline mention a region, for the map tab's form.
   // True when an event happens in a region or has a condition about who holds it.

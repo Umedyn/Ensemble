@@ -508,15 +508,23 @@
     return `<div class="c-split">
       <div class="c-scroll-col">
         <p class="muted small">Lore is public knowledge: the narrator may use any of it. Secrets go in a character's secret, and things that haven't happened yet go in the timeline. Each turn the game includes the entries for the player's room, region and the people there, plus any whose keywords the player or the last scene uses, best first within about a tenth of the context.</p>
+        <div id="cLoreDrafts"></div>
         <div id="cLoreList" class="c-groups"></div>
         <section class="c-test"><h3>Test the selection</h3>${loreTestForm()}<div id="cLoreTest" aria-live="polite"></div></section>
       </div>
       <aside class="c-panel" id="cLoreForm">${loreForm()}</aside>
     </div>`;
   }
+  // Drafts from the research helper or an imported packet wait for review.
+  function draftsBar(id, n, what, button) {
+    const d = $(id);
+    if (d) d.innerHTML = n ? `<div class="c-draft-note"><b>${n} draft ${what}</b> from the research helper or an imported packet. The game uses none of them until you accept them: read each one first. <button type="button" id="${button}" class="small">Accept all</button></div>` : '';
+  }
   function renderLoreList() {
     const el = $('cLoreList');
     if (!el) return;
+    const nd = LE.drafts(cw.files).lore.length;
+    draftsBar('cLoreDrafts', nd, nd === 1 ? 'entry' : 'entries', 'cAcceptAllLore');
     el.innerHTML = LE.loreGroups(cw.files).map((g) => {
       const key = `${g.level}|${g.ref || ''}`;
       const focus = lui.focus && g.level === 'region' && g.ref === lui.focus;
@@ -525,7 +533,7 @@
       return `<section class="c-group${focus ? ' focus' : ''}" data-group="${esc(key)}">
         <h4>${esc(g.label)} <span class="muted small">${esc(LEVEL_LABEL[g.level] || g.level)}</span> ${g.level === 'region' ? regionChip(g.ref) : ''}
           <button type="button" class="small" data-loreadd="${esc(key)}" aria-label="Add an entry to ${esc(g.label)}">+ entry</button></h4>
-        ${g.items.map((it) => { const e = it.entry; return `<button type="button" class="c-item" data-loresel="${esc(e.id)}" aria-pressed="${e.id === lui.sel}">${esc(e.title || e.id)}${e.alwaysOn ? ' <span class="muted small">always on</span>' : ''}${e.priority && e.priority !== 3 ? ` <span class="muted small">priority ${e.priority}</span>` : ''}${it.file !== 'world.json' ? ` <span class="muted small">${esc(it.file)}</span>` : ''}</button>`; }).join('') || '<div class="muted small">No entries.</div>'}
+        ${g.items.map((it) => { const e = it.entry; return `<button type="button" class="c-item" data-loresel="${esc(e.id)}" aria-pressed="${e.id === lui.sel}">${esc(e.title || e.id)}${e.alwaysOn ? ' <span class="muted small">always on</span>' : ''}${e.priority && e.priority !== 3 ? ` <span class="muted small">priority ${e.priority}</span>` : ''}${it.file !== 'world.json' ? ` <span class="muted small">${esc(it.file)}</span>` : ''}${e.draft ? ' <span class="badge-draft">draft</span>' : ''}</button>`; }).join('') || '<div class="muted small">No entries.</div>'}
       </section>`;
     }).join('') + `<p class="small"><button type="button" class="small" data-loreadd="location|">+ entry about a room</button> <button type="button" class="small" data-loreadd="character|">+ entry about a person</button></p>`;
     const f = el.querySelector('.c-group.focus');
@@ -539,6 +547,7 @@
     const refList = { region: refs.regions, location: refs.rooms, character: refs.characters }[e.level];
     const words = String(e.text || '').trim().split(/\s+/).filter(Boolean).length;
     return `<h3>${esc(e.title || e.id)} <span class="muted small">(${esc(e.id)})</span></h3>
+      ${e.draft ? `<div class="c-draft-note">Draft: the game doesn't use it yet. Check it is in your own words, public, and right for this world. <button type="button" id="cAcceptLore" class="small">Accept</button></div>` : ''}
       <div id="cLoreProblems"></div>
       <label>Title <input data-lf="title" value="${esc(e.title || '')}" maxlength="${E.Lore.LIMITS.title}"></label>
       <label>About <select data-lf="level">${E.Lore.LEVELS.map((l) => `<option value="${l}"${e.level === l ? ' selected' : ''}>${LEVEL_LABEL[l]}</option>`).join('')}</select></label>
@@ -589,11 +598,13 @@
     }
     const sel = t.closest('[data-loresel]');
     if (sel) { lui.sel = sel.dataset.loresel; lui.confirm = false; return render(); }
+    if (t.id === 'cAcceptAllLore') { LE.acceptAll(cw.files, 'lore'); return changed(); }
     const it = lui.sel && LE.findLore(cw.files, lui.sel);
     if (!it) return;
     const e = it.entry;
     const kw = t.closest('[data-kwdel]');
     if (kw) { e.keywords.splice(Number(kw.dataset.kwdel), 1); return changed(); }
+    if (t.id === 'cAcceptLore') { LE.accept(cw.files, 'lore', lui.sel); return changed(); }
     if (t.id === 'cSrcAdd') { e.sources = (e.sources || []).concat([{ title: '', url: '' }]); return changed(); }
     const sd = t.closest('[data-srcdel]');
     if (sd) { e.sources.splice(Number(sd.dataset.srcdel), 1); if (!e.sources.length) delete e.sources; return changed(); }
@@ -670,6 +681,7 @@
           <label class="c-check"><input type="checkbox" id="cProjOn"${cfg ? ' checked' : ''}> Let the model plan likely events for the next few days (an exam, a holiday, a delivery), so the story keeps its pace</label>
           ${cfg ? `<label class="c-inline">Days ahead <input type="number" id="cProjDays" min="1" max="14" value="${cfg.days}"></label> <label class="c-inline">At most <input type="number" id="cProjMax" min="1" max="5" value="${cfg.max}"> at a time</label>` : ''}
         </fieldset>
+        <div id="cEventDrafts"></div>
         <div id="cEventList"></div>
       </div>
       <aside class="c-panel" id="cEventForm">${eventForm()}</aside>
@@ -678,6 +690,8 @@
   function renderEventList() {
     const el = $('cEventList');
     if (!el) return;
+    const nd = LE.drafts(cw.files).events.length;
+    draftsBar('cEventDrafts', nd, nd === 1 ? 'event' : 'events', 'cAcceptAllEvents');
     const sc = world();
     const { past, future } = LE.splitEvents(cw.files, tui.startId);
     const row = (x) => {
@@ -685,7 +699,7 @@
       const when = e.when && Number.isFinite(e.when.day) ? E.Timeline.fmt(sc, e.when) : '(no date)';
       const focus = tui.focus && LE.eventMentions(e, tui.focus);
       return `<button type="button" class="c-item c-event${focus ? ' focus' : ''}" data-evsel="${esc(e.id)}" aria-pressed="${e.id === tui.sel}"><span class="when">${esc(when)}</span> ${esc(E.shorten(e.text || e.id, 110))}
-        <span class="muted small">${esc(e.scope || '?')}${e.region ? ` · ${esc(regionName(e.region))}` : ''}${(e.preconditions || []).length ? ` · ${e.preconditions.length} condition${e.preconditions.length === 1 ? '' : 's'}` : ''}${e.onBroken === 'diverge' ? ' · diverges' : ''}${e.visibility === 'hidden' ? ' · hidden' : ''}${x.file !== 'world.json' ? ` · ${esc(x.file)}` : ''}</span></button>`;
+        <span class="muted small">${esc(e.scope || '?')}${e.region ? ` · ${esc(regionName(e.region))}` : ''}${(e.preconditions || []).length ? ` · ${e.preconditions.length} condition${e.preconditions.length === 1 ? '' : 's'}` : ''}${e.onBroken === 'diverge' ? ' · diverges' : ''}${e.visibility === 'hidden' ? ' · hidden' : ''}${x.file !== 'world.json' ? ` · ${esc(x.file)}` : ''}${e.draft ? ' <span class="badge-draft">draft</span>' : ''}</span></button>`;
     };
     el.innerHTML = `<section class="c-group"><h4>Before the start <span class="muted small">the past</span></h4>${past.map(row).join('') || '<div class="muted small">No past events.</div>'}</section>
       <section class="c-group"><h4>From the start on <span class="muted small">the future</span></h4>${future.map(row).join('') || '<div class="muted small">No future events.</div>'}</section>`;
@@ -718,6 +732,7 @@
     const isPast = Number.isFinite(w.day) && Number.isFinite(w.hour) && E.Timeline.at(w) < LE.startHours(cw.files, tui.startId);
     const effectsText = e.effects == null ? '' : JSON.stringify(e.effects, null, 2);
     return `<h3>${esc(e.id)} ${isPast ? '<span class="muted small">(before the start)</span>' : ''}</h3>
+      ${e.draft ? `<div class="c-draft-note">Draft: it won't happen until you accept it. Check the date, the place and the wording. <button type="button" id="cAcceptEvent" class="small">Accept</button></div>` : ''}
       <div id="cEventProblems"></div>
       <label>Id <input data-ef="id" value="${esc(e.id)}" aria-describedby="cEvIdNote"></label><div class="muted small" id="cEvIdNote">Conditions that point at this event follow a rename.</div>
       <div class="c-row2"><label>${esc(world().timeLabel || 'Day')} <input type="number" data-ef="day" min="0" value="${esc(w.day ?? '')}"></label><label>Hour <input type="number" data-ef="hour" min="0" max="23" value="${esc(w.hour ?? '')}"></label></div>
@@ -744,11 +759,13 @@
   $('cMain').addEventListener('click', (ev) => {
     if (!cw || ui.tab !== 'timeline') return;
     const t = ev.target;
+    if (t.id === 'cAcceptAllEvents') { LE.acceptAll(cw.files, 'event'); return changed(); }
     if (t.id === 'cAddEvent') { tui.sel = LE.addEvent(cw.files, tui.startId); tui.confirm = false; tui.effectsError = ''; return changed(); }
     const sel = t.closest('[data-evsel]');
     if (sel) { tui.sel = sel.dataset.evsel; tui.confirm = false; tui.effectsError = ''; return render(); }
     const e = currentEvent();
     if (!e) return;
+    if (t.id === 'cAcceptEvent') { LE.accept(cw.files, 'event', tui.sel); return changed(); }
     if (t.id === 'cAddPre') { e.preconditions = (e.preconditions || []).concat([LE.preOf(LE.newRow('alive', LE.refs(cw.files)))]); return changed(); }
     const del = t.closest('[data-predel]');
     if (del) { e.preconditions.splice(Number(del.dataset.predel), 1); if (!e.preconditions.length) delete e.preconditions; return changed(); }

@@ -62,8 +62,21 @@ function promptsFor(folder) {
   out.narrateSkip = P.narrateSkip(state, 'Keep busy.', skipFrame, [{ after: '1d', text: 'Days pass.' }],
     npcs.filter((id) => id !== npcs[2]).map((id) => ({ id, doing: 'resting' })), skipRes, present);
   out.chapter = P.chapter(state);
-  Object.assign(out, genPrompts(E, folder), sitePrompts(E, state));
+  Object.assign(out, genPrompts(E, folder), sitePrompts(E, state), researchPrompts(E, folder));
   return out;
+}
+
+// The research helper (ROADMAP Phase 5, tools/research.mjs): one chunk of a
+// source for the first region, and the "what do you know" question.
+function researchPrompts(E, folder) {
+  const loaded = readWorld(folder, E);
+  const job = E.Research.newJob(loaded, { asOf: 'the start of the story', calendar: { date: '2026-03-14' } });
+  const ctx = E.Research.context(loaded, job);
+  const topic = job.topics.find((t) => t.level === 'region') || job.topics[0];
+  return {
+    research: ctx.header + '\n\n' + E.Prompts.research(ctx, topic, { title: 'A page', url: 'https://example.org/page' }, 'Some source text about the place.', 0, 2),
+    researchKnown: E.Prompts.researchKnown(ctx, topic),
+  };
 }
 
 // Generated starts (task 4-2): every step's prompt, each step filled from the

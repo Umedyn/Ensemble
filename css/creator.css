@@ -88,3 +88,6 @@ button.danger { color: var(--bad); }
   .c-split { grid-template-columns: minmax(0, 1fr); height: auto; }
   .c-scroll-col { overflow: visible; }
 }
+/* Drafts from the research helper (Phase 5) */
+.badge-draft { font-size: 0.6875rem; padding: 0 6px; border: 1px dashed var(--accent); border-radius: 999px; color: var(--accent); }
+.c-draft-note { border: 1px dashed var(--accent); border-radius: 6px; padding: 6px 10px; margin: 6px 0 10px; font-size: 0.8125rem; }

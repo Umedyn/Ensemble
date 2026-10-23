@@ -230,6 +230,7 @@ Task 5-1. A lore entry is public world knowledge, chosen per turn so a big world
 | `priority` | 1–5 (default 3); higher wins when the budget is tight |
 | `alwaysOn` | `world` entries only: always in the prompt header (keep these few and short) |
 | `sources` | optional `[{title, url}]`; for the creator, never sent to the model |
+| `draft` | `true` while the entry waits for review (from the research helper or an imported packet): validated, but the game ignores it until it is accepted in the creator |
 
 **Lore is public.** It reaches the narrator, which never sees secrets, so anything secret belongs in a character's `secret` or in private facts, and anything that hasn't happened yet as of the start belongs in the canon timeline, never in lore. Validation enforces the first part: an entry that shares 4 or more content words with someone's secret is an error.
 
@@ -257,6 +258,7 @@ Task 5-2. Events that happen at a set time whatever the player does, unless the 
 | `effects` | as for events: `world`, `groups`, `clocks`, `new_clock`, `control`, `add_tag`, `remove_tag`, `region_status`; checked when it happens |
 | `preconditions` | all must hold when it comes due: `{"alive": id}`, `{"controls": {"group": id or null, "region": id}}`, `{"clock": id, "atLeast": n}` (or fired), `{"world": key, "is": "value"}`, `{"known": "event id"}` or `{"known": {"words": [...]}}` with optional `"by": id` (default the player), `{"not": {...}}` |
 | `onBroken` | `drop` (default: it doesn't happen) or `diverge` (the model writes what happens instead) |
+| `draft` | `true` while the event waits for review (from the research helper): validated, but it never happens until accepted in the creator |
 
 **The past** becomes public facts and a "Before the story" chapter at New game; hidden past events become private facts for `who`. Past events don't use `effects`, `preconditions` or `onBroken` (a warning): write the world as it is at the start. **The future** never reaches a prompt before it is due, so lore and descriptions must not mention it either. A public event that shares 4+ content words with someone's secret is an error, as for lore.
 

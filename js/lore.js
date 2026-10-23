@@ -21,7 +21,9 @@
   L.collector = null;
 
   const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
-  L.entries = (sc) => (sc && Array.isArray(sc.lore) ? sc.lore.filter(isObj) : []);
+  // Drafts (from the research helper or a packet, "draft": true) wait for
+  // review in the creator and never reach a prompt.
+  L.entries = (sc) => (sc && Array.isArray(sc.lore) ? sc.lore.filter((e) => isObj(e) && e.draft !== true) : []);
   L.always = (sc) => L.entries(sc).filter((e) => e.alwaysOn === true);
   L.line = (e) => `- ${e.title}: ${e.text}`;
 
@@ -136,6 +138,7 @@
         `"keywords" must be a list of at most ${lim.keywords} words or phrases (${lim.keyword} characters each)`);
       req(e.priority == null || (Number.isInteger(e.priority) && e.priority >= 1 && e.priority <= 5), '"priority" must be a whole number from 1 to 5');
       req(e.alwaysOn == null || typeof e.alwaysOn === 'boolean', '"alwaysOn" must be true or false');
+      req(e.draft == null || typeof e.draft === 'boolean', '"draft" must be true or false');
       req(e.alwaysOn !== true || e.level === 'world', '"alwaysOn" is for world entries only');
       req(e.sources == null || (Array.isArray(e.sources) && e.sources.every((s) => isObj(s) && typeof s.title === 'string' && s.title.trim() && typeof s.url === 'string' && /^https?:\/\//.test(s.url))),
         '"sources" must be a list of {title, url}');
