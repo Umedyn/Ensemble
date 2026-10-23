@@ -83,7 +83,7 @@
 
   // Saves and autosaves from older versions are upgraded one step at a time
   // when loaded. Each step takes a state at version n and returns n + 1.
-  Eng.STATE_VERSION = 13;
+  Eng.STATE_VERSION = 14;
   Eng.migrations = {
     // Worlds and starts (docs/WORLDS.md): the scenario records where it came from.
     1: (state) => {
@@ -196,6 +196,16 @@
       state.version = 13;
       return state;
     },
+    // Routes (R-2): neighbours become border routes in the saved scenario,
+    // and a generated site's room-to-room link is a "trip", not a "route".
+    13: (state) => {
+      [state, state.pending && state.pending.pre].filter(Boolean).forEach((s) => {
+        if (s.scenario) E.Scenario.deriveRoutes(s.scenario.regions);
+        Object.values(s.locations || {}).forEach((l) => (l.links || []).forEach((k) => { if (k.kind === 'route') k.kind = 'trip'; }));
+      });
+      state.version = 14;
+      return state;
+    },
   };
   Eng.migrate = function (state) {
     if (state.version == null) state.version = 1;
@@ -222,6 +232,92 @@
     if (!id || !Eng.regionDef(state, id) || !state.regions || !state.regions[id]) return [];
     return [id].concat(Eng.regionNear(state, id));
   };
+  // ---------- routes and trips (R-2) ----------
+  // Every way out of each region: its own routes, routes to it that aren't
+  // one-way, and a free border between siblings under a real parent when
+  // either has no routes at all (a creator who didn't model travel there).
+  // → Map(region id → [{ from, to, kind, hours, requires, risky, skill, failHarm, implicit }])
+  function routeEdges(sc) {
+    const S = E.Scenario;
+    const list = (sc.regions || []).filter((r) => r && r.id);
+    const out = new Map(list.map((r) => [r.id, []]));
+    list.forEach((r) => (r.routes || []).forEach((x) => {
+      if (!x || !out.has(x.to) || x.to === r.id) return;
+      const e = S.routeOf(sc, x);
+      out.get(r.id).push(Object.assign({}, e, { from: r.id }));
+      if (!e.oneWay) out.get(x.to).push(Object.assign({}, e, { from: x.to, to: r.id }));
+    }));
+    const bare = new Set(list.filter((r) => !out.get(r.id).length).map((r) => r.id));
+    list.filter((p) => S.regionChildrenIn(list, p.id).length > 1).forEach((p) => {
+      const kids = S.regionChildrenIn(list, p.id);
+      kids.forEach((a) => kids.forEach((b) => {
+        if (a === b || !(bare.has(a) || bare.has(b)) || out.get(a).some((e) => e.to === b)) return;
+        out.get(a).push({ from: a, to: b, kind: 'border', hours: 0, requires: null, risky: false, skill: null, failHarm: false, oneWay: false, implicit: true });
+      }));
+    });
+    return out;
+  }
+  const legOpen = (state, e) => !e.requires || E.Timeline.holds(state, e.requires);
+  const legWhy = (state, e) => `the ${e.kind} to ${(Eng.regionDef(state, e.to) || {}).name || e.to} needs ${E.Timeline.say(state, e.requires)}`;
+  // The routes out of a region as they are now, for the prompt: [{ to, kind,
+  // hours, closed (why, or null), risky }], explicit ones only.
+  Eng.routesFrom = (state, id) => (routeEdges(state.scenario).get(id) || []).filter((e) => !e.implicit)
+    .map((e) => ({ to: e.to, kind: e.kind, hours: e.hours, risky: e.risky, closed: legOpen(state, e) ? null : legWhy(state, e) }));
+  // The way from one region to another: { legs: [edge], hours } along the
+  // quickest open path, or { blocked: true, why, legs (the path if its
+  // closed legs were open, or null), risky (every closed leg is risky),
+  // closed (the first closed leg) }. Inside counts as there: a region and the
+  // regions it is inside cost nothing, a route on a region serves everything
+  // inside it, and arriving at a region reaches what's inside it. Regions
+  // both are inside don't count (Paris to Lyon is not free for being in France).
+  Eng.regionTrip = function (state, from, to) {
+    const S = E.Scenario;
+    const list = state.scenario.regions || [];
+    if (!from || !to || from === to) return { legs: [], hours: 0 };
+    const up = S.regionChainIn(list, from), down = S.regionChainIn(list, to);
+    if (up.includes(to) || down.includes(from)) return { legs: [], hours: 0 };
+    const starts = up.filter((id) => !down.includes(id));
+    const goals = new Set(down.filter((id) => !up.includes(id)));
+    const edges = routeEdges(state.scenario);
+    const search = (open) => {
+      const best = new Map(starts.map((id) => [id, { cost: 0, legs: [] }]));
+      const queue = starts.slice();
+      while (queue.length) {
+        queue.sort((a, b) => best.get(a).cost - best.get(b).cost);
+        const id = queue.shift();
+        const at = best.get(id);
+        if (goals.has(id)) return at;
+        (edges.get(id) || []).forEach((e) => {
+          if (!open(e)) return;
+          const cost = at.cost + e.hours + 1e-6; // fewer legs on a tie
+          const seen = best.get(e.to);
+          if (seen && seen.cost <= cost) return;
+          best.set(e.to, { cost, legs: at.legs.concat(e) });
+          if (!queue.includes(e.to)) queue.push(e.to);
+        });
+      }
+      return null;
+    };
+    const sum = (legs) => Math.round(legs.reduce((h, e) => h + e.hours, 0) * 100) / 100;
+    const found = search((e) => legOpen(state, e));
+    if (found) return { legs: found.legs, hours: sum(found.legs) };
+    const any = search(() => true);
+    if (!any) return { blocked: true, legs: null, why: `there is no way from ${(Eng.regionDef(state, from) || {}).name || from} to ${(Eng.regionDef(state, to) || {}).name || to}`, risky: false };
+    const closed = any.legs.filter((e) => !legOpen(state, e));
+    return { blocked: true, legs: any.legs, hours: sum(any.legs), closed: closed[0], why: legWhy(state, closed[0]), risky: closed.every((e) => e.risky) };
+  };
+  // The region trip a move between two rooms makes, or null (same region,
+  // or a world without regions).
+  Eng.tripBetween = function (state, fromRoom, toRoom) {
+    const a = Eng.regionOf(state, fromRoom), b = Eng.regionOf(state, toRoom);
+    if (!a || !b || a === b || !Eng.regionDef(state, a) || !Eng.regionDef(state, b)) return null;
+    return Eng.regionTrip(state, a, b);
+  };
+  // "by road to Ridge (45m), then by rail to Kessel (2h)"
+  // Free borders go unsaid ("by border to Highway junction" told nothing).
+  Eng.sayTrip = (state, trip) => (trip.legs || []).filter((e) => e.kind !== 'border' || e.hours).map(
+(e) => `by ${e.kind} to ${(Eng.regionDef(state, e.to) || {}).name || e.to}${e.hours ? ` (${E.Scenario.sayHours(e.hours)})` : ''}`).join(', then ') || 'a short way';
+
   // The player's region, its ancestors and what's near: where a regional
   // event may happen and which event ideas apply (a seed on France counts in Paris).
   Eng.regionsAround = (state) => {
@@ -395,7 +491,7 @@
     if (!dest) return 'unknown location';
     if (dest === g.location) return 'already there';
     if (!linked(state, g.location, dest)) return `${dest} is not linked to ${g.location}`;
-    if ((Eng.linkInfo(state, g.location, dest) || {}).kind === 'route') return 'groups stay in their own place';
+    if ((Eng.linkInfo(state, g.location, dest) || {}).kind === 'trip') return 'groups stay in their own place';
     if (!Eng.passable(state, g.location, dest, g.id)) return `the way to ${dest} is locked`;
     if (g.post && g.state !== 'hostile') return `holds its post in ${g.post}`;
     return null;
@@ -600,7 +696,7 @@
     const sc = state.scenario;
     // A generated site (task 4-4) is planned from its own rooms.
     const site = room ? E.Sites.siteOf(state, room) : E.Sites.HOME;
-    if (site !== E.Sites.HOME) return E.Layouts.plan(E.Sites.rooms(state, site).map((l) => Object.assign({}, l, { links: (l.links || []).filter((k) => k.kind !== 'route') })), { seed: `${sc.worldId}:${site}` });
+    if (site !== E.Sites.HOME) return E.Layouts.plan(E.Sites.rooms(state, site).map((l) => Object.assign({}, l, { links: (l.links || []).filter((k) => k.kind !== 'trip') })), { seed: `${sc.worldId}:${site}` });
     if (!planCache.has(sc)) planCache.set(sc, E.Layouts.plan(sc.locations || [], { type: sc.site && sc.site.type, seed: `${sc.worldId}:${sc.startId}` }));
     return planCache.get(sc);
   };
@@ -1355,7 +1451,9 @@
     return [...contentWords(text)].some((w) => secretWords.has(w));
   }
 
-  Eng.resolve = function (state, intentObj, present, actionText, stepId, due) {
+  // opts.crossingRoll: a risky crossing's roll already made by the journey
+  // check (R-2), so it isn't rolled twice.
+  Eng.resolve = function (state, intentObj, present, actionText, stepId, due, opts) {
     const outcomes = [];
     const res = { outcomes, events: [], guards: [] };
     const list = [cleanIntent(state, intentObj.player, state.player)];
@@ -1365,6 +1463,7 @@
     // anywhere, unless the action says so ("…then head to the garage") or names
     // someone who is at the destination.
     const p = list[0];
+    if (opts && opts.crossingRoll) Object.assign(p, { presetRoll: opts.crossingRoll.roll, needsRoll: true, skill: opts.crossingRoll.skill, difficulty: 'hard' });
     // Standees (task 3-2): who the player can deal with, and sneaking always rolls.
     res.engaged = Eng.engagedStandees(state, actionText).map((g) => g.id);
     const here0 = state.characters[state.player].status.location;
@@ -1389,6 +1488,23 @@
         const sk = state.scenario.skills;
         Object.assign(p, { needsRoll: true, skill: sk.includes('mechanics') ? 'mechanics' : sk.includes('technical') ? 'technical' : sk[0], difficulty: 'normal' });
         guard(res, 'resolve', 'roll required', `unlocking the way to ${state.locations[p.unlock] ? state.locations[p.unlock].name : p.unlock}`);
+      }
+    }
+    // Routes (R-2): a closed way between regions blocks the move with no
+    // model call; a risky one can be tried as a hard roll (a roll from the
+    // journey check, when there was one, counts). A trip longer than the
+    // step that the player didn't ask for is cancelled (rule 3).
+    if (p.moveTo && state.locations[p.moveTo]) {
+      p.trip = Eng.tripBetween(state, here0, p.moveTo);
+      const t = p.trip;
+      if (t && t.blocked && t.risky && !p.needsRoll) {
+        Object.assign(p, { needsRoll: true, skill: t.closed.skill, difficulty: 'hard' });
+        guard(res, 'resolve', 'roll required', `crossing: ${t.why}; the player tries anyway`);
+      }
+      if (t && !t.blocked && t.hours > E.stepHours(state, stepId).hours) {
+        guard(res, 'resolve', 'move cancelled', `a trip of ${E.Scenario.sayHours(t.hours)} to ${state.locations[p.moveTo].name} the player's words don't set out on`);
+        p.moveTo = null;
+        p.trip = null;
       }
     }
     if (!p.needsRoll && state.scenario.skills.includes('stealth') && Eng.sneakNeedsRoll(state, actionText)) {
@@ -1451,9 +1567,18 @@
           mod = dc.mod;
           if (dc.why.length) { o.dcWhy = dc.why.join('; '); guard(res, 'resolve', 'difficulty', o.dcWhy); }
         }
-        o.roll = Eng.roll(c, it.skill, it.difficulty, state.scenario, mod);
+        o.roll = it.presetRoll || Eng.roll(c, it.skill, it.difficulty, state.scenario, mod);
       }
       const failed = o.roll && /failure/.test(o.roll.result);
+      // A risky crossing that failed: turned back at it, and hurt if the route says so.
+      if (it.id === state.player && failed && it.trip && it.trip.blocked && it.trip.risky) {
+        guard(res, 'resolve', 'turned back', `${c.name}: ${it.trip.why}; the attempt failed`);
+        o.action += ` (but is turned back: ${it.trip.why})`;
+        if (it.trip.closed.failHarm) {
+          const h = Eng.harm(state, it.id, 'hurt', res, `crossing ${it.trip.closed.kind}`);
+          if (h && h.reject) guard(res, 'resolve', 'harm rejected', h.reject);
+        }
+      }
       if (it.id === state.player && failed && Eng.STEALTH_SKILLS.includes(it.skill)) {
         const seen = Eng.standeesNotice(state, it);
         if (seen.length) { res.standeeChanges = (res.standeeChanges || []).concat(seen); seen.forEach((l) => guard(res, 'resolve', 'noticed', l)); }
@@ -1480,8 +1605,13 @@
         guard(res, 'resolve', 'came along', `${c.name} goes with ${state.characters[state.player].name}`);
       }
       if (it.moveTo && it.moveTo !== c.status.location && !failed) {
-        // Movement follows links (task 3-6): no way through, no move.
-        const why = Eng.moveProblem(state, it.id, c.status.location, it.moveTo);
+        // Movement follows links (task 3-6): no way through, no move. Between
+        // regions it follows routes too (R-2).
+        const trip = it.id === state.player ? it.trip : Eng.tripBetween(state, c.status.location, it.moveTo);
+        const crossed = trip && trip.blocked && it.id === state.player && trip.risky && o.roll && !failed;
+        const why = Eng.moveProblem(state, it.id, c.status.location, it.moveTo)
+          || (trip && trip.blocked && !crossed ? trip.why : null)
+          || (trip && it.id !== state.player && trip.hours > E.stepHours(state, stepId).hours ? `${state.locations[it.moveTo].name} is ${E.Scenario.sayHours(trip.hours)} away` : null);
         if (why) {
           guard(res, 'resolve', 'move blocked', `${c.name} → ${it.moveTo}: ${why}`);
           o.action += ` (but ${why}, so ${it.id === state.player ? 'you stay' : 'they stay'} in ${state.locations[c.status.location].name})`;
@@ -1492,6 +1622,12 @@
           if (path.length > 2) o.via = path.slice(1, -1);
           c.status.location = it.moveTo;
           o.moved = it.moveTo;
+          if (crossed) guard(res, 'resolve', 'crossed', `${c.name}: ${trip.why}, and gets through anyway`);
+          // The way, for the narrator: legs that take time, or a crossing.
+          if (trip && trip.legs && (trip.hours > 0 || crossed)) {
+            o.trip = Eng.sayTrip(state, trip);
+            o.action += ` (the way: ${o.trip}${crossed ? `; gets past although ${trip.why}` : ''})`;
+          }
         }
       }
       outcomes.push(o);
@@ -2370,12 +2506,23 @@
   // has been dropped, the paragraph that opens its beat (a time marker) stays:
   // dropping both lost the whole live scene that ends a skip
   // (playtest-agenda-skips).
-  Eng.trimPlayerEnding = function (prose) {
+  // names: the people in the story, so a paragraph that hands over to one of
+  // them is not the player's (without names, only "he" or "she" count).
+  Eng.trimPlayerEnding = function (prose, names) {
     const paras = String(prose || '').split(/\n\s*\n/);
     let dropped = 0;
     // Also the player's own quoted line ("Just looking," you say…;
     // playtest-office-window).
-    const mine = (p) => /^\s*(\[[^\]]*\]\s*)?(you|your)\b/i.test(p) || /^\s*(\[[^\]]*\]\s*)?["“][^"”]*["”],?\s*you\s+(?:say|said|ask|asked|reply|replied|tell|told|answer|answered|add|added|murmur|mutter|whisper|call|shrug)\b/i.test(p);
+    // But not a paragraph that opens on the player and hands over to someone
+    // else ("You turn to go, but Dex hesitates. "Wait…""; playtest-r2-drive-to-ridge:
+    // trimming it lost the hook the scene ended on).
+    const who = ['he', 'she', 'He', 'She'].concat((names || []).filter((n) => /^[A-Z][\w'-]+$/.test(n)));
+    const turn = new RegExp(`(?:[.!?]["”]?\\s+|,\\s*(?:but|and|while|as|when|until|then)\\s+)(?:${who.join('|')})\\s+[a-z]+(?:s|ed)\\b`, 'g');
+    const handsOver = (p) => {
+      const at = [...p.matchAll(turn)].pop();
+      return !!at && !/[.!?]["”]?\s+(?:You|Your)\b/.test(p.slice(at.index + at[0].length));
+    };
+    const mine = (p) => (/^\s*(\[[^\]]*\]\s*)?(you|your)\b/i.test(p) && !handsOver(p)) || /^\s*(\[[^\]]*\]\s*)?["“][^"”]*["”],?\s*you\s+(?:say|said|ask|asked|reply|replied|tell|told|answer|answered|add|added|murmur|mutter|whisper|call|shrug)\b/i.test(p);
     while (paras.length > 1 && dropped < 2 && mine(paras[paras.length - 1])) {
       if (dropped && /^\s*\[\s*\+/.test(paras[paras.length - 1])) break;
       paras.pop();
@@ -2383,6 +2530,11 @@
     }
     return paras.join('\n\n').trim();
   };
+
+  // Every word of the names of the people besides the player ("Dex",
+  // "Coleman", "Mrs.", "Albee"), for spotting someone else taking a turn.
+  Eng.peopleWords = (state) => [...new Set(Object.values(state.characters).filter((c) => c.id !== state.player).map((c) => c.name)
+    .concat(Object.values(state.extras || {}).map((x) => x.name)).join(' ').split(/\s+/).map((w) => w.replace(/[^\w'-]/g, '')).filter((w) => w.length > 1))];
 
   // The full cleanup for a model-written scene, recording what it changed.
   // Paragraphs that retell the previous scene (80% of their content words in
@@ -2431,7 +2583,7 @@
     const paras = (t) => t.split(/\n\s*\n/).filter((p) => p.trim()).length;
     const clean = Eng.cleanProse(whole);
     if (paras(clean) < paras(whole)) guard(res, 'scene', 'repeated paragraph removed', `${paras(whole) - paras(clean)} of ${paras(whole)}`);
-    const out = Eng.trimPlayerEnding(clean);
+    const out = Eng.trimPlayerEnding(clean, state ? Eng.peopleWords(state) : null);
     if (out !== clean) guard(res, 'scene', 'player ending trimmed', clean.slice(out.length));
     return out;
   };
@@ -2705,13 +2857,99 @@
       .some((n) => n.length > 2 && t.includes(' ' + n + ' '));
   }
 
+  // ---------- journeys (R-2) ----------
+  // A trip longer than the time step is the turn: a downtime stretch with a
+  // destination, interrupted the way a skip is. Only when the player's own
+  // words set out (rule 3). → null, { dest, trip, roll, companions }, or
+  // { failed } (a risky crossing whose roll failed, for resolve to report).
+  const SETS_OUT = /\b(travel|drive|ride|fly|sail|set (?:out|off)|journey|take the (?:road|train|bus|boat|ship|ferry))\b/i;
+  Eng.journeyFor = function (state, intentObj, action, step) {
+    const p = intentObj && intentObj.player;
+    if (!p || step.id === 'major' || typeof p.move_to !== 'string') return null;
+    const pc = state.characters[state.player];
+    const here = pc.status.location;
+    const dest = Eng.resolveLocation(state, p.move_to, true);
+    if (!dest || dest === here || Eng.moveProblem(state, state.player, here, dest)) return null;
+    const trip = Eng.tripBetween(state, here, dest);
+    if (!trip || !trip.legs || !(trip.hours > step.hours)) return null;
+    const site = (state.sites || {})[E.Sites.siteOf(state, dest)];
+    const named = [site && site.name, (Eng.regionDef(state, Eng.regionOf(state, dest)) || {}).name].filter(Boolean).some((n) => mentionsName(action, n));
+    if (!(Eng.setsOut(action) || planNames(state, action, dest) || named)) return null;
+    let roll = null;
+    if (trip.blocked) {
+      if (!trip.risky) return null; // resolve blocks it and says why
+      roll = { skill: trip.closed.skill, roll: Eng.roll(pc, trip.closed.skill, 'hard', state.scenario, 0) };
+      if (/failure/.test(roll.roll.result)) return { failed: roll };
+    }
+    const all = /\b(we|us|everyone|all of us|together)\b/i.test(String(action || ''));
+    const companions = Eng.present(state).filter((id) => Eng.alive(state, id) && (all || mentions(action, state.characters[id])));
+    return { dest, trip, roll, companions };
+  };
+  // The player's words set out somewhere: a move ("I head…") or travel ("I drive…").
+  Eng.setsOut = (action) => PLAYER_MOVES.test(String(action || '')) || SETS_OUT.test(String(action || ''));
+  const mentionsName = (text, name) => new RegExp(`\\b${String(name).replace(/^the\s+/i, '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(String(text || ''));
+  // Where a journey stopped short: a plain outdoor room in the region the
+  // trip had reached, with the way on and the way back. No model call; it
+  // never enters the header, and it goes once nobody is in it (clearTransit).
+  function transitRoom(state, journey, hoursDone, origin) {
+    let done = 0;
+    let region = Eng.regionOf(state, origin);
+    for (const e of journey.trip.legs) {
+      if (done + e.hours > hoursDone) break;
+      done += e.hours;
+      region = e.to;
+    }
+    const dest = state.locations[journey.dest];
+    let id = 'on-the-way';
+    for (let n = 2; state.locations[id]; n++) id = `on-the-way-${n}`;
+    const rname = (Eng.regionDef(state, region) || {}).name || region;
+    state.locations[id] = {
+      id, name: E.shorten(`On the way to ${dest.name}`, 40), desc: `Somewhere on the way to ${dest.name}, in ${rname}.`, outside: true, region, site: id, transit: true,
+      connects: [journey.dest, origin], links: [{ to: journey.dest, kind: 'trip' }, { to: origin, kind: 'trip' }],
+    };
+    state.seenRooms = [...new Set((state.seenRooms || []).concat(id))];
+    return id;
+  }
+  // Rooms a journey stopped in, once no one is there or last known there.
+  Eng.clearTransit = function (state) {
+    Object.values(state.locations).filter((l) => l.transit).forEach((l) => {
+      const used = Object.values(state.characters).some((c) => c.status.location === l.id)
+        || Object.values(state.extras || {}).some((x) => x.location === l.id) || Object.values(state.standees || {}).some((g) => g.location === l.id)
+        || Object.values(state.known || {}).some((k) => k && k.loc === l.id);
+      if (used) return;
+      delete state.locations[l.id];
+      state.seenRooms = (state.seenRooms || []).filter((x) => x !== l.id);
+      if (state.links) Object.keys(state.links).filter((k) => k.split('|').includes(l.id)).forEach((k) => delete state.links[k]);
+    });
+  };
+  // The end of a journey: the player (and whoever came along) arrives, or
+  // waits where the trip stopped.
+  function endJourney(state, plan, frame, res) {
+    const j = plan.journey;
+    const arrived = plan.reason === 'arrive';
+    const to = arrived ? j.dest : transitRoom(state, j, plan.hours, frame.startLoc);
+    [state.player].concat(j.companions).filter((id) => Eng.alive(state, id)).forEach((id) => { state.characters[id].status.location = to; });
+    const dname = state.locations[j.dest].name;
+    guard(res, 'resolve', 'journey', arrived ? `arrived at ${dname} after ${E.Scenario.sayHours(j.trip.hours)}`
+      : `stopped ${E.Scenario.sayHours(plan.hours) || 'early'} into ${E.Scenario.sayHours(j.trip.hours)} on the way to ${dname}; waiting in ${state.locations[to].name}`);
+    if (j.companions.length) guard(res, 'resolve', 'came along', `${j.companions.map((id) => state.characters[id].name).join(', ')} travel with ${state.characters[state.player].name}`);
+  }
+
   // The downtime turn: simulate time, ask the model for a montage and (if
   // needed) the interrupting event, then narrate it with day-stamped beats.
-  async function skipTurn(state, action, phase) {
-    const timelineNotes = [];
+  // opts.journey (R-2): the trip it is, from Eng.journeyFor; opts.notes: guards
+  // from the played turn it replaced.
+  async function skipTurn(state, action, phase, opts) {
+    const journey = opts && opts.journey;
+    const timelineNotes = (opts && opts.notes) || [];
     if (E.Timeline.needsProjection(state)) { phase('Planning the days ahead…'); await E.Timeline.project(state, timelineNotes); }
     const askNotes = checkAsk(state, action);
-    const plan = Eng.planMajorSkip(state, action);
+    let plan = Eng.planMajorSkip(state, action);
+    // A journey ends on arrival, unless something stops it first.
+    if (journey) {
+      if (plan.hours >= journey.trip.hours) plan = { hours: journey.trip.hours, reason: 'arrive' };
+      plan.journey = journey;
+    }
     const routine = { climb: Eng.unmetNeeds(state, action) };
     // Skipping while the last scene's emergency is unanswered: it plays out
     // without the player, and it costs something (playtest-coffee-skips).
@@ -2719,13 +2957,22 @@
     // A player who keeps sitting things out can't stay out of the next major
     // event: it happens where they are (playtest-coffee-bystander).
     plan.onPlayer = plan.reason === 'random' && ((state.ignored || []).length + (plan.crisis ? 1 : 0) >= 1 || (state.skipStreak || 0) >= 2);
-    state.skipStreak = (state.skipStreak || 0) + 1;
+    if (!journey) state.skipStreak = (state.skipStreak || 0) + 1;
     const tierChanges = Eng.promoteForAction(state, Eng.present(state), action, state.turn + 1);
     const pre = E.clone(state);
     delete pre.log; delete pre.pending; delete pre.undo;
     state.turn += 1;
     const system = E.Prompts.header(state);
     const frame = { startTime: E.fmtTime(state), startLoc: state.characters[state.player].status.location, stepId: 'major', stepLabel: 'until something major happens', spanMinutes: Math.round(plan.hours * 60) };
+    if (journey) {
+      const reg = (loc) => (Eng.regionDef(state, Eng.regionOf(state, loc)) || {}).name;
+      frame.stepLabel = `the journey to ${state.locations[journey.dest].name}`;
+      frame.journey = `travelling from ${reg(frame.startLoc)} to ${state.locations[journey.dest].name} in ${reg(journey.dest)}: ${Eng.sayTrip(state, journey.trip)}, ${E.Scenario.sayHours(journey.trip.hours)} in all${journey.companions.length ? `, with ${journey.companions.map((id) => state.characters[id].name).join(', ')}` : ''}`;
+      if (journey.roll) frame.journey += `; got past although ${journey.trip.why}`;
+      if (plan.reason !== 'arrive') frame.journey += `. It is cut short ${E.Scenario.sayHours(plan.hours) || 'early'} in`;
+      else frame.arrival = state.locations[journey.dest].name;
+
+    }
     const presentStart = Eng.present(state);
     const res = { outcomes: [], events: [], guards: [] };
     tierChanges.forEach((t) => guard(res, 'resolve', 'cast tier', t));
@@ -2806,6 +3053,8 @@
       const text = said ? E.clip(said, 240) : `${c.name} comes to confront ${state.characters[state.player].name} about sitting out the emergencies.`;
       res.events.push(`[major] ${text}`);
       res.major = { text, scope: 'reckoning', who: c.id };
+    } else if (plan.reason === 'arrive') {
+      // a journey that got there: no major event
     } else if (plan.reason !== 'clock') {
       const m = obj.major_event && typeof obj.major_event.text === 'string' ? obj.major_event : { text: 'Something goes badly wrong, and the routine ends.' };
       const text = E.clip(m.text, 240);
@@ -2837,7 +3086,8 @@
     });
     // The player ends up somewhere else only if their plan names it (rule 3;
     // playtest-agenda-skips: "keep to routine" put Kit outside as the storm hit).
-    const pw = Eng.resolveLocation(state, obj.player_where, false);
+    const pw = journey ? null : Eng.resolveLocation(state, obj.player_where, false);
+    if (journey) endJourney(state, plan, frame, res);
     if (pw && pw !== frame.startLoc) {
       if (planNames(state, action, pw)) state.characters[state.player].status.location = pw;
       else guard(res, 'resolve', 'move cancelled', `the downtime put the player in ${pw}; their plan doesn't take them there`);
@@ -3023,12 +3273,29 @@
     });
   }
 
+  // A scene call: its text, without the paragraph the token limit cut off
+  // (playtest-r2-drive-to-ridge: the 12B writes about twice the words asked
+  // for, so the limit lands mid-paragraph in the last beat). The complete
+  // paragraphs before it stay, so the scene ends on one that was written to
+  // end. A scene of one paragraph is left to the cut to the last sentence.
+  Eng.dropCutParagraph = function (text, res) {
+    const paras = String(text || '').trim().split(/\n\s*\n/);
+    if (paras.length < 2) return text;
+    const gone = paras.pop();
+    guard(res, 'scene', 'cut-off paragraph dropped', E.shorten(gone.replace(/\s+/g, ' ').trim(), 120));
+    return paras.join('\n\n');
+  };
+  async function sceneCall(opts, res) {
+    const text = await E.LLM.chat(opts);
+    return E.LLM.lastFinish === 'length' ? Eng.dropCutParagraph(text, res) : text;
+  }
+
   async function writeSkipScene(state, n, p, phase) {
     phase('Writing the downtime…');
-    const prose = Eng.cleanScene(await E.LLM.chat({
+    const prose = Eng.cleanScene(await sceneCall({
       kind: 'narrate', system: n.system, user: E.Prompts.narrateSkip(state, n.action, p.frame, n.montage, n.doings, p.res, n.presentStart),
       maxTokens: Math.round(E.settings.narrateTokens * 2.2),
-    }), p.res, state);
+    }, p.res), p.res, state);
     if (!prose) throw new Error('The model returned an empty scene.');
     return Eng.parseBeats(prose, p.frame.spanMinutes);
   }
@@ -3041,10 +3308,10 @@
     const { step, system } = n;
     const { present, action, frame, res } = p;
     phase('Writing the scene…');
-    const narrateOnce = async () => Eng.cleanScene(await E.LLM.chat({
+    const narrateOnce = async () => Eng.cleanScene(await sceneCall({
       kind: frame.correction ? 'narrate (retry)' : 'narrate', system, user: E.Prompts.narrate(state, present, action, frame, res),
       maxTokens: Math.round(E.settings.narrateTokens * (step.lengthMult || 1)),
-    }), res, state);
+    }, res), res, state);
     let prose = await narrateOnce();
     const playerOut = res.outcomes && res.outcomes.find((o) => o.id === state.player);
     const via = playerOut && playerOut.via ? [frame.startLoc].concat(playerOut.via) : null;
@@ -3066,14 +3333,14 @@
       const lastAt = beats[beats.length - 1].at;
       if (lastAt < frame.spanMinutes / 2) {
         phase('Finishing the scene…');
-        const more = Eng.cleanScene(await E.LLM.chat({
+        const more = Eng.cleanScene(await sceneCall({
           kind: 'narrate (continue)', system, user: E.Prompts.narrateMore(state, present, action, frame, res, markedBeats(beats), lastAt),
           maxTokens: Math.round(E.settings.narrateTokens * 0.8),
-        }), res, state);
+        }, res), res, state);
         const away = more && Eng.findRelocation(state, more, frame.startLoc, via);
         if (away) guard(res, 'scene', 'continuation dropped', `it took the player ${away.to || `to ${away.name}`}`);
         else if (more) {
-          beats = Eng.parseBeats(Eng.trimPlayerEnding(Eng.cleanProse(markedBeats(beats) + '\n\n' + more)), frame.spanMinutes);
+          beats = Eng.parseBeats(Eng.trimPlayerEnding(Eng.cleanProse(markedBeats(beats) + '\n\n' + more), Eng.peopleWords(state)), frame.spanMinutes);
         }
       }
       if (Eng.settleSceneTime(state, beats, frame.spanMinutes, n.before, res)) until = E.fmtTime(state);
@@ -3200,6 +3467,7 @@
   async function playTurn(state, action, stepId, phase, cutAt) {
     const report = await Eng.commitPending(state, cutAt, phase);
     if (state.flags.gameOver) { phase(''); return { report, ended: true }; }
+    Eng.clearTransit(state);
     if (stepId === 'major') {
       const out = await skipTurn(state, action, phase);
       out.report = report || { applied: [], rejected: [] };
@@ -3250,7 +3518,19 @@
     // moves are resolved; the start-of-turn copy gets it too.
     const siteNotes = [];
     await E.Sites.forIntent(state, intentObj, action, pre, phase, siteNotes);
-    const res = Eng.resolve(state, intentObj, present, action, step.id, due);
+    // A trip longer than the step is a journey turn instead (R-2): back to
+    // the start of the turn (which has any new place too) and on through the
+    // skip machinery, with the destination.
+    const journey = Eng.journeyFor(state, intentObj, action, step);
+    if (journey && !journey.failed) {
+      const log = state.log;
+      replaceState(state, Object.assign(pre, { log }));
+      const notes = siteNotes.concat(timelineNotes, [{ type: 'journey', detail: `a trip of ${E.Scenario.sayHours(journey.trip.hours)} is longer than ${step.label}: the turn is the journey (the scene's intent call is set aside)` }]);
+      const out = await skipTurn(state, action, phase, { journey, notes });
+      out.report = report || { applied: [], rejected: [] };
+      return out;
+    }
+    const res = Eng.resolve(state, intentObj, present, action, step.id, due, { crossingRoll: journey && journey.failed });
     if (crisis) {
       res.crisisText = crisis.text;
       if (answersCrisis(intentObj, action, crisis)) state.ignored = [];

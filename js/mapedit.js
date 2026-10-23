@@ -78,6 +78,13 @@
   function eachRef(world, starts, fn, neighbourFn) {
     const nf = neighbourFn || fn;
     (world.regions || []).forEach((r) => { r.neighbours = [...new Set((r.neighbours || []).map((n) => nf(n)).filter((n) => n && n !== r.id))]; });
+    // Routes (R-2): where they go (a route to a deleted region goes), and the
+    // regions their requirements name.
+    (world.regions || []).filter((r) => Array.isArray(r.routes)).forEach((r) => {
+      r.routes = r.routes.filter((x) => x && typeof x === 'object').map((x) => Object.assign(x, { to: nf(x.to) })).filter((x) => x.to && x.to !== r.id);
+      r.routes.forEach((x) => controlsOf(x.requires).forEach((c) => { const v = fn(c.region); if (v) c.region = v; }));
+    });
+
     const rooms = [].concat(world.locations || [], ...Object.values(starts || {}).map((s) => s.locations || []));
     rooms.forEach((l) => { if (l.region != null) { const v = fn(l.region); if (v) l.region = v; else delete l.region; } });
     Object.values(starts || {}).forEach((s) => { if (s.region != null) { const v = fn(s.region); if (v) s.region = v; else delete s.region; } });
@@ -137,11 +144,18 @@
     const lifted = world.regions.filter((r) => r.parent === id);
     lifted.forEach((r) => { if (up) r.parent = up; else delete r.parent; });
     if (world.map && world.map.regions) delete world.map.regions[id];
+    // A route's requirement about who holds it goes (R-2), before refs move to the fallback.
+    const unlocked = [];
+    world.regions.forEach((r) => (Array.isArray(r.routes) ? r.routes : []).forEach((x) => {
+      if (x && controlsOf(x.requires).some((c) => c.region === id)) { delete x.requires; unlocked.push(`${r.name}'s route to ${x.to}`); }
+    }));
     const fallback = world.regions[0] ? world.regions[0].id : null;
     const moved = Object.entries(starts || {}).filter(([, s]) => s.region === id).map(([sid]) => sid);
     eachRef(world, starts, (x) => (x === id ? fallback : x), (x) => (x === id ? null : x));
     const notes = moved.map((sid) => (fallback ? `start "${sid}" now starts in ${fallback}` : `start "${sid}" has no region now`));
-    if (lifted.length) notes.push(`${lifted.map((r) => r.name).join(', ')} ${lifted.length > 1 ? 'are' : 'is'} now ${up ? `inside ${(world.regions.find((r) => r.id === up) || {}).name || up}` : 'at the top level'}`);
+    unlocked.forEach((t) => notes.push(`${t} lost a requirement about who holds ${id}`));
+    if (lifted.length) notes.push(
+`${lifted.map((r) => r.name).join(', ')} ${lifted.length > 1 ? 'are' : 'is'} now ${up ? `inside ${(world.regions.find((r) => r.id === up) || {}).name || up}` : 'at the top level'}`);
 
     regionLore(world, starts, files, id).forEach((e) => {
       e.level = 'topic';

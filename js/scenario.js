@@ -16,7 +16,7 @@
   const START_OWN = ['id', 'title', 'summary', 'start', 'player', 'cast', 'opening', 'castLabel', 'region', 'playerSlot', 'generated'];
   // World fields a start may override (merge rules below).
   const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'tagThresholds', 'portraitSet', 'factions', 'world',
-    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'regionLabels', 'standees', 'site', 'localMap', 'map', 'entrances', 'lore', 'timeline', 'projectTimeline'];
+    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'regionLabels', 'routeKinds', 'standees', 'site', 'localMap', 'map', 'entrances', 'lore', 'timeline', 'projectTimeline'];
   const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'date', 'characters', 'starts', 'generatedStarts', 'generatedSites', 'sites', ...OVERRIDABLE];
   const WORLD_RESERVED = [];
   const START_RESERVED = [];
@@ -25,7 +25,7 @@
   // unioned, plain objects merge shallowly; anything else is replaced.
   const ID_LISTS = ['locations', 'clocks', 'factions', 'extras', 'regions', 'standees', 'lore', 'timeline'];
   const STRING_LISTS = ['rules', 'facts', 'tags'];
-  const OBJECTS = ['world', 'eventRates', 'eventSeeds', 'tiers'];
+  const OBJECTS = ['world', 'eventRates', 'eventSeeds', 'tiers', 'routeKinds'];
 
   const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
   const castId = (entry) => (typeof entry === 'string' ? entry : entry && entry.id);
@@ -62,6 +62,8 @@
     // The world's date (R-0) is the date of a start that gives none.
     if (sc.date != null && start.start == null) sc.start = sc.date;
     delete sc.date;
+    // Neighbours become border routes (R-2), so the engine reads one list.
+    S.deriveRoutes(sc.regions);
     Object.entries(start).forEach(([k, v]) => {
       if (['id', 'title', 'summary', 'cast'].includes(k)) return;
       if (ID_LISTS.includes(k)) sc[k] = mergeById(sc[k], v);
@@ -609,7 +611,8 @@
   };
   // The regions directly inside one (null: the top level).
   S.regionChildrenIn = (list, id) => (tree(list).kids.get(id == null ? null : id) || []).slice();
-  // What's near a region: its neighbours, then its siblings (only under a
+  // What's near a region: where its routes go (R-2; neighbours, and routes
+  // to it that aren't one-way), then its siblings (only under a
   // real parent: the top level of a 200-country map isn't "near"), then its
   // children; never itself or its chain. Capped, so a big tree doesn't grow
   // the prompts.
@@ -620,11 +623,84 @@
     const chain = S.regionChainIn(list, id);
     const out = [];
     const add = (x) => { if (byId.has(x) && !chain.includes(x) && !out.includes(x)) out.push(x); };
+    (Array.isArray(r.routes) ? r.routes : []).forEach((x) => x && add(x.to));
     (r.neighbours || []).forEach(add);
+    byId.forEach((o) => (Array.isArray(o.routes) ? o.routes : []).forEach((x) => { if (x && x.to === id && x.oneWay !== true) add(o.id); }));
     if (r.parent != null && byId.has(r.parent)) S.regionChildrenIn(list, r.parent).forEach(add);
     S.regionChildrenIn(list, id).forEach(add);
     return out.slice(0, cap == null ? S.REGION_NEAR : cap);
   };
+  // ---------- routes (R-2) ----------
+  // How people get from one region to another: [{to, kind, time, requires,
+  // oneWay, risky, skill, failHarm}] on a region, everything but "to"
+  // optional. Kinds have default times (a border is part of a move, as
+  // before routes); a world's routeKinds overrides them. Times are "45m",
+  // "4h", "2d", "1h30m" or a number of hours.
+  S.ROUTE_KINDS = {
+    border: { time: 0 }, checkpoint: { time: 0 }, portal: { time: 0 },
+    road: { time: 2 }, rail: { time: 2 }, air: { time: 6 }, sea: { time: 24 }, hyperlane: { time: 48 },
+  };
+  S.ROUTE_HOURS = 1; // a kind the table doesn't know
+  S.ROUTE_FIELDS = ['to', 'kind', 'time', 'requires', 'oneWay', 'risky', 'skill', 'failHarm', 'derived'];
+  S.parseHours = function (v) {
+    if (typeof v === 'number') return Number.isFinite(v) && v >= 0 ? v : null;
+    const m = /^\s*(?:(\d+(?:\.\d+)?)\s*d)?\s*(?:(\d+(?:\.\d+)?)\s*h)?\s*(?:(\d+)\s*m(?:in)?)?\s*$/i.exec(String(v == null ? '' : v));
+    if (!m || (m[1] == null && m[2] == null && m[3] == null)) return null;
+    return Number(m[1] || 0) * 24 + Number(m[2] || 0) + Number(m[3] || 0) / 60;
+  };
+  // "45m", "4h", "1h30m", "2d", "2d 6h".
+  S.sayHours = function (h) {
+    if (!(h > 0)) return '';
+    const mins = Math.round(h * 60);
+    const d = Math.floor(mins / 1440), hh = Math.floor((mins % 1440) / 60), mm = mins % 60;
+    return [d ? `${d}d` : '', hh ? `${hh}h` : '', mm ? `${mm}m` : ''].filter(Boolean).join(' ');
+  };
+  // Neighbours become border routes, on the list given (a composed copy).
+  // A neighbour with a route of its own either way stays that route (the
+  // junction's road to Ridge isn't undercut by Ridge's border back).
+  S.deriveRoutes = function (regions) {
+    const list = (Array.isArray(regions) ? regions : []).filter(isObj);
+    const own = new Map(list.map((r) => [r.id, (Array.isArray(r.routes) ? r.routes : []).filter((x) => isObj(x) && !x.derived).map((x) => x.to)]));
+    list.forEach((r) => {
+      const routes = Array.isArray(r.routes) ? r.routes.filter(isObj).map((x) => Object.assign({}, x)) : [];
+      (Array.isArray(r.neighbours) ? r.neighbours : []).forEach((n) => {
+        if (routes.some((x) => x.to === n) || (own.get(n) || []).includes(r.id)) return;
+        routes.push({ to: n, kind: 'border', derived: true });
+      });
+      if (routes.length || r.routes != null) r.routes = routes;
+    });
+    return regions;
+  };
+  // A route with its kind's defaults filled in: { to, kind, hours, requires,
+  // oneWay, risky, skill, failHarm }.
+  S.routeOf = function (sc, route) {
+    const kind = typeof route.kind === 'string' && route.kind.trim() ? route.kind.trim() : 'border';
+    const base = Object.assign({}, S.ROUTE_KINDS[kind] || { time: S.ROUTE_HOURS }, isObj(sc.routeKinds) && isObj(sc.routeKinds[kind]) ? sc.routeKinds[kind] : {});
+    const pick = (k) => (route[k] != null ? route[k] : base[k]);
+    const hours = S.parseHours(pick('time'));
+    const skills = sc.skills || E.DEFAULT_SKILLS;
+    return {
+      to: route.to, kind, hours: hours == null ? S.ROUTE_HOURS : hours, requires: pick('requires') || null,
+      oneWay: route.oneWay === true, risky: pick('risky') === true, failHarm: pick('failHarm') === true,
+      skill: pick('skill') || (skills.includes('stealth') ? 'stealth' : skills[0]),
+    };
+  };
+  // Problems in one route or route-kind setting, in words.
+  function routeProblems(sc, r, where, refs, ids) {
+    const problems = [];
+    const req = (cond, msg) => { if (!cond) problems.push(`${where}: ${msg}`); };
+    if (ids) {
+      Object.keys(r).filter((k) => !S.ROUTE_FIELDS.includes(k)).forEach((k) => req(false, `unknown field "${k}"`));
+      req(ids.has(r.to), r.to == null ? 'needs "to" (the region it goes to)' : `goes to "${r.to}", which isn't one of the regions`);
+      req(r.kind == null || (typeof r.kind === 'string' && r.kind.trim() && r.kind.length <= 30), '"kind" must be a short word, such as road, rail or sea');
+    }
+    req(r.time == null || S.parseHours(r.time) != null, `"time" must be like "45m", "4h", "1h30m" or "2d" (got ${JSON.stringify(r.time)})`);
+    ['oneWay', 'risky', 'failHarm'].forEach((k) => req(r[k] == null || typeof r[k] === 'boolean', `"${k}" must be true or false`));
+    req(r.skill == null || (sc.skills || E.DEFAULT_SKILLS).includes(r.skill), `"skill" must be one of the world's skills (got "${r.skill}")`);
+    if (r.requires != null) problems.push(...E.Timeline.preconditionProblems(r.requires, `${where}: "requires"`, refs));
+    return problems;
+  }
+
   // The display word for a region: its own label, else the world's for its depth.
   S.regionLabel = function (sc, id) {
     const r = tree(sc.regions).byId.get(id);
@@ -643,6 +719,15 @@
     const byId = new Map(list.filter(isObj).map((r) => [r.id, r]));
     const nameOf = (r) => (r && typeof r.name === 'string' && r.name.trim() ? r.name : `"${r && r.id}"`);
     const seen = new Set();
+    const routeRefs = { regions: ids, groups: groupIds, clocks: new Set((sc.clocks || []).map((c) => c && c.id)), characters: new Set(sc.characters || []) };
+    if (sc.routeKinds != null) {
+      if (!isObj(sc.routeKinds)) problems.push('"routeKinds" must be an object: {kind: {time, requires, risky}}');
+      else Object.entries(sc.routeKinds).forEach(([k, v]) => {
+        if (!isObj(v)) return problems.push(`routeKinds.${k} must be {time, requires, risky, skill, failHarm}`);
+        Object.keys(v).filter((f) => !['time', 'requires', 'risky', 'skill', 'failHarm'].includes(f)).forEach((f) => problems.push(`routeKinds.${k}: unknown field "${f}"`));
+        problems.push(...routeProblems(sc, v, `routeKinds.${k}`, routeRefs, null));
+      });
+    }
     req(sc.regionLabels == null || (Array.isArray(sc.regionLabels) && sc.regionLabels.length <= S.REGION_DEPTH && sc.regionLabels.every((t) => typeof t === 'string' && t.trim() && t.length <= 30)),
       `"regionLabels" must be a list of at most ${S.REGION_DEPTH} short words, one per level from the top (such as ["nation", "province", "city"])`);
     list.forEach((r) => {
@@ -662,6 +747,12 @@
       req(r.wiki == null || (isObj(r.wiki) && [r.wiki.title, r.wiki.wikidata].every((v) => v == null || (typeof v === 'string' && v.trim()))), `${where}: "wiki" must be {title, wikidata}`);
       req(r.label == null || (typeof r.label === 'string' && r.label.trim() && r.label.length <= 30), `${where}: "label" must be a short word (30 characters at most), such as "province"`);
       if (r.parent != null) req(ids.has(r.parent), `${nameOf(r)} is inside "${r.parent}", which isn't one of the regions`);
+      if (r.routes != null && !Array.isArray(r.routes)) problems.push(`${where}: "routes" must be a list of {to, kind, time, requires}`);
+      (Array.isArray(r.routes) ? r.routes : []).forEach((x, i) => {
+        if (!isObj(x)) return problems.push(`${where}: route ${i + 1} must be {to, kind, time, requires}`);
+        problems.push(...routeProblems(sc, x, `${nameOf(r)}'s route to ${byId.has(x.to) ? nameOf(byId.get(x.to)) : `"${x.to}"`}`, routeRefs, ids));
+        req(x.to !== r.id, `${nameOf(r)} has a route to itself`);
+      });
       if (r.neighbours != null && !Array.isArray(r.neighbours)) return problems.push(`${where}: "neighbours" must be a list of region ids`);
       (r.neighbours || []).forEach((n) => req(ids.has(n) && n !== r.id, `${where}: unknown neighbour "${n}"`));
     });

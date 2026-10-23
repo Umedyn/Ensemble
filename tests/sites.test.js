@@ -54,8 +54,8 @@ test('a trip to a new place builds one checked site, joined by a route, and the 
   assert.equal(state.locations.storefront.site, 'pharmacy');
   assert.equal(state.locations.storefront.region, 'main-street');
   assert.ok(state.locations['drug-room'].secure, 'one way in: still secure');
-  assert.deepEqual(plain(state.locations.lot.links).find((k) => k.kind === 'route'), { to: 'storefront', kind: 'route' }, 'the route leaves from open ground, not the roof');
-  assert.equal(E.Engine.linkInfo(state, 'lot', 'storefront').kind, 'route');
+  assert.deepEqual(plain(state.locations.lot.links).find((k) => k.kind === 'trip'), { to: 'storefront', kind: 'trip' }, 'the route leaves from open ground, not the roof');
+  assert.equal(E.Engine.linkInfo(state, 'lot', 'storefront').kind, 'trip');
   assert.equal(state.characters.pike.status.location, 'storefront', 'arrives at the entry');
   assert.deepEqual(plain(state.extras['dale-ruiz']).location, 'behind-counter');
   assert.equal(state.standees.dead.location, 'storefront');
@@ -73,7 +73,7 @@ test('a trip to a new place builds one checked site, joined by a route, and the 
   assert.equal(state.sites.pharmacy.kept, true, 'a second visit keeps it');
 });
 
-test('the engine refuses: too far, not in the player\'s words, a locked door on the way out, or a world that builds no places', async () => {
+test('the engine refuses: a closed way, not in the player\'s words, a locked door on the way out, or a world that builds no places', async () => {
   const play = async (folder, player, action, setup) => {
     const { E, state } = newGame(folder);
     if (setup) setup(state);
@@ -81,8 +81,10 @@ test('the engine refuses: too far, not in the player\'s words, a locked door on 
     const out = await E.Engine.runTurn(state, action, 'hour');
     return { state, calls, guards: out.res.guards.filter((g) => /^site/.test(g.type)).map((g) => `${g.type}: ${g.detail}`) };
   };
-  const far = await play('zombie-holdout', { new_place: { name: 'Ridge', kind: 'town', region: 'ridge-town' } }, 'I drive to Ridge.');
-  assert.match(far.guards[0], /site refused: Ridge is too far for one step/);
+  // Every way to Ridge needs fuel (R-2: far places are trips; closed ways refuse).
+  const noFuel = (s) => s.scenario.regions.forEach((r) => (r.routes || []).forEach((x) => { if (x.to === 'ridge-town' || r.id === 'ridge-town') x.requires = { world: 'fuel', is: 'yes' }; }));
+  const far = await play('zombie-holdout', { new_place: { name: 'Ridge', kind: 'town', region: 'ridge-town' } }, 'I drive to Ridge.', noFuel);
+  assert.match(far.guards[0], /site refused: Ridge: the road to Ridge needs fuel is "yes"/);
   assert.equal(far.state.characters.pike.status.location, 'floor');
   const unasked = await play('zombie-holdout', { new_place: { name: 'the church', kind: 'church', region: 'main-street' } }, 'I look around the store.');
   assert.match(unasked.guards[0], /don't name "the church"/);
@@ -131,7 +133,7 @@ test('a library map is used when one fits: its layout kept, the model fills in p
   assert.deepEqual(plain(a.E.Sites.entrances(a.state).filter((e) => e.watched).map((e) => e.room)), ['loading-bay']);
   assert.deepEqual(plain(a.state.standees['chrome-saints']).post, 'loading-bay');
   assert.equal(a.state.standees['chrome-saints'].faction, 'saints');
-  assert.equal(a.state.locations['back-alley'].links.find((k) => k.kind === 'route').to, 'loading-bay', 'the route leaves from the alley');
+  assert.equal(a.state.locations['back-alley'].links.find((k) => k.kind === 'trip').to, 'loading-bay', 'the route leaves from the alley');
   assert.ok(a.out.res.guards.some((g) => g.type === 'site note' && /library map "chop-shop" \(Ensemble/.test(g.detail)));
   assert.deepEqual(plain(b.state.sites['saints-chop-shop'].rooms), plain(s.rooms), 'the same map on a reload');
   function E_linkKind(r) { return r.E.Engine.linkInfo(r.state, 'garage-floor', 'office').kind; }
@@ -168,7 +170,7 @@ test('a site with nothing notable fades after keepDays and comes back from its s
   const faded = E.Sites.fade(state);
   assert.match(faded[0], /the pharmacy faded/);
   assert.equal(state.locations.storefront, undefined);
-  assert.ok(!state.locations.lot.connects.includes('storefront') && !state.locations.lot.links.some((k) => k.kind === 'route'));
+  assert.ok(!state.locations.lot.connects.includes('storefront') && !state.locations.lot.links.some((k) => k.kind === 'trip'));
   assert.equal(state.extras['dale-ruiz'], undefined);
   assert.equal(state.standees.dead, undefined);
   assert.match(state.sites.pharmacy.summary, /visited once, last on Day 23; met Dale Ruiz/);
@@ -217,7 +219,7 @@ test('the map and prompts: rooms made in play are in the user message, never the
   const intent = E.Prompts.intent(state, E.Engine.present(state), 'x', 'an hour', 'hour', {});
   assert.match(intent, /the pharmacy has these rooms: storefront \(Pharmacy Storefront\), behind-counter \(Behind the Counter\), drug-room \(Drug Room\)/);
   assert.match(intent, /Ways from here: [^\n]*Parking Lot \(the way to Parking Lot\)|Ways from here: [^\n]*\(the way to/);
-  assert.deepEqual(plain(E.Sites.routes(state, 'pharmacy').map((r) => r.to)), ['lot']);
+  assert.deepEqual(plain(E.Sites.trips(state, 'pharmacy').map((r) => r.to)), ['lot']);
 });
 
 // ---------- from the first API runs (2026-10-22, DeepSeek V4.1 Flash) ----------
@@ -269,4 +271,24 @@ test('playtest-api-kessler-lobby: the people prompt shows each link\'s kind from
   assert.match(text, /- service-corridor: [^\n]*locked door to lobby-atrium/);
   assert.match(text, /- security-gate: [^\n]*door to service-corridor/);
   assert.doesNotMatch(text, /route/, 'the route home is not part of the place');
+});
+
+test('playtest-r2-ridge: a place named after a region is in that region, so the trip takes the road there', async () => {
+  const RIDGE = { new_place: { name: 'Ridge', kind: 'town', region: 'highway-strip' } };
+  const go = async (step) => {
+    const { E, state } = newGame('zombie-holdout');
+    const calls = turnMock(E, RIDGE);
+    const out = await E.Engine.runTurn(state, 'I drive to Ridge', step);
+    return { E, state, out, calls };
+  };
+  const hour = await go('hour');
+  const site = Object.values(hour.state.sites)[0];
+  assert.equal(site.region, 'ridge-town', 'not the player\'s own region');
+  assert.ok(hour.out.res.guards.some((g) => g.type === 'site region' && /"Ridge" is Ridge, not The highway strip/.test(g.detail)));
+  assert.equal(hour.E.Engine.regionOf(hour.state, hour.state.characters.pike.status.location), 'ridge-town');
+  assert.match(hour.out.res.outcomes[0].action, /\(the way: by road to Ridge \(45m\)\)/);
+  // Shorter than the trip: the turn is the journey, and it gets there.
+  const moment = await go('moment');
+  assert.ok(moment.out.res.guards.some((g) => g.type === 'journey' && /arrived at .* after 45m/.test(g.detail)), moment.out.res.guards.map((g) => g.type).join(', '));
+  assert.ok(moment.calls.some((c) => /The downtime is a journey: travelling from The highway strip to .* in Ridge: .*by road to Ridge \(45m\)/.test(c.user)));
 });

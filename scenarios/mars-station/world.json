@@ -237,6 +237,17 @@
         "basin-floor",
         "relay-mast"
       ],
+      "routes": [
+        {
+          "to": "relay-mast",
+          "kind": "road",
+          "time": "1d",
+          "requires": {
+            "world": "rover",
+            "is": "the Mule, operational"
+          }
+        }
+      ],
       "lore": "Broken slopes around the outpost: the solar field, the ice drill site and the rover tracks. Suits required; dust devils and slope failures are common."
     },
     {

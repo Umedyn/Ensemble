@@ -7,7 +7,7 @@
 // proposes the place (the intent step's "new_place", or an event's
 // "new_site"); the engine decides whether to build it.
 //
-// A site's rooms join state.locations with `site` set; a "route" link joins
+// A site's rooms join state.locations with `site` set; a "trip" link joins
 // its entry room to the site the player came from (never locked, no sight
 // through it, groups never cross it). Sites fade unless something happened
 // there: kept after a notable fact, a promoted person or a second visit;
@@ -215,7 +215,7 @@
       const feats = (l.features || []).filter((f) => !(f && f.inferred)).map((f) => (isObj(f) ? (f.state != null ? { name: f.name, state: f.state } : f.name) : f));
       if (feats.length) r.features = feats;
       const inferredTo = new Set((l.links || []).filter((k) => k.inferred).map((k) => k.to));
-      const links = (l.links || []).filter((k) => k.kind !== 'route' && !k.inferred && ids.has(k.to)).map((k) => Object.assign({ to: k.to, kind: k.kind }, Array.isArray(k.at) ? { at: k.at } : {}));
+      const links = (l.links || []).filter((k) => k.kind !== 'trip' && !k.inferred && ids.has(k.to)).map((k) => Object.assign({ to: k.to, kind: k.kind }, Array.isArray(k.at) ? { at: k.at } : {}));
       if (links.length) r.links = links;
       const connects = (l.connects || []).filter((c) => ids.has(c) && !inferredTo.has(c) && !links.some((k) => k.to === c));
       if (connects.length) r.connects = connects;
@@ -244,29 +244,49 @@
   ST.wanted = function (state, p, actionText) {
     const sc = state.scenario;
     if (!p) return null;
-    const ask = isObj(p.new_place) ? p.new_place : null;
+    let ask = isObj(p.new_place) ? p.new_place : null;
     const moveTo = typeof p.move_to === 'string' && p.move_to.trim() && p.move_to !== 'null' ? p.move_to.trim() : null;
-    if (moveTo && (Eng().resolveLocation(state, moveTo, true))) return null; // a known room or person: the usual move
+    // The player sets out for a region by name and the model kept them here
+    // (playtest-r2-drive-to-ridge: "I drive to Ridge." came back as a move to
+    // the parking lot, with no new place): the engine heads for that region.
+    let headed = null;
+    if (!ask && ST.enabled(sc)) {
+      const r = ST.regionHeadedFor(state, moveTo, actionText);
+      if (r) { ask = { name: r.name, kind: E.Scenario.regionLabel(sc, r.id) || 'place', region: r.id }; headed = `the player sets out for ${r.name}${moveTo ? `; the model only moved them to ${moveTo}` : ''}`; }
+    }
+    if (!headed && moveTo && (Eng().resolveLocation(state, moveTo, true))) return null; // a known room or person: the usual move
     const name = text(ask ? ask.name : moveTo, 60);
     if (!name) return null;
     const room = Eng().resolveLocation(state, name, false);
     if (room) return { room };
     const known = ST.byName(state, name);
-    if (known) return { site: known };
+    if (known) return { site: known, note: headed };
     if (!ST.enabled(sc)) return ask ? { error: `"${name}" is not a place on the map (this world doesn't build new places)` } : null;
     const cfg = ST.config(sc);
     if (Object.keys(state.sites || {}).length >= cfg.maxSites) return { error: `this story already has ${cfg.maxSites} places of its own` };
-    // Same region or a neighbour; farther takes more than one step.
+    // Anywhere a route goes (R-2): a far place is a long trip, and a closed
+    // way (not risky) refuses it before anything is built.
     const here = Eng().playerRegion(state);
     const regions = sc.regions || [];
     let region = here;
-    if (ask && ask.region && regions.length) {
-      const r = regions.find((x) => x.id === ask.region || norm(x.name) === norm(ask.region));
-      if (!r) return { error: `unknown region "${ask.region}"` };
-      // Here, a region it is inside ("somewhere in Tokyo") or one near it (R-1).
-      const near = r.id === here || Eng().regionsAround(state).includes(r.id);
-      if (!near) return { error: `${r.name} is too far for one step from here; go through a neighbouring region first` };
-      region = r.id;
+    let note = null;
+    if (regions.length) {
+      // Which region it is in: a place named after a region is in it, whatever
+      // the model said (playtest-r2-ridge: "I drive to Ridge" built Ridge in
+      // the player's own region, so no road was travelled); else the region
+      // the model gave; else one the player's words name; else theirs.
+      const asked = ask && ask.region ? regions.find((x) => x.id === ask.region || norm(x.name) === norm(ask.region)) : null;
+      if (ask && ask.region && !asked && !regionNamed(regions, name)) return { error: `unknown region "${ask.region}"` };
+      const named = regionNamed(regions, name);
+      const said = !asked && !named ? regions.filter((x) => x.id !== here && ` ${norm(actionText)} `.includes(` ${norm(x.name)} `)).sort((a, b) => b.name.length - a.name.length)[0] : null;
+      const r = named || asked || said;
+      if (r && named && asked && named.id !== asked.id) note = `"${name}" is ${named.name}, not ${asked.name}`;
+      else if (r && !asked && r.id !== here) note = `"${name}" is in ${r.name} (${named ? 'named after it' : 'the action names it'})`;
+      if (r) {
+        const trip = here ? Eng().regionTrip(state, here, r.id) : { legs: [] };
+        if (trip.blocked && !(trip.legs && trip.risky)) return { error: `${r.name}: ${trip.why}` };
+        region = r.id;
+      }
     }
     // The player's own words should name it (rule 3: only the player's intent moves them).
     // "enact the plan", "let's go": the player's previous action counts too
@@ -276,8 +296,25 @@
     if (!norm(name).split(' ').some((w) => w.length >= 3 && words.has(w)) && !norm(ask && ask.kind).split(' ').some((w) => w.length >= 3 && words.has(w))) {
       return { error: `the player's words don't name "${name}"` };
     }
-    return { build: { name, kind: text(ask && ask.kind, 40) || name, region } };
+    return { build: { name, kind: text(ask && ask.kind, 40) || name, region }, note: [headed, note].filter(Boolean).join('; ') || null };
   };
+  // A region the player's words set out for, by name, that the model's move
+  // doesn't reach: not theirs or one they are inside, and the move (if any)
+  // ends somewhere outside it. → the region, or null.
+  ST.regionHeadedFor = function (state, moveTo, actionText) {
+    const regions = state.scenario.regions || [];
+    if (!regions.length || !Eng().setsOut(actionText)) return null;
+    const here = Eng().playerRegion(state);
+    const mine = here ? Eng().regionChain(state, here) : [];
+    const words = ` ${norm(actionText)} `;
+    const r = regions.filter((x) => !mine.includes(x.id) && words.includes(` ${norm(x.name)} `)).sort((a, b) => b.name.length - a.name.length)[0];
+    if (!r) return null;
+    const dest = moveTo && Eng().resolveLocation(state, moveTo, true);
+    const destRegion = dest && Eng().regionOf(state, dest);
+    if (destRegion && Eng().regionChain(state, destRegion).includes(r.id)) return null; // the move already goes there
+    return r;
+  };
+  const regionNamed = (regions, name) => regions.find((x) => norm(x.name) === norm(name) || x.id === name) || null;
 
   // ---------- building ----------
   // req: { name, kind, region, from ('intent' | 'event'), why, stub? }.
@@ -462,9 +499,9 @@
   };
 
   // ---------- adding to the game ----------
-  // The room a route leaves from: an outdoor room of the site `from` is in,
+  // The room a trip to another place leaves from: an outdoor room of the site `from` is in,
   // else `from` itself.
-  ST.routeFrom = function (state, from) {
+  ST.tripFrom = function (state, from) {
     const site = ST.siteOf(state, from);
     // Open ground at street level (not a roof), never a secure room.
     const outside = ST.rooms(state, site).find((l) => l.outside && l.id !== from && !(l.level > 0) && !l.secure);
@@ -474,7 +511,7 @@
   // a step-in rewinds to). from: the room the player is leaving.
   ST.add = function (st, built, from) {
     const { site } = built;
-    const origin = st.locations[from] ? ST.routeFrom(st, from) : null;
+    const origin = st.locations[from] ? ST.tripFrom(st, from) : null;
     built.rooms.forEach((r) => {
       st.locations[r.id] = Object.assign({ connects: [] }, E.clone(r), { region: site.region, site: site.id, seen: false });
     });
@@ -482,8 +519,8 @@
       const a = st.locations[origin], b = st.locations[site.entry];
       a.connects = [...new Set((a.connects || []).concat(b.id))];
       b.connects = [...new Set((b.connects || []).concat(a.id))];
-      a.links = (a.links || []).concat({ to: b.id, kind: 'route' });
-      b.links = (b.links || []).concat({ to: a.id, kind: 'route' });
+      a.links = (a.links || []).concat({ to: b.id, kind: 'trip' });
+      b.links = (b.links || []).concat({ to: a.id, kind: 'trip' });
     }
     st.links = st.links || {};
     Eng().initSite(st);
@@ -512,14 +549,16 @@
     const p = intentObj && intentObj.player;
     const want = ST.wanted(state, p, actionText);
     if (!want) return null;
+    if (want.note) notes.push({ type: 'site region', detail: want.note });
     if (want.room) { p.move_to = want.room; return null; }
     if (want.error) { notes.push({ type: 'site refused', detail: want.error }); if (p) p.move_to = null; return null; }
     const site = want.site;
     if (site && !site.stub) { p.move_to = site.entry; return null; }
+
     const req = site ? { name: site.name, kind: site.kind, region: site.region, from: site.from, why: site.why, stub: site } : Object.assign({ from: 'intent', why: actionText }, want.build);
     const from = state.characters[state.player].status.location;
     // No calls for a place the player can't set out for (rule 4: a locked door on the way out).
-    const blocked = Eng().moveProblem(state, state.player, from, ST.routeFrom(state, from));
+    const blocked = Eng().moveProblem(state, state.player, from, ST.tripFrom(state, from));
     if (blocked) { notes.push({ type: 'site refused', detail: `${req.name}: ${blocked}` }); p.move_to = null; return null; }
     let built;
     try {
@@ -598,7 +637,7 @@
 
   // Entrances of the start and of every built site (detection on the way, task 3-6).
   ST.entrances = (state) => [].concat(state.scenario.entrances || [], ...Object.values(state.sites || {}).map((s) => s.entrances || []));
-  // Routes out of a site: [{ from, to, name }] for the map.
-  ST.routes = (state, site) => ST.rooms(state, site).flatMap((l) => (l.links || []).filter((k) => k.kind === 'route' && state.locations[k.to])
+  // Trips out of a site (links to other places, not region routes): [{ from, to, name }] for the map.
+  ST.trips = (state, site) => ST.rooms(state, site).flatMap((l) => (l.links || []).filter((k) => k.kind === 'trip' && state.locations[k.to])
     .map((k) => ({ from: l.id, to: k.to, name: ((state.sites || {})[ST.siteOf(state, k.to)] || state.locations[k.to]).name })));
 })(typeof window !== 'undefined' ? window : globalThis);

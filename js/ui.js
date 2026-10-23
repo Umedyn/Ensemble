@@ -1137,7 +1137,7 @@
     const seen = new Set();
     ids.forEach((a) => {
       const l = state.locations[a];
-      const ways = (l.links || []).filter((k) => k.kind !== 'route').map((k) => ({ to: k.to, kind: k.kind, at: k.at })).concat((l.connects || []).map((to) => ({ to, kind: 'open' })));
+      const ways = (l.links || []).filter((k) => k.kind !== 'trip').map((k) => ({ to: k.to, kind: k.kind, at: k.at })).concat((l.connects || []).map((to) => ({ to, kind: 'open' })));
       ways.forEach((k) => {
         const key = [a, k.to].sort().join('|');
         if (!ids.includes(k.to) || seen.has(key)) return;
@@ -1202,7 +1202,7 @@
       svg = `<svg class="map-svg" viewBox="-4 -4 ${W + 8} ${H + 8}" style="min-width:${Math.round(W * 0.75)}px" role="img" aria-label="Map">${remote}${rooms}${marks}${levels}</svg>`;
     }
     // Ways to other places (routes, task 4-4): clicking one fills in the action box.
-    const routes = E.Sites.routes(state, site);
+    const routes = E.Sites.trips(state, site);
     if (routes.length) svg += `<div class="map-routes">Ways to other places: ${routes.map((r) => `<button type="button" class="small map-route" data-name="${esc(r.name)}" title="From ${esc(state.locations[r.from].name)}">↗ ${esc(r.name)}</button>`).join(' ')}</div>`;
     // The same in words, for screen readers.
     const list = Object.keys(state.locations).filter((id) => seen(id) && E.Sites.siteOf(state, id) === site).map((id) => {

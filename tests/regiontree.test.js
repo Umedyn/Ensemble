@@ -197,7 +197,7 @@ test('a new place may be in the player\'s region, a region it is inside, or one 
   const go = (region) => E.Sites.wanted(state, { new_place: { name: 'the tram depot', kind: 'depot', region } }, 'Go to the tram depot.') || {};
   assert.ok(go('kessel').build, 'somewhere in Kessel, which the Old Quarter is inside');
   assert.ok(go('hill').build, 'a ward next to it');
-  assert.match(go('lunmark').error || '', /Lunmark is too far/);
+  assert.match(go('lunmark').error || '', /Lunmark: there is no way from Old Quarter to Lunmark/);
 
 });
 

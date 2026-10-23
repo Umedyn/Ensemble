@@ -288,7 +288,7 @@ test('projection waits after a failed or empty call, and is off for worlds that 
   delete v12.canon; delete v12.timeline; delete v12.projection;
   v12.scenario.timeline = [];
   const migrated = old.E.Engine.migrate(v12);
-  assert.deepEqual([migrated.version, plain(migrated.canon), plain(migrated.timeline), migrated.projection], [13, {}, [], false]);
+  assert.deepEqual([migrated.version, plain(migrated.canon), plain(migrated.timeline), migrated.projection], [old.E.Engine.STATE_VERSION, {}, [], false]);
   assert.ok(!old.E.Timeline.needsProjection(migrated));
 });
 

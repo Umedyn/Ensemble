@@ -99,10 +99,15 @@ test('playtest: "anxious about recycler" is a feeling, so it is not a tag', asyn
   assert.ok(report.guards.some((g) => g.type === 'update rejected' && /anxious about recycler/.test(g.detail) && /a feeling/.test(g.detail)));
 });
 
-test('playtest: a scene cut off at the token limit closes the line of dialogue it stops in', async () => {
+// The limit cut Teo's reply mid-sentence. Since playtest-r2-drive-to-ridge the
+// cut paragraph goes and the scene ends on the last complete one (before
+// that, the cut line was closed: "Y-yes, Imani.").
+test('playtest: a scene cut off at the token limit ends on its last complete paragraph', async () => {
   const r = await replay('playtest-id-tags-in-prose');
-  assert.match(r.state.recent[0].text, /he nods quickly\. "Y-yes, Imani\."$/);
+  assert.match(r.state.recent[0].text, /"Everything all right with the recycler, Teo\?" she asks, her tone mild but with an underlying sharpness\.$/);
+  assert.ok([...r.state.pending.res.guards].some((g) => g.type === 'cut-off paragraph dropped' && /Y-yes, Imani\. Just trying/.test(g.detail)));
 });
+
 
 // Ares Deep on NemoMix 12B, 2026-10-21 (playtest-agenda-skips): two skips
 // with no plan. The first stops at the storm, the second at Teo's agenda.

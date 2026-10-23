@@ -313,6 +313,13 @@
     });
     return problems;
   };
+  // One condition in this grammar, checked on its own (R-2: a route's
+  // "requires"). → problems; warnings go to the list given, if any.
+  TL.preconditionProblems = function (p, at, refs, warnings) {
+    const problems = [];
+    preProblems(p, at, refs || {}, problems, warnings || []);
+    return problems;
+  };
   function preProblems(p, at, refs, problems, warnings) {
     const k = preKey(p);
     const no = (msg) => problems.push(`${at}: precondition ${msg}`);

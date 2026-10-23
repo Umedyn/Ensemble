@@ -905,3 +905,31 @@ test('beat markers in seconds are beats too, not prose (playtest-stragglers-snea
   assert.deepEqual(beats.map((b) => b.text), ['You crouch.', 'Dex watches.', 'Dex curses.', 'Ruth stands.']);
   assert.deepEqual(beats.map((b) => b.at), [0, 1, 1, 2]);
 });
+
+// playtest-r2-drive-to-ridge: the 12B writes about twice the words asked for,
+// and the token limit cut the last paragraph.
+test('a scene cut off at the token limit drops the cut paragraph and ends on the one before', async () => {
+  const { replay } = require('./replay');
+  const { state } = await replay('playtest-r2-drive-to-ridge');
+  const g = [...state.pending.res.guards].filter((x) => x.stage === 'scene').map((x) => `${x.type}: ${x.detail}`);
+  assert.ok(g.includes('cut-off paragraph dropped: You look at him, weighing the risk'), g.join('\n'));
+  assert.match(state.recent[0].text, /but Dex hesitates\. "Wait\. What about the truck\?[^"]*"$/, 'the hook the scene was written to end on');
+});
+
+test('the player-ending trim keeps a paragraph that hands over to someone else, and still trims the player taking over', () => {
+  const { E } = newGame('zombie-holdout');
+  const t = (prose) => E.Engine.trimPlayerEnding(prose, ['Dex', 'Coleman', 'Marlene']);
+  const hook = 'Dex scans the lot.\n\nYou turn to head back, but Dex hesitates. "Wait. What about the truck?"';
+  assert.equal(t(hook), hook);
+  assert.equal(t('Dex scans the lot.\n\nYou turn back. Marlene shakes her head. "Not today."'), 'Dex scans the lot.\n\nYou turn back. Marlene shakes her head. "Not today."');
+  assert.equal(t('Dex scans the lot.\n\nYou wait, and Dex shrugs. You are already moving, crowbar up.'), 'Dex scans the lot.', 'back to the player at the end');
+  assert.equal(t('Dex scans the lot.\n\nYou nod. This is what you trained for.'), 'Dex scans the lot.', 'only people count, not "This is"');
+});
+
+test('every world tells the story impartially: no flattering, protecting or favouring the player', () => {
+  ['zombie-holdout', 'mars-station'].forEach((w) => {
+    const { E, state } = newGame(w);
+    const pc = state.characters[state.player].name;
+    assert.ok(E.Prompts.header(state).includes(`- Tell the story impartially. Do not flatter, protect or favour ${pc}: people judge them by what they do, plans can fail, luck does not bend their way, and the world's dangers reach them as they would anyone.`), w);
+  });
+});

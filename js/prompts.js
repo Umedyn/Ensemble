@@ -52,6 +52,8 @@
       `The player controls only ${pc.name} (id: ${state.player}). Never decide ${pc.name}'s choices, words or feelings beyond what the player's action states.`,
       E.Genres.consequences(sc),
       'Characters act from their own personality, wants, needs, secrets and feelings, not to serve the player.',
+      // Small models coddle the player; impartiality keeps lethal worlds lethal.
+      `Tell the story impartially. Do not flatter, protect or favour ${pc.name}: people judge them by what they do, plans can fail, luck does not bend their way, and the world's dangers reach them as they would anyone.`,
     ].concat(sc.rules || []);
     return ['\n=== RULES ==='].concat(rules.map((r) => '- ' + r));
   };
@@ -190,7 +192,7 @@
     const k = Eng().linkInfo(state, from, to);
     if (!k || k.kind === 'open') return state.locations[to].name;
     // A route to another place (task 4-4): a journey, not a door.
-    if (k.kind === 'route') return `${state.locations[to].name} (the way to ${((state.sites || {})[E.Sites.siteOf(state, to)] || state.locations[to]).name})`;
+    if (k.kind === 'trip') return `${state.locations[to].name} (the way to ${((state.sites || {})[E.Sites.siteOf(state, to)] || state.locations[to]).name})`;
     const st = k.kind === 'locked door' && k.locked ? 'locked' : k.open ? 'open' : 'shut';
     return `${state.locations[to].name} (${k.kind === 'locked door' ? 'door' : k.kind}, ${st})`;
   }
@@ -222,7 +224,20 @@
 
     const up = Eng().regionChain(state, near[0]).slice(1);
     return `\nRegion: ${desc(near[0], true)}` + (up.length ? `\nInside: ${up.map((id) => desc(id, true)).join(' › ')}` : '')
-      + (near.length > 1 ? `\nNearby: ${near.slice(1).map((id) => desc(id)).join(' | ')}` : '');
+      + (near.length > 1 ? `\nNearby: ${near.slice(1).map((id) => desc(id)).join(' | ')}` : '') + routeLine(state, near[0]);
+  }
+  // Routes out of the player's region that say more than "next door" (R-2):
+  // a kind, a time, a requirement or a risk. Plain borders are in Nearby.
+  P.ROUTES_MAX = 8;
+  function routeLine(state, id) {
+    const S = E.Scenario;
+    const list = Eng().routesFrom(state, id).filter((r) => r.kind !== 'border' || r.hours > 0 || r.closed || r.risky).slice(0, P.ROUTES_MAX);
+    if (!list.length) return '';
+    const one = (r) => {
+      const bits = [r.kind].concat(r.hours ? [S.sayHours(r.hours)] : [], r.closed ? [`closed: ${r.closed.replace(/^the .*? needs /, 'needs ')}${r.risky ? ', but can be risked' : ''}`] : r.risky ? ['risky'] : []);
+      return `${(Eng().regionDef(state, r.to) || {}).name || r.to} (${bits.join(', ')})`;
+    };
+    return `\nRoutes from here: ${list.map(one).join(' | ')}`;
   }
   // Event ideas (eventSeeds) are text or {text, region}. Regional ideas for
   // regions away from the player are left out (an idea for a region the
@@ -566,6 +581,9 @@ ${intentExample(state, present, action, due)}`;
     morning: 'This covers the rest of the day and the night. Summarize briefly in a few sentences (routine work, a meal, sleep), then open the next morning as a live scene. The player character keeps to the feelings listed in STATUS: they avoid people they resent and seek out people they like. No big decisions for the player character.',
   };
 
+  // Length as paragraphs: the 12B writes about twice the words it is asked
+  // for, and follows a count of short paragraphs better (playtest-r2-drive-to-ridge).
+  const PARA_GUIDE = { moment: '2 or 3', hour: '3 to 5', hours: '4 to 6', morning: '5 to 7' };
   const BEAT_GUIDE = {
     moment: '1 beat: [+0m].',
     hour: '2 or 3 beats.',
@@ -634,7 +652,7 @@ Ends: ${E.fmtTime(state)}, ${pc.name} ${moved ? `now in ${endLoc.name}` : `still
     const spread = SPREAD_STEPS.includes(frame.stepId) ? ` Spread the beats across the whole span: the last one starts around [+${Math.round(span * 0.75)}m].` : '';
     return `
 === TASK ===
-Write the next scene in second person, present tense ("you" is ${pc.name}), ${frame.words || '100–200'} words. Bring the characters to life through dialogue and small actions in their own voices.
+Write the next scene in second person, present tense ("you" is ${pc.name}): ${PARA_GUIDE[frame.stepId] || PARA_GUIDE.hour} short paragraphs in all, each 2 to 4 sentences (${frame.words || '100–200'} words). Bring the characters to life through dialogue and small actions in their own voices.
 Time: ${STEP_GUIDE[frame.stepId] || STEP_GUIDE.hour}
 Beats: ${BEAT_GUIDE[frame.stepId] || BEAT_GUIDE.hour} Start each beat on its own line with a time marker in brackets: minutes since the scene started, like [+0m], [+25m], [+50m] (use hours for long spans, like [+5h]). The last marker is at most [+${span}m].${spread} End each beat on something the player could react to, since the player may step in between beats.
 Structure:
@@ -661,7 +679,7 @@ Hard rules:
   B.sceneSoFar = ({ sceneSoFar }) => `\n=== SCENE SO FAR ===\n${sceneSoFar}`;
   B.narrateMoreTask = ({ frame, pc, startLoc, endLoc, moved, span, fromMinutes }) => `
 === TASK ===
-Continue the scene above. It stops at [+${fromMinutes}m], but this turn covers ${frame.stepLabel} (${span} minutes). Write 1 or 2 more beats, 40–100 words in total, in second person, present tense ("you" is ${pc.name}). Start each beat on its own line with a time marker counted from the start of the scene, later than [+${fromMinutes}m]; the last one around [+${Math.round(span * 0.85)}m] and at most [+${span}m].
+Continue the scene above. It stops at [+${fromMinutes}m], but this turn covers ${frame.stepLabel} (${span} minutes). Write 1 or 2 more beats, 1 or 2 short paragraphs in all (40–100 words), in second person, present tense ("you" is ${pc.name}). Start each beat on its own line with a time marker counted from the start of the scene, later than [+${fromMinutes}m]; the last one around [+${Math.round(span * 0.85)}m] and at most [+${span}m].
 Time: ${STEP_GUIDE[frame.stepId] || STEP_GUIDE.hour} Compress the routine part ("For the next half hour…").
 Hard rules:
 - Carry on from where the scene stops. Do not repeat or rewrite it.
@@ -712,7 +730,7 @@ Reply with the new beats only.`;
 
   B.skipFrame = ({ state, pc, action, frame }) => `=== DOWNTIME: ${frame.startTime} → ${frame.endTime} (${spanWords(frame)}) ===
 ${pc.name} was in ${state.locations[frame.startLoc] ? state.locations[frame.startLoc].name : frame.startLoc} when it began.
-${pc.name}'s plan for the downtime: "${action || 'keep to routine'}"
+${pc.name}'s plan for the downtime: "${action || 'keep to routine'}"${frame.journey ? `\nThe downtime is a journey: ${frame.journey}.` : ''}
 ${worldLines(state)}`;
   B.people = ({ state, pc }) => {
     const n = Eng().cast(state, { alive: true, includePlayer: false }).length;
@@ -725,7 +743,9 @@ ${worldLines(state)}`;
   B.skipTask = ({ state, pc, plan, res, frame, action }) => {
     const who = plan.agenda && state.characters[plan.agenda.id];
     const rk = plan.reckoning && state.characters[plan.reckoning.id];
-    const ends = plan.reason === 'body'
+    const ends = plan.reason === 'arrive'
+      ? `The downtime is the journey, and it ends when ${pc.name} arrives at ${state.locations[plan.journey.dest].name}${plan.journey.companions.length ? ` with ${plan.journey.companions.map((id) => name(state, id)).join(', ')}` : ''}. The montage is the trip itself and what happens back where they left. Set "major_event" to null; your positions should fit that moment (people who stayed behind are where they were).`
+      : plan.reason === 'body'
       ? `The downtime ends when ${pc.name}'s body gives out: their plan left no room for ${Eng().needLimit(state, plan.body.need).missing}, and ${plan.body.text} Set "major_event" to null; your positions should fit that moment (who is there, who finds them).`
       : plan.reason === 'reckoning'
       ? `The downtime ends when ${rk.name} comes to confront ${pc.name}, who has sat out ${plan.reckoning.sat.length} emergencies (${plan.reckoning.sat.map((t) => `"${t}"`).join('; ')}). ${rk.name} has had enough and comes with something real, true to who they are: an ultimatum, a decision about ${pc.name} made without them, or something taken away. Write it in "reckoning", and set "major_event" to null; ${rk.name} is with ${pc.name} at the end, and your positions should fit that moment.`
@@ -778,7 +798,7 @@ Guidelines:${plan.crisis ? `
 
   B.downtimeFrame = ({ state, pc, here, loc, present, action, frame }) => `=== DOWNTIME FRAME ===
 From ${frame.startTime} to ${frame.endTime} (${spanWords(frame)}).
-${pc.name}'s plan for the downtime: "${action || 'keep to routine'}"
+${pc.name}'s plan for the downtime: "${action || 'keep to routine'}"${frame.journey ? `\nThe downtime is a journey: ${frame.journey}.` : ''}
 When it ends, ${pc.name} is in ${loc ? loc.name : here} with ${present.length ? present.map((id) => name(state, id)).join(', ') : 'no one'}.
 ${worldLines(state)}`;
   B.montage = ({ montage }) => (montage.length ? '\n=== DURING THE DOWNTIME ===\n' + montage.map((m) => `- after ${m.after || '?'}: ${m.text}`).join('\n') : null);
@@ -786,7 +806,7 @@ ${worldLines(state)}`;
     const others = res.events.filter((e) => !/^\[major\]/.test(e));
     return others.length ? '\n=== ALSO DURING THE DOWNTIME ===\n' + others.map((e) => '- ' + e).join('\n') : null;
   };
-  B.endsIt = ({ res }) => `\n=== WHAT ENDS IT ===\n${res.major ? res.major.text.replace(/^\[major\]\s*/, '') : '?'}`;
+  B.endsIt = ({ res, frame }) => `\n=== WHAT ENDS IT ===\n${res.major ? res.major.text.replace(/^\[major\]\s*/, '') : frame.arrival ? `The journey's end: arriving at ${frame.arrival}.` : '?'}`;
   B.whereEveryone = ({ state, doings }) => (doings.length
     ? '\n=== WHERE EVERYONE IS WHEN IT HITS ===\n' + doings.map((p) => `- ${name(state, p.id)}: in ${state.locations[state.characters[p.id].status.location].name}, ${p.doing}`).join('\n')
     : null);
@@ -798,9 +818,9 @@ ${worldLines(state)}`;
     const endMark = useDays ? `[+${frame.days}d]` : useMins ? `[+${mins}m]` : `[+${Math.round(mins / 60)}h]`;
     return `
 === TASK ===
-Write 3 or 4 beats in second person ("you" is ${pc.name}), 250–350 words in total. Start each beat on its own line with a time marker since the downtime began: ${useDays ? '[+0d], [+3d], [+8d]' : useMins ? '[+0m], [+20m], [+45m]' : '[+0h], [+6h], [+15h]'} and so on.
+Write 3 or 4 beats in second person ("you" is ${pc.name}): one short paragraph each, 2 to 4 sentences, and at most two for the final beat (250–350 words in total). Start each beat on its own line with a time marker since the downtime began: ${useDays ? '[+0d], [+3d], [+8d]' : useMins ? '[+0m], [+20m], [+45m]' : '[+0h], [+6h], [+15h]'} and so on.
 1. The first beats are a brief montage of the downtime, starting after the last scene (never retell it), a few sentences each: how the days pass, how people get along, the small things. ${pc.name} does only what their plan says and treats people according to the feelings in STATUS; others deal with whatever comes up.
-2. The final beat starts with ${endMark} and is a live scene in present tense: the thing that ends the downtime hits ${loc ? loc.name : 'where ' + pc.name + ' is'}, and the people there react in their own voices.
+2. The final beat starts with ${endMark} and is a live scene in present tense: ${frame.arrival ? `${pc.name} arrives at ${frame.arrival}, and whoever is there notices` : `the thing that ends the downtime hits ${loc ? loc.name : 'where ' + pc.name + ' is'}, and the people there react in their own voices`}.
 Hard rules:
 - Use each character's pronouns exactly as given in STATUS.
 - Do not reveal anyone's secrets unless the montage above says it came out.
