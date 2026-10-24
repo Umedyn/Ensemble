@@ -1160,6 +1160,8 @@ Reply with JSON only:
       lines.push('Pressures:');
       s.ties.clocks.forEach((c) => lines.push(`- ${c.name} (when it comes to a head: ${c.fireText}${(c.then || []).map((t) => `; then ${t.name}`).join('')})`));
     }
+    // Local lore (task 5-6) is written knowing the start's title and summary.
+    if (s.opening && step === 'lore') lines.push(`The start: ${s.opening.title}. ${s.opening.summary}`);
     if (s.extras && step === 'opening') {
       s.extras.extras.forEach((x) => lines.push(`- minor person: ${x.name}, ${x.role}${x.location ? ` (in ${x.location})` : ''}`));
       s.extras.standees.forEach((g) => lines.push(`- group: ${g.count} ${g.label} (in ${g.location}, ${g.state})`));
@@ -1227,6 +1229,21 @@ Write the opening scene the player reads first: 2 to 4 short paragraphs in secon
 List in "with_you" the ids of the people who are in ${here.name} with the player when it opens; they start there, whatever room their sheet gave them. People elsewhere can be heard or glimpsed at most.
 Also give the start a short title, a one-sentence summary for the player (second person: who they are and what's going on) and up to 3 public facts everyone here knows.
 Reply with JSON only: {"title":"...","summary":"You are ...","opening":"...","with_you":["id"],"facts":["..."]}`;
+  };
+
+  // Local lore (task 5-6): a few public entries about this start's places.
+  // Never sees secrets (the checker does); the world lore it must not repeat
+  // is named by title only.
+  GEN_TASKS.lore = (ctx) => {
+    const regions = E.StartGen.loreRegions(ctx);
+    const covered = E.Lore.entries(ctx.sc).filter((e) => e.level === 'world' || e.level === 'topic' || (e.level === 'region' && regions.some((r) => r.id === e.ref))).map((e) => e.title);
+    const L = E.StartGen.LORE;
+    return `=== TASK: LOCAL LORE ===
+Write ${L.min} to ${L.max} short notes on local things this story will come back to, so they stay the same from scene to scene: this place itself, its street or neighbourhood, a workplace, a club, a local custom or rule. Each is public knowledge anyone here knows, 40–80 words on one thing, in plain third person.
+- "about": "location" with "ref" one of the room ids above${regions.length ? `, or "region" with "ref" ${regions.map((r) => `"${r.id}" (${r.name})`).join(' or ')}` : ''}.
+- "keywords": the words someone would use for it, with nicknames. "topics": up to ${E.Lore.LIMITS.topics} of ${E.Lore.topicIds(ctx.sc).join(', ')}, or [].
+- Never anyone's secret, nothing that hasn't happened yet, nothing about the player's past, and never "you".${covered.length ? ` The world's lore already covers ${covered.join('; ')}: don't repeat it.` : ''}
+Reply with JSON only: {"entries":[{"title":"short title","about":"location","ref":"room-id","keywords":["name"],"topics":[],"text":"40–80 words"}]}`;
   };
 
   // ---------- generated sites (task 4-4) ----------

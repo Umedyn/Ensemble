@@ -111,6 +111,8 @@ function genPrompts(E, folder) {
   out.genExtras = P.genStep(ctx, 'extras');
   job.steps.extras = GEN.check.extras(r.extras, ctx);
   out.genOpening = P.genStep(ctx, 'opening');
+  job.steps.opening = GEN.check.opening(r.opening, ctx);
+  out.genLore = P.genStep(ctx, 'lore');
   return out;
 }
 

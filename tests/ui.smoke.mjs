@@ -500,8 +500,13 @@ await check('make my own start: generate a place and people, retry a failed step
   assert.equal(await page.locator('.gen-step.done').count(), 1, 'your character is kept');
   await page.click('#genRetry');
   await genDone(page);
-  assert.equal(await page.locator('.gen-step.done').count(), 7);
+  assert.equal(await page.locator('.gen-step.done').count(), 8);
   assert.equal(await page.inputValue('[data-rv="opening||title"]'), 'Day 23: the diner', 'the review screen (task 4-3)');
+  // Task 5-6: local lore in the review; one taken out.
+  assert.equal(await page.inputValue('[data-rv="lore|local-blue-plate|title"]'), 'The Blue Plate');
+  await page.click('[data-rv-lore-del="local-back-lot"]');
+  assert.equal(await page.locator('[data-rv-lore-del]').count(), 2);
+  await page.locator('.rv-section', { hasText: 'Local lore' }).screenshot({ path: path.join(shots, 'generated-start-lore.png') });
   await page.screenshot({ path: path.join(shots, 'generated-start.png') });
   await page.click('#genPlay');
   await gameStarted(page);
@@ -576,7 +581,7 @@ await check('phone: make my own start with the character form, and resume it aft
   assert.ok(box.width >= 380 && box.width <= 390, 'the generator fills the screen');
   await page.click('#genGo');
   await genDone(page);
-  assert.equal(await page.locator('.gen-step.done').count(), 7);
+  assert.equal(await page.locator('.gen-step.done').count(), 8);
   assert.equal(await page.locator('.gen-step').first().locator('[data-gen-redo]').count(), 0, 'the character you made is yours: no Redo, and no model call for it');
   assert.ok(await page.evaluate(() => { const d = document.getElementById('genDialog'); return d.scrollWidth <= d.clientWidth; }), 'the review fits the screen: no sideways scrolling');
   assert.ok(await page.isVisible('#genPlay'), 'Play stays in reach');

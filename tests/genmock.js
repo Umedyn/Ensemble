@@ -24,6 +24,16 @@ function replies(over = {}) {
       knows: [{ id: 'Owen Pruitt', text: 'The radio in the booths still picks up the convoy at night.' }], pressures: [{ name: 'The fuel runs out', max: 8, perHour: 0.1, fireText: 'The generator dies and the lights go out.', then: { name: 'The cold sets in', max: 6, perHour: 0.2, fireText: 'Frost on the inside of the windows; nobody sleeps.' } }],
       events: ['a convoy of strangers pulls into the lot', { text: 'the storm drain backs up into the kitchen' }, '', 'the radio picks up a voice nobody knows', 'a fourth idea past the limit'] },
     extras: { extras: [{ name: 'Father Abel', role: 'priest on the radio', room: null, note: 'calls every night at nine' }], groups: [{ label: 'the dead', count: 'a dozen', room: 'back-lot', state: 'alert' }, { label: 'raiders', count: 3, room: 'roof' }] },
+    // Local lore (task 5-6): the diner, its back lot and the street.
+    lore: { entries: [
+      { title: 'The Blue Plate', about: 'location', ref: 'counter', keywords: ['diner', 'Blue Plate'], topics: ['work'],
+        text: 'The Blue Plate has fed truckers and farmhands since the sixties: twelve stools, four booths and a pie case that was never empty before the outbreak. It was known for bottomless coffee and a cook who remembered every regular\'s order. The neon sign out front still lights when the generator runs, and townsfolk treat the place as somewhere to meet.' },
+      { title: 'The back lot', about: 'location', ref: 'Back Lot', keywords: ['back lot', 'propane tank'],
+        text: 'Behind the kitchen, the gravel lot holds the bins, a propane tank and a dead sedan nobody ever claimed. A chain-link fence runs along the back with one gate onto the alley, held shut with wire. Locals used to cut through it on foot, and the path they wore through the weeds is still plain to see.' },
+      { title: 'Saturday market', about: 'region', ref: null, keywords: ['market', 'Saturday market'], topics: ['business', 'family'],
+        text: 'Before the outbreak, Main Street closed to cars every Saturday morning for a market around the courthouse lawn. Stalls sold eggs, honey, jars of pickles and secondhand tools, and the same families held the same spots for decades. The painted stall numbers are still on the kerb, and a few townsfolk still gather there on Saturdays to swap what they have.' },
+      { title: 'Too short', about: 'location', ref: 'kitchen', text: 'Grease everywhere.' },
+    ] },
     room: { name: 'Pantry', desc: 'Empty shelves and a smell of old onions.' },
     // Generated regions (R-6): a town up the road.
     region: { lore: 'A market town on the river, half shuttered now; its square still fills on Saturdays.' },
@@ -52,6 +62,7 @@ function replies(over = {}) {
   return Object.assign(base, over);
 }
 const STEP_OF = [
+  ['TASK: LOCAL LORE', 'lore'],
   ["THE PLAYER'S CHARACTER", 'player'], ['TASK: THE PLACE AND WHO IS THERE', 'siteFlavour'], ['TASK: MORE OF THIS PLACE', 'siteGrow'], ['TASK: THE PLACE', 'rooms'], ['TASK: WHO IS HERE', 'plan'], ['TASK: WRITE ONE PERSON', 'person'],
   ['TASK: WRITE THE PEOPLE', 'cast'], ['TASK: A NEW REGION', 'region'],
  ['TASK: REWRITE ONE ROOM', 'room'], ['TASK: THE LAYOUT', 'siteLayout'], ['TASK: WHO AND WHAT IS HERE', 'siteOccupants'], ['TASK: TIES AND PRESSURES', 'ties'], ['TASK: MINOR PEOPLE AND GROUPS', 'extras'], ['TASK: THE OPENING', 'opening'],

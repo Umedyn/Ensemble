@@ -123,3 +123,33 @@ test('a saved start loads as an authored start and plays', async () => {
   assert.equal(state.characters['lena-marsh'].status.location, 'counter');
   assert.ok(E2.StartGen.taken(loaded).names.has('Lena Marsh'), 'a second generated start won\'t reuse their names');
 });
+
+test('local lore in the review: fields edited and checked, an entry removed, the lore rerolled alone, and Save as start writes it', async () => {
+  const { E, w, job, GEN } = await finished();
+  const set = (...a) => plain(GEN.setField(w, job, ...a));
+  assert.deepEqual(set('lore', 'local-blue-plate', 'title', 'The Blue Plate Diner'), { value: 'The Blue Plate Diner' });
+  assert.deepEqual(set('lore', 'local-blue-plate', 'keywords', 'diner, Blue Plate, diner, pie case'), { value: ['diner', 'Blue Plate', 'pie case'] });
+  assert.match(set('lore', 'local-blue-plate', 'keywords', Array.from({ length: 13 }, (_, i) => `k${i}`).join(',')).error, /Up to 12 keywords/);
+  assert.match(set('lore', 'local-blue-plate', 'text', ' ').error, /can't be empty/);
+  set('lore', 'local-blue-plate', 'keywords', '');
+  assert.equal(GEN.target(job, 'lore', 'local-blue-plate').keywords, undefined);
+  // An edit is checked like the step: here, a secret in public lore.
+  const text = GEN.target(job, 'lore', 'local-back-lot').text;
+  set('lore', 'local-back-lot', 'text', text + BITE);
+  assert.match(GEN.reviewProblems(w, job).join(' '), /Local lore "The back lot" gives away Kay Dunbar's secret; lore is public\./);
+  assert.ok(GEN.removeLore(job, 'local-back-lot'));
+  assert.deepEqual([...GEN.reviewProblems(w, job)], []);
+  // Save as start writes the start's lore with it.
+  const files = plain(GEN.files(w, job));
+  assert.deepEqual(files[`starts/${job.id}.json`].lore.map((e) => e.id), ['local-blue-plate', 'local-saturday-market']);
+  const loaded = loadEngine().Scenario.prepareWorld('zombie-holdout', Object.assign(worldFiles('zombie-holdout'), files));
+  assert.deepEqual([...loaded.warnings], []);
+  assert.ok(loaded.starts.find((s) => s.id === job.id).scenario.lore.some((e) => e.id === 'local-blue-plate' && e.title === 'The Blue Plate Diner'));
+  // Rerolled alone; nothing else is touched.
+  const opening = plain(job.steps.opening);
+  const calls = mock(E, { lore: { entries: [replies().lore.entries[1]] } });
+  await GEN.redoOnly(w, job, 'lore');
+  assert.deepEqual(calls.map((c) => c.kind), ['worldbuild (start: lore)']);
+  assert.deepEqual(plain(job.steps.lore.entries.map((e) => e.id)), ['local-back-lot']);
+  assert.deepEqual(plain(job.steps.opening), opening);
+});

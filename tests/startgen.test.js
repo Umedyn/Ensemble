@@ -1,5 +1,5 @@
 // Generated starts (task 4-2): the world's settings, each step's checker, the
-// retries, rerunning one step, resuming a job, and the whole pipeline making
+// retries, rerunning one step, resuming a job, local lore (task 5-6), and the whole pipeline making
 // a start that loads like an authored one and plays a turn.
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -206,10 +206,10 @@ test('the whole pipeline makes a start that loads like an authored one and plays
   await GEN.run(w, job, { save: (j) => saves.push(JSON.stringify(j)) });
   assert.ok(GEN.done(job));
   assert.deepEqual(calls.map((c) => c.kind), ['worldbuild (start: player)', 'worldbuild (start: rooms)', 'worldbuild (start: plan)',
-    'worldbuild (start: character 1)', 'worldbuild (start: character 2)', 'worldbuild (start: character 3)', 'worldbuild (start: ties)', 'worldbuild (start: extras)', 'worldbuild (start: opening)']);
+    'worldbuild (start: character 1)', 'worldbuild (start: character 2)', 'worldbuild (start: character 3)', 'worldbuild (start: ties)', 'worldbuild (start: extras)', 'worldbuild (start: opening)', 'worldbuild (start: lore)']);
   assert.ok(calls.every((c) => E.LLM.stepOf(c.kind) === 'worldbuild'), 'routed with World building');
   assert.equal(new Set(calls.map((c) => c.system)).size, 1, 'one header for every step (cache)');
-  assert.equal(saves.length, 7, 'checkpointed after every step');
+  assert.equal(saves.length, 8, 'checkpointed after every step');
   const { start, characters } = GEN.toStart(w, job);
   assert.equal(start.generated, true);
   assert.equal(start.region, 'main-street');
@@ -260,7 +260,7 @@ test('rerunning one step redoes it and the steps after it, nothing before', asyn
   GEN.clearFrom(job, 'ties');
   const calls = mock(E, { opening: Object.assign({}, replies().opening, { title: 'Second try' }) });
   await GEN.run(w, job);
-  assert.deepEqual(calls.map((c) => c.kind), ['worldbuild (start: ties)', 'worldbuild (start: extras)', 'worldbuild (start: opening)']);
+  assert.deepEqual(calls.map((c) => c.kind), ['worldbuild (start: ties)', 'worldbuild (start: extras)', 'worldbuild (start: opening)', 'worldbuild (start: lore)']);
   assert.equal(JSON.stringify(job.steps.rooms), rooms);
   assert.equal(job.steps.opening.title, 'Second try');
 });
@@ -422,4 +422,96 @@ test('playtest-api: an age on the end of a role goes to the sheet; a nickname st
   const teddy = GEN.check.person(Object.assign({}, SHEETS['Lena Marsh'], { age: undefined }), ctx, 0).character;
   assert.equal(teddy.id, 'teodora-marchetti');
   assert.equal(teddy.age, 61);
+});
+
+// ---------- local lore (task 5-6) ----------
+
+// A job finished up to the opening, ready for the lore step.
+async function beforeLore() {
+  const t = setup();
+  mock(t.E);
+  await t.GEN.run(t.w, t.job);
+  delete t.job.steps.lore;
+  return Object.assign(t, { ctx: ctxOf(t.E, t.w, t.job) });
+}
+const WORDS = (n) => Array.from({ length: n }, (_, i) => `word${i}`).join(' ');
+
+test('local lore: a good reply becomes start entries with real refs, keywords and known topics; short ones are dropped', async () => {
+  const { GEN, ctx } = await beforeLore();
+  const out = GEN.check.lore(replies().lore, ctx);
+  assert.equal(out.error, undefined);
+  assert.deepEqual(plain(out.entries.map((e) => [e.id, e.level, e.ref])), [
+    ['local-blue-plate', 'location', 'counter'], ['local-back-lot', 'location', 'back-lot'], ['local-saturday-market', 'region', 'main-street']]);
+  assert.deepEqual([...out.entries[0].keywords], ['diner', 'Blue Plate', 'The Blue Plate'], 'the title too, when short');
+  assert.deepEqual([...out.entries[2].topics], ['business', 'family']);
+  assert.deepEqual([...out.warnings], ['too short, dropped: Too short']);
+  // A region entry with no ref is about the start's region; unknown topics are left out.
+  const one = GEN.check.lore({ entries: [Object.assign({}, replies().lore.entries[2], { ref: null, topics: ['astrology'] })] }, ctx).entries[0];
+  assert.deepEqual([one.ref, one.topics], ['main-street', undefined]);
+  const town = GEN.check.lore({ entries: [Object.assign({}, replies().lore.entries[2], { ref: 'Harmon' })] }, ctx).entries[0];
+  assert.equal(town.ref, 'town', 'a region up the chain, by name');
+});
+
+test('local lore: each problem in a bad reply is named for the retry', async () => {
+  const { GEN, ctx } = await beforeLore();
+  const good = replies().lore.entries[0];
+  const bad = (more) => GEN.check.lore({ entries: [Object.assign({}, good, more)] }, ctx).error;
+  const said = (t) => bad({ text: `${good.text} ${t}` });
+  assert.match(GEN.check.lore({}, ctx).error, /reply with \{"entries"/);
+  assert.match(GEN.check.lore({ entries: [] }, ctx).error, /write 3 to 5 entries/);
+  assert.match(bad({ text: WORDS(120) }), /"The Blue Plate" is 120 words; keep each entry to 40–80 words/);
+  assert.match(bad({ ref: 'pantry' }), /is about "pantry", which isn't one of the rooms \(counter, kitchen, back-lot, booths\)/);
+  assert.match(bad({ about: 'region', ref: 'ridge-town' }), /a region entry is about main-street \(Main Street\) or town \(Harmon\)/);
+  assert.match(said('If you sit at the end stool, the cook pours a second cup.'), /talks to the player \("you"\)/);
+  assert.match(said('Sam Whitlock once drove supplies here.'), /names Sam Whitlock, the player: their past is theirs to tell/);
+  assert.match(said('Gil Ferris ate lunch here every day.'), /names Gil Ferris, who isn't in this start/);
+  ctx.sc.lore = ctx.sc.lore.concat([{ id: 'mayor', title: 'Mayor Dolores Reyes', level: 'character', ref: 'pike', text: 'The mayor.', keywords: ['the mayor'] }]);
+  assert.match(said('The mayor keeps a booth reserved here.'), /puts the mayor in this place; people from the world's lore come into the story only when the player seeks them out/);
+  assert.match(said('Kay Dunbar hides her bitten hand in a glove here.'), /gives away Kay Dunbar's secret; lore is public/);
+  assert.match(said('The rescue convoy sets up a checkpoint under the overpass at the junction.'), /tells something that hasn't happened yet/);
+  assert.match(said('Ridge is the next town up the ridge road, smaller and poorer than this one.'), /copies the world's lore \("ridge is the next town up the ridge…"\)/);
+});
+
+test('local lore: a bad reply is retried with the problem named, and a step that keeps failing is dropped without blocking the start', async () => {
+  const t = await beforeLore();
+  let n = 0;
+  const calls = mock(t.E, { lore: () => (++n === 1 ? { entries: [Object.assign({}, replies().lore.entries[0], { ref: 'pantry' })] } : replies().lore) });
+  await t.GEN.run(t.w, t.job);
+  assert.equal(calls.length, 2);
+  assert.match(calls[1].user, /Your last reply had a problem: "The Blue Plate" is about "pantry"/);
+  assert.equal(t.job.steps.lore.entries.length, 3);
+
+  const u = await beforeLore();
+  const tries = mock(u.E, { lore: { entries: [] } });
+  await u.GEN.run(u.w, u.job);
+  assert.equal(tries.length, 3, 'three tries');
+  assert.ok(u.GEN.done(u.job), 'the start is finished anyway');
+  assert.deepEqual(plain(u.job.steps.lore), { entries: [], dropped: 'write 3 to 5 entries of 40–80 words each' });
+  const { start } = u.GEN.toStart(u.w, u.job);
+  assert.equal(start.lore, undefined);
+  const state = u.E.Engine.newGame(u.GEN.scenario(u.w, u.job));
+  assert.equal(state.player, 'sam-whitlock', 'and it plays');
+  // A model that can't be reached is dropped the same way.
+  const v = await beforeLore();
+  mockLLM(v.E, () => { throw new Error('offline'); });
+  await v.GEN.run(v.w, v.job);
+  assert.match(v.job.steps.lore.dropped, /offline/);
+});
+
+test('local lore is picked in play like authored lore (the player\'s room, keywords) and survives save and load', async () => {
+  const { E, w, job, GEN } = setup();
+  mock(E);
+  await GEN.run(w, job);
+  const { start } = GEN.toStart(w, job);
+  assert.deepEqual(plain(start.lore.map((e) => e.id)), ['local-blue-plate', 'local-back-lot', 'local-saturday-market']);
+  const state = E.Engine.newGame(GEN.scenario(w, job));
+  const pick = (s, action) => plain(E.Lore.select(s, { action, scene: '' }));
+  const here = pick(state, 'Look around.');
+  assert.deepEqual(here[0].id, 'local-blue-plate');
+  assert.equal(here[0].why, 'the player is here');
+  assert.equal(here.find((p) => p.id === 'local-saturday-market').why, "the player's region", 'beside the world\'s own Main Street entry');
+  assert.ok(!here.some((p) => p.id === 'local-back-lot'), 'another room\'s lore waits');
+  assert.equal(pick(state, 'Check the propane tank.').find((p) => p.id === 'local-back-lot').why, '"propane tank" in the action');
+  const loaded = E.Engine.migrate(JSON.parse(JSON.stringify(state)));
+  assert.deepEqual(pick(loaded, 'Check the propane tank.'), pick(state, 'Check the propane tank.'));
 });

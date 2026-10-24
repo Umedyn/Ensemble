@@ -512,8 +512,12 @@
       const r = GEN.target(gen.job, 'room', b.dataset.rvRoom);
       rerollRun(`Rerolling ${r.name}`, () => GEN.rerollRoom(gen.world, gen.job, r.id));
     } else if (b.dataset.rvRedo) {
-      const label = { opening: 'the opening', ties: 'the pressures', extras: 'the minor people' }[b.dataset.rvRedo];
+      const label = { opening: 'the opening', ties: 'the pressures', extras: 'the minor people', lore: 'the local lore' }[b.dataset.rvRedo];
       rerollRun(`Rerolling ${label}`, () => GEN.redoOnly(gen.world, gen.job, b.dataset.rvRedo));
+    } else if (b.dataset.rvLoreDel) {
+      GEN.removeLore(gen.job, b.dataset.rvLoreDel);
+      saveJob(gen.job);
+      renderGen();
     } else if (b.id === 'genSave') {
       if (!GEN.reviewProblems(gen.world, gen.job).length) saveStart();
     } else if (b.id === 'genPlay') {
@@ -590,6 +594,16 @@
     html += `<section class="rv-section"><div class="rv-head"><h4>Minor people and groups</h4>${reroll('data-rv-redo="extras"', 'Reroll', 'New minor people and groups')}</div>` +
       (ex.extras.length || ex.standees.length ? `<ul class="rv-list">${ex.extras.map((x) => `<li><b>${esc(x.name)}</b>, ${esc(x.role)}${x.location ? `, in ${esc(roomName(x.location))}` : ''}${gen.spoilers && x.note ? ` <span class="muted">${esc(x.note)}</span>` : ''}</li>`).join('')}` +
         `${ex.standees.map((g) => `<li><b>${g.count} ${esc(g.label)}</b>, ${esc(g.state)}, in ${esc(roomName(g.location))}${gen.spoilers && g.note ? ` <span class="muted">${esc(g.note)}</span>` : ''}</li>`).join('')}</ul>` : '<div class="muted small">None.</div>') + '</section>';
+    // Local lore (task 5-6): public notes the story keeps to; editable, and
+    // one can be taken out. A step that failed leaves a note, not a blocked start.
+    const lore = s.lore || { entries: [] };
+    const regionName = (id) => ((gen.world.bundle.world.regions || []).find((r) => r.id === id) || {}).name || id;
+    html += `<section class="rv-section"><div class="rv-head"><h4>Local lore</h4>${reroll('data-rv-redo="lore"', 'Reroll', 'New notes on this place; everything else stays')}</div>` +
+      (lore.dropped ? `<div class="muted small">No local lore this time (${esc(lore.dropped)}). The start plays without it; Reroll to try again.</div>` : '') +
+      lore.entries.map((e) => `<div class="rv-card"><div class="rv-head"><b>${esc(e.title)}</b> <span class="muted small">about ${esc(e.level === 'region' ? regionName(e.ref) : roomName(e.ref))}${(e.topics || []).length ? ` · ${esc(e.topics.join(', '))}` : ''}</span><button type="button" class="small ghost" data-rv-lore-del="${esc(e.id)}"${off} aria-label="Remove ${esc(e.title)}">✕</button></div>` +
+        field('lore', e.id, 'title', e.title, { label: 'Title' }) + field('lore', e.id, 'text', e.text, { label: 'Text (public: the story engine sees it)', rows: 3 }) +
+        field('lore', e.id, 'keywords', (e.keywords || []).join(', '), { label: 'Keywords (separated by commas)' }) + '</div>').join('') +
+      (!lore.entries.length && !lore.dropped ? '<div class="muted small">None.</div>' : '') + '</section>';
     if (gen.rvNote) html += `<div class="small rv-note">${esc(gen.rvNote)}</div>`;
     html += '<ul id="rvProblems" class="maker-errors fail" aria-live="polite"></ul>';
     return html;

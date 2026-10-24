@@ -3,7 +3,7 @@
 // 4-1 form, or a line the model turns into a sheet) and an optional note go
 // in; a pipeline of small worldbuild calls comes out, each checked before
 // the next: rooms → who is here → the people → ties and pressures → minor
-// people and groups → the opening. The result is a normal start (plus its
+// people and groups → the opening → local lore (task 5-6). The result is a normal start (plus its
 // new characters), composed and validated like an authored one.
 //
 // A job is plain JSON (inputs plus each step's checked output), so the page
@@ -29,7 +29,11 @@
     { id: 'ties', label: 'Ties and pressures' },
     { id: 'extras', label: 'Minor people and groups' },
     { id: 'opening', label: 'Opening scene' },
+    { id: 'lore', label: 'Local lore' },
   ];
+  // Local lore (task 5-6): entries per start, and their length in words
+  // (40–80 asked; shorter ones are dropped, longer ones sent back).
+  GEN.LORE = { min: 3, max: 5, minWords: 25, maxWords: 100 };
   GEN.TRIES = 3; // one call plus two reruns with the problem named
   GEN.PLAYER_FEELING = 25; // the cast has only just met the player
   GEN.PLURAL = /\b(couple|family|pair|twins|group|kids|children|people|men|women|survivors|neighbou?rs|brothers|sisters)\b/i;
@@ -566,13 +570,98 @@
     return { title, summary, opening, facts, withYou };
   };
 
+  // ---------- local lore (task 5-6) ----------
+  // A few public entries about this start's places (the diner, the street,
+  // the club), so their details stay the same from turn to turn. Checked
+  // like authored lore, plus what only a generated text can get wrong.
+  const stemShare = (a, b) => { const x = stems(a); let n = 0; stems(b).forEach((w) => { if (x.has(w)) n++; }); return n; };
+  const wordRuns = (t, n) => {
+    const w = String(t || '').toLowerCase().match(/[\p{L}\p{N}']+/gu) || [];
+    const out = [];
+    for (let i = 0; i + n <= w.length; i++) out.push(w.slice(i, i + n).join(' '));
+    return out;
+  };
+  // The regions a local entry may be about: the start's and those it is inside.
+  GEN.loreRegions = (ctx) => (ctx.job.region ? E.Scenario.regionChainIn(ctx.sc.regions, ctx.job.region).map((id) => (ctx.sc.regions || []).find((r) => r.id === id)).filter(Boolean) : []);
+  // Timeline events still to come at the start (the narrator must not know them yet).
+  GEN.futureEvents = (sc) => (Array.isArray(sc.timeline) ? sc.timeline : [])
+    .filter((ev) => isObj(ev) && ev.draft !== true && ev.when && E.Timeline.at(ev.when) > E.Timeline.at(sc.start || GEN.DATE));
+  // People in the world's lore (its entries about characters): they come into
+  // the story only when the player seeks them out (R-7), never in local lore.
+  const loreFigures = (sc) => (Array.isArray(sc.lore) ? sc.lore : []).filter((e) => isObj(e) && e.level === 'character')
+    .flatMap((e) => [e.title].concat(Array.isArray(e.keywords) ? e.keywords : [])).filter((n) => typeof n === 'string' && n.trim());
+  // What is wrong with an entry's words, or null. Shared by the step and the review.
+  GEN.loreProblem = function (ctx, e) {
+    const t = `${e.title || ''}. ${e.text || ''}`;
+    if (/\b(you|your|you're|yours|yourself)\b/i.test(t)) return 'talks to the player ("you"); write about the place, as public knowledge';
+    if (GEN.namesPlayer(ctx.job, t)) return `names ${GEN.player(ctx.job).name}, the player: their past is theirs to tell`;
+    const away = GEN.namesSomeoneElse(ctx, t);
+    if (away) return `names ${away}, who isn't in this start`;
+    const fig = loreFigures(ctx.sc).find((n) => E.Lore.matches(n, t));
+    if (fig) return `puts ${fig} in this place; people from the world's lore come into the story only when the player seeks them out`;
+    const who = GEN.pressureLeak(ctx.job, t);
+    if (who) return `gives away ${who.name}'s secret; lore is public`;
+    if (GEN.futureEvents(ctx.sc).some((ev) => stemShare(ev.text, t) >= 4)) return 'tells something that hasn\'t happened yet; write the place as it is now';
+    const theirs = new Set(E.Lore.entries(ctx.sc).flatMap((x) => wordRuns(x.text, 8)));
+    const copy = wordRuns(e.text, 8).find((r) => theirs.has(r));
+    if (copy) return `copies the world's lore ("${copy}…"); write something new about this place`;
+    return null;
+  };
+  C.lore = function (raw, ctx) {
+    if (!isObj(raw) || !Array.isArray(raw.entries)) return { error: 'reply with {"entries": [...]}' };
+    const L = GEN.LORE;
+    const rooms = ctx.job.steps.rooms.rooms;
+    const regions = GEN.loreRegions(ctx);
+    const known = E.Lore.topicIds(ctx.sc);
+    const used = new Set(E.Lore.entries(ctx.sc).map((e) => e.id));
+    const warnings = [];
+    const entries = [];
+    for (const r of raw.entries.filter(isObj).slice(0, L.max)) {
+      const title = text(r.title, E.Lore.LIMITS.title);
+      const body = String(r.text || '').replace(/\s+/g, ' ').trim();
+      if (!title || !body) { warnings.push('an entry without a title or text, dropped'); continue; }
+      const n = body.split(' ').length;
+      if (n > L.maxWords || body.length > E.Lore.LIMITS.text) return { error: `"${title}" is ${n} words; keep each entry to 40–80 words on one thing` };
+      if (n < L.minWords) { warnings.push(`too short, dropped: ${title}`); continue; }
+      const level = r.about === 'region' ? 'region' : 'location';
+      let ref;
+      if (level === 'location') {
+        const room = rooms.find((x) => x.id === r.ref || norm(x.name) === norm(r.ref));
+        if (!room) return { error: `"${title}" is about "${r.ref}", which isn't one of the rooms (${rooms.map((x) => x.id).join(', ')})` };
+        ref = room.id;
+      } else {
+        if (!regions.length) return { error: `"${title}" is about a region, but there is none here; make it about one of the rooms` };
+        const rg = r.ref == null || r.ref === '' ? regions[0] : regions.find((x) => x.id === r.ref || norm(x.name) === norm(r.ref));
+        if (!rg) return { error: `"${title}" is about "${r.ref}"; a region entry is about ${regions.map((x) => `${x.id} (${x.name})`).join(' or ')}` };
+        ref = rg.id;
+      }
+      let id = 'local-' + (slug(title) || 'place');
+      for (let k = 2; used.has(id); k++) id = `local-${slug(title) || 'place'}-${k}`;
+      used.add(id);
+      const e = { id, title, level, ref, text: body };
+      const kws = [];
+      [].concat(Array.isArray(r.keywords) ? r.keywords : [], title.split(/\s+/).length <= 3 ? [title] : []).forEach((k) => {
+        const kw = text(k, E.Lore.LIMITS.keyword);
+        if (kw && !kws.some((x) => x.toLowerCase() === kw.toLowerCase())) kws.push(kw);
+      });
+      if (kws.length) e.keywords = kws.slice(0, E.Lore.LIMITS.keywords);
+      const topics = [...new Set((Array.isArray(r.topics) ? r.topics : []).map((t) => String(t || '').trim().toLowerCase()).filter((t) => known.includes(t)))];
+      if (topics.length) e.topics = topics.slice(0, E.Lore.LIMITS.topics);
+      const why = GEN.loreProblem(ctx, e);
+      if (why) return { error: `"${title}" ${why}` };
+      entries.push(e);
+    }
+    if (!entries.length) return { error: `write ${L.min} to ${L.max} entries of 40–80 words each` };
+    return { entries, warnings };
+  };
+
   // ---------- running ----------
   GEN.context = function (loaded, job) {
     const sc = GEN.contextScenario(loaded, job.region);
     const taken = GEN.taken(loaded);
     return { loaded, job, sc, taken, header: E.Prompts.genHeader(sc, taken) };
   };
-  const tokens = { player: 600, rooms: 700, plan: 400, cast: 700, castAll: 2400, ties: 700, extras: 500, opening: 900 };
+  const tokens = { player: 600, rooms: 700, plan: 400, cast: 700, castAll: 2400, ties: 700, extras: 500, opening: 900, lore: 650 };
 
   // One call (with up to TRIES attempts) → checked data. A failed check is
   // named in the next attempt; every attempt is logged on the job.
@@ -618,6 +707,15 @@
         if (onProgress) say({ index: i + 1, of: plan.length, saved: true });
       }
       out = { people: job.partial.cast };
+    } else if (stepId === 'lore') {
+      // Local lore never blocks the start (task 5-6): after the last try the
+      // step is dropped with a note, and the start plays without it.
+      try {
+        out = await attempt(ctx, kind(stepId), P.genStep(ctx, stepId), tokens.lore, (raw) => C.lore(raw, ctx));
+      } catch (err) {
+        if (err.name !== 'StepError') throw err;
+        out = { entries: [], dropped: err.message.replace(/^lore: /, '') };
+      }
     } else {
       const max = stepId === 'cast' ? tokens.castAll : tokens[stepId];
       out = await attempt(ctx, kind(stepId), P.genStep(ctx, stepId), max, (raw) => C[stepId](raw, ctx));
@@ -666,6 +764,7 @@
     },
     clock: { name: ['text', 40, true], max: ['int', 2, 24], perHour: ['num', 0.01, 1], fireText: ['prose', 240, true] },
     opening: { title: ['text', 60, true], summary: ['prose', 300, true], opening: ['opening'], facts: ['facts'] },
+    lore: { title: ['text', 80, true], text: ['prose', 800, true], keywords: ['keywords'] },
   };
   GEN.FIELDS = FIELDS;
   // The object an edit changes: a room, a person (the player too), a
@@ -676,6 +775,7 @@
     if (kind === 'person') return [GEN.player(job)].concat(GEN.people(job)).find((c) => c && c.id === id);
     if (kind === 'clock') return s.ties && GEN.clocks(job).find((c) => c.id === id);
     if (kind === 'opening') return s.opening;
+    if (kind === 'lore') return s.lore && s.lore.entries.find((e) => e.id === id);
     return null;
   };
   // One field → { value } (stored) or { error } (nothing changed).
@@ -710,6 +810,10 @@
       const list = String(v).split(/\n+/).map((t) => t.replace(/\s+/g, ' ').trim()).filter(Boolean);
       if (list.length > 3 || list.some((t) => t.length > 200)) return { error: 'Up to 3 facts, one per line, 200 characters each.' };
       out = list;
+    } else if (type === 'keywords') {
+      const list = [...new Set(String(v).split(',').map((t) => t.replace(/\s+/g, ' ').trim()).filter(Boolean))];
+      if (list.length > E.Lore.LIMITS.keywords || list.some((t) => t.length > E.Lore.LIMITS.keyword)) return { error: `Up to ${E.Lore.LIMITS.keywords} keywords, separated by commas, ${E.Lore.LIMITS.keyword} characters each.` };
+      out = list.length ? list : null;
     } else if (type === 'opening') {
       const t = String(v).replace(/\r/g, '').replace(/\n{3,}/g, '\n\n').trim();
       if (t.split(/\s+/).filter(Boolean).length < 20) return { error: 'The opening needs at least a few sentences.' };
@@ -756,6 +860,11 @@
       const who = GEN.pressureLeak(job, c.name + '. ' + c.fireText);
       if (who) problems.push(`The pressure "${c.name}" gives away ${who.name}'s secret (pressures are shown to the player).`);
     });
+    // Local lore (task 5-6), as edited: the same checks as the step.
+    if (job.steps.lore && job.steps.lore.entries.length) {
+      const full = GEN.context(loaded, job);
+      job.steps.lore.entries.forEach((e) => { const why = GEN.loreProblem(full, e); if (why) problems.push(`Local lore "${e.title}" ${why}.`); });
+    }
     return [...new Set(problems)];
   };
 
@@ -803,8 +912,16 @@
 
   // Redoes one step and keeps the rest (the pressures, or the opening).
   GEN.redoOnly = async function (loaded, job, stepId) {
-    if (!['ties', 'extras', 'opening'].includes(stepId)) throw new Error(`"${stepId}" can't be redone on its own; use Redo, which redoes the steps after it too.`);
+    if (!['ties', 'extras', 'opening', 'lore'].includes(stepId)) throw new Error(`"${stepId}" can't be redone on its own; use Redo, which redoes the steps after it too.`);
     return GEN.runStep(loaded, job, stepId);
+  };
+
+  // Takes one local lore entry out (task 5-6).
+  GEN.removeLore = function (job, id) {
+    const s = job.steps.lore;
+    const i = s ? s.entries.findIndex((e) => e.id === id) : -1;
+    if (i >= 0) s.entries.splice(i, 1);
+    return i >= 0;
   };
 
   // The files "Save as start" writes, in the world format: world.json with
@@ -851,6 +968,9 @@
       opening: s.opening.opening,
     };
     if (job.region) start.region = job.region;
+    // Local lore (task 5-6) is the start's own, so it is in the game's
+    // scenario, its saves and Save as start.
+    if (s.lore && s.lore.entries.length) start.lore = s.lore.entries.map((e) => E.clone(e));
     // The start's regional ideas replace the world's (a shallow merge), so the
     // world's own go after them.
     const ideas = (s.ties.events || []).map((t) => (job.region ? { text: t, region: job.region } : t));
