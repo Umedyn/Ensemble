@@ -281,12 +281,12 @@
   // The creator edits the world's people with the same form in author mode:
   // free role and people text, no point budget (only the 0–4 cap), feelings
   // toward everyone in the pool, and the fields a player never sets (what
-  // they know, an agenda, the default tier, tags, needs). base: a composed
+  // they know, an agenda, the default tier, tags, lore topics, needs). base: a composed
   // start of the world (its header for Suggest), or null; pool: {id: file}.
   CM.authorScenario = function (world, base, pool, editingId) {
     const sc = E.clone(base || {
       title: world.title, worldTitle: world.title, setting: world.setting || '', rules: world.rules || [], tags: world.tags || [],
-      skills: world.skills, needs: world.needs || [], world: world.world || {}, factions: world.factions || [], regions: world.regions,
+      skills: world.skills, needs: world.needs || [], world: world.world || {}, factions: world.factions || [], regions: world.regions, loreTopics: world.loreTopics,
       locations: [{ id: 'here', name: 'Here', desc: '', connects: [] }], start: { day: 1, hour: 8 }, timeLabel: world.timeLabel,
     });
     sc.skills = sc.skills || E.DEFAULT_SKILLS.slice();
@@ -317,6 +317,7 @@
     f.tier = ['local', 'secondary'].includes(d.tier) ? d.tier : '';
     f.pinned = d.pinned === true;
     f.tags = Array.isArray(d.tags) ? d.tags.filter((x) => typeof x === 'string') : [];
+    f.topics = Array.isArray(d.topics) ? d.topics.filter((x) => typeof x === 'string') : [];
     f.needs = isObj(d.needs) ? Object.assign({}, d.needs) : {};
     return f;
   };
@@ -361,6 +362,7 @@
     set('tier', f.tier || undefined);
     set('pinned', f.pinned ? true : undefined);
     set('tags', (f.tags || []).map((x) => text(x, 100)).filter(Boolean));
+    set('topics', [...new Set((f.topics || []).map((x) => String(x).trim().toLowerCase()).filter(Boolean))]);
     const needs = {};
     const errors = [];
     Object.entries(f.needs || {}).forEach(([k, v]) => {

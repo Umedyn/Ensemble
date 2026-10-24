@@ -16,7 +16,7 @@
   const START_OWN = ['id', 'title', 'summary', 'start', 'player', 'cast', 'opening', 'castLabel', 'region', 'playerSlot', 'generated'];
   // World fields a start may override (merge rules below).
   const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'tagThresholds', 'portraitSet', 'factions', 'world',
-    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'regionLabels', 'routeKinds', 'presence', 'mapFocus', 'tactical', 'standees', 'site', 'localMap', 'map', 'entrances', 'lore', 'timeline', 'projectTimeline'];
+    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'regionLabels', 'routeKinds', 'presence', 'mapFocus', 'tactical', 'standees', 'site', 'localMap', 'map', 'entrances', 'lore', 'loreTopics', 'timeline', 'projectTimeline'];
   const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'date', 'characters', 'starts', 'generatedStarts', 'generatedSites', 'generatedRegions', 'sites', ...OVERRIDABLE];
   const WORLD_RESERVED = [];
   const START_RESERVED = [];
@@ -25,7 +25,7 @@
   // unioned, plain objects merge shallowly; anything else is replaced.
   const ID_LISTS = ['locations', 'clocks', 'factions', 'extras', 'regions', 'standees', 'lore', 'timeline'];
   const STRING_LISTS = ['rules', 'facts', 'tags'];
-  const OBJECTS = ['world', 'eventRates', 'eventSeeds', 'tiers', 'routeKinds', 'presence'];
+  const OBJECTS = ['world', 'eventRates', 'eventSeeds', 'tiers', 'routeKinds', 'presence', 'loreTopics'];
 
   const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
   const castId = (entry) => (typeof entry === 'string' ? entry : entry && entry.id);
@@ -160,11 +160,16 @@
     const { world, starts = {}, characters = {} } = bundle;
     const { entries, problems } = E.Lore.resolve(world.lore, bundle.loreFiles);
     const rootName = bundle.legacy ? 'scenario.json' : 'world.json';
-    problems.push(...E.Lore.problems(entries, rootName));
+    // Topic tags (task 5-5): the built-in ones and any the world or a start adds.
+    const topics = new Set(E.Lore.topicIds(world));
+    startIds.forEach((sid) => E.Lore.topicIds(starts[sid]).forEach((t) => topics.add(t)));
+    problems.push(...E.Lore.topicProblems(world.loreTopics, rootName));
+    startIds.forEach((sid) => problems.push(...E.Lore.topicProblems(starts[sid] && starts[sid].loreTopics, `starts/${sid}.json`)));
+    problems.push(...E.Lore.problems(entries, rootName, topics));
     const sources = [[rootName, entries]].concat(startIds.filter((sid) => starts[sid] && starts[sid].lore != null).map((sid) => {
       const where = `starts/${sid}.json`;
       if (!Array.isArray(starts[sid].lore)) { problems.push(`${where}: "lore" must be a list of entries`); return [where, []]; }
-      problems.push(...E.Lore.problems(starts[sid].lore, where));
+      problems.push(...E.Lore.problems(starts[sid].lore, where, topics));
       return [where, starts[sid].lore];
     }));
     if (sources.every(([, list]) => !list.length)) return problems;
@@ -582,6 +587,12 @@
     // Tags (and the older status.conditions) start the game as lasting tags.
     [['tags', c.tags], ['status.conditions', c.status && c.status.conditions]].forEach(([k, v]) =>
       req(v == null || (Array.isArray(v) && v.every((t) => typeof t === 'string' && t.trim() && t.length <= 32)), `character "${c.id}" ${k} must be a list of short phrases (32 characters each)`));
+    // Topic tags (task 5-5): what the lore should lean to for this person as the player.
+    if (c.topics != null) {
+      const known = E.Lore.topicIds(sc);
+      if (!Array.isArray(c.topics) || c.topics.length > E.Lore.LIMITS.topics || !c.topics.every((t) => typeof t === 'string')) problems.push(`character "${c.id}" topics must be a list of at most ${E.Lore.LIMITS.topics} topic tags`);
+      else c.topics.filter((t) => !known.includes(t)).forEach((t) => problems.push(`character "${c.id}": "${t}" is not a topic this world knows (${known.join(', ')})`));
+    }
     req(c.status && locIds.has(c.status.location), `character "${c.id}" starts at unknown location "${c.status && c.status.location}"`);
     Object.keys(c.skills || {}).forEach((k) => req(sc.skills.includes(k), `character "${c.id}" has skill "${k}" not in scenario skills`));
     Object.keys(c.relations || {}).forEach((k) => req(castIds.includes(k), `character "${c.id}" has relation to unknown "${k}"`));
@@ -1072,12 +1083,13 @@
       regions: new Set((sc.regions || []).map((r) => r && r.id)), groups: new Set((sc.factions || []).map((f) => f && f.id)), effectKeys: Object.keys(E.Engine.EFFECTS),
     }, []));
     problems.push(...projectProblems(sc.projectTimeline));
+    problems.push(...E.Lore.topicProblems(sc.loreTopics, ''));
     // Lore (task 5-1): its shape here; rooms and people are checked across
     // the whole world in validateWorld.
     if (sc.lore != null) {
       if (!Array.isArray(sc.lore)) problems.push('"lore" must be a list of entries');
       else {
-        problems.push(...E.Lore.problems(sc.lore, 'scenario'));
+        problems.push(...E.Lore.problems(sc.lore, 'scenario', E.Lore.topicIds(sc)));
         const regionIds = new Set((sc.regions || []).map((r) => r && r.id));
         sc.lore.forEach((e) => { if (isObj(e) && e.level === 'region' && !regionIds.has(e.ref)) problems.push(`lore "${e.id}" is about unknown region "${e.ref}"`); });
       }

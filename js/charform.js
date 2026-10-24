@@ -96,6 +96,7 @@
       return `<fieldset class="mk-author"><legend>For the story engine</legend>
         <label>What they know at the start <span class="muted small">(one per line; private to them)</span><textarea data-af="knows" data-fk="af-knows" rows="2">${esc((form.knows || []).join('\n'))}</textarea></label>
         <label>Tags <span class="muted small">(comma-separated; visible states such as "bandaged left arm")</span><input type="text" data-af="tags" data-fk="af-tags" value="${esc((form.tags || []).join(', '))}"></label>
+        <label>Lore topics <span class="muted small">(up to ${E.Lore.LIMITS.topics}, comma-separated, from ${esc(E.Lore.topicIds(sc).join(', '))}: when they are the player, lore on these comes first, besides what their role and traits bring)</span><input type="text" data-af="topics" data-fk="af-topics" value="${esc((form.topics || []).join(', '))}"></label>
         <div class="mk-row"><label>In the foreground<select data-af="tier"><option value=""${!form.tier ? ' selected' : ''}>if in the player's room</option><option value="local"${form.tier === 'local' ? ' selected' : ''}>yes</option><option value="secondary"${form.tier === 'secondary' ? ' selected' : ''}>no, offstage</option></select></label>
           <label class="mk-option"><input type="checkbox" data-af="pinned"${form.pinned ? ' checked' : ''}> <span>Always in the foreground</span></label></div>
         ${(sc.needs || []).length ? `<div class="mk-row">${sc.needs.map((n) => `<label>${esc(n.label || n.id)} at the start<input type="number" min="0" max="1" step="0.05" data-need="${esc(n.id)}" data-fk="need-${esc(n.id)}" value="${esc(form.needs[n.id] ?? '')}" placeholder="0"></label>`).join('')}</div>` : ''}
@@ -128,6 +129,7 @@
       }
       if (t.dataset.af === 'knows') m.form.knows = t.value.split('\n').map((x) => x.trim()).filter(Boolean);
       if (t.dataset.af === 'tags') m.form.tags = t.value.split(',').map((x) => x.trim()).filter(Boolean);
+      if (t.dataset.af === 'topics') m.form.topics = t.value.split(',').map((x) => x.trim()).filter(Boolean);
       if (t.dataset.need) m.form.needs[t.dataset.need] = t.value === '' ? '' : Number(t.value);
       if (t.dataset.ag) m.form.agenda[t.dataset.ag] = t.dataset.ag === 'hours' ? (t.value === '' ? null : Number(t.value)) : t.value;
       if (t.dataset.stepText != null) m.form.agenda.steps[Number(t.dataset.stepText)].text = t.value;

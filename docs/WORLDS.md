@@ -103,6 +103,7 @@ With no `starts` the picker offers only **✦ Make my own start** (as if the wor
 | `portraitSet` | string[] | optional; image paths in the world folder used as stand-ins for characters without a `portrait`, picked by a hash of the id (task 1-7). Without it, a monogram |
 | `map` | object | optional world map (task 3-4; since R-3 the root's map: any region may have one too, see [Maps on any region](#maps-on-any-region)): `{image, width, height, regions: {id: {polygon: [[x, y], …]} or {polygons: [[[x, y], …], …]} or {point: [x, y]}}, locations: {roomId: [x, y]}}`, in image pixels. Polygons need 3+ points; every point inside the image; region ids must exist, and room ids must exist in the world or in some start (the map is the world's, rooms are usually a start's). A region left off gets a point placed automatically (with a warning). Without a map, the world view draws a node map from the regions' `neighbours`. Since task 4-5: `polygons` for a region in several pieces (islands); `projection: "equirectangular"` and `bounds: [west, south, east, north]` in degrees for a map on the globe; `places` (named points, below); `base` (the base map it was cut from) and `credit`, `license`. See [Base maps and real places](#base-maps-and-real-places) |
 | `lore` | (object \| string)[] | lore entries (task 5-1), each inline or the id of a file in `lore/` (a file holds one entry, its `id` defaulting to the file name, or a list: a lore packet). See [Lore](#lore). Starts add to or replace entries by `id`, inline only |
+| `loreTopics` | object | optional (task 5-5): the world's own lore topic tags and the words that bring each up, `{"scavenging": ["scavenge", "supply run", "looting"]}` (up to 12 topics, 20 words each; a built-in topic's name adds words to it). Starts may add to it. See [Lore](#lore) |
 | `timeline` | object[] | canon events (task 5-2), past and future. See [Canon timeline](#canon-timeline). Starts add to or replace events by `id` |
 | `projectTimeline` | false \| object | default on: when no event is planned in the next few days, the model projects likely ones. `false` turns it off; `{days, max}` (1–14 and 1–5; defaults 3 and 3) tunes it. Starts may override |
 
@@ -252,7 +253,7 @@ Task R-8. How much the room-by-room layout matters. A tense story (a siege, a he
 
 ### cast entries
 
-A character file is the person's **identity**: name, pronouns, role, age, traits, want, secret, guard, voice, skills, and (later) `portrait`, `description`, `appearance`. Where they are and how they feel at the start depends on the start, so a cast entry may override it:
+A character file is the person's **identity**: name, pronouns, role, age, traits, want, secret, guard, voice, skills, and (later) `portrait`, `description`, `appearance`. Optional `topics` (task 5-5): up to 4 lore topic tags this person's life is about when they are the player, besides the ones their role, traits and tags already bring (see [Lore](#lore)). Where they are and how they feel at the start depends on the start, so a cast entry may override it:
 
 ```json
 "cast": [
@@ -436,6 +437,7 @@ Task 5-1. A lore entry is public world knowledge, chosen per turn so a big world
 | `ref` | for `region`, `location` and `character` entries: the region, room or character it is about (a region or character must exist; a room that no start has is only a warning, since generated starts and sites make their own). Not allowed on `world` and `topic` |
 | `keywords` | up to 12 words or phrases (40 characters each). Matched as whole words, ignoring case, in the player's action and the last scene. Include aliases: nicknames, titles, other spellings |
 | `text` | up to 800 characters; 40–80 words on one topic works best |
+| `topics` | up to 4 topic tags (task 5-5): the kinds of life the entry matters to. Built in: `school`, `work`, `business`, `crime`, `military`, `politics`, `religion`, `nightlife`, `family`, `health`, `travel`, `tech`, `science`, `sport`, `arts`, `law`; a world adds its own in `loreTopics`. An unknown tag is an error that names the known ones |
 | `priority` | 1–5 (default 3); higher wins when the budget is tight |
 | `alwaysOn` | `world` entries only: always in the prompt header (keep these few and short) |
 | `sources` | optional `[{title, url}]`; for the creator, never sent to the model |
@@ -443,7 +445,13 @@ Task 5-1. A lore entry is public world knowledge, chosen per turn so a big world
 
 **Lore is public.** It reaches the narrator, which never sees secrets, so anything secret belongs in a character's `secret` or in private facts, and anything that hasn't happened yet as of the start belongs in the canon timeline, never in lore. Validation enforces the first part: an entry that shares 4 or more content words with someone's secret is an error.
 
-`mars-station` keeps its entries inline in `world.json`; `zombie-holdout` keeps them in `lore/town.json` and `lore/store.json` (packets) and lists `"lore": ["town", "store"]`.
+**What world lore is for.** The official lorebook stays broad: countries and regions, major institutions, big factions, the era's defining events, and where this world differs from the real one. Not every slice of life: a school story's classroom or a startup's office comes from the start (or generated local lore), not the world. Short, high-signal entries on what a small model would get wrong or vague.
+
+**Topics.** Two players in the same city should pull different lore: a student the school system, a manager the business district. Each topic has a list of words (`js/lore.js`, `Lore.TOPICS`, plus the world's `loreTopics`). The player character's topics come from those words in their role, traits and authored tags, plus their own `topics`, worked out once per game. A world or `topic` entry whose topics match the player's, or a topic whose words are in the action or the last scene ("I ask about the gangs" brings in `crime`), comes in after the player's own region and before the regions it is inside. Entries about a region, room or person keep their places: a topic only puts them first among their own trigger. Keywords still bring in any entry, on topic or not.
+
+**The last fallback.** When neither the player's room nor any region up their chain has an entry, the world entries (not `alwaysOn`, which are in the header already) come in last, best priority first, so the narrator always has something grounded.
+
+`mars-station` keeps its entries inline in `world.json`; `zombie-holdout` keeps them in `lore/town.json` and `lore/store.json` (packets) and lists `"lore": ["town", "store"]`, with a topic of its own (`scavenging`) and a world entry on the roads that its driver gets by topic.
 
 ## Canon timeline
 

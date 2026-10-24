@@ -222,6 +222,10 @@
       });
       const e = { title, level, text: text.slice(0, E.Lore.LIMITS.text), keywords: kws.slice(0, L.keywords) };
       if (ref) e.ref = ref;
+      // Topic tags (task 5-5): only ones the world knows, up to four.
+      const known = E.Lore.topicIds(ctx.loaded.bundle.world);
+      const tags = [...new Set((Array.isArray(r.topics) ? r.topics : []).map((t) => String(t || '').trim().toLowerCase()).filter((t) => known.includes(t)))];
+      if (tags.length) e.topics = tags.slice(0, E.Lore.LIMITS.topics);
       if (!connected(ctx, topic, e)) { warnings.push(`not about this world, dropped: ${title}`); continue; }
       const leak = E.Lore.leak(e, people);
       if (leak) { warnings.push(`gives away ${leak.name || leak.id}'s secret, dropped: ${title}`); continue; }

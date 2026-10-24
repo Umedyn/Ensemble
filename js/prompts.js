@@ -1348,14 +1348,16 @@ Reply with JSON only:
   B.researchTask = ({ ctx, topic }) => `
 === TASK ===
 Turn what in the source matters for stories set in this world into lore: short notes the narrator can draw on.
+- Keep to the broad picture: regions, major institutions, big groups, the era's defining events. Not every slice of life.
 - Only what a storyteller here needs and might not know or get wrong: places, groups, people, customs, how things work here, recent or local events, how this world differs from the real one. Skip general knowledge any model knows (what an animal is, how a car works).
 - Up to ${ctx.job.perTopic || 4} entries, each ONE topic in 40–80 words, written entirely in your own words: never copy sentences or phrases from the source.
 - Everything as it stands when the story starts. Anything that happens after that goes in "later" (with "date" as YYYY-MM-DD if the source gives one, else null), never in an entry.
 - Secrets (what some people hide from others) go in "secrets", never in an entry: entries are public knowledge.
 - "about": world, region, location, character or topic; "ref": the id from IN THIS WORLD it is about (for region, location, character), else null.
 - "keywords": the words a player would use for it, with nicknames, titles and other spellings.
+- "topics": up to ${E.Lore.LIMITS.topics} of ${E.Lore.topicIds(ctx.loaded.bundle.world).join(', ')}: the kinds of life it matters most to (school for the schools, business for the companies), or [] when it matters to everyone.
 Reply with JSON only:
-{"entries":[{"title":"short title","about":"${topic.level}","ref":${topic.ref ? `"${topic.ref}"` : 'null'},"keywords":["name","alias"],"text":"40–80 words"}],
+{"entries":[{"title":"short title","about":"${topic.level}","ref":${topic.ref ? `"${topic.ref}"` : 'null'},"keywords":["name","alias"],"topics":[],"text":"40–80 words"}],
  "later":[{"date":null,"text":"one sentence","scope":"regional","region":null}],
  "secrets":[{"who":"person","text":"what they hide"}]}`;
   P.layouts.researchKnown = ['researchTopic', 'researchKnownTask'];

@@ -1023,6 +1023,13 @@ await check('creator: draw a region on a map image, export, and play the export'
   await page.fill('#cKwAdd', 'drill, airlock');
   await page.press('#cKwAdd', 'Enter');
   assert.match(await page.textContent('#cLoreForm .c-chips'), /drill[\s\S]*airlock/);
+  // Task 5-5: topic tags, built in and the world's own.
+  await page.click('[data-topic="work"]');
+  await page.fill('#cTopicAdd', 'drills: drill, fire drill');
+  await page.press('#cTopicAdd', 'Enter');
+  assert.equal(await page.getAttribute('[data-topic="work"]', 'aria-pressed'), 'true');
+  assert.equal(await page.getAttribute('[data-topic="drills"]', 'aria-pressed'), 'true');
+  await page.waitForFunction(() => /No problems/.test(document.getElementById('cValidation').textContent));
   await page.fill('[data-lt="action"]', 'Ask about the drill.');
   await page.waitForFunction(() => /Airlock drill the player's region; "drill" in the action/.test(document.getElementById('cLoreTest').textContent));
   await page.screenshot({ path: path.join(shots, 'creator-lore.png') });

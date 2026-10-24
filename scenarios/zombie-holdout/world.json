@@ -400,6 +400,7 @@
     "town",
     "store"
   ],
+  "loreTopics": { "scavenging": ["scavenge", "scavenging", "scavenger", "scavengers", "supply run", "supply runs", "looting", "looted", "salvage"] },
   "timeline": [
     {
       "id": "first-cases",

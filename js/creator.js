@@ -896,6 +896,9 @@
       <div class="c-field"><span>Keywords <span class="muted small">(whole words, any case; include nicknames and other spellings)</span></span>
         <div class="c-chips">${(e.keywords || []).map((k, i) => `<button type="button" class="chip" data-kwdel="${i}" aria-label="Remove keyword ${esc(k)}">${esc(k)} ✕</button>`).join('')}</div>
         <input id="cKwAdd" placeholder="Add keywords, then Enter (commas for several)" aria-label="Add keywords"></div>
+      <div class="c-field"><span>Topics <span class="muted small">(up to ${E.Lore.LIMITS.topics}: the kinds of life it matters to; the game prefers entries that fit the player character and the scene)</span></span>
+        <div class="c-chips" role="group" aria-label="Topics">${LE.topics(cw.files).map((t) => { const on = (e.topics || []).includes(t); const full = !on && (e.topics || []).length >= E.Lore.LIMITS.topics; return `<button type="button" class="chip c-topic" data-topic="${esc(t)}" aria-pressed="${on}"${full ? ' disabled' : ''}>${esc(t)}</button>`; }).join('')}</div>
+        <input id="cTopicAdd" placeholder="Your own topic, then Enter (mining: miner, ore)" aria-label="Add a topic of this world's own"></div>
       <label>Text <span class="muted small" id="cLoreTextCount">${String(e.text || '').length}/${E.Lore.LIMITS.text} · ${words} words (40–80 works best)</span><textarea data-lf="text" rows="6" maxlength="${E.Lore.LIMITS.text}">${esc(e.text || '')}</textarea></label>
       <fieldset class="c-neigh"><legend>Sources <span class="muted small">(for you; never sent to the model)</span></legend>
         ${(e.sources || []).map((s, i) => `<div class="c-source"><input data-src="${i}" data-srcf="title" value="${esc(s.title || '')}" placeholder="Title" aria-label="Source title"><input data-src="${i}" data-srcf="url" value="${esc(s.url || '')}" placeholder="https://…" aria-label="Source link">${/^https?:\/\//.test(s.url || '') ? `<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer" class="small">open</a>` : ''}<button type="button" class="small ghost" data-srcdel="${i}" aria-label="Remove source">✕</button></div>`).join('')}
@@ -943,6 +946,8 @@
     const e = it.entry;
     const kw = t.closest('[data-kwdel]');
     if (kw) { e.keywords.splice(Number(kw.dataset.kwdel), 1); return changed(); }
+    const tp = t.closest('[data-topic]');
+    if (tp) { LE.toggleTopic(e, tp.dataset.topic); return changed(); }
     if (t.id === 'cAcceptLore') { LE.accept(cw.files, 'lore', lui.sel); return changed(); }
     if (t.id === 'cSrcAdd') { e.sources = (e.sources || []).concat([{ title: '', url: '' }]); return changed(); }
     const sd = t.closest('[data-srcdel]');
@@ -991,16 +996,24 @@
     if (t.dataset.lf === 'priority') { if (Number(t.value) === 3) delete e.priority; else e.priority = Number(t.value); return changed(); }
     if (t.dataset.lf === 'alwaysOn') { if (t.checked) e.alwaysOn = true; else delete e.alwaysOn; return changed(); }
     if (t.id === 'cKwAdd' && t.value.trim()) { LE.addKeywords(e, t.value); return changed(); }
+    if (t.id === 'cTopicAdd' && t.value.trim()) { addTopic(e, t.value); return changed(); }
   });
+  // A topic of the world's own goes on the entry too (when there is room).
+  function addTopic(e, text) {
+    const id = LE.addTopic(cw.files, text);
+    if (id && !(e.topics || []).includes(id)) LE.toggleTopic(e, id);
+  }
   $('cMain').addEventListener('keydown', (ev) => {
-    if (!cw || ui.tab !== 'lore' || ev.target.id !== 'cKwAdd' || ev.key !== 'Enter') return;
+    const which = ev.target.id;
+    if (!cw || ui.tab !== 'lore' || !['cKwAdd', 'cTopicAdd'].includes(which) || ev.key !== 'Enter') return;
     ev.preventDefault();
     const it = lui.sel && LE.findLore(cw.files, lui.sel);
     if (!it || !ev.target.value.trim()) return;
-    LE.addKeywords(it.entry, ev.target.value);
+    if (which === 'cKwAdd') LE.addKeywords(it.entry, ev.target.value);
+    else addTopic(it.entry, ev.target.value);
     ev.target.value = ''; // so the blur as it is replaced doesn't add them again
     changed();
-    const inp = $('cKwAdd');
+    const inp = $(which);
     if (inp) inp.focus();
   });
 

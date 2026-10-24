@@ -111,6 +111,36 @@
     });
     entry.keywords = now;
   };
+  // Topic tags (task 5-5): the built-in ones and the world's own (and any a
+  // start adds), for the tag picker.
+  LE.topics = function (files) {
+    const out = E.Lore.topicIds(world(files));
+    startFiles(files).forEach(([, s]) => E.Lore.topicIds(s).forEach((t) => { if (!out.includes(t)) out.push(t); }));
+    return out;
+  };
+  // On or off; a fifth tag is refused (→ false) so the entry stays valid.
+  LE.toggleTopic = function (entry, topic) {
+    const now = Array.isArray(entry.topics) ? entry.topics.slice() : [];
+    if (now.includes(topic)) now.splice(now.indexOf(topic), 1);
+    else if (now.length >= E.Lore.LIMITS.topics) return false;
+    else now.push(topic);
+    if (now.length) entry.topics = now;
+    else delete entry.topics;
+    return true;
+  };
+  // A new topic of the world's own: a short lowercase tag and the words that
+  // bring it up ("mining: miner, ore"), added to world.json's loreTopics. →
+  // the tag, or null when the text has none.
+  LE.addTopic = function (files, text) {
+    const [name, rest] = String(text || '').split(':');
+    const id = String(name || '').trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^[^a-z]+|-+$/g, '').slice(0, 24);
+    if (!id) return null;
+    const w = world(files);
+    w.loreTopics = isObj(w.loreTopics) ? w.loreTopics : {};
+    const words = (rest || '').split(',').map((k) => k.trim().slice(0, E.Lore.LIMITS.keyword)).filter(Boolean);
+    w.loreTopics[id] = [...new Set((w.loreTopics[id] || []).concat(words))].slice(0, E.Lore.LIMITS.topicWords);
+    return id;
+  };
 
   // What the game would include: the world composed with a start, the player
   // moved to a room, then Lore.select. → { picks, always, used, budget, error }.

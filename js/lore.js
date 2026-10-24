@@ -14,7 +14,67 @@
   // most specific first.
   L.REF_LEVELS = ['region', 'location', 'character'];
   const LEVEL_RANK = { location: 0, character: 1, region: 2, topic: 3, world: 4 };
-  L.LIMITS = { title: 80, text: 800, keywords: 12, keyword: 40 };
+  L.LIMITS = { title: 80, text: 800, keywords: 12, keyword: 40, topics: 4, worldTopics: 12, topicWords: 20 };
+
+  // Topic tags (task 5-5): what an entry is about beyond where, so two players
+  // in the same city pull different lore. Each topic's words find it in the
+  // player character's role, traits and tags, and in the action or the last
+  // scene. Words common in any scene ("work", "home", "party") are left out,
+  // so a topic comes up only when the scene is really about it. A world adds
+  // its own in "loreTopics" ({ topic: [words] }), or more words for these.
+  L.TOPICS = {
+    school: ['school', 'student', 'students', 'pupil', 'teacher', 'teachers', 'classmate', 'classmates', 'homework', 'exam', 'exams', 'university', 'college', 'campus', 'professor', 'lecture', 'headmaster', 'principal'],
+    work: ['coworker', 'coworkers', 'colleague', 'colleagues', 'employee', 'employees', 'employer', 'workplace', 'technician', 'mechanic', 'foreman', 'factory', 'warehouse', 'overtime', 'payday', 'clerk'],
+    business: ['business', 'businessman', 'businesswoman', 'company', 'corporation', 'CEO', 'executive', 'manager', 'investor', 'investors', 'startup', 'entrepreneur', 'shopkeeper', 'merchant', 'trader', 'owner', 'contract'],
+    crime: ['crime', 'criminal', 'criminals', 'gang', 'gangs', 'gangster', 'mafia', 'yakuza', 'thief', 'thieves', 'theft', 'smuggler', 'smuggling', 'drugs', 'dealer', 'police', 'cop', 'cops', 'detective', 'heist', 'murder'],
+    military: ['military', 'army', 'soldier', 'soldiers', 'reservist', 'marine', 'marines', 'navy', 'air force', 'officer', 'sergeant', 'troops', 'war', 'veteran', 'National Guard'],
+    politics: ['politics', 'political', 'politician', 'government', 'minister', 'mayor', 'council', 'election', 'senator', 'parliament', 'regulator', 'regulators', 'diplomat', 'governor'],
+    religion: ['religion', 'religious', 'church', 'priest', 'pastor', 'temple', 'shrine', 'monk', 'nun', 'faith', 'prayer', 'mosque', 'imam', 'rabbi'],
+    nightlife: ['nightlife', 'bar', 'bars', 'nightclub', 'club', 'clubs', 'bartender', 'DJ', 'karaoke', 'drinking'],
+    family: ['family', 'mother', 'father', 'mom', 'dad', 'parent', 'parents', 'sister', 'brother', 'son', 'daughter', 'wife', 'husband', 'kids', 'children', 'grandmother', 'grandfather'],
+    health: ['health', 'doctor', 'nurse', 'medic', 'hospital', 'clinic', 'medicine', 'illness', 'patient', 'patients', 'surgeon', 'pharmacy', 'paramedic'],
+    travel: ['travel', 'traveller', 'traveler', 'driver', 'pilot', 'journey', 'highway', 'train', 'bus', 'airport', 'flight', 'sailor', 'trucker', 'delivery'],
+    tech: ['tech', 'technology', 'technician', 'engineer', 'engineering', 'computer', 'computers', 'hacker', 'programmer', 'software', 'robot', 'robots', 'AI', 'electronics'],
+    science: ['science', 'scientist', 'research', 'researcher', 'lab', 'laboratory', 'geologist', 'biologist', 'astrobiologist', 'chemist', 'physicist', 'experiment', 'samples'],
+    sport: ['sport', 'sports', 'athlete', 'coach', 'football', 'soccer', 'baseball', 'basketball', 'stadium'],
+    arts: ['art', 'artist', 'music', 'musician', 'band', 'painter', 'writer', 'actor', 'actress', 'theatre', 'theater', 'film', 'singer', 'poet'],
+    law: ['law', 'lawyer', 'judge', 'court', 'courthouse', 'trial', 'attorney', 'legal', 'lawsuit'],
+  };
+  // { topic: [words] }: the defaults and the world's own (words added up).
+  L.topicTable = function (sc) {
+    const out = {};
+    Object.entries(L.TOPICS).forEach(([t, ws]) => (out[t] = ws.slice()));
+    const own = sc && isObj(sc.loreTopics) ? sc.loreTopics : {};
+    Object.entries(own).forEach(([t, ws]) => {
+      out[t] = [...new Set((out[t] || []).concat(Array.isArray(ws) ? ws.filter((w) => typeof w === 'string' && w.trim()) : []))];
+    });
+    return out;
+  };
+  L.topicIds = (sc) => Object.keys(L.topicTable(sc));
+  // The topics whose words are in a text, in table order. A word's plain
+  // plural counts too ("smugglers" for "smuggler").
+  const wordIn = (w, text) => L.matches(w, text) || L.matches(`${w}s`, text);
+  L.topicsIn = function (table, text) {
+    if (!text) return [];
+    return Object.keys(table).filter((t) => table[t].some((w) => wordIn(w, text)));
+  };
+  // The player character's topics: from their role, traits and authored
+  // tags, plus their own "topics". Fixed for the game (from the scenario, not
+  // the live sheet), so it is cached per scenario and costs nothing per call.
+  const playerCache = new WeakMap();
+  L.playerTopics = function (state) {
+    const sc = state.scenario || {};
+    const hit = playerCache.get(sc);
+    if (hit && hit.player === state.player) return hit.topics;
+    const c = (Array.isArray(sc.characterData) && sc.characterData.find((x) => x && x.id === state.player)) || (state.characters && state.characters[state.player]) || {};
+    const table = L.topicTable(sc);
+    const words = [c.role].concat(Array.isArray(c.traits) ? c.traits : [], Array.isArray(c.tags) ? c.tags.map((t) => (isObj(t) ? t.text : t)) : [])
+      .filter((x) => typeof x === 'string' && x.trim()).join('. ');
+    const own = Array.isArray(c.topics) ? c.topics : [];
+    const topics = Object.keys(table).filter((t) => own.includes(t) || table[t].some((w) => wordIn(w, words)));
+    playerCache.set(sc, { player: state.player, topics });
+    return topics;
+  };
 
   // Debug: while a turn report is open, the lore each prompt included
   // ([{ call, id, title, why }]); set by the engine's telemetry.
@@ -52,6 +112,20 @@
     const last = state.recent && state.recent[state.recent.length - 1];
     const scene = o.scene != null ? o.scene : last ? last.text : '';
     const nm = (id) => (state.characters[id] ? state.characters[id].name : id);
+    // Topics (task 5-5): the action's, then the player's own, then the last scene's.
+    const table = L.topicTable(state.scenario);
+    const mine = L.playerTopics(state);
+    const said = L.topicsIn(table, o.action);
+    const seen = L.topicsIn(table, scene);
+    const topicOf = (e) => {
+      const ts = Array.isArray(e.topics) ? e.topics : [];
+      let t = ts.find((x) => said.includes(x));
+      if (t) return { group: 2.1, why: `topic "${t}" in the action` };
+      t = ts.find((x) => mine.includes(x));
+      if (t) return { group: 2.2, why: `topic "${t}" (the player character)` };
+      t = ts.find((x) => seen.includes(x));
+      return t ? { group: 2.4, why: `topic "${t}" in the last scene` } : null;
+    };
     const picks = new Map();
     const add = (e, i, group, why) => {
       const p = picks.get(e.id);
@@ -70,6 +144,12 @@
       // still grounded by its city's or its country's.
       const up = e.level === 'region' && region ? chain.indexOf(e.ref) : -1;
       if (up > 0) add(e, i, 2.5 + up / 10, `inside ${(Eng().regionDef(state, e.ref) || {}).name || e.ref}`);
+      // A matching topic brings in world and topic entries after the player's
+      // region and before the regions up the tree; entries about a region,
+      // room or person keep their places (a topic only puts them first within
+      // their own trigger, below).
+      const tp = (e.level === 'world' || e.level === 'topic') && topicOf(e);
+      if (tp) add(e, i, tp.group, tp.why);
       const kws = Array.isArray(e.keywords) ? e.keywords : [];
       const inAction = kws.find((k) => L.matches(k, o.action));
       if (inAction) add(e, i, 2, `"${inAction}" in the action`);
@@ -78,7 +158,17 @@
         if (inScene) add(e, i, 3, `"${inScene}" in the last scene`);
       }
     });
+    // The last fallback: when neither the room nor any region up the chain has
+    // lore of its own, the world entries come in last, best priority first,
+    // so the narrator always has something grounded.
+    const grounded = all.some((e) => e.alwaysOn !== true && ((e.level === 'location' && e.ref === room) || (e.level === 'region' && chain.includes(e.ref))));
+    if (!grounded) all.forEach((e, i) => { if (e.level === 'world' && e.alwaysOn !== true && !picks.has(e.id)) add(e, i, 5, 'world lore (nothing here has its own)'); });
+    picks.forEach((p) => {
+      const tp = L.REF_LEVELS.includes(p.e.level) && topicOf(p.e);
+      if (tp) { p.topical = true; p.why.push(tp.why); }
+    });
     const ranked = [...picks.values()].sort((a, b) => a.group - b.group
+      || (b.topical ? 1 : 0) - (a.topical ? 1 : 0)
       || (b.e.priority || 3) - (a.e.priority || 3)
       || LEVEL_RANK[a.e.level] - LEVEL_RANK[b.e.level]
       || a.i - b.i);
@@ -126,8 +216,10 @@
 
   // Shape problems of a list of entries (refs are checked by the caller,
   // which knows every start's rooms and the whole character pool).
-  L.problems = function (entries, where) {
+  // topics: the topic tags entries may use (default: the built-in list).
+  L.problems = function (entries, where, topics) {
     const problems = [];
+    const known = topics ? [...topics] : Object.keys(L.TOPICS);
     const seen = new Set();
     const lim = L.LIMITS;
     (entries || []).forEach((e) => {
@@ -144,12 +236,35 @@
       req(typeof e.text === 'string' && e.text.trim() && e.text.length <= lim.text, `"text" must be text of at most ${lim.text} characters`);
       req(e.keywords == null || (Array.isArray(e.keywords) && e.keywords.length <= lim.keywords && e.keywords.every((k) => typeof k === 'string' && k.trim() && k.length <= lim.keyword)),
         `"keywords" must be a list of at most ${lim.keywords} words or phrases (${lim.keyword} characters each)`);
+      if (e.topics != null) {
+        if (!Array.isArray(e.topics) || e.topics.length > lim.topics || !e.topics.every((t) => typeof t === 'string')) problems.push(`${at}: "topics" must be a list of at most ${lim.topics} topic tags`);
+        else e.topics.filter((t) => !known.includes(t)).forEach((t) => problems.push(`${at}: "${t}" is not a topic this world knows (${known.join(', ')}); add it to the world's "loreTopics" to use it`));
+      }
       req(e.priority == null || (Number.isInteger(e.priority) && e.priority >= 1 && e.priority <= 5), '"priority" must be a whole number from 1 to 5');
       req(e.alwaysOn == null || typeof e.alwaysOn === 'boolean', '"alwaysOn" must be true or false');
       req(e.draft == null || typeof e.draft === 'boolean', '"draft" must be true or false');
       req(e.alwaysOn !== true || e.level === 'world', '"alwaysOn" is for world entries only');
       req(e.sources == null || (Array.isArray(e.sources) && e.sources.every((s) => isObj(s) && typeof s.title === 'string' && s.title.trim() && typeof s.url === 'string' && /^https?:\/\//.test(s.url))),
         '"sources" must be a list of {title, url}');
+    });
+    return problems;
+  };
+
+  // The world's own topics: { topic: [words] }, short lowercase tags.
+  L.topicProblems = function (loreTopics, where) {
+    if (loreTopics == null) return [];
+    const lim = L.LIMITS;
+    const at = where ? `${where}: ` : '';
+    if (!isObj(loreTopics)) return [`${at}"loreTopics" must map each topic to the words that bring it up, like {"mining": ["miner", "ore"]}`];
+    const problems = [];
+    const keys = Object.keys(loreTopics);
+    if (keys.length > lim.worldTopics) problems.push(`${at}"loreTopics" can have at most ${lim.worldTopics} topics`);
+    keys.forEach((t) => {
+      if (!/^[a-z][a-z0-9-]{0,23}$/.test(t)) problems.push(`${at}topic "${t}" must be a short lowercase tag (letters, digits or -, up to 24 characters)`);
+      const ws = loreTopics[t];
+      if (!Array.isArray(ws) || ws.length > lim.topicWords || !ws.every((w) => typeof w === 'string' && w.trim() && w.length <= lim.keyword)) {
+        problems.push(`${at}topic "${t}" must list at most ${lim.topicWords} words or phrases (${lim.keyword} characters each) that bring it up`);
+      }
     });
     return problems;
   };

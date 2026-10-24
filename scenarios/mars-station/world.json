@@ -606,6 +606,10 @@
         "rover",
         "rovers"
       ],
+      "topics": [
+        "tech",
+        "travel"
+      ],
       "text": "The station's only pressurized rover is officially Rover 1 and has been called the Mule since its first week, for its stubbornness on slopes. It seats four, runs about two sols on a full battery pack, and has a winch that has pulled it out of more than one drift."
     },
     {
@@ -619,6 +623,10 @@
         "lettuce",
         "potatoes"
       ],
+      "topics": [
+        "science",
+        "work"
+      ],
       "text": "Fifteen racks of lettuce, soy, potatoes and dwarf wheat grow under pink lights. They supply about a third of the crew's calories and a larger share of its morale: the bay is warm and humid, and the only place on the station that smells alive."
     },
     {
@@ -626,6 +634,9 @@
       "title": "Imani Okafor",
       "level": "character",
       "ref": "okafor",
+      "topics": [
+        "science"
+      ],
       "text": "Okafor made her name mapping ancient lakebeds on Mars from orbit before she ever flew. She was chosen as station lead for how calm she stayed during a winter-over in Antarctica, and she is the crew's voice to Mission Control."
     },
     {
@@ -640,6 +651,10 @@
         "call home",
         "message home"
       ],
+      "topics": [
+        "family",
+        "tech"
+      ],
       "text": "Messages take about fourteen minutes each way, more near conjunction. Nobody on Earth can help with an emergency as it happens. The crew sends one uplink every evening; Mission Control answers the next morning, and personal messages ride along when there is bandwidth."
     },
     {
@@ -651,6 +666,9 @@
         "cargo",
         "resupply",
         "supplies"
+      ],
+      "topics": [
+        "work"
       ],
       "text": "The next cargo lander is about nine weeks out, carrying spare parts, seeds and food. It lands by itself on a marked pad on the rim; until then, everything the station needs has to be fixed, grown or rationed from what is already here."
     }

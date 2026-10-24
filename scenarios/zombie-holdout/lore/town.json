@@ -7,6 +7,22 @@
     "text": "The dead are slow, but they never tire and they follow noise. A bite brings a fever within a day, and those who die of it get up again. Nobody here knows of a cure. Television went dark in the second week, and the phones soon after."
   },
   {
+    "id": "the-roads",
+    "title": "The roads",
+    "level": "world",
+    "topics": [
+      "travel"
+    ],
+    "keywords": [
+      "roads",
+      "driving",
+      "fuel",
+      "siphon",
+      "siphoning"
+    ],
+    "text": "Since the pumps went dry, the roads belong to whoever still has fuel. Stalled cars block the two-lanes at bridges and bends, and an engine draws the dead from a mile off. The few who still drive go at first light with the lights off, and siphon what they can from wrecks on the way."
+  },
+  {
     "id": "highway-strip",
     "title": "The highway strip",
     "level": "region",
@@ -30,6 +46,10 @@
       "pharmacy",
       "church"
     ],
+    "topics": [
+      "health",
+      "religion"
+    ],
     "text": "Main Street is two blocks of brick storefronts around the courthouse. The pharmacy was looted early but its back room has a steel door. The church bell rang every hour for the first week, until someone made it stop; the dead still drift toward the square out of habit."
   },
   {
@@ -43,6 +63,9 @@
       "trailers",
       "trailer park",
       "neighborhood"
+    ],
+    "topics": [
+      "scavenging"
     ],
     "text": "Behind Main Street are a few hundred small houses and a trailer park by the creek. Most doors stand open. Pantries, garages and medicine cabinets are worth searching, but the dead linger indoors where they turned, and a quiet house is not always an empty one."
   },
@@ -82,6 +105,10 @@
       "bus",
       "clinic",
       "National Guard"
+    ],
+    "topics": [
+      "military",
+      "health"
     ],
     "text": "On day four the county organised an evacuation from the clinic on Main Street. Buses were to take people to the interstate and on to a camp. The clinic was overrun before half had boarded, the buses that got away never came back, and nobody has heard from the camp."
   }

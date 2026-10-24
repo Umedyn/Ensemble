@@ -139,12 +139,30 @@ test('lore items come from world.json, lore/ files (packets and single entries) 
   const groups = LE.loreGroups(f);
   const group = (level, ref) => groups.find((g) => g.level === level && g.ref === (ref || null));
   const ids = (g) => [...g.items].map((x) => x.entry.id);
-  assert.deepEqual(ids(group('world')), ['the-dead']);
+  assert.deepEqual(ids(group('world')), ['the-dead', 'the-roads']);
   assert.deepEqual(ids(group('region', 'junction')), ['junction', 'herd-note']);
   assert.ok(group('region', 'residential'), 'every region has a group, even an empty one');
   assert.deepEqual(ids(group('location', 'roof')), ['the-roof']);
   assert.deepEqual(ids(group('character', 'ferris')), ['ferris-store']);
   assert.deepEqual(ids(group('topic')), ['evacuation', 'single']);
+});
+
+test("the topic picker: the built-in tags and the world's own, at most four on an entry, and new topics added to the world", () => {
+  const f = plain(worldFiles('zombie-holdout'));
+  assert.deepEqual([...LE.topics(f)].slice(0, 2), ['school', 'work']);
+  assert.ok(LE.topics(f).includes('scavenging'), "the world's own");
+  const e = LE.findLore(f, 'junction').entry;
+  ['travel', 'crime', 'military', 'law'].forEach((t) => assert.ok(LE.toggleTopic(e, t)));
+  assert.equal(LE.toggleTopic(e, 'school'), false, 'a fifth is refused');
+  assert.ok(LE.toggleTopic(e, 'law'));
+  assert.deepEqual([...e.topics], ['travel', 'crime', 'military']);
+  assert.equal(LE.addTopic(f, 'Road Gangs: raider, raiders , ambush'), 'road-gangs');
+  assert.deepEqual([...f['world.json'].loreTopics['road-gangs']], ['raider', 'raiders', 'ambush']);
+  assert.ok(LE.toggleTopic(e, 'road-gangs'));
+  assert.ok(loads('zombie-holdout', f), 'still valid');
+  ['travel', 'crime', 'military', 'road-gangs'].forEach((t) => LE.toggleTopic(e, t));
+  assert.equal(e.topics, undefined, 'no empty list left behind');
+  assert.equal(LE.addTopic(f, ': nothing'), null);
 });
 
 test('adding, re-levelling, keywords and removing lore keep the world loadable', () => {
@@ -178,7 +196,8 @@ test('the lore test box shows what the game would include for a room and an acti
   const f = plain(worldFiles('zombie-holdout'));
   const at = (room, action, scene) => LE.testSelection(f, 'zombie-holdout', { room, action, scene });
   const roof = at('roof', 'Ask about the evacuation buses.');
-  assert.deepEqual([...roof.picks].map((p) => p.id), ['the-roof', 'highway-strip', 'evacuation']);
+  // The roads come in by topic: Pike, the player, was a delivery driver (task 5-5).
+  assert.deepEqual([...roof.picks].map((p) => p.id), ['the-roof', 'highway-strip', 'evacuation', 'the-roads']);
   assert.match(roof.picks[2].why, /"evacuation" in the action/);
   assert.equal(roof.used, roof.picks.reduce((n, p) => n + p.tokens, 0));
   assert.ok(roof.budget > 0);

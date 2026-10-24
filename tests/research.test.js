@@ -248,6 +248,18 @@ test('the checks: copied runs and long entries are sent back; short, unconnected
   assert.deepEqual(plain(check([entry()]).entries[0].sources), [{ title: 'Page', url: 'https://example.org/p' }]);
 });
 
+test("drafts keep only the topics the world knows, up to four, and the prompt offers the world's list and keeps lore broad", () => {
+  const { E, ctx } = ctxFor();
+  const R = E.Research;
+  const t = topic(E, ctx, 'region:junction');
+  const out = R.check({ entries: [entry({ topics: ['Travel', 'astrology', 'scavenging', 'crime', 'military', 'law', 'travel'] })] }, ctx, t, {}, new Set());
+  assert.deepEqual([...out.entries[0].topics], ['travel', 'scavenging', 'crime', 'military']);
+  assert.equal(R.check({ entries: [entry({ topics: ['astrology'] })] }, ctx, t, {}, new Set()).entries[0].topics, undefined);
+  const user = E.Prompts.research(ctx, t, { title: 'Page' }, 'Some text.', 0, 1);
+  assert.match(user, /"topics": up to 4 of school, work, .*, scavenging:/);
+  assert.match(user, /Keep to the broad picture/);
+});
+
 test('later events are placed by the calendar (or kept as suggestions); secrets resolve to people', () => {
   const { E, ctx } = ctxFor();
   const R = E.Research;

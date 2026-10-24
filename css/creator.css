@@ -66,6 +66,8 @@ button.danger { color: var(--bad); }
 .c-uses { margin: 6px 0; }
 .c-chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
 .chip { font-size: 0.75rem; padding: 1px 8px; border-radius: 999px; }
+.c-topic[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.c-topic[aria-pressed="false"] { opacity: 0.7; }
 .c-field { display: block; font-size: 0.8125rem; margin: 6px 0; }
 .c-field > span { display: block; }
 .c-panel .c-check, .c-check { display: flex; gap: 6px; align-items: baseline; }

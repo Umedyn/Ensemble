@@ -240,3 +240,147 @@ test('bundled worlds have lore at every level, for the player region and with ke
     assert.ok(lore.some((e) => e.level === 'region' && e.ref === E.Engine.playerRegion(state)), `${folder}: lore for the starting region`);
   }
 });
+
+// ---------- topics and the last fallback (task 5-5) ----------
+
+// A Mars game whose player has the given role (set before anything reads it:
+// the player's topics are worked out once per game).
+function marsAs(role, lore, more) {
+  const g = marsWith(lore);
+  const sheet = g.state.scenario.characterData.find((c) => c.id === g.state.player);
+  Object.assign(sheet, { role, traits: [], tags: [] }, more);
+  return g;
+}
+
+test('two players in the same region pull different lore by topic: a student gets the schools, a manager the business side', () => {
+  const lore = () => [
+    entry('rim', { level: 'region', ref: 'crater-rim' }),
+    entry('tube', { level: 'region', ref: 'lava-tube' }),
+    entry('schools', { level: 'world', topics: ['school'] }),
+    entry('contracts', { level: 'world', topics: ['business'] }),
+    entry('crews', { topics: ['work', 'business'] }),
+  ];
+  const run = (role) => {
+    const { E, state } = marsAs(role, lore());
+    // The surface is inside the lava tube (found by now), inside the crater rim.
+    state.locations.surface.region = 'lava-tube';
+    delete state.regions['lava-tube'].known;
+    state.characters[state.player].status.location = 'surface';
+    return E.Lore.select(state, { action: 'Look around.', scene: '' });
+  };
+  const student = run('exchange student');
+  const manager = run('operations manager');
+  // After the player's own region, before the regions up the tree.
+  assert.deepEqual(ids(student), ['tube', 'schools', 'rim']);
+  assert.deepEqual(ids(manager), ['tube', 'crews', 'contracts', 'rim']);
+  assert.equal(student[1].why, 'topic "school" (the player character)');
+  assert.equal(manager[1].why, 'topic "business" (the player character)');
+});
+
+test("the player character's topics come from their role, traits and tags, plus their own topics, and are worked out once per game", () => {
+  const { E, state } = marsAs('night-shift bartender', [], { traits: ['devout'], tags: ['army veteran'], topics: ['arts'] });
+  assert.deepEqual([...E.Lore.playerTopics(state)], ['military', 'nightlife', 'arts']);
+  // Fixed for the game: a new tag in play doesn't change them.
+  state.characters[state.player].tags.push({ text: 'hospital patient', set: 1, until: null });
+  assert.deepEqual([...E.Lore.playerTopics(state)], ['military', 'nightlife', 'arts']);
+  // A world's own topic, with its words.
+  const g = marsAs('ice miner', []);
+  g.state.scenario.loreTopics = { mining: ['miner', 'ore'] };
+  assert.deepEqual([...g.E.Lore.playerTopics(g.state)], ['mining']);
+});
+
+test("a keyword still brings in an off-topic entry, and a topic's words in the action or the last scene bring in its entries", () => {
+  const { E, state } = marsAs('exchange student', [
+    entry('station', { level: 'region', ref: 'station' }),
+    entry('exchange', { level: 'world', topics: ['business'], keywords: ['stock exchange'] }),
+    entry('gangs', { topics: ['crime'] }),
+    entry('chapel', { topics: ['religion'] }),
+  ]);
+  const picks = E.Lore.select(state, { action: 'I ask Okafor about the stock exchange.', scene: '' });
+  assert.deepEqual(ids(picks), ['station', 'exchange']);
+  assert.equal(picks[1].why, '"stock exchange" in the action');
+  const gangs = E.Lore.select(state, { action: 'I ask about the gangs.', scene: 'Bauer says a prayer.' });
+  assert.deepEqual(ids(gangs), ['station', 'gangs', 'chapel']);
+  assert.deepEqual([...gangs].map((p) => p.why).slice(1), ['topic "crime" in the action', 'topic "religion" in the last scene']);
+});
+
+test('entries about a room, person or region keep their places; a matching topic only puts them first within their trigger', () => {
+  const { E, state } = marsAs('pilot', [
+    entry('plain', { level: 'location', ref: 'commons', priority: 5 }),
+    entry('flights', { level: 'location', ref: 'commons', topics: ['travel'] }),
+    entry('far', { level: 'region', ref: 'basin-floor', topics: ['travel'] }),
+  ]);
+  const picks = E.Lore.select(state, { action: 'Look around.', scene: '' });
+  assert.deepEqual(ids(picks), ['flights', 'plain']);
+  assert.equal(picks[0].why, 'the player is here; topic "travel" (the player character)');
+});
+
+test('a region with no lore anywhere up its chain falls back to the world entries, best priority first and last of all', () => {
+  const { E, state } = marsWith([
+    entry('history', { level: 'world', priority: 2 }),
+    entry('program', { level: 'world', priority: 4 }),
+    entry('always', { level: 'world', alwaysOn: true }),
+    entry('basin', { level: 'region', ref: 'basin-floor' }),
+    entry('lander', { keywords: ['lander'] }),
+  ]);
+  const picks = E.Lore.select(state, { action: 'Ask about the lander.', scene: '' });
+  assert.deepEqual(ids(picks), ['lander', 'program', 'history'], 'always-on entries are in the header already');
+  assert.equal(picks[1].why, 'world lore (nothing here has its own)');
+  // Once the region (or the room) has lore, the world entries wait for their keywords.
+  state.scenario.lore.push(entry('station', { level: 'region', ref: 'station' }));
+  assert.deepEqual(ids(E.Lore.select(state, { action: 'Ask about the lander.', scene: '' })), ['station', 'lander']);
+  state.scenario.lore.pop();
+  state.scenario.lore.push(entry('commons', { level: 'location', ref: 'commons' }));
+  assert.deepEqual(ids(E.Lore.select(state, { action: 'Look around.', scene: '' })), ['commons']);
+});
+
+test('topic picks never touch the header and stay within the lore budget', () => {
+  const big = (id, t) => entry(id, { level: 'world', topics: t, text: 'z'.repeat(400) });
+  const { E, state } = marsAs('pilot and engineer', [entry('station', { level: 'region', ref: 'station', text: 'S.' }), big('a', ['travel']), big('b', ['tech']), big('c', ['travel']), big('d', ['crime'])]);
+  const header = E.Prompts.header(state);
+  const budget = E.estTokens(E.Lore.line(state.scenario.lore[1])) * 2 + 10;
+  E.Memory.budgets = () => ({ facts: 1000, story: 1000, lore: budget });
+  const present = E.Engine.present(state);
+  const a = E.Prompts.intent(state, present, 'Check the rover.', 'a moment', 'moment');
+  const b = E.Prompts.intent(state, present, 'Ask about the smugglers.', 'a moment', 'moment');
+  assert.match(a, /- a: z+/);
+  assert.equal(E.Prompts.header(state), header);
+  assert.ok(!header.includes('zzz'), 'no topic entry in the header');
+  const picks = E.Lore.select(state, { action: 'Ask about the smugglers.' });
+  assert.deepEqual(ids(picks), ['station', 'd', 'a'].slice(0, picks.length));
+  assert.ok(picks.reduce((n, p) => n + p.tokens, 0) <= budget);
+  assert.ok(b.includes('- d: z'), 'the smugglers bring in crime');
+});
+
+test('topics are validated: unknown tags named in plain words, at most four, and a world may add its own', () => {
+  const E = loadEngine();
+  const problems = (edit) => {
+    const f = zombieFiles();
+    edit(f);
+    try { prepare(E, f); return []; } catch (err) { return err.message.split('\n- ').slice(1); }
+  };
+  const tagged = (topics, more) => problems((f) => { f['world.json'].lore.push({ id: 'tagged', title: 'Tagged', level: 'topic', text: 'Text.', topics }); if (more) more(f); });
+  assert.match(tagged(['skool']).join(), /lore "tagged": "skool" is not a topic this world knows \(school, work, .*scavenging\); add it to the world's "loreTopics"/);
+  assert.match(tagged(['school', 'work', 'crime', 'family', 'health']).join(), /"topics" must be a list of at most 4 topic tags/);
+  assert.match(tagged('school').join(), /"topics" must be a list/);
+  assert.deepEqual(tagged(['school', 'scavenging']), []);
+  assert.deepEqual(tagged(['farming'], (f) => { f['world.json'].loreTopics.farming = ['farmer', 'harvest']; }), []);
+  assert.match(problems((f) => { f['world.json'].loreTopics = ['farming']; }).join(), /"loreTopics" must map each topic to the words/);
+  assert.match(problems((f) => { f['world.json'].loreTopics = { Farming: ['farmer'] }; }).join(), /topic "Farming" must be a short lowercase tag/);
+  assert.match(problems((f) => { f['world.json'].loreTopics = { farming: 'farmer' }; }).join(), /topic "farming" must list at most 20 words/);
+  // A character's own topics are checked with the start that casts them.
+  const startError = (topics) => { const f = zombieFiles(); f['characters/pike.json'].topics = topics; return prepare(E, f).starts[0].error; };
+  assert.match(startError(['astrology']), /character "pike": "astrology" is not a topic this world knows/);
+  assert.equal(startError(['family', 'scavenging']), undefined);
+});
+
+test("bundled worlds tag some entries with topics, and the holdout's driver gets the roads by topic", () => {
+  for (const folder of ['mars-station', 'zombie-holdout']) {
+    const { E, state } = newGame(folder);
+    assert.ok(E.Lore.entries(state.scenario).filter((e) => e.topics).length >= 3, `${folder}: entries with topics`);
+  }
+  const { E, state } = newGame('zombie-holdout');
+  assert.ok([...E.Lore.playerTopics(state)].includes('travel'), 'a former delivery driver');
+  const roads = [...E.Lore.select(state, { action: 'Look around.', scene: '' })].find((p) => p.id === 'the-roads');
+  assert.ok(roads && /topic "travel" \(the player character\)/.test(roads.why));
+});

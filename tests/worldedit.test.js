@@ -332,6 +332,12 @@ test('the author form has no point budget, only the cap, and sets what a player 
   assert.equal(c.tier, 'secondary');
   assert.equal(c.pinned, true);
   assert.deepEqual(c.needs, { stress: 0.4 });
+  // Lore topics (task 5-5): checked against the world's list.
+  f.topics = ['Travel', 'science'];
+  assert.deepEqual(plain(E.CharMaker.buildAuthor(sc, f, {}).character.topics), ['travel', 'science']);
+  f.topics = ['astrology'];
+  assert.ok(E.CharMaker.buildAuthor(sc, f, {}).errors.some((e) => /"astrology" is not a topic this world knows/.test(e)));
+  f.topics = [];
   f.skills.tech = 5;
   assert.ok(E.CharMaker.buildAuthor(sc, f, {}).errors.some((e) => /^Tech must be from 0 to 4/.test(e)), 'the cap still holds');
   f.skills.tech = 2;
