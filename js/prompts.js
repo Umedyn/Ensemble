@@ -139,7 +139,7 @@
     if (!known.length) return null;
     const { full, far } = P.regionOutline(sc);
     const shown = new Set(known.map((r) => r.id));
-    const places = (sc.map && Array.isArray(sc.map.places)) ? sc.map.places : [];
+    const places = E.Scenario.mapPlaces(sc);
     const placesIn = (id) => places.filter((p) => p.region === id).map((p) => (p.kind === 'capital' ? `${p.name} (capital)` : p.name));
     const lines = ['\n=== REGIONS ==='].concat(full.map((r) => {
       const pl = placesIn(r.id);

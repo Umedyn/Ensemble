@@ -923,6 +923,10 @@
   // get a point placed automatically (validateWorld warns).
   S.FACTION_COLORS = 8;
   S.PLACE_KINDS = ['capital', 'city', 'town', 'place'];
+  // Every named place (task 4-5) on the world map and on any region's own
+  // map (R-9: a country's crop holds its cities), world map first.
+  S.mapPlaces = (sc) => [sc.map].concat((sc.regions || []).map((r) => r && r.map))
+    .flatMap((m) => (m && Array.isArray(m.places) ? m.places : []));
   // The world's map (the root's) and any region's own map (R-3): the same
   // format; a region's map outlines only regions inside it.
   function mapProblems(sc, locIds) {

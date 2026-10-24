@@ -157,18 +157,23 @@
   // name, alt or key, any case), within: true (anything on the map), taken:
   // [ids in use], tol, minArea }. → { regions: [{ id, key, name, wiki }],
   // shapes: {id: {polygon} | {polygons}}, neighbours: [[a, b]], skipped:
-  // [names], missing: [picked names not found] }.
+  // [names], missing: [picked names not found], lonlat: {id: source rings} }.
   const slug = (t) => String(t || '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30) || 'region';
   G.slug = slug;
-  G.importRegions = function (map, features, opts) {
-    const o = Object.assign({ tol: 1.5, minArea: 6, taken: [] }, opts || {});
+  // Which features: picked by name (any of name, alt or key, any case), or
+  // (within) any with a point on the map. → { chosen, missing }
+  G.pickFeatures = function (map, features, o) {
     const norm = (t) => String(t || '').trim().toLowerCase();
     const names = (f) => [f.name, f.key].concat(f.alt || []).filter(Boolean).map(norm);
     const want = (o.pick || []).map(norm).filter(Boolean);
     const box = [map.bounds[0], map.bounds[1], map.bounds[2], map.bounds[3]];
     const onMap = (f) => f.rings.some((r) => r.some(([lon, lat]) => lon >= box[0] && lon <= box[2] && lat >= box[1] && lat <= box[3]));
     const chosen = features.filter((f) => (want.length ? names(f).some((n) => want.includes(n)) : o.within && onMap(f)));
-    const missing = want.filter((w) => !features.some((f) => names(f).includes(w)));
+    return { chosen, missing: want.filter((w) => !features.some((f) => names(f).includes(w))) };
+  };
+  G.importRegions = function (map, features, opts) {
+    const o = Object.assign({ tol: 1.5, minArea: 6, taken: [] }, opts || {});
+    const { chosen, missing } = G.pickFeatures(map, features, o);
     const used = new Set(o.taken);
     const out = { regions: [], shapes: {}, neighbours: [], skipped: [], missing };
     const lonlat = {};
@@ -184,6 +189,7 @@
     });
     // Neighbours from the source outlines (shared borders are exact there).
     out.neighbours = G.neighbours(lonlat, 0.02);
+    out.lonlat = lonlat;
     return out;
   };
   // Named places → map places. points: [{ name, lon, lat, kind, key (the

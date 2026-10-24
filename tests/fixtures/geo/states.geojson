@@ -1,0 +1,183 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "adm1_code": "ALA-01",
+    "name": "North Alandia",
+    "name_en": "North Alandia",
+    "admin": "Republic of Alandia",
+    "adm0_a3": "ALA",
+    "wikidataid": "Q900101"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       0,
+       5
+      ],
+      [
+       10,
+       5
+      ],
+      [
+       10,
+       10
+      ],
+      [
+       0,
+       10
+      ],
+      [
+       0,
+       5
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "adm1_code": "ALA-02",
+    "name": "South Alandia",
+    "name_en": "South Alandia",
+    "admin": "Republic of Alandia",
+    "adm0_a3": "ALA",
+    "wikidataid": "Q900102"
+   },
+   "geometry": {
+    "type": "MultiPolygon",
+    "coordinates": [
+     [
+      [
+       [
+        0,
+        0
+       ],
+       [
+        10,
+        0
+       ],
+       [
+        10,
+        5
+       ],
+       [
+        0,
+        5
+       ],
+       [
+        0,
+        0
+       ]
+      ]
+     ],
+     [
+      [
+       [
+        2,
+        -8
+       ],
+       [
+        4,
+        -8
+       ],
+       [
+        4,
+        -6
+       ],
+       [
+        2,
+        -6
+       ],
+       [
+        2,
+        -8
+       ]
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "adm1_code": "BRA-01",
+    "name": "West Borovia",
+    "name_en": "West Borovia",
+    "admin": "Borovia",
+    "adm0_a3": "BRA",
+    "wikidataid": "Q900201"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       10,
+       0
+      ],
+      [
+       15,
+       0
+      ],
+      [
+       15,
+       10
+      ],
+      [
+       10,
+       10
+      ],
+      [
+       10,
+       0
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "adm1_code": "BRA-02",
+    "name": "East Borovia",
+    "name_en": "East Borovia",
+    "admin": "Borovia",
+    "adm0_a3": "BRA",
+    "wikidataid": "Q900202"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       15,
+       0
+      ],
+      [
+       20,
+       0
+      ],
+      [
+       20,
+       10
+      ],
+      [
+       15,
+       10
+      ],
+      [
+       15,
+       0
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

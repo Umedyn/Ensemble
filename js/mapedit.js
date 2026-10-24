@@ -94,7 +94,7 @@
     rooms.forEach((l) => { if (l.region != null) { const v = fn(l.region); if (v) l.region = v; else delete l.region; } });
     Object.values(starts || {}).forEach((s) => { if (s.region != null) { const v = fn(s.region); if (v) s.region = v; else delete s.region; } });
     // Named places on the map (task 4-5) belong to a region.
-    ((world.map && Array.isArray(world.map.places)) ? world.map.places : []).forEach((pl) => { if (pl && pl.region != null) { const v = fn(pl.region); if (v) pl.region = v; else delete pl.region; } });
+    E.Scenario.mapPlaces(world).forEach((pl) => { if (pl && pl.region != null) { const v = fn(pl.region); if (v) pl.region = v; else delete pl.region; } });
     Object.values(world.eventSeeds || {}).forEach((list) => (Array.isArray(list) ? list : []).forEach((sd) => {
       if (sd && typeof sd === 'object' && sd.region != null) { const v = fn(sd.region); if (v) sd.region = v; else delete sd.region; }
     }));

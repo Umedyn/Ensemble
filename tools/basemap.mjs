@@ -5,8 +5,10 @@
 //   npm run basemap -- fetch [--states]
 //   npm run basemap -- world [--width 8192]
 //   npm run basemap -- crop <world> --bounds W,S,E,N [--width 2400] [--file maps/base.jpg]
+//   npm run basemap -- crop <world> --region <id> [--bounds W,S,E,N] [--width 2400]
 //   npm run basemap -- regions <world> [--from countries|states] [--pick "France, Italy"] [--within]
-//                      [--places capitals|cities] [--tol 1.5] [--min-area 6] [--wiki]
+//                      [--parent <id>] [--places capitals|cities] [--as pins|regions]
+//                      [--labels "country, state, city"] [--tol 1.5] [--min-area 6] [--wiki]
 //
 // Sources (Natural Earth, public domain; "Made with Natural Earth"): the
 // 1:50m cross-blended hypsometric tints with shaded relief and water
@@ -20,6 +22,12 @@
 // neighbours from shared borders and each one's Wikipedia page for the
 // research helper (--wiki looks the titles up on Wikidata). Today's borders
 // are a starting point: redraw them for another era in the creator.
+//
+// A tree (R-9): states go under their country (the region with the same
+// source key, or --parent), cities into the state that holds them (as pins,
+// or --as regions under it), and "crop --region" gives a region its own,
+// sharper map, moving what's inside it there. Shared borders are neighbours,
+// which the game reads as border routes.
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
@@ -45,7 +53,9 @@ const USAGE = `Usage:
   npm run basemap -- fetch [--states]
   npm run basemap -- world [--width 8192]
   npm run basemap -- crop <world> --bounds W,S,E,N [--width 2400] [--file maps/base.jpg]
-  npm run basemap -- regions <world> [--from countries|states] [--pick "France, Italy"] [--within] [--places capitals|cities] [--tol 1.5] [--min-area 6] [--wiki]`;
+  npm run basemap -- crop <world> --region <id> [--bounds W,S,E,N] [--width 2400]
+  npm run basemap -- regions <world> [--from countries|states] [--pick "France, Italy"] [--within] [--parent <id>]
+                     [--places capitals|cities] [--as pins|regions] [--labels "country, state, city"] [--tol 1.5] [--min-area 6] [--wiki]`;
 
 export function parseArgs(argv) {
   const out = { cmd: argv[0], world: argv[1] && !argv[1].startsWith('--') ? argv[1] : null, flags: {} };
@@ -200,7 +210,7 @@ export function countryFeatures(gj) {
 export function stateFeatures(gj) {
   return gj.features.map((f) => {
     const p = f.properties;
-    return { key: p.adm1_code, name: p.name || p.name_en, alt: [p.name_en, p.gn_name, `${p.name}, ${p.admin}`].filter(Boolean), country: p.admin, wikidata: p.wikidataid || null, title: p.name_en || p.name, rings: ringsOf(f.geometry) };
+    return { key: p.adm1_code, name: p.name || p.name_en, alt: [p.name_en, p.gn_name, `${p.name}, ${p.admin}`].filter(Boolean), country: p.admin, countryKey: p.adm0_a3 || null, wikidata: p.wikidataid || null, title: p.name_en || p.name, rings: ringsOf(f.geometry) };
   });
 }
 // Populated places → points: capitals only, or every city on the map.
@@ -222,46 +232,136 @@ export async function wikiTitles(ids, fetchFn) {
 }
 
 // ---------- the commands ----------
+// Every map in a world: the world's, then each region's own.
+const mapsOf = (world) => [world.map].concat((world.regions || []).map((r) => r.map)).filter(Boolean);
+// The map a region's level is drawn on (R-3): its own projected map, else
+// the nearest one up the chain, else the world's. null: the world's.
+export function levelMap(E, world, id) {
+  for (const x of id ? E.Scenario.regionChainIn(world.regions || [], id) : []) {
+    const def = world.regions.find((r) => r.id === x);
+    if (def && def.map && E.Geo.projected(def.map)) return def.map;
+  }
+  return world.map;
+}
 // Imported regions and places into world.json: new ones added, ones with the
 // same id get the new outline (their other fields kept); neighbours set
-// both ways among the imported. → a summary line.
-export function mergeIntoWorld(E, world, imp, places) {
-  const map = world.map;
+// both ways among the imported. opts: { parents: {id: parent or null},
+// label: for every region, mapFor(id): the map its outline goes on (default
+// the world's) }. A region's outline is on one map only. → a summary line.
+export function mergeIntoWorld(E, world, imp, places, opts = {}) {
   world.regions = world.regions || [];
-  map.regions = map.regions || {};
+  const mapFor = opts.mapFor || (() => world.map);
+  const touched = new Set();
   imp.regions.forEach((r) => {
     let def = world.regions.find((x) => x.id === r.id);
     if (!def) { def = { id: r.id, name: r.name, controller: null, tags: [], status: '', neighbours: [], lore: '' }; world.regions.push(def); }
     def.key = r.key;
     if (r.wiki) def.wiki = r.wiki;
-    map.regions[r.id] = imp.shapes[r.id];
+    if (opts.parents && r.id in opts.parents) { if (opts.parents[r.id]) def.parent = opts.parents[r.id]; else delete def.parent; }
+    if (opts.label && !def.label) def.label = opts.label;
+  });
+  // Outlines after the parents are set, so each finds its level's map.
+  imp.regions.forEach((r) => {
+    mapsOf(world).forEach((m) => { if (m.regions) delete m.regions[r.id]; });
+    const m = mapFor(r.id);
+    m.regions = m.regions || {};
+    m.regions[r.id] = imp.shapes[r.id];
+    touched.add(m);
   });
   imp.neighbours.forEach(([a, b]) => {
     [[a, b], [b, a]].forEach(([x, y]) => { const d = world.regions.find((r) => r.id === x); if (d && !(d.neighbours || []).includes(y)) d.neighbours = (d.neighbours || []).concat(y); });
   });
-  if (places && places.length) {
-    const ids = new Set(places.map((p) => p.id));
-    map.places = (map.places || []).filter((p) => !ids.has(p.id)).concat(places);
-  }
-  map.credit = map.credit || CREDIT;
-  map.license = map.license || LICENSE;
+  (places || []).forEach((p) => {
+    const { map: m, ...pl } = p;
+    mapsOf(world).forEach((x) => { if (Array.isArray(x.places)) x.places = x.places.filter((q) => q.id !== pl.id); });
+    const on = m || world.map;
+    on.places = (on.places || []).concat(pl);
+    touched.add(on);
+  });
+  touched.forEach((m) => { m.credit = m.credit || CREDIT; m.license = m.license || LICENSE; });
   return `${imp.regions.length} regions, ${imp.neighbours.length} borders, ${(places || []).length} places${imp.skipped.length ? `; too small or off the map: ${imp.skipped.join(', ')}` : ''}${imp.missing.length ? `; not found: ${imp.missing.join(', ')}` : ''}`;
+}
+// One outline or point moved from one projected map onto another (clipped
+// to its picture), or null when nothing of it is on the new one.
+function moveShape(E, oldMap, newMap, sh) {
+  const G = E.Geo;
+  const move = (p) => G.toPixel(newMap, G.toLonLat(oldMap, p));
+  if (sh.point) { const p = move(sh.point).map(Math.round); return p[0] >= 0 && p[1] >= 0 && p[0] <= newMap.width && p[1] <= newMap.height ? { point: p } : null; }
+  const rings = G.pieces(sh).map((r) => G.clip(r.map(move), [0, 0, newMap.width, newMap.height])).filter(Boolean).map((r) => r.map((p) => p.map(Math.round)));
+  return !rings.length ? null : rings.length === 1 ? { polygon: rings[0] } : { polygons: rings };
 }
 // A projected map's regions and places moved onto a new map (another crop).
 export function reproject(E, oldMap, newMap) {
   const G = E.Geo;
   const move = (p) => G.toPixel(newMap, G.toLonLat(oldMap, p));
   const regions = {};
-  Object.entries(oldMap.regions || {}).forEach(([id, sh]) => {
-    if (sh.point) { const p = move(sh.point).map(Math.round); if (p[0] >= 0 && p[1] >= 0 && p[0] <= newMap.width && p[1] <= newMap.height) regions[id] = { point: p }; return; }
-    const rings = G.pieces(sh).map((r) => G.clip(r.map(move), [0, 0, newMap.width, newMap.height])).filter(Boolean).map((r) => r.map((p) => p.map(Math.round)));
-    if (rings.length) regions[id] = rings.length === 1 ? { polygon: rings[0] } : { polygons: rings };
-  });
+  Object.entries(oldMap.regions || {}).forEach(([id, sh]) => { const m = moveShape(E, oldMap, newMap, sh); if (m) regions[id] = m; });
   const inside = (p) => p[0] >= 0 && p[1] >= 0 && p[0] <= newMap.width && p[1] <= newMap.height;
   const places = (oldMap.places || []).map((p) => Object.assign({}, p, { at: move(p.at).map(Math.round) })).filter((p) => inside(p.at));
   const locations = {};
   Object.entries(oldMap.locations || {}).forEach(([id, p]) => { const q = move(p).map(Math.round); if (inside(q)) locations[id] = q; });
   return Object.assign({}, newMap, { regions, places, locations });
+}
+// A region's outline in degrees plus a margin: the default bounds of its crop.
+export function regionBounds(E, world, id, margin = 0.1) {
+  const m = mapsOf(world).find((x) => x.regions && x.regions[id] && E.Geo.projected(x));
+  if (!m) return null;
+  const pts = E.Geo.pieces(m.regions[id]).flat().concat(m.regions[id].point ? [m.regions[id].point] : []).map((p) => E.Geo.toLonLat(m, p));
+  const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+  const [w, e, s, n] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  const dx = Math.max(0.5, (e - w) * margin), dy = Math.max(0.5, (n - s) * margin);
+  const r = (v) => Math.round(v * 100) / 100;
+  return [r(Math.max(-180, w - dx)), r(Math.max(-90, s - dy)), r(Math.min(180, e + dx)), r(Math.min(90, n + dy))];
+}
+// Gives a region its own map (R-9): what is inside it (outlines, points and
+// places on the maps up its chain) moves onto it; its own outline stays on
+// its parent's level. A map it already has keeps what's on it, moved.
+export function cropRegion(E, world, id, newMap) {
+  const def = (world.regions || []).find((r) => r.id === id);
+  let map = newMap;
+  if (def.map && E.Geo.projected(def.map)) map = reproject(E, def.map, newMap);
+  else if (def.map && Object.keys(def.map.regions || {}).length) throw new Error(`${def.name}'s map has no projection, so what's on it can't be moved onto the new picture. Remove it in the creator first.`);
+  const inside = new Set(world.regions.filter((r) => r.id !== id && E.Scenario.regionChainIn(world.regions, r.id).includes(id)).map((r) => r.id));
+  let moved = 0, places = 0;
+  mapsOf(world).filter((m) => m !== def.map && E.Geo.projected(m)).forEach((m) => {
+    Object.keys(m.regions || {}).filter((r) => inside.has(r)).forEach((r) => {
+      const sh = moveShape(E, m, map, m.regions[r]);
+      if (sh) { map.regions[r] = sh; moved++; }
+      delete m.regions[r];
+    });
+    if (!Array.isArray(m.places)) return;
+    const mine = m.places.filter((p) => p.region === id || inside.has(p.region));
+    mine.forEach((p) => {
+      const at = E.Geo.toPixel(map, E.Geo.toLonLat(m, p.at)).map(Math.round);
+      if (at[0] >= 0 && at[1] >= 0 && at[0] <= map.width && at[1] <= map.height) { map.places = (map.places || []).filter((q) => q.id !== p.id).concat(Object.assign({}, p, { at })); places++; }
+    });
+    m.places = m.places.filter((p) => !mine.includes(p));
+  });
+  if (map.places && !map.places.length) delete map.places;
+  def.map = map;
+  return { moved, places };
+}
+// Places onto the tree: each point goes to the imported region whose source
+// outline holds it, else the region with its key; drawn on that region's
+// level map. As pins (map places), or as regions under their holder.
+function treePlaces(E, world, points, imp, known, taken, asRegions) {
+  const G = E.Geo;
+  const used = new Set(taken);
+  const pins = [], regions = [];
+  points.forEach((p) => {
+    const holder = imp.regions.find((r) => imp.lonlat[r.id] && G.insideAny([p.lon, p.lat], imp.lonlat[r.id])) || (p.key && known.find((r) => r.key === p.key));
+    if (!holder) return;
+    const map = levelMap(E, world, holder.id);
+    const at = G.toPixel(map, [p.lon, p.lat]).map(Math.round);
+    if (at[0] < 0 || at[1] < 0 || at[0] > map.width || at[1] > map.height) return;
+    const key = `place:${G.slug(p.name)}@${p.lon.toFixed(2)},${p.lat.toFixed(2)}`;
+    const again = asRegions && (world.regions || []).find((r) => r.key === key);
+    let id = again ? again.id : G.slug(p.name);
+    if (!again) { for (let n = 2; used.has(id); n++) id = `${G.slug(p.name)}-${n}`; used.add(id); }
+    if (asRegions) regions.push({ id, key, name: p.name, parent: holder.id, map, at, capital: p.kind === 'capital' });
+    else pins.push({ id, name: p.name, kind: p.kind || 'city', at, region: holder.id, map });
+  });
+  return { pins, regions };
 }
 
 export async function main(argv, io = {}) {
@@ -300,16 +400,25 @@ export async function main(argv, io = {}) {
   if (!fs.existsSync(wfile)) throw new Error(`No world.json in ${wdir}`);
   const w = readJSON(wfile);
   if (cmd === 'crop') {
-    const bounds = String(flags.bounds || '').split(',').map(Number);
+    const def = flags.region ? (w.regions || []).find((r) => r.id === flags.region) : null;
+    if (flags.region && !def) throw new Error(`No region "${flags.region}" in this world.`);
+    const bounds = flags.bounds ? String(flags.bounds).split(',').map(Number) : def ? regionBounds(E, w, def.id) : [];
+    if (def && !bounds) throw new Error(`${def.name} has no outline on a projected map yet: give --bounds W,S,E,N.`);
     const probe = { projection: 'equirectangular', bounds };
     const p = E.Geo.projectionProblems(probe);
     if (p.length) throw new Error(`${p.join('; ')} (for example --bounds -11,35,30,60 for western Europe)`);
     const width = Number(flags.width) || 2400;
     const src = io.raster || loadRaster(dir);
     const img = cut(src, bounds, width);
-    const file = flags.file || 'maps/base.jpg';
+    const file = flags.file || (def ? `maps/${def.id}.jpg` : 'maps/base.jpg');
     writeJpeg(path.join(wdir, file), img.rgba, img.width, img.height, Number(flags.quality) || 85);
     let map = { image: file, width: img.width, height: img.height, projection: 'equirectangular', bounds, regions: {}, credit: CREDIT, license: LICENSE };
+    if (def) {
+      const n = cropRegion(E, w, def.id, map);
+      writeJSON(wfile, w);
+      log(`✓ ${path.relative(root, path.join(wdir, file))} (${img.width} × ${img.height}); ${def.name}'s own map, with ${n.moved} regions and ${n.places} places inside it moved onto it`);
+      return;
+    }
     if (w.map && E.Geo.projected(w.map)) map = reproject(E, w.map, map);
     else if (w.map && Object.keys(w.map.regions || {}).length) throw new Error('This world\'s map has no projection, so its regions can\'t be moved onto the new picture. Remove the map in the creator first, or crop into a copy of the world.');
     w.map = map;
@@ -321,31 +430,77 @@ export async function main(argv, io = {}) {
     if (!w.map || !E.Geo.projected(w.map)) throw new Error('This world has no projected map yet: make one with "crop" (or start the world from the base map in the creator).');
     const from = flags.from || 'countries';
     const gj = io.geojson ? io.geojson[from] : readJSON(path.join(dir, SOURCES[from].file));
-    let features = from === 'states' ? stateFeatures(gj) : countryFeatures(gj);
-    const taken = [].concat((w.regions || []).map((r) => r.id), (w.locations || []).map((l) => l.id));
+    const features = from === 'states' ? stateFeatures(gj) : countryFeatures(gj);
+    w.regions = w.regions || [];
+    if (flags.parent && !w.regions.some((r) => r.id === flags.parent)) throw new Error(`No region "${flags.parent}" to put them under.`);
+    if (flags.labels) w.regionLabels = String(flags.labels).split(',').map((s) => s.trim()).filter(Boolean);
+    const taken = [].concat(w.regions.map((r) => r.id), (w.locations || []).map((l) => l.id));
     const pick = flags.pick ? String(flags.pick).split(',').map((s) => s.trim()).filter(Boolean) : null;
     if (!pick && !flags.within) throw new Error('Say which: --pick "France, Italy" or --within (everything on the map).');
+    // Which features: picked by name, or everything on the world map.
+    const sel = E.Geo.pickFeatures(w.map, features, { pick, within: !!flags.within });
+    const chosen = sel.chosen;
+    // Each one's parent (R-9): --parent, else the country region with the
+    // state's country key; countries (and states with no such region) at the top.
+    const byCountry = new Map(w.regions.filter((r) => r.key).map((r) => [r.key, r.id]));
+    const parentOf = (f) => flags.parent || (from === 'states' && f.countryKey && byCountry.get(f.countryKey)) || null;
+    const orphans = from === 'states' && !flags.parent ? [...new Set(chosen.filter((f) => !parentOf(f)).map((f) => f.country).filter(Boolean))] : [];
+    // Fitted to the map of their parent's level, a group per map.
+    const byKey = new Map(w.regions.filter((r) => r.key).map((r) => [r.key, r.id]));
+    const groups = new Map();
+    chosen.forEach((f) => { const m = levelMap(E, w, parentOf(f)); if (!groups.has(m)) groups.set(m, []); groups.get(m).push(f); });
+    const imp = { regions: [], shapes: {}, neighbours: [], skipped: [], missing: sel.missing, lonlat: {} };
+    const used = taken.filter((id) => ![...byKey.values()].includes(id));
+    groups.forEach((list, m) => {
+      const g = E.Geo.importRegions(m, list, { within: true, taken: used.concat(imp.regions.map((r) => r.id)), tol: Number(flags.tol) || 1.5, minArea: Number(flags['min-area']) || 6 });
+      imp.regions.push(...g.regions); Object.assign(imp.shapes, g.shapes); Object.assign(imp.lonlat, g.lonlat); imp.skipped.push(...g.skipped);
+    });
     // Regions already imported keep their ids (the same key replaces the outline).
-    const byKey = new Map((w.regions || []).filter((r) => r.key).map((r) => [r.key, r.id]));
-    const imp = E.Geo.importRegions(w.map, features, { pick, within: !!flags.within, taken: taken.filter((id) => ![...byKey.values()].includes(id)), tol: Number(flags.tol) || 1.5, minArea: Number(flags['min-area']) || 6 });
     imp.regions.forEach((r) => {
       const old = byKey.get(r.key);
-      if (old && old !== r.id) { imp.shapes[old] = imp.shapes[r.id]; delete imp.shapes[r.id]; imp.neighbours = imp.neighbours.map((p) => p.map((x) => (x === r.id ? old : x))); r.id = old; }
+      if (old && old !== r.id) { imp.shapes[old] = imp.shapes[r.id]; delete imp.shapes[r.id]; imp.lonlat[old] = imp.lonlat[r.id]; delete imp.lonlat[r.id]; r.id = old; }
     });
+    // Borders from the source outlines, across groups and with regions
+    // imported before from the same source (a second country's states).
+    const before = {};
+    features.filter((f) => byKey.has(f.key) && !imp.regions.some((r) => r.key === f.key)).forEach((f) => { before[byKey.get(f.key)] = f.rings; });
+    imp.neighbours = E.Geo.neighbours(Object.assign({}, before, imp.lonlat), 0.02).filter(([a, b]) => imp.lonlat[a] || imp.lonlat[b]);
     if (flags.wiki) {
       const titles = await wikiTitles(imp.regions.map((r) => r.wiki && r.wiki.wikidata), io.fetch || fetch);
       imp.regions.forEach((r) => { if (r.wiki && titles[r.wiki.wikidata]) r.wiki.title = titles[r.wiki.wikidata]; });
     }
-    let places = [];
+    const parents = {};
+    const keyOf = new Map(chosen.map((f) => [f.key, f]));
+    imp.regions.forEach((r) => { parents[r.id] = parentOf(keyOf.get(r.key)); });
+    const summary = mergeIntoWorld(E, w, imp, [], { parents, mapFor: (id) => levelMap(E, w, (w.regions.find((r) => r.id === id) || {}).parent) });
+    // Cities and capitals: pins in the region that holds them, or (--as
+    // regions) regions under it, a point on its level's map.
+    let placed = '';
     if (flags.places) {
       const pg = io.geojson ? io.geojson.places : readJSON(path.join(dir, SOURCES.places.file));
-      const known = imp.regions.concat((w.regions || []).filter((r) => r.key && !imp.regions.some((x) => x.id === r.id)).map((r) => ({ id: r.id, key: r.key })));
-      const shapes = Object.assign({}, w.map.regions, imp.shapes);
+      const known = imp.regions.concat(w.regions.filter((r) => r.key && !imp.regions.some((x) => x.id === r.id)));
       const pts = placePoints(pg, flags.places);
-      places = E.Geo.importPlaces(w.map, pts, known, shapes, taken.concat(imp.regions.map((r) => r.id), (w.map.places || []).map((p) => p.id)))
-        .filter((p) => p.region);
+      const asRegions = flags.as === 'regions';
+      const t = treePlaces(E, w, pts, imp, known, taken.concat(imp.regions.map((r) => r.id), ...mapsOf(w).map((m) => (m.places || []).map((p) => p.id))), asRegions);
+      if (asRegions) {
+        t.regions.forEach((c) => {
+          let def = w.regions.find((r) => r.id === c.id);
+          if (!def) { def = { id: c.id, name: c.name, controller: null, tags: [], status: '', neighbours: [], lore: '' }; w.regions.push(def); }
+          Object.assign(def, { key: c.key, parent: c.parent });
+          if (!def.label) def.label = 'city';
+          if (c.capital && !def.tags.includes('capital')) def.tags = def.tags.concat('capital');
+          mapsOf(w).forEach((m) => { if (m.regions) delete m.regions[c.id]; if (Array.isArray(m.places)) m.places = m.places.filter((p) => p.id !== c.id); });
+          c.map.regions = c.map.regions || {};
+          c.map.regions[c.id] = { point: c.at };
+        });
+        placed = `, ${t.regions.length} cities as regions`;
+      } else {
+        mergeIntoWorld(E, w, { regions: [], neighbours: [], skipped: [], missing: [] }, t.pins);
+        placed = `, ${t.pins.length} places`;
+      }
     }
-    log(`✓ ${mergeIntoWorld(E, w, imp, places)}`);
+    log(`✓ ${summary.replace(/, 0 places/, placed)}`);
+    if (orphans.length) log(`! no region for ${orphans.join(', ')}: their states are at the top level (import the country first, or use --parent)`);
     writeJSON(wfile, w);
     // A world with regions needs one for every start: one without gets the
     // first, as in the creator (pick the right one in the Map tab).

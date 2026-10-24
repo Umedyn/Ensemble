@@ -138,7 +138,7 @@ Make your own character and start, and have the engine fill in the world around 
   - **City maps** work at either scale. Inside a big world they're the regional level. For "live your life" worlds (a school slice-of-life, a zombie outbreak in one town) **the city is the world map**: districts and neighbourhoods are regions, and the local level is a building, a street or a block. ~~The three map levels are relative, not fixed to planet → country → room.~~ *Superseded by the region tree (Region rework below): regions nest as deep as each branch needs, and any region can carry a map.*
   - Sources: Natural Earth (countries, provinces, cities; public domain), US Census boundaries and places (public domain), the IAU/USGS list of Mars features (public domain), Wikidata coordinates (CC0), and OpenStreetMap or city open-data portals for cities (OSM is ODbL: attribution required and shared extracts stay ODbL, so check before bundling anything in a paid build).
   - Steps: name the place and detail level → fetch → project onto the creator's image (or draw a plain base map from the boundaries, avoiding image licensing) → simplify borders → compute neighbours from shared borders → write region and location data with `credit` and `license` → check and adjust in the map editor (3-5).
-  - Folded into the region rework (task R-9): the import will write a tree (country → states or provinces → cities) with routes.
+  - Folded into the region rework (task R-9, done): the import writes a tree (country → states or provinces → cities) with borders as routes, and crops a region's own map.
 - ~~**World backdrop** (task 4-6)~~: superseded by the region tree; broad outer regions are the backdrop, detailed ones where the story is.
 - [x] **Review screen**: edit or reroll any generated room or character before starting. The result can be saved as a reusable start.
 - [x] **Generated sites**: on-the-fly local maps for places the story goes (a gang base, a corporate floor, a ruined farmhouse), with rooms, named characters, standees and loot. They're attached to a region and either kept or discarded after the visit. Triggered by the player's intent (`move_to` an unknown place) or by an event.
@@ -227,7 +227,7 @@ Regions become a free-form tree with routes, and maps attach to any region, so o
 - [x] **Generated regions** (R-6): `new_region` like `new_place`, one level up, fading like sites.
 - [x] **Start anywhere** (R-7): pick a start in a big tree by search or zoom, or "Surprise me"; `startable` on branches.
 - [x] **Map focus by genre and stakes** (R-8): tactical local maps for tense stories, the city as the lived space for everyday ones; flavour sites in one call that turn tactical when danger arrives.
-- [ ] **Real places as a tree** (R-9): the base map tool writes countries, provinces and cities with routes.
+- [x] **Real places as a tree** (R-9): the base map tool writes countries, provinces and cities with routes.
 - [ ] **Recurring faces in generated starts** (later, after R-0): `generatedStarts.pool: true` lets generation draw side characters from the world's authored pool instead of only making new people. Off by default; lore figures stay out either way.
 
 ## Story tables (quality of life)
