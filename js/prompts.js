@@ -1188,7 +1188,7 @@ Reply with JSON only: {"rooms":[{"id":"back-room","name":"Back Room","desc":"One
   GEN_TASKS.plan = ({ loaded }) => {
     const [min, max] = E.StartGen.castSize(loaded.bundle.world);
     return `=== TASK: WHO IS HERE ===
-Plan the ${min} to ${max} people (not counting the player) who are in or around these rooms when the story starts. Make them different from each other in age, background, temperament and what they want, and give each a hook: something about them that will cause trouble. Nobody is the player's relative or old friend: the player's past is theirs to tell. One line each.
+Plan the ${min} to ${max} people (not counting the player) who are in or around these rooms when the story starts. Make them different from each other in age, background, temperament and what they want, and give each a hook: something about them that will cause trouble. Someone may be the player's family or an old friend when that fits the player's description or the story they asked for; otherwise they are people the player is only now getting to know. One line each.
 Reply with JSON only: {"people":[{"name":"Full Name","role":"short role","hook":"one line"}]}`;
   };
   const SHEET = (sc) => `"pronouns":"she/her","age":40,"traits":["three","short","traits"],"want":"what they want, one phrase","secret":"something they hide from the others","guard":"low|medium|high","voice":"how they talk, one sentence","appearance":"one or two sentences, the first a good one-line look","description":"who they are, one or two sentences","skills":${skillJson(sc, 1)},"room":"room-id"`;

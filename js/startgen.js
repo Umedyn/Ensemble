@@ -329,11 +329,9 @@
       if (ctx.taken.names.has(name) || (pc && norm(pc.name) === norm(name)) || people.some((x) => norm(x.name) === norm(name))) return { error: `the name "${name}" is already used; every person needs their own name` };
       if (GEN.loreFigure(ctx, name)) return { error: `${name} is someone from the world's lore: make up someone new (people from the lore come into the story only when the player seeks them out)` };
       const hook = clip(p.hook, 160);
-      // The player's past is theirs (rule 3; playtest-12b: "Sarah Thompson,
-      // teenage daughter of Emma Thompson", who had never met anyone here).
-      const surname = (n) => String(n).trim().split(/\s+/).pop().toLowerCase();
-      if (pc && String(pc.name).trim().split(/\s+/).length > 1 && String(name).trim().split(/\s+/).length > 1 && surname(name) === surname(pc.name)) return { error: `${name} shares the player's surname; don't make anyone the player's family (the player's story is theirs)` };
-      if (GEN.namesPlayer(ctx.job, role + ' ' + hook)) return { error: `${name}'s role ties them to the player; leave the player's past to the player` };
+      // The player's family or old friends are allowed when the story calls
+      // for them (a slice-of-life start has a family); the prompt asks for
+      // them only when they fit.
       const other = GEN.namesSomeoneElse(ctx, role + ' ' + hook);
       if (other) return { error: `${name}'s line is about ${other}, who isn't in this start` };
       people.push(Object.assign({ name, role, hook }, aged ? { age: Number(aged[1]) } : {}));
@@ -370,7 +368,6 @@
     const prose = [c.description, c.appearance, c.want, c.secret, c.voice].filter(Boolean).join(' ');
     const other = GEN.namesSomeoneElse(ctx, prose);
     if (other) return { error: `the sheet for ${plan.name} talks about ${other}, who isn't in this start; write about ${plan.name}` };
-    if (GEN.namesPlayer(ctx.job, prose)) return { error: `the sheet for ${plan.name} decides things about the player; leave the player out of it` };
     const problems = E.Scenario.characterProblems(c, sc, new Set(rooms.map((r) => r.id)), [id]);
     return problems.length ? { error: problems.join('; ') } : { character: c };
   };

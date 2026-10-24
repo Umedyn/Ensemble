@@ -323,15 +323,18 @@ test('playtest-12b: a described character with no skills is sent back to spend t
   assert.match(out.error, /spend the skill points: up to 10 in all, each from 0 to 3/);
 });
 
-test('playtest-12b: nobody is planned as the player\'s family', () => {
+test("the player's family and old friends may be planned and written when the story calls for them", () => {
   const { E, w, job, GEN } = setup();
   job.steps.player = { character: { id: 'emma-thompson', name: 'Emma Thompson' } };
   const ctx = ctxOf(E, w, job);
   const plan = (p) => GEN.check.plan({ people: [p, { name: 'Jim Davis', role: 'retired veteran' }, { name: 'Mia Hernandez', role: 'single mother' }] }, ctx);
-  assert.match(plan({ name: 'Sarah Thompson', role: 'teenager' }).error, /shares the player's surname; don't make anyone the player's family/);
-  assert.match(plan({ name: 'Sarah Lowe', role: 'teenage daughter of Emma Thompson' }).error, /ties them to the player/);
-  assert.match(plan({ name: 'Sarah Lowe', role: 'teenager', hook: 'Emma\'s old friend' }).error, /ties them to the player/);
-  assert.equal(plan({ name: 'Sarah Lowe', role: 'teenager', hook: 'believes in a cure' }).people.length, 3);
+  assert.equal(plan({ name: 'Sarah Thompson', role: 'teenage daughter of Emma Thompson' }).people.length, 3, 'a shared surname and a role tied to the player');
+  assert.equal(plan({ name: 'Sarah Lowe', role: 'teenager', hook: 'Emma\'s old friend' }).people.length, 3);
+  job.steps.rooms = GEN.check.rooms(replies().rooms, ctx);
+  job.steps.plan = { people: [{ name: 'Sarah Thompson', role: 'teenage daughter of Emma Thompson' }] };
+  const sheet = Object.assign({}, SHEETS['Kay Dunbar'], { description: 'Emma\'s daughter, sixteen and sure she knows better.' });
+  assert.ok(GEN.check.person(sheet, ctx, 0).character, 'her sheet may say whose daughter she is');
+  assert.match(E.Prompts.genStep(ctx, 'plan'), /may be the player's family or an old friend when that fits/);
 });
 
 test('playtest-12b: a sheet about someone from the authored cast is sent back', () => {
@@ -344,7 +347,6 @@ test('playtest-12b: a sheet about someone from the authored cast is sent back', 
   assert.match(GEN.check.person(ben, ctx, 0).error, /the sheet for Ben Walker talks about Marlene Ortiz, who isn't in this start/);
   assert.match(GEN.check.person(Object.assign({}, ben, { description: 'Used to argue with Ortiz about prices.' }), ctx, 0).error, /talks about Marlene Ortiz/, 'the surname alone counts');
   assert.match(GEN.check.person(Object.assign({}, ben, { description: 'Mrs. Albee taught her to shoot.' }), ctx, 0).error, /talks about Mrs\. Albee/);
-  assert.match(GEN.check.person(Object.assign({}, ben, { description: 'Owes Emma a favour.' }), ctx, 0).error, /decides things about the player/);
   assert.ok(GEN.check.person(Object.assign({}, ben, { description: 'Ran the corner shop for twenty years.' }), ctx, 0).character);
   const good = replies().opening;
   assert.match(GEN.check.opening(Object.assign({}, good, { opening: good.opening + '\n\nOutside, Gil Ferris shouts something.' }), ctx).error, /opening names Gil Ferris/);
