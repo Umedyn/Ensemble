@@ -1,0 +1,9 @@
+{
+  "format": 2,
+  "id": "your-story",
+  "title": "Your own story",
+  "summary": "Any world, any time, any place: describe it, make or describe your character, and the story engine builds the start there (the place, the people, their ties and an opening).",
+  "setting": "A world the player describes when the story begins. Until then it has no place, time or people of its own.",
+  "generatedStarts": { "customSetting": true },
+  "generatedSites": {}
+}

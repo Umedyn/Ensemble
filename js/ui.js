@@ -383,6 +383,8 @@
         const n = GEN.order(saved).filter((id) => saved.steps[id]).length;
         html += `<div class="gen-resume"><b>${GEN.done(saved) ? 'You have a finished start you haven\'t played.' : `You have an unfinished start (${n} of ${GEN.order(saved).length} steps done).`}</b> <button type="button" id="genResume" class="primary small">${GEN.done(saved) ? 'Open it' : 'Resume'}</button> <button type="button" id="genDiscard" class="small ghost">Discard</button></div>`;
       }
+      // A world the player describes (customSetting): their words come first.
+      if (GEN.custom(w)) html += `<label><b>Your world</b> <span class="muted small">where and when, and what it's like; the story keeps to it</span><textarea id="genWorld" maxlength="${GEN.SETTING.world}" rows="3" placeholder="a fishing village on a Scottish island in the 1950s, where everyone knows everyone's business">${esc(gen.worldText || '')}</textarea></label>`;
       const regions = GEN.regions(w);
       if (regions.length) html += genWhereHtml(w, regions);
       const c = gen.character;
@@ -391,7 +393,7 @@
         `<label class="mk-option"><input type="radio" name="gen-mode" value="line"${gen.mode === 'line' ? ' checked' : ''}> <span><b>Describe one in a line</b> <input type="text" id="genLine" maxlength="300" value="${esc(gen.line)}" placeholder="a trucker who just wants to get to the coast" aria-label="Describe your character in a line"></span></label>` +
         '</fieldset>' +
         `<label>What kind of story (optional)<textarea id="genNote" maxlength="400" rows="2" placeholder="quiet and tense; someone here is lying">${esc(gen.note)}</textarea></label>` +
-        '<div class="muted small">The story engine writes the place, the people, their ties and an opening, one small step at a time (about 9 calls; several minutes on a local model). You can retry any step.</div>' +
+        '<div class="muted small">The story engine writes the place, the people, their ties and an opening, one small step at a time (about 10 calls; several minutes on a local model). You can retry any step.</div>' +
         '<div class="row end"><button type="button" id="genGo" class="primary">Generate</button></div>';
     } else {
       const job = gen.job;
@@ -455,6 +457,7 @@
     }
     if (ev.target.id === 'genLine') { gen.line = ev.target.value; gen.mode = 'line'; ev.target.closest('.mk-option').querySelector('input[type=radio]').checked = true; }
     if (ev.target.id === 'genNote') gen.note = ev.target.value;
+    if (ev.target.id === 'genWorld') gen.worldText = ev.target.value;
     if (ev.target.id === 'genPlace') gen.place = ev.target.value;
     // Search fills in the results without redrawing the box (keeps focus).
     if (ev.target.id === 'genSearch') { gen.search = ev.target.value; $('genResults').innerHTML = genResultsHtml(gen.world.bundle.world, GEN.regions(gen.world.bundle.world)); }
@@ -478,12 +481,13 @@
       gen.mode = 'form';
       const g = gen;
       openCharacterForm({
-        sc: GEN.slotScenario(g.world, g.region), key: `${g.key}/generated`, title: `Make your character: ${g.world.title}`, done: 'Use this character',
+        // In a world the player describes, Suggest ideas fit what they wrote so far.
+        sc: Object.assign(GEN.slotScenario(g.world, g.region), GEN.custom(g.world.bundle.world) && (g.worldText || '').trim() ? { setting: g.worldText.trim() } : {}), key: `${g.key}/generated`, title: `Make your character: ${g.world.title}`, done: 'Use this character',
         onDone: (c) => { g.character = c; $('makerDialog').close(); renderGen(); return null; },
       });
     } else if (b.id === 'genGo') {
       try {
-        gen.job = GEN.newJob(gen.world, { region: gen.region, note: gen.note, character: gen.mode === 'form' ? gen.character : null, line: gen.mode === 'line' ? gen.line : '', place: gen.place || '' });
+        gen.job = GEN.newJob(gen.world, { region: gen.region, note: gen.note, character: gen.mode === 'form' ? gen.character : null, line: gen.mode === 'line' ? gen.line : '', place: gen.place || '', world: gen.worldText || '' });
       } catch (e) {
         gen.error = '';
         alert(e.message);
@@ -559,6 +563,14 @@
     const o = s.opening;
     const hidden = '<div class="muted small">Hidden. Turn on spoilers to see or edit it.</div>';
     let html = `<label class="web-toggle rv-spoil"><input type="checkbox" id="rvSpoil"${gen.spoilers ? ' checked' : ''}> Show spoilers (secrets, private facts, notes for the story engine)</label>`;
+    // The world the player described (customSetting): what the story keeps to.
+    if (s.setting) {
+      html += '<section class="rv-section"><div class="rv-head"><h4>Your world</h4></div>' +
+        `<div class="muted small">You asked for: ${esc(job.worldText)}</div>` +
+        field('setting', '', 'setting', s.setting.setting, { label: 'Setting (the story keeps to this)', rows: 4 }) +
+        `<div class="rv-row">${field('setting', '', 'tags', (s.setting.tags || []).join(', '), { label: 'Genre tags (separated by commas)', cls: 'rv-grow' })}</div>` +
+        field('setting', '', 'toneNote', s.setting.toneNote, { label: 'Tone' }) + '</section>';
+    }
     html += `<section class="rv-section"><div class="rv-head"><h4>Opening</h4>${reroll('data-rv-redo="opening"', 'Reroll', 'Write the opening again; everything else stays')}</div>` +
       field('opening', '', 'title', o.title, { label: 'Title' }) +
       field('opening', '', 'summary', o.summary, { label: 'Summary (shown in the picker)', rows: 2 }) +

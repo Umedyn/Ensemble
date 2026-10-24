@@ -7,7 +7,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
-const { newGame, scenarioFolders, readWorld } = require('./helpers');
+const { newGame, scenarioFolders, readWorld, loadEngine } = require('./helpers');
 const genMock = require('./genmock');
 
 const FILE = path.join(__dirname, 'fixtures', 'prompt-snapshots.json');
@@ -83,7 +83,7 @@ function researchPrompts(E, folder) {
 
 // Generated starts (task 4-2): every step's prompt, each step filled from the
 // shared mock replies before the next. Empty for worlds without them.
-const GEN_KEYS = ['genHeader', 'genPlayer', 'genRooms', 'genPlan', 'genPerson1', 'genPerson2', 'genCastAll', 'genTies', 'genExtras', 'genOpening'];
+const GEN_KEYS = ['genHeader', 'genSetting', 'genPlayer', 'genRooms', 'genPlan', 'genPerson1', 'genPerson2', 'genCastAll', 'genTies', 'genExtras', 'genOpening'];
 function genPrompts(E, folder) {
   const w = readWorld(folder, E);
   const out = {};
@@ -91,9 +91,15 @@ function genPrompts(E, folder) {
   if (!w.generate) return out;
   const GEN = E.StartGen;
   const r = genMock.replies();
-  const job = GEN.newJob(w, { region: GEN.regions(w.bundle.world)[0].id, line: 'a trucker who just wants to get to the coast', note: 'quiet and tense', onePass: false });
-  const ctx = GEN.context(w, job);
+  const job = GEN.newJob(w, { region: (GEN.regions(w.bundle.world)[0] || {}).id, line: 'a trucker who just wants to get to the coast', note: 'quiet and tense', onePass: false, world: genMock.WORLD });
+  let ctx = GEN.context(w, job);
   const P = E.Prompts;
+  // A world the player describes (customSetting): its setting step first.
+  if (job.worldText) {
+    out.genSetting = P.genStep(ctx, 'setting');
+    job.steps.setting = GEN.check.setting(r.setting, ctx);
+    ctx = GEN.context(w, job);
+  }
   out.genHeader = ctx.header;
   out.genPlayer = P.genStep(ctx, 'player');
   job.steps.player = GEN.check.player(r.player, ctx);
@@ -142,7 +148,8 @@ test('prompt layouts use known blocks, and the header keeps its live blocks at t
 
 test('prompts are unchanged for a fixed state in every bundled scenario', () => {
   const now = {};
-  for (const folder of scenarioFolders()) now[folder] = promptsFor(folder);
+  // A world with no authored start (your-story) has only the generator's prompts.
+  for (const folder of scenarioFolders()) now[folder] = readWorld(folder).defaultStart ? promptsFor(folder) : genPrompts(loadEngine(), folder);
   if (process.env.UPDATE_SNAPSHOTS || !fs.existsSync(FILE)) {
     fs.writeFileSync(FILE, JSON.stringify(now, null, 1) + '\n');
     return;

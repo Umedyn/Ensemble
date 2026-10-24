@@ -10,7 +10,7 @@ const SHEETS = {
 };
 function replies(over = {}) {
   const base = {
-    player: { name: 'Sam Whitlock', pronouns: 'he/him', age: 41, role: 'Long-haul trucker', traits: ['blunt'], want: 'get to the coast', secret: null, skills: { fighting: 4, shooting: 4, mechanics: 4 } },
+    player: { name: 'Sam Whitlock', pronouns: 'he/him', age: 41, role: 'Long-haul trucker', traits: ['blunt'], want: 'get to the coast', secret: null, skills: { fighting: 4, shooting: 4, mechanics: 4, physical: 3, social: 2 } },
     rooms: { rooms: [
       { id: 'counter', name: 'Diner Counter', desc: 'A long counter with stools bolted to the floor.', connects: ['kitchen'] },
       { id: 'kitchen', name: 'Kitchen', desc: 'Grease and a cold grill.', connects: ['Back Lot'] },
@@ -24,6 +24,9 @@ function replies(over = {}) {
       knows: [{ id: 'Owen Pruitt', text: 'The radio in the booths still picks up the convoy at night.' }], pressures: [{ name: 'The fuel runs out', max: 8, perHour: 0.1, fireText: 'The generator dies and the lights go out.', then: { name: 'The cold sets in', max: 6, perHour: 0.2, fireText: 'Frost on the inside of the windows; nobody sleeps.' } }],
       events: ['a convoy of strangers pulls into the lot', { text: 'the storm drain backs up into the kitchen' }, '', 'the radio picks up a voice nobody knows', 'a fourth idea past the limit'] },
     extras: { extras: [{ name: 'Father Abel', role: 'priest on the radio', room: null, note: 'calls every night at nine' }], groups: [{ label: 'the dead', count: 'a dozen', room: 'back-lot', state: 'alert' }, { label: 'raiders', count: 3, room: 'roof' }] },
+    // A world the player describes (customSetting): the setting from WORLD.
+    setting: { setting: 'A fishing village on a small Scottish island in the 1950s, where the ferry comes twice a week and the weather decides everything else. Most families live by the boats, the crofts or the one shop, and the minister and the laird still carry weight. News travels faster than the post, grudges last for generations, and one bad winter can empty a house.',
+      tags: ['slice-of-life', 'Drama'], toneNote: 'Quiet, close and wry; small things matter.' },
     // Local lore (task 5-6): the diner, its back lot and the street.
     lore: { entries: [
       { title: 'The Blue Plate', about: 'location', ref: 'counter', keywords: ['diner', 'Blue Plate'], topics: ['work'],
@@ -62,6 +65,7 @@ function replies(over = {}) {
   return Object.assign(base, over);
 }
 const STEP_OF = [
+  ['TASK: THE WORLD', 'setting'],
   ['TASK: LOCAL LORE', 'lore'],
   ["THE PLAYER'S CHARACTER", 'player'], ['TASK: THE PLACE AND WHO IS THERE', 'siteFlavour'], ['TASK: MORE OF THIS PLACE', 'siteGrow'], ['TASK: THE PLACE', 'rooms'], ['TASK: WHO IS HERE', 'plan'], ['TASK: WRITE ONE PERSON', 'person'],
   ['TASK: WRITE THE PEOPLE', 'cast'], ['TASK: A NEW REGION', 'region'],
@@ -69,4 +73,7 @@ const STEP_OF = [
 ];
 const stepOf = (user) => (STEP_OF.find(([k]) => user.includes(k)) || [])[1];
 
-module.exports = { SHEETS, replies, stepOf };
+// What the player writes for "Your world" in the tests.
+const WORLD = 'a fishing village on a Scottish island in the 1950s, where everyone knows everyone';
+
+module.exports = { SHEETS, replies, stepOf, WORLD };

@@ -1,6 +1,16 @@
 {
   "scenarios": [
-    { "folder": "mars-station", "title": "Ares Deep (Mars research station)" },
-    { "folder": "zombie-holdout", "title": "Holdout at Harmon's (zombie survival)" }
+    {
+      "folder": "mars-station",
+      "title": "Ares Deep (Mars research station)"
+    },
+    {
+      "folder": "zombie-holdout",
+      "title": "Holdout at Harmon's (zombie survival)"
+    },
+    {
+      "folder": "your-story",
+      "title": "Your own story (any world you describe)"
+    }
   ]
 }

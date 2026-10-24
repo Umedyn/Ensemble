@@ -22,6 +22,7 @@
   const norm = (t) => String(t || '').toLowerCase().replace(/^(the|a|an)\s+/, '').replace(/[^a-z0-9]+/g, ' ').trim();
 
   GEN.STEPS = [
+    { id: 'setting', label: 'Your world' },
     { id: 'player', label: 'Your character' },
     { id: 'rooms', label: 'Places' },
     { id: 'plan', label: 'Who is here' },
@@ -37,7 +38,11 @@
   GEN.TRIES = 3; // one call plus two reruns with the problem named
   GEN.PLAYER_FEELING = 25; // the cast has only just met the player
   GEN.PLURAL = /\b(couple|family|pair|twins|group|kids|children|people|men|women|survivors|neighbou?rs|brothers|sisters)\b/i;
-  GEN.CONFIG_FIELDS = ['start', 'roles', 'skillPoints', 'maxSkill', 'castSize', 'castLabel'];
+  GEN.CONFIG_FIELDS = ['start', 'roles', 'skillPoints', 'maxSkill', 'castSize', 'castLabel', 'customSetting'];
+  // A world the player describes (customSetting): their words, and how long
+  // the setting written from them may be.
+  GEN.SETTING = { world: 600, setting: 900, minWords: 25, tags: 4 };
+  GEN.custom = (world) => !!(world && world.generatedStarts && world.generatedStarts.customSetting === true);
   // Defaults for every generatedStarts field (R-0), so {} (or a world with
   // no starts) plays.
   GEN.DEFAULTS = { skillPoints: 10, maxSkill: 3, castSize: [3, 5] };
@@ -54,6 +59,7 @@
     req(g.castSize == null || (Array.isArray(g.castSize) && g.castSize.length === 2 && g.castSize.every((n) => Number.isInteger(n) && n >= 1 && n <= 8) && g.castSize[0] <= g.castSize[1]),
       '"castSize" must be [fewest, most], whole numbers from 1 to 8');
     req(g.castLabel == null || (typeof g.castLabel === 'string' && g.castLabel.length <= 30), '"castLabel" must be short text');
+    req(g.customSetting == null || typeof g.customSetting === 'boolean', '"customSetting" must be true or false');
     // Roles and point-buy work like a start's playerSlot (task 4-1).
     const sc = { skills: world.skills || E.DEFAULT_SKILLS.slice(), needs: world.needs || [], locations: [{ id: '__here' }], characters: [], playerSlot: GEN.slot(world, '__here') };
     E.CharMaker.slotProblems(sc).forEach((p) => problems.push(p.replace(/^playerSlot: /, 'generatedStarts: ')));
@@ -202,6 +208,9 @@
     const region = o.region || (GEN.regions(loaded.bundle.world)[0] || {}).id || null;
     if ((loaded.bundle.world.regions || []).length && !GEN.regions(loaded.bundle.world).some((r) => r.id === region)) throw new Error(`You can't start in "${region}".`);
     if (!o.character && !text(o.line, 300)) throw new Error('Make a character, or describe one in a line.');
+    // A world the player describes (customSetting): the first step writes its setting.
+    const worldText = GEN.custom(loaded.bundle.world) ? clip(o.world, GEN.SETTING.world) : '';
+    if (GEN.custom(loaded.bundle.world) && worldText.split(/\s+/).filter(Boolean).length < 3) throw new Error('Describe the world your story is set in: where, when, and what it is like.');
     const place = GEN.cleanPlace(o.place);
     if (place) {
       const why = GEN.placeProblem(loaded, place);
@@ -209,13 +218,13 @@
     }
     return {
       v: 1, world: loaded.id, folder: loaded.folder, id: 'gen-' + Math.random().toString(36).slice(2, 8),
-      region, note: text(o.note, 400), line: o.character ? '' : text(o.line, 300), place: place || '',
+      region, note: text(o.note, 400), line: o.character ? '' : text(o.line, 300), place: place || '', worldText,
       onePass: o.onePass != null ? !!o.onePass : !E.LLM.backendFor('worldbuild').kobold,
       steps: o.character ? { player: { character: E.clone(o.character) } } : {},
       partial: {}, log: [], failed: null,
     };
   };
-  GEN.order = (job) => GEN.STEPS.filter((s) => s.id !== 'player' || job.line || (job.steps.player && job.steps.player.character)).map((s) => s.id);
+  GEN.order = (job) => GEN.STEPS.filter((s) => (s.id !== 'player' || job.line || (job.steps.player && job.steps.player.character)) && (s.id !== 'setting' || job.worldText)).map((s) => s.id);
   GEN.done = (job) => GEN.order(job).every((id) => job.steps[id]);
   GEN.nextStep = (job) => GEN.order(job).find((id) => !job.steps[id]) || null;
 
@@ -227,6 +236,32 @@
   // Each turns the model's reply into checked data, or { error } in words
   // the next try can be told. ctx: { loaded, job, sc, taken }.
   const C = (GEN.check = {});
+
+  // The world the player described (customSetting) → the setting every
+  // later step and the game keep to, with genre tags and a tone note. It
+  // must keep to their words: most of what they named is in it.
+  C.setting = function (raw, ctx) {
+    if (!isObj(raw)) return { error: 'reply with one JSON object' };
+    const L = GEN.SETTING;
+    const setting = clip(raw.setting, L.setting);
+    const n = setting.split(/\s+/).filter(Boolean).length;
+    if (n < L.minWords) return { error: `write the setting in 3 to 5 sentences (got ${n} words)` };
+    const theirs = [...E.Engine.contentWords(ctx.job.worldText)];
+    const mine = E.Engine.contentWords(setting);
+    const kept = theirs.filter((w) => mine.has(w));
+    const need = Math.min(3, Math.ceil(theirs.length / 2));
+    if (kept.length < need) return { error: `keep to the world the player described ("${ctx.job.worldText}"): use their names, place and time` };
+    if (/\b(you|your|you're|yourself)\b/i.test(setting)) return { error: 'write the setting about the world, not to the player ("you")' };
+    const tags = [];
+    (Array.isArray(raw.tags) ? raw.tags : []).forEach((t) => {
+      const tag = text(t, 40).toLowerCase();
+      if (tag && !tags.includes(tag) && tags.length < L.tags) tags.push(tag);
+    });
+    const out = { setting, tags };
+    const tone = clip(raw.toneNote, 300);
+    if (tone) out.toneNote = tone;
+    return out;
+  };
 
   // Skills from the model, fitted to the point-buy: each 0..max, then the
   // highest come down until the total fits.
@@ -652,13 +687,24 @@
     return { entries, warnings };
   };
 
+  // A scenario with the setting the player's world step wrote (customSetting),
+  // so every later step's header keeps to it.
+  GEN.withSetting = function (sc, job) {
+    const s = job && job.steps.setting;
+    if (!s) return sc;
+    sc.setting = s.setting;
+    sc.tags = (s.tags || []).slice();
+    if (s.toneNote) sc.toneNote = s.toneNote; else delete sc.toneNote;
+    return sc;
+  };
+
   // ---------- running ----------
   GEN.context = function (loaded, job) {
-    const sc = GEN.contextScenario(loaded, job.region);
+    const sc = GEN.withSetting(GEN.contextScenario(loaded, job.region), job);
     const taken = GEN.taken(loaded);
     return { loaded, job, sc, taken, header: E.Prompts.genHeader(sc, taken) };
   };
-  const tokens = { player: 600, rooms: 700, plan: 400, cast: 700, castAll: 2400, ties: 700, extras: 500, opening: 900, lore: 650 };
+  const tokens = { player: 600, rooms: 700, plan: 400, cast: 700, castAll: 2400, ties: 700, extras: 500, opening: 900, lore: 650, setting: 450 };
 
   // One call (with up to TRIES attempts) → checked data. A failed check is
   // named in the next attempt; every attempt is logged on the job.
@@ -761,6 +807,7 @@
     },
     clock: { name: ['text', 40, true], max: ['int', 2, 24], perHour: ['num', 0.01, 1], fireText: ['prose', 240, true] },
     opening: { title: ['text', 60, true], summary: ['prose', 300, true], opening: ['opening'], facts: ['facts'] },
+    setting: { setting: ['prose', 900, true], tags: ['tags'], toneNote: ['prose', 300, false] },
     lore: { title: ['text', 80, true], text: ['prose', 800, true], keywords: ['keywords'] },
   };
   GEN.FIELDS = FIELDS;
@@ -772,6 +819,7 @@
     if (kind === 'person') return [GEN.player(job)].concat(GEN.people(job)).find((c) => c && c.id === id);
     if (kind === 'clock') return s.ties && GEN.clocks(job).find((c) => c.id === id);
     if (kind === 'opening') return s.opening;
+    if (kind === 'setting') return s.setting;
     if (kind === 'lore') return s.lore && s.lore.entries.find((e) => e.id === id);
     return null;
   };
@@ -798,6 +846,10 @@
     } else if (type === 'guard') {
       if (!['low', 'medium', 'high'].includes(v)) return { error: 'low, medium or high' };
       out = v;
+    } else if (type === 'tags') {
+      const list = [...new Set(String(v).split(',').map((t) => t.trim().toLowerCase()).filter(Boolean))];
+      if (list.length > GEN.SETTING.tags || list.some((t) => t.length > 40)) return { error: `Up to ${GEN.SETTING.tags} genre tags, separated by commas.` };
+      out = list;
     } else if (type === 'traits') {
       const list = [...new Set(String(v).split(',').map((t) => t.trim()).filter(Boolean))];
       if (!list.length || list.length > 6) return { error: 'One to six traits, separated by commas.' };
@@ -955,6 +1007,8 @@
     const start = {
       id: job.id, title: s.opening.title, summary: s.opening.summary, generated: true,
       start: E.clone(GEN.contextScenario(loaded, job.region).start),
+      // The world the player described (customSetting) is the start's own setting.
+      ...(s.setting ? Object.assign({ setting: s.setting.setting, tags: s.setting.tags.slice() }, s.setting.toneNote ? { toneNote: s.setting.toneNote } : {}) : {}),
       player: pc.id, castLabel: g.castLabel || (def && def.castLabel) || 'People',
       cast: all.map((c) => c.id),
       locations: s.rooms.rooms.map((r) => E.clone(r)),

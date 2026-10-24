@@ -1171,6 +1171,13 @@ Reply with JSON only:
   B.genTask = (ctx) => '\n' + GEN_TASKS[ctx.step](ctx);
 
   const skillJson = (sc, n) => `{${sc.skills.map((k) => `"${k}":${n}`).join(',')}}`;
+  // A world the player describes (customSetting): its setting comes first,
+  // and every later step's header uses it.
+  GEN_TASKS.setting = ({ job }) => `=== TASK: THE WORLD ===
+The player describes the world they want this story set in: "${job.worldText}"
+Write the setting the storyteller will keep to for the whole story: 3 to 5 sentences on where and when it is, what daily life is like, who holds power, and what is at stake or dangerous. Keep everything the player said (names, places, era) and fill in the rest so it fits. Write about the world in the third person; no characters yet, no plot and no secrets.
+Also give up to ${E.StartGen.SETTING.tags} genre tags, most important first (known ones: ${Object.keys(E.Genres.table).join(', ')}; others are fine) and a one-sentence tone note.
+Reply with JSON only: {"setting":"3 to 5 sentences","tags":["slice-of-life"],"toneNote":"one sentence"}`;
   GEN_TASKS.player = ({ sc, job, loaded }) => {
     const g = E.StartGen.slot(loaded.bundle.world);
     const roles = g.roles.map((r) => r.label);

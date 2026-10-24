@@ -517,6 +517,25 @@ await check('make my own start: generate a place and people, retry a failed step
   assert.equal(await page.locator('.entry.action').count(), 1);
 });
 
+// A world the player describes (customSetting): the bundled blank world.
+await check('your own story: describe a world, generate a start there, review its setting and play', async (page) => {
+  await page.selectOption('#scenarioSelect', 'server:your-story');
+  await page.click('#btnNew');
+  await page.waitForSelector('#genDialog[open]');
+  await page.check('input[name="gen-mode"][value="line"]');
+  await page.fill('#genLine', 'a fisherman with debts');
+  await page.click('#genGo');
+  assert.equal(await page.isVisible('#genWorld'), true, 'nothing starts without a world');
+  await page.fill('#genWorld', 'a fishing village on a Scottish island in the 1950s, where everyone knows everyone');
+  await page.click('#genGo');
+  await genDone(page);
+  assert.match(await page.textContent('.gen-steps'), /Your world/);
+  assert.match(await page.inputValue('[data-rv="setting||setting"]'), /Scottish island in the 1950s/);
+  await page.click('#genPlay');
+  await gameStarted(page);
+  assert.match(await page.textContent('#log'), /Rain drums on the diner roof/);
+});
+
 // Task 4-3: the review screen.
 await check('review a generated start: spoilers, live checks, reroll one person, save as start, play', async (page) => {
   await page.route('http://localhost:5001/v1/chat/completions', async (route) => {

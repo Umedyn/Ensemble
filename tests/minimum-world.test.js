@@ -122,3 +122,79 @@ test('the minimum world still needs a title and a setting', async () => {
   delete g['world.json'].setting;
   await assert.rejects(playGenerated(g), /missing "setting"/);
 });
+
+// ---------- a world the player describes (customSetting) ----------
+
+const { WORLD } = require('./genmock');
+const yourStory = () => worldFiles('your-story');
+
+test('your own story: the bundled blank world has no starts and asks the player for their world', () => {
+  const E = loadEngine();
+  const w = E.Scenario.prepareWorld('your-story', yourStory());
+  assert.equal(w.generate, true);
+  assert.deepEqual([...w.starts], []);
+  assert.equal(E.StartGen.custom(w.bundle.world), true);
+  assert.throws(() => E.StartGen.newJob(w, { line: 'a fisherman' }), /Describe the world your story is set in/);
+  const job = E.StartGen.newJob(w, { line: 'a fisherman', world: WORLD });
+  assert.equal(job.worldText, WORLD);
+  assert.deepEqual([...E.StartGen.order(job)].slice(0, 2), ['setting', 'player'], 'the world comes first');
+  // Elsewhere the words are ignored and there is no such step.
+  const min = E.Scenario.prepareWorld('minimum-world', worldFiles(MIN));
+  const plainJob = E.StartGen.newJob(min, { line: 'a keeper', world: WORLD });
+  assert.equal(plainJob.worldText, '');
+  assert.ok(![...E.StartGen.order(plainJob)].includes('setting'));
+  const bad = Object.assign(yourStory(), {});
+  bad['world.json'] = Object.assign({}, bad['world.json'], { generatedStarts: { customSetting: 'yes' } });
+  assert.throws(() => E.Scenario.prepareWorld('your-story', bad), /"customSetting" must be true or false/);
+});
+
+test('your own story: the setting keeps to the player\'s words, at some length, about the world and not to "you"', () => {
+  const E = loadEngine();
+  const w = E.Scenario.prepareWorld('your-story', yourStory());
+  const job = E.StartGen.newJob(w, { line: 'a fisherman', world: WORLD });
+  const ctx = E.StartGen.context(w, job);
+  const good = replies().setting;
+  const out = E.StartGen.check.setting(good, ctx);
+  assert.deepEqual([...out.tags], ['slice-of-life', 'drama'], 'lower case, at most 4');
+  assert.equal(out.toneNote, good.toneNote);
+  assert.match(E.StartGen.check.setting({ setting: 'An island.' }, ctx).error, /3 to 5 sentences \(got 2 words\)/);
+  const elsewhere = 'A neon megacity in the year 2190, where corporations own the police and the rain never stops. Most people live stacked in towers above the flooded streets, working shifts for whoever pays, and the net is the only place anyone feels free.';
+  assert.match(E.StartGen.check.setting({ setting: elsewhere }, ctx).error, /keep to the world the player described/);
+  assert.match(E.StartGen.check.setting({ setting: good.setting + ' You arrive on the ferry.' }, ctx).error, /not to the player/);
+});
+
+test('your own story: every step and the game keep to the generated setting, and Save as start keeps it', async () => {
+  const E = loadEngine();
+  const w = E.Scenario.prepareWorld('your-story', yourStory());
+  const job = E.StartGen.newJob(w, { line: 'a fisherman with debts', world: WORLD, onePass: false });
+  // Local lore here is about the rooms only: this world has no regions.
+  const r = replies({ player: Object.assign({}, replies().player, { skills: { physical: 3, technical: 3, social: 2 } }), lore: { entries: replies().lore.entries.slice(0, 2) } });
+  const calls = mockLLM(E, (call) => {
+    const v = r[stepOf(call.user)];
+    if (v == null) return call.kind === 'intent' ? { player: { summary: 'look around' }, intents: [], events: [] }
+      : call.kind === 'update' ? { facts: [], state: [], relations: [], player_attitude: [] } : '[+0m] Gulls argue on the harbour wall.';
+    return typeof v === 'function' ? v(call.user, call) : v;
+  });
+  await E.StartGen.run(w, job);
+  assert.ok(E.StartGen.done(job));
+  assert.equal(calls[0].kind, 'worldbuild (start: setting)');
+  assert.ok(calls.slice(1).every((c) => c.system.includes('A fishing village on a small Scottish island in the 1950s')), 'every later step');
+  assert.ok(!calls[0].system.includes('Scottish'), 'the first call has only the player\'s words, in its task');
+  assert.equal(job.steps.lore.entries.length, 2);
+  // Edits in the review.
+  assert.deepEqual(plain(E.StartGen.setField(w, job, 'setting', null, 'tags', 'Slice-of-life, cozy')), { value: ['slice-of-life', 'cozy'] });
+  assert.match(E.StartGen.setField(w, job, 'setting', null, 'setting', '').error, /can't be empty/);
+  const sc = E.StartGen.scenario(w, job);
+  assert.match(sc.setting, /^A fishing village on a small Scottish island/);
+  assert.deepEqual([...sc.tags], ['slice-of-life', 'cozy']);
+  const state = E.Engine.newGame(sc);
+  assert.match(E.Prompts.header(state), /Scottish island in the 1950s[\s\S]*This story is: slice-of-life, cozy/);
+  await E.Engine.runTurn(state, 'Look around.', 'moment');
+  assert.equal(state.turn, 1);
+  // Saved as a start, it loads with its own setting.
+  const files = Object.assign(yourStory(), plain(E.StartGen.files(w, job)));
+  const loaded = loadEngine().Scenario.prepareWorld('your-story', files);
+  const st = loaded.starts.find((s) => s.id === job.id);
+  assert.equal(st.error, undefined);
+  assert.match(st.scenario.setting, /Scottish island/);
+});
