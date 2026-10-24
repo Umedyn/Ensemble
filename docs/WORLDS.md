@@ -91,6 +91,7 @@ With no `starts` the picker offers only **✦ Make my own start** (as if the wor
 | `starts` | string[] | optional: start ids in `starts/`; the first is the default. None (missing or empty) means generated starts, as if `generatedStarts: {}` |
 | `generatedStarts` | object | optional (task 4-2): lets players build a start beside the authored ones, or tunes it in a world with none. Every field has a default. See [Generated starts](#generated-starts) |
 | `generatedSites` | object | optional (task 4-4): `{maxSites, keepDays, library}` (defaults 8 and 3; 1–30 and 1–60): the engine builds places the story goes that the map doesn't have. `library` (task 6-3) is a list of setting tags, such as `["modern"]`: shared site maps whose `setting` overlaps join the world's own. See [Generated sites](#generated-sites) |
+| `generatedRegions` | object | optional (R-6), with `generatedSites`: `{maxRegions, keepDays, routeKind}` (defaults 6, 7 and `road`; 1–30 and 1–60): the story can add a region it heads for that isn't on the map (another town, a planet). See [Generated regions](#generated-regions) |
 | `sites` | string[] | optional: library site maps in `sites/<id>.json`, used first when a new place fits one (task 4-4) |
 | `locations`, `clocks` | | optional world-wide ones (rare); usually per start. A location may set `region` (default: the start's `region`) |
 | `regions` | object[] | the map above the rooms (task 3-1): `{id, name, controller, tags, status, neighbours, lore}`. `controller` is a group id or `null`; `tags` up to 6 (30 characters each); `status` up to 120 characters; `lore` a summary up to 400, always in the prompt (no secrets or future events; the heavier detail goes in `region` lore entries, below). `startable: true` marks the regions a generated start can begin in (none marked: all). Neighbour links are made two-way when validated. Starts change them by `id`. Once a world has regions, every start needs `region` and every location a known region. Since R-1, regions form a tree: `parent` (a region id) puts a region inside another, `label` is its display word (up to 30 characters). See [The region tree](#the-region-tree). Since R-2, `routes` say how people travel between regions. See [Routes and travel](#routes-and-travel) |
@@ -331,6 +332,18 @@ The rooms join the game with `site` (the site id) and the region; a **trip** lin
 
 Sites **fade unless something happened there**: a fact of weight 2+ recorded while the player was there, a second visit, or one of its people joining the cast keeps a site; otherwise, `keepDays` after the last visit, with the player and the cast elsewhere, its rooms, links, extras and groups are removed and it becomes a stub again (name, kind, region and a line about the visit, which the next build sees).
 
+## Generated regions
+
+Task R-6. Like generated sites, one level up: in a world with `generatedRegions` (and `generatedSites`), when the player heads somewhere bigger than a building that isn't on the map ("I take the bus out to Kessa", "we fly to Tarrow"), the intent step may propose `new_region: {name, label, parent}`. The engine decides, before any call:
+
+- the player's words must name it, and it mustn't already be a region (a known one is just a way there; a hidden one is refused);
+- `parent` must be a known region, or null for the top level, and there must be a way from the player's region to it (a closed way that isn't risky refuses);
+- the world must be under `maxRegions` (stubs count).
+
+Then one `worldbuild (region: …)` call writes its lore, one or two sentences of public knowledge, checked like generated lore: no one's secret, nothing a pending timeline event says will happen, none of the story's people by name, retried with the problem named. The region joins the game's own copy of the regions (`generated: true`, never the world file) with the label, the parent and a route of `routeKind` from the player's region, and the new-place flow builds a place to arrive at inside it; the move then follows the route, so the narrator gets the way and a long trip is a journey turn. Generated regions never enter the static header: they are listed in its live "Places found during the story" block.
+
+A generated region is kept after a second visit, a notable fact while the player was in it, or a kept place inside it. Otherwise, `keepDays` after the last visit with the player elsewhere, it **fades to a stub**: its lore and what changed there (tags, status, presence) go, and its name, parent and route stay, so the story can go back. Heading there again rebuilds its lore with one call that is told about the earlier visit. Debug lines: `region refused`, `region built`, `region not built`, `region kept`, `region faded`.
+
 ### sites/&lt;id&gt;.json (library maps)
 
 ```json
@@ -471,6 +484,7 @@ In `tests/worlds.test.js` (task 1-1), except the picker smoke test (task 1-3):
 - `validateWorld`: missing start file, cast id not in pool, player not in cast, duplicate ids.
 - The minimum world (R-0, `tests/minimum-world.test.js`): only a title and a setting validates, composes and starts a generated game; so does the same world with a few regions.
 - Maps on any region and the zooming map (R-3, `tests/worldmap.test.js`; UI in `tests/ui.smoke.mjs`): levels with and without a picture, a region's own map and its validation, routes lifted to the level shown, the picture underneath.
+- Generated regions (R-6, `tests/genregions.test.js`): built with checked lore, a route and a place to arrive at; a journey when far; refused for each reason with no call; the lore checks and the retry; fading to a stub, being kept, and a return rebuilding it; validation; saves.
 - Presence and unknown regions (R-5, `tests/presence.test.js`): presence in words, contested, the effect and its limits, validation; hidden regions absent from the map, prompts and header until revealed by each way, ancestors revealed too, old saves, the creator keeping presence whole.
 - Routes and travel (R-2, `tests/routes.test.js`): times and kinds, validation, neighbours as border routes, multi-leg trips and the tree, a closed way blocking with no model call, a risky crossing as a roll, others held back, journeys arriving and stopping on the way, the routes line, Ares Deep's rover road, old saves, the creator keeping routes whole.
 - The region tree (R-1, `tests/regiontree.test.js`): chain, children and nearby on a branch-deep tree; validation in plain words; who holds a parent; the header outline stays the same across turns and moves; the user message doesn't grow with the tree; lore, event ideas and new places up the chain; the map and the creator; every bundled and fixture world still loads.

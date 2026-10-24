@@ -25,6 +25,8 @@ function replies(over = {}) {
       events: ['a convoy of strangers pulls into the lot', { text: 'the storm drain backs up into the kitchen' }, '', 'the radio picks up a voice nobody knows', 'a fourth idea past the limit'] },
     extras: { extras: [{ name: 'Father Abel', role: 'priest on the radio', room: null, note: 'calls every night at nine' }], groups: [{ label: 'the dead', count: 'a dozen', room: 'back-lot', state: 'alert' }, { label: 'raiders', count: 3, room: 'roof' }] },
     room: { name: 'Pantry', desc: 'Empty shelves and a smell of old onions.' },
+    // Generated regions (R-6): a town up the road.
+    region: { lore: 'A market town on the river, half shuttered now; its square still fills on Saturdays.' },
     // Generated sites (task 4-4): the pharmacy on Main Street.
     siteLayout: { rooms: [
       { id: 'storefront', name: 'Pharmacy Storefront', desc: 'Shattered display window, aisles of empty racks.', links: [{ to: 'behind-counter', kind: 'door' }], features: ['shattered window'] },
@@ -40,7 +42,8 @@ function replies(over = {}) {
 }
 const STEP_OF = [
   ["THE PLAYER'S CHARACTER", 'player'], ['TASK: THE PLACE', 'rooms'], ['TASK: WHO IS HERE', 'plan'], ['TASK: WRITE ONE PERSON', 'person'],
-  ['TASK: WRITE THE PEOPLE', 'cast'], ['TASK: REWRITE ONE ROOM', 'room'], ['TASK: THE LAYOUT', 'siteLayout'], ['TASK: WHO AND WHAT IS HERE', 'siteOccupants'], ['TASK: TIES AND PRESSURES', 'ties'], ['TASK: MINOR PEOPLE AND GROUPS', 'extras'], ['TASK: THE OPENING', 'opening'],
+  ['TASK: WRITE THE PEOPLE', 'cast'], ['TASK: A NEW REGION', 'region'],
+ ['TASK: REWRITE ONE ROOM', 'room'], ['TASK: THE LAYOUT', 'siteLayout'], ['TASK: WHO AND WHAT IS HERE', 'siteOccupants'], ['TASK: TIES AND PRESSURES', 'ties'], ['TASK: MINOR PEOPLE AND GROUPS', 'extras'], ['TASK: THE OPENING', 'opening'],
 ];
 const stepOf = (user) => (STEP_OF.find(([k]) => user.includes(k)) || [])[1];
 

@@ -637,6 +637,185 @@
     state.sites[s.id] = { id: s.id, name: s.name, kind: s.kind, region: s.region, stub: true, from: s.from, why: s.why, summary: visit, made: s.made, visits: s.visits, lastVisit: s.lastVisit, kept: false };
   };
 
+  // ---------- generated regions (R-6) ----------
+  // Like generated sites one level up: when the player heads somewhere
+  // bigger than a building that isn't on the map (another town, a planet),
+  // the intent step may propose new_region {name, label, parent}. The engine
+  // decides; one worldbuild call writes its lore (checked: no secrets, no
+  // future events, no cast names); it joins the game's copy of the regions
+  // with a route from the player's region, and the new-place flow then
+  // builds a place to arrive at inside it. World opt-in, with generated
+  // sites: generatedRegions {maxRegions, keepDays, routeKind}.
+  ST.REGION_DEFAULTS = { maxRegions: 6, keepDays: 7, routeKind: 'road' };
+  ST.regionsEnabled = (sc) => isObj(sc.generatedRegions) && ST.enabled(sc);
+  ST.regionConfig = (sc) => Object.assign({}, ST.REGION_DEFAULTS, sc.generatedRegions || {});
+  ST.regionConfigProblems = function (world) {
+    const g = world.generatedRegions;
+    if (g == null) return [];
+    if (!isObj(g)) return ['"generatedRegions" must be an object like {"maxRegions": 6, "keepDays": 7, "routeKind": "road"}'];
+    const out = [];
+    Object.keys(g).filter((k) => !['maxRegions', 'keepDays', 'routeKind'].includes(k)).forEach((k) => out.push(`generatedRegions: unknown field "${k}"`));
+    if (g.maxRegions != null && !(Number.isInteger(g.maxRegions) && g.maxRegions >= 1 && g.maxRegions <= 30)) out.push('generatedRegions: "maxRegions" must be a whole number from 1 to 30');
+    if (g.keepDays != null && !(Number.isInteger(g.keepDays) && g.keepDays >= 1 && g.keepDays <= 60)) out.push('generatedRegions: "keepDays" must be a whole number from 1 to 60');
+    if (g.routeKind != null && !(typeof g.routeKind === 'string' && g.routeKind.trim() && g.routeKind.length <= 30)) out.push('generatedRegions: "routeKind" must be a short word, such as road');
+    if (!isObj(world.generatedSites)) out.push('generatedRegions needs "generatedSites" too: a new region gets a place to arrive at');
+    return out;
+  };
+  ST.generatedRegions = (state) => (state.scenario.regions || []).filter((r) => r && r.generated);
+  // The intent's new_region → null (nothing asked), { error }, { stub }
+  // (a faded region to rebuild) or { build: { name, label, parent } }.
+  ST.regionWanted = function (state, p, actionText) {
+    const ask = p && isObj(p.new_region) ? p.new_region : null;
+    if (!ask) return null;
+    const sc = state.scenario;
+    const name = text(ask.name, 40);
+    if (!name) return null;
+    if (!ST.regionsEnabled(sc)) return { error: `"${name}" isn't a region (this world doesn't build new regions)` };
+    const regions = sc.regions || [];
+    const same = regions.find((r) => norm(r.name) === norm(name) || r.id === name);
+    if (same && same.generated && same.stub) return { stub: same };
+    if (same && !Eng().regionKnown(state, same.id)) return { error: `"${name}" is already a place the player doesn't know of` };
+    if (same) return null; // known: the usual way there (Sites.regionHeadedFor)
+    if (ST.byName(state, name) || Eng().resolveLocation(state, name, false)) return null;
+    // The player's own words name it (rule 3).
+    const prev = REFERS_BACK.test(String(actionText || '')) && state.recent && state.recent[0] && state.recent[0].action ? state.recent[0].action : '';
+    const words = new Set(norm(actionText + ' ' + prev).split(' '));
+    if (!norm(name).split(' ').some((w) => w.length >= 3 && words.has(w))) return { error: `the player's words don't name "${name}"` };
+    let parent = null;
+    if (ask.parent != null && ask.parent !== '' && ask.parent !== 'none' && ask.parent !== 'null') {
+      const pr = regions.find((r) => r.id === ask.parent || norm(r.name) === norm(ask.parent));
+      if (!pr || !Eng().regionKnown(state, pr.id)) return { error: `"${name}": unknown region "${ask.parent}" to put it in` };
+      parent = pr.id;
+    }
+    const here = Eng().playerRegion(state);
+    if (here && parent) {
+      const trip = Eng().regionTrip(state, here, parent);
+      if (trip.blocked && !(trip.legs && trip.risky)) return { error: `"${name}": ${trip.why}` };
+    }
+    const cfg = ST.regionConfig(sc);
+    if (ST.generatedRegions(state).length >= cfg.maxRegions) return { error: `this story already has ${cfg.maxRegions} regions of its own` };
+    const depth = parent ? E.Scenario.regionChainIn(regions, parent).length : 0;
+    const label = text(ask.label, 30) || (Array.isArray(sc.regionLabels) ? sc.regionLabels[depth] : '') || '';
+    return { build: { name, label, parent } };
+  };
+  // The lore summary of a new (or rebuilt) region, checked: one or two
+  // sentences of public knowledge. → { lore } or { error }.
+  ST.checkRegionLore = function (state, raw) {
+    const lore = E.StartGen.clip(raw && raw.lore, 400);
+    if (!lore || lore.length < 20) return { error: 'write "lore": one or two sentences about the place' };
+    // No one's secret (4+ shared content words, or 2+ and their name).
+    const words = (t) => new Set([...Eng().contentWords(t)].map((w) => w.replace(/(ing|ed|es|s)$/, '')));
+    const mine = words(lore);
+    const share = (t) => [...words(t)].filter((w) => mine.has(w)).length;
+    for (const c of Object.values(state.characters)) {
+      if (c.name && new RegExp(`\\b${c.name.split(/\s+/).pop().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(lore)) return { error: `don't name ${c.name}: the place, not the people in the story` };
+      if (c.secret && share(c.secret) >= 4) return { error: 'that gives away something someone hides; describe the place only' };
+    }
+    // Nothing that hasn't happened yet (a pending timeline event).
+    const later = (E.Timeline.pending ? E.Timeline.pending(state) : []).find((ev) => share(ev.text) >= 4);
+    if (later) return { error: 'that tells something that hasn\'t happened yet; describe the place as it is now' };
+    return { lore };
+  };
+  // One worldbuild call for its lore (a stub is told about the earlier visit).
+  ST.buildRegion = async function (state, req, phase) {
+    if (phase) phase(`Finding ${req.name}…`);
+    const ctx = { header: E.Prompts.header(state), job: { log: [] } };
+    const out = await E.StartGen.attempt(ctx, `worldbuild (region: ${req.name})`, E.Prompts.regionLore(state, req), 300, (raw) => ST.checkRegionLore(state, raw));
+    return out.lore;
+  };
+  // Puts a built region into a state (the live one, and the start-of-turn
+  // copy a step-in rewinds to), with a route from where the player is.
+  ST.addRegion = function (st, def, from) {
+    const route = from ? [{ to: from, kind: ST.regionConfig(st.scenario).routeKind }] : [];
+    st.scenario.regions = (st.scenario.regions || []).filter((r) => r.id !== def.id).concat([Object.assign(E.clone(def), { routes: route })]);
+    st.regions = st.regions || {};
+    st.regions[def.id] = { controller: null, tags: [], status: '' };
+    st.regionChanged = st.regionChanged || {};
+    st.regionChanged[def.id] = { turn: st.turn, what: ['found'] };
+  };
+  // The turn's region work, before the new-place flow: builds or rebuilds
+  // the region the player heads for, then asks for a place inside it.
+  ST.regionForIntent = async function (state, intentObj, actionText, pre, phase, notes) {
+    const p = intentObj && intentObj.player;
+    const want = ST.regionWanted(state, p, actionText);
+    if (!want) return null;
+    if (want.error) { notes.push({ type: 'region refused', detail: want.error }); if (p) { p.move_to = null; p.new_region = null; } return null; }
+    const here = Eng().playerRegion(state);
+    let def;
+    try {
+      if (want.stub) {
+        const lore = await ST.buildRegion(state, { name: want.stub.name, label: want.stub.label, parent: want.stub.parent, stub: want.stub }, phase);
+        def = Object.assign(E.clone(want.stub), { lore, stub: false });
+        delete def.summary;
+      } else {
+        const lore = await ST.buildRegion(state, want.build, phase);
+        def = Object.assign({ id: ST.newId(state, want.build.name), name: want.build.name }, want.build.label ? { label: want.build.label } : {}, want.build.parent ? { parent: want.build.parent } : {},
+          { lore, controller: null, tags: [], status: '', generated: true, made: state.turn, visits: 0, lastVisit: null, kept: false, from: 'intent', why: text(actionText, 200) });
+        delete def.stub;
+      }
+    } catch (err) {
+      notes.push({ type: 'region not built', detail: `${(want.stub || want.build).name}: ${err.message}` });
+      if (p) { p.move_to = null; p.new_region = null; }
+      return null;
+    }
+    const from = want.stub ? null : here;
+    if (want.stub) {
+      [state, pre].forEach((st) => { const r = (st.scenario.regions || []).find((x) => x.id === def.id); if (r) Object.assign(r, E.clone(def)); });
+    } else {
+      ST.addRegion(state, def, from);
+      ST.addRegion(pre, def, from);
+    }
+    notes.push({ type: 'region built', detail: `${def.name}${def.label ? ` (${def.label})` : ''}${def.parent ? ` in ${Eng().regionDef(state, def.parent).name}` : ''}${from ? `, a ${ST.regionConfig(state.scenario).routeKind} from ${Eng().regionDef(state, from).name}` : ''}${want.stub ? ' (rebuilt)' : ''}: ${def.lore}` });
+    // A place to arrive at, through the new-place flow.
+    p.new_region = null;
+    p.new_place = { name: def.name, kind: def.label || 'place', region: def.id };
+    p.move_to = null;
+    return def;
+  };
+  // After the moves: arriving in a generated region counts a visit.
+  ST.noteRegionVisit = function (state, startLoc) {
+    const now = Eng().playerRegion(state);
+    if (!now) return;
+    const before = Eng().regionOf(state, startLoc);
+    const inside = new Set(Eng().regionChain(state, now));
+    const was = new Set(before ? Eng().regionChain(state, before) : []);
+    ST.generatedRegions(state).filter((r) => inside.has(r.id)).forEach((r) => {
+      if (!was.has(r.id)) r.visits = (r.visits || 0) + 1;
+      r.lastVisit = { day: state.time.day, hour: state.time.hour, turn: state.turn };
+      if (r.visits >= 2 && !r.kept) { r.kept = true; r.keptWhy = 'a second visit'; }
+    });
+  };
+  // At commit: a notable fact recorded while the player was in a generated
+  // region keeps it, as for sites.
+  ST.noteRegionFacts = function (state, factsBefore, rooms, out) {
+    const notable = state.facts.slice(factsBefore).filter((f) => f.weight >= 2);
+    if (!notable.length) return;
+    const ids = new Set(rooms.filter(Boolean).flatMap((room) => { const r = Eng().regionOf(state, room); return r ? Eng().regionChain(state, r) : []; }));
+    ST.generatedRegions(state).filter((r) => ids.has(r.id) && !r.kept && !r.stub).forEach((r) => { r.kept = true; r.keptWhy = `"${text(notable[0].text, 80)}"`; out.push(`${r.name} is kept: ${r.keptWhy}`); });
+  };
+  // Generated regions with nothing notable, keepDays after the last visit,
+  // with the player elsewhere, go back to stubs: name, parent and route
+  // stay (the story can go back); lore and what changed there go.
+  ST.fadeRegions = function (state) {
+    const out = [];
+    const cfg = ST.regionConfig(state.scenario);
+    const nowH = ST.hours(state.time);
+    const here = Eng().playerRegion(state);
+    const inside = new Set(here ? Eng().regionChain(state, here) : []);
+    ST.generatedRegions(state).forEach((r) => {
+      if (r.stub || !r.lastVisit) return;
+      if (!r.kept && Object.values(state.sites || {}).some((s) => s.kept && s.region && Eng().regionChain(state, s.region).includes(r.id))) { r.kept = true; r.keptWhy = 'a place there is kept'; }
+      if (r.kept || inside.has(r.id) || nowH - ST.hours(r.lastVisit) < cfg.keepDays * 24) return;
+      r.summary = `visited ${r.visits === 1 ? 'once' : `${r.visits} times`}, last on ${state.scenario.timeLabel || 'Day'} ${r.lastVisit.day}`;
+      delete r.lore;
+      r.stub = true;
+      state.regions[r.id] = { controller: null, tags: [], status: '' };
+      Object.values(state.presence || {}).forEach((m) => { if (m) delete m[r.id]; });
+      out.push(`${r.name} faded (nothing notable there in ${cfg.keepDays} days); remembered as a place to go back to`);
+    });
+    return out;
+  };
+
   // Entrances of the start and of every built site (detection on the way, task 3-6).
   ST.entrances = (state) => [].concat(state.scenario.entrances || [], ...Object.values(state.sites || {}).map((s) => s.entrances || []));
   // Trips out of a site (links to other places, not region routes): [{ from, to, name }] for the map.

@@ -81,7 +81,8 @@
   P.REGIONS_FULL = 24;
   P.REGION_NAMES_MAX = 60;
   // Regions known at the start (R-5): none hidden, nor inside a hidden one.
-  P.knownAtStart = (sc) => (sc.regions || []).filter((r) => r && !E.Scenario.regionChainIn(sc.regions, r.id).some((x) => ((sc.regions || []).find((y) => y.id === x) || {}).known === false));
+  // Regions made during the story (R-6) aren't: they join the live block too.
+  P.knownAtStart = (sc) => (sc.regions || []).filter((r) => r && !r.generated && !E.Scenario.regionChainIn(sc.regions, r.id).some((x) => ((sc.regions || []).find((y) => y.id === x) || {}).known === false));
   P.regionOutline = function (sc) {
     const list = P.knownAtStart(sc);
     if (list.length <= P.REGIONS_FULL) return { full: list, far: [] };
@@ -399,6 +400,8 @@
     const known = Object.values(state.sites || {}).filter((s) => s.id !== here);
     lines.push(known.length ? `Places the story knows of: ${known.map((s) => `${s.name} (${s.kind}${s.region ? `, ${s.region}` : ''}${s.stub ? s.summary ? `; ${s.summary}` : '; not visited yet' : ''})`).join('; ')}.` : 'No other places yet beyond these rooms.');
     lines.push('If the player\'s action clearly heads somewhere that is none of these rooms (another building, a part of town, a hideout), set "new_place" to {"name":"the place in the player\'s own words (like \"the chop shop\")","kind":"what kind of place","region":"region id"} and leave move_to null; for a place listed above, use its name. The engine decides whether to build it.');
+    // Generated regions (R-6): somewhere bigger than a building.
+    if (ST.regionsEnabled(state.scenario)) lines.push('If it heads somewhere bigger that isn\'t one of the regions (another town, a district, a planet), set "new_region" to {"name":"in the player\'s own words","label":"what kind of region (town, district, planet)","parent":"the region id it is inside, or null"} instead. The engine decides whether to add it.');
     return lines;
   };
   P.intent = (state, present, action, stepLabel, stepId, due) =>
@@ -575,7 +578,7 @@ ${intentExample(state, present, action, due)}`;
     const site = hasSite(state) ? `${lockedHere(state).length ? ',"unlock":null' : ''},"new_feature":null` : '';
     return `{"player":{"summary":"the player's action restated as a concrete attempt","needs_roll":false,"skill":null,"difficulty":"normal","move_to":null${anyGroups ? ',"against":null,"single_out":null' : ''}${site}${due && due.crisis ? ',"crisis_answered":false' : ''}},
  "intents":[${intents.length ? '\n' + intents.join(',\n') + '\n ' : ''}],${groups.length ? `\n "group_intents":[\n${groups.join(',\n')}\n ],` : ''}
- "events":[{"text":"one sentence","scope":"local","who":["character_id"],"where":"location_id","visibility":"heard","moves":[]}]${state.scenario.inventExtras ? ',\n "new_extras":[]' : ''}${canon}}`.replace('"move_to":null', E.Sites.enabled(state.scenario) ? '"move_to":null,"new_place":null' : '"move_to":null');
+ "events":[{"text":"one sentence","scope":"local","who":["character_id"],"where":"location_id","visibility":"heard","moves":[]}]${state.scenario.inventExtras ? ',\n "new_extras":[]' : ''}${canon}}`.replace('"move_to":null', E.Sites.enabled(state.scenario) ? `"move_to":null,"new_place":null${E.Sites.regionsEnabled(state.scenario) ? ',"new_region":null' : ''}` : '"move_to":null');
   }
 
   function outcomeLines(state, res, forNarrator) {
@@ -1219,6 +1222,17 @@ Reply with JSON only: {"title":"...","summary":"You are ...","opening":"...","wi
   // so the cache holds). User: the request, the region, where the player is
   // coming from and the task. The layout and the people are separate calls,
   // each checked (js/sites.js).
+  // A new region's lore (R-6): one call, the turn's header as its system message.
+  P.layouts.regionLore = ['regionLoreTask'];
+  P.regionLore = (state, req) => P.build('regionLore', { state, req });
+  B.regionLoreTask = ({ state, req }) => {
+    const parent = req.parent && Eng().regionDef(state, req.parent);
+    const label = req.label ? `${/^[aeiou]/i.test(req.label) ? 'an' : 'a'} ${req.label}` : 'a place';
+    return `=== TASK: A NEW REGION ===
+The story heads to ${req.name}, ${label} ${parent ? `in ${parent.name}` : 'in this world'}, which isn't on the map yet.${req.stub && req.stub.summary ? ` The player has been there before (${req.stub.summary}).` : ''}
+Write what everyone here knows about it, in one or two sentences: what kind of place it is, who lives there and how things are there now. Public knowledge only: no one's secrets, nothing that hasn't happened yet, and none of the story's people by name.
+Reply with JSON only: {"lore":"one or two sentences"}`;
+  };
   P.layouts.siteLayout = ['siteRequest', 'siteLayoutTask'];
   P.siteLayout = (state, req) => P.build('siteLayout', { state, req });
   P.layouts.siteOccupants = ['siteRequest', 'siteRooms', 'siteOccupantsTask'];

@@ -17,7 +17,7 @@
   // World fields a start may override (merge rules below).
   const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'tagThresholds', 'portraitSet', 'factions', 'world',
     'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'regionLabels', 'routeKinds', 'presence', 'standees', 'site', 'localMap', 'map', 'entrances', 'lore', 'timeline', 'projectTimeline'];
-  const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'date', 'characters', 'starts', 'generatedStarts', 'generatedSites', 'sites', ...OVERRIDABLE];
+  const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'date', 'characters', 'starts', 'generatedStarts', 'generatedSites', 'generatedRegions', 'sites', ...OVERRIDABLE];
   const WORLD_RESERVED = [];
   const START_RESERVED = [];
   const CAST_FIELDS = ['id', 'status', 'needs', 'relations', 'knows', 'want', 'secret', 'guard', 'tags', 'tier', 'pinned', 'agenda'];
@@ -247,6 +247,7 @@
     if (world.generatedStarts != null || !startIds.length) problems.push(...E.StartGen.configProblems(world));
     // Generated sites and library maps (task 4-4).
     problems.push(...E.Sites.configProblems(world));
+    problems.push(...E.Sites.regionConfigProblems(world));
     if (world.sites != null && !Array.isArray(world.sites)) problems.push('"sites" must be a list of site map ids (files in sites/)');
     (Array.isArray(world.sites) ? world.sites : []).forEach((id) => {
       const m = (bundle.siteMaps || {})[id];

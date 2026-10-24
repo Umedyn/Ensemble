@@ -2820,6 +2820,9 @@
       const kept = [];
       E.Sites.noteFacts(state, factsBefore, [p.frame.startLoc, endLoc], kept);
       kept.forEach((t) => guard(p.res, 'memory', 'site kept', t));
+      const keptRegions = [];
+      E.Sites.noteRegionFacts(state, factsBefore, [p.frame.startLoc, endLoc], keptRegions);
+      keptRegions.forEach((t) => guard(p.res, 'memory', 'region kept', t));
       // People the update step moved were seen leaving or arriving.
       Object.entries(before).forEach(([id, loc]) => {
         const now = state.characters[id] && state.characters[id].status.location;
@@ -3195,7 +3198,11 @@
       else guard(res, 'resolve', 'move cancelled', `the downtime put the player in ${pw}; their plan doesn't take them there`);
     }
     Eng.revealAround(state, res);
+    // A journey's arrival is a visit, as in a played turn.
+    E.Sites.noteVisit(state, frame.startLoc);
+    E.Sites.noteRegionVisit(state, frame.startLoc);
     // The agenda that ends the downtime brings its person to the player.
+
 
     if (plan.reason === 'agenda') {
       const c = state.characters[plan.agenda.id];
@@ -3624,6 +3631,8 @@
     // A new place the player is heading for (task 4-4), built before the
     // moves are resolved; the start-of-turn copy gets it too.
     const siteNotes = [];
+    // A new region first (R-6), then a place to arrive at inside it.
+    await E.Sites.regionForIntent(state, intentObj, action, pre, phase, siteNotes);
     await E.Sites.forIntent(state, intentObj, action, pre, phase, siteNotes);
     // A trip longer than the step is a journey turn instead (R-2): back to
     // the start of the turn (which has any new place too) and on through the
@@ -3661,6 +3670,8 @@
     Eng.advanceTime(state, step.hours, res);
     E.Sites.noteVisit(state, frame.startLoc);
     E.Sites.fade(state).forEach((t) => guard(res, 'resolve', 'site faded', t));
+    E.Sites.noteRegionVisit(state, frame.startLoc);
+    E.Sites.fadeRegions(state).forEach((t) => guard(res, 'resolve', 'region faded', t));
 
     // Everything Reroll needs to write this scene again from the same resolution.
     const narration = { system, step, before, after: timeSnapshot(state) };
