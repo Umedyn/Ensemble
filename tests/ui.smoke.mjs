@@ -416,6 +416,53 @@ await check('phone: make my own character and play a turn', async (page) => {
   assert.equal(await page.locator('.entry.action').count(), 1);
 });
 
+// R-7: start anywhere in a big world (tests/fixtures/open-galaxy: three
+// levels of regions, the Throne Spire shut out, a hidden relay). Search,
+// the zooming map and Surprise me; the plain list is for small worlds only.
+await check('start anywhere in a big world: search, the map, Surprise me; a branch shut out can\'t be picked', async (page) => {
+  await page.setInputFiles('#folderInput', path.join(here, 'fixtures', 'open-galaxy'));
+  await page.waitForFunction(() => [...document.querySelectorAll('#scenarioSelect option')].some((o) => o.value === 'disk:open-galaxy'));
+  await page.selectOption('#scenarioSelect', 'disk:open-galaxy');
+  await page.click('#btnNew');
+  await page.waitForSelector('#genDialog[open]');
+  assert.equal(await page.locator('input[name="gen-region"]').count(), 0, 'not the plain list');
+  // Search by name.
+  await page.fill('#genSearch', 'tessk');
+  assert.match(await page.textContent('#genResults'), /Tessk Crossing in Tessk › The Outer Rim/);
+  await page.click('#genResults [data-genpick="tessk-crossing"]');
+  assert.match(await page.textContent('#genChosen'), /Starting in Tessk Crossing in Tessk › The Outer Rim/);
+  // The tree: the Spire shows as context, but can't be picked; the hidden relay doesn't show.
+  assert.match(await page.textContent('#genTree'), /The Throne Spire/);
+  assert.equal(await page.locator('#genTree [data-genpick="throne-spire"], #genTree [data-genpick="spire-vaults"]').count(), 0);
+  assert.ok(!/Ghost Relay/.test(await page.textContent('#genBody')));
+  // The map: zoom into the Rim, then Morrow, and pick Morrow Port.
+  await page.click('[data-genview="map"]');
+  await page.click('#genMap .region-g[data-region="rim"]');
+  await page.click('#genMap .region-g[data-region="morrow"]');
+  await page.click('#genMap .region-g[data-region="morrow-port"]');
+  assert.match(await page.textContent('#genChosen'), /Starting in Morrow Port in Morrow › The Outer Rim/);
+  await page.screenshot({ path: path.join(shots, 'gen-where-map.png') });
+  // Inside the Spire nothing can be picked.
+  await page.click('.map-crumbs [data-genlevel=""]');
+  await page.click('#genMap .region-g[data-region="core"]');
+  await page.click('#genMap .region-g[data-region="aurel"]');
+  await page.click('#genMap .region-g[data-region="throne-spire"]');
+  await page.click('#genMap .region-g[data-region="spire-vaults"]');
+  assert.match(await page.textContent('#genChosen'), /Starting in Morrow Port/, 'still Morrow Port');
+  // Surprise me: somewhere startable, never the Spire.
+  for (let i = 0; i < 5; i++) {
+    await page.click('#genSurprise');
+    const t = await page.textContent('#genChosen');
+    assert.match(t, /Starting in /);
+    assert.ok(!/Spire|Ghost Relay/.test(t), t);
+  }
+  // Somewhere not on the map: the world makes regions, so the field is there.
+  await page.fill('#genPlace', 'a moisture farm outside Tessk Crossing');
+  await page.click('[data-genview="tree"]');
+  assert.equal(await page.inputValue('#genPlace'), 'a moisture farm outside Tessk Crossing', 'kept across views');
+  await page.screenshot({ path: path.join(shots, 'gen-where-tree.png') });
+});
+
 // Task 4-2: generated starts.
 const genOpen = async (page) => {
   await page.selectOption('#scenarioSelect', 'server:zombie-holdout');

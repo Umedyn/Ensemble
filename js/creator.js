@@ -95,7 +95,6 @@
     ui.autoIds = new Set();
     Object.assign(ui, { mapOwner: null, kindOpen: null, confirmDropMap: null });
     banner('');
-
     let saved = null;
     try { saved = JSON.parse(store.get(SAVE_KEY(folder))); } catch (e) { saved = null; }
     if (draft) banner('This world is kept only in this browser until you export it. <button type="button" id="cDeleteDraft" class="small">Delete this draft</button>');
@@ -333,6 +332,7 @@
       <label>Inside <select data-field="parent"><option value="">the world (top level)</option>${M.parentChoices(w, r.id).map((x) => `<option value="${esc(x.id)}"${r.parent === x.id ? ' selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>
       <label>Label <span class="muted small">(a word such as province, city or planet; display only)</span><input data-field="label" value="${esc(r.label || '')}" maxlength="30" placeholder="${esc((w.regionLabels || [])[S.regionChainIn(w.regions, r.id).length - 1] || '')}"></label>
       <label>Held by <select data-field="controller"><option value="">no one</option>${(w.factions || []).map((f) => `<option value="${esc(f.id)}"${r.controller === f.id ? ' selected' : ''}>${esc(f.name)}</option>`).join('')}</select></label>
+      <label>Start here <span class="muted small">(for Make my own start)</span><select data-field="startable"><option value="">as the region it's in</option><option value="true"${r.startable === true ? ' selected' : ''}>yes, and everywhere inside it</option><option value="false"${r.startable === false ? ' selected' : ''}>no, nor anywhere inside it</option></select></label>
       <label class="c-check"><input type="checkbox" data-field="hidden"${r.known === false ? ' checked' : ''}> Hidden until the story reveals it <span class="muted small">(and everything inside it)</span></label>
       ${(w.factions || []).length ? `<fieldset class="c-neigh"><legend>Present here <span class="muted small">(0 to 1; several groups can be; empty: none)</span></legend>${(w.factions || []).map((f) => `<label class="c-row"><span><span class="swatch ${D.factionClass(w.factions, f.id)}"></span>${esc(f.name)}</span> <input type="number" min="0" max="1" step="0.05" data-presence="${esc(f.id)}" value="${esc(((w.presence || {})[f.id] || {})[r.id] ?? '')}" aria-label="${esc(f.name)} present in ${esc(r.name)}"></label>`).join('')}</fieldset>` : ''}
       <label>Tags <span class="muted small">(comma-separated, up to ${S.REGION_TAGS})</span><input data-field="tags" value="${esc((r.tags || []).join(', '))}"></label>
@@ -382,8 +382,7 @@
       const here = insideOwner(r.id);
       const placed = !here || !mh().map || kids || (mh().map.regions && mh().map.regions[r.id]);
       const depth = S.regionChainIn(list, r.id).length - 1;
-      return `<button type="button" draggable="true" data-sel="${esc(r.id)}" aria-pressed="${r.id === ui.sel}"${depth ? ` style="margin-left:${depth}rem"` : ''}${here ? '' : ' class="c-outside"'}><span class="swatch
- ${D.factionClass(w.factions, r.controller)}"></span>${esc(r.name)}${r.map ? ' <span title="Has its own map">🗺</span>' : ''}${placed ? '' : ' <span class="muted small">(not on the map)</span>'}</button>`;
+      return `<button type="button" draggable="true" data-sel="${esc(r.id)}" aria-pressed="${r.id === ui.sel}"${depth ? ` style="margin-left:${depth}rem"` : ''}${here ? '' : ' class="c-outside"'}><span class="swatch ${D.factionClass(w.factions, r.controller)}"></span>${esc(r.name)}${r.map ? ' <span title="Has its own map">🗺</span>' : ''}${placed ? '' : ' <span class="muted small">(not on the map)</span>'}</button>`;
     }).join('') || '<span class="muted">No regions yet.</span>';
   }
   // What the canvas shows: the regions on the map being edited.
@@ -688,6 +687,8 @@
     if (!r) return;
     if (t.dataset.field === 'controller') { r.controller = t.value || null; return changed(); }
     // Unknown regions and presence (R-5).
+    // Where a generated start may begin (R-7): a branch at a time.
+    if (t.dataset.field === 'startable') { if (t.value === '') delete r.startable; else r.startable = t.value === 'true'; return changed(); }
     if (t.dataset.field === 'hidden') { if (t.checked) r.known = false; else delete r.known; return changed(); }
     if (t.dataset.presence) {
       const g = t.dataset.presence;
@@ -700,7 +701,6 @@
       return changed();
     }
     if (t.dataset.field === 'parent') { if (t.value) r.parent = t.value; else delete r.parent; return changed(['canvas', 'list']); }
-
     if (t.dataset.neigh) { M.setNeighbour(w, r.id, t.dataset.neigh, t.checked); return changed(); }
   });
 

@@ -78,7 +78,6 @@
       // A leaf: as the regional view was, twice its size within what's near it.
       const near = leaf ? [id].concat(S.regionNearIn(list, id)).filter((x) => g.shapes[x]) : [];
       const viewBox = leaf && g.shapes[id] ? D.focusBox(g, id, near) : focus && focus.length ? D.regionBox(g, focus) : g.full;
-
       const dim = id == null || id === owner || leaf ? [] :
  regions.map((r) => r.id).filter((x) => g.shapes[x] && x !== id && !inside(x, id));
       const rooms = Object.entries(isObj(picture.locations) ? picture.locations : {}).map(([room, p]) => ({ id: room, x: p[0], y: p[1] }));

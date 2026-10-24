@@ -1,0 +1,1494 @@
+{
+ "format": "ensemble-recording",
+ "version": 1,
+ "recorded": "2026-10-24T01:21:53.954Z",
+ "note": "",
+ "settings": {
+  "narrateTokens": 320,
+  "temperature": 0.8,
+  "chapterLength": 5,
+  "memoryCap": 32768,
+  "routing": {
+   "intent": "local",
+   "narrate": "local",
+   "update": "local",
+   "chapter": "local",
+   "worldbuild": "local"
+  },
+  "backends": {
+   "local": {
+    "preset": "kobold-local",
+    "model": "koboldcpp",
+    "context": 8192
+   },
+   "external": {
+    "preset": "openrouter",
+    "model": "z-ai/glm-5.3-flash",
+    "context": 1048576
+   }
+  }
+ },
+ "start": {
+  "version": 15,
+  "scenario": {
+   "title": "The Long Dark: A New Day in Tessk Crossing",
+   "setting": "A galaxy of old trade lanes and older grudges. The Core Worlds are rich and watched, the Outer Rim is lawless and dusty, and the Drift is where ships go to disappear. Hyperlanes join the sectors; a ship and fuel are worth more than most lives.",
+   "regionLabels": [
+    "sector",
+    "planet",
+    "city"
+   ],
+   "routeKinds": {
+    "hyperlane": {
+     "time": "2d"
+    }
+   },
+   "generatedSites": {},
+   "generatedRegions": {
+    "maxRegions": 6,
+    "routeKind": "road"
+   },
+   "regions": [
+    {
+     "id": "core",
+     "name": "The Core Worlds",
+     "routes": [
+      {
+       "to": "rim",
+       "kind": "hyperlane"
+      },
+      {
+       "to": "drift",
+       "kind": "hyperlane",
+       "time": "5d"
+      }
+     ],
+     "lore": "Old, rich and policed: the seat of the Concord.",
+     "neighbours": []
+    },
+    {
+     "id": "rim",
+     "name": "The Outer Rim",
+     "routes": [
+      {
+       "to": "drift",
+       "kind": "hyperlane",
+       "time": "3d"
+      }
+     ],
+     "lore": "Desert worlds, smugglers and the law a long way off.",
+     "neighbours": []
+    },
+    {
+     "id": "drift",
+     "name": "The Drift",
+     "lore": "A scatter of half-charted systems at the edge of the lanes.",
+     "neighbours": []
+    },
+    {
+     "id": "aurel",
+     "name": "Aurel",
+     "parent": "core",
+     "neighbours": [
+      "vass"
+     ],
+     "lore": "The capital world, one city wide.",
+     "routes": [
+      {
+       "to": "vass",
+       "kind": "border",
+       "derived": true
+      }
+     ]
+    },
+    {
+     "id": "aurel-city",
+     "name": "Aurel City",
+     "parent": "aurel",
+     "neighbours": [
+      "lowmarket"
+     ],
+     "routes": [
+      {
+       "to": "lowmarket",
+       "kind": "border",
+       "derived": true
+      }
+     ]
+    },
+    {
+     "id": "throne-spire",
+     "name": "The Throne Spire",
+     "parent": "aurel",
+     "startable": false,
+     "lore": "The Concord's seat: guarded, sealed, ceremonial.",
+     "neighbours": []
+    },
+    {
+     "id": "spire-vaults",
+     "name": "Spire Vaults",
+     "parent": "throne-spire",
+     "neighbours": []
+    },
+    {
+     "id": "lowmarket",
+     "name": "Lowmarket",
+     "parent": "aurel",
+     "neighbours": [
+      "aurel-city"
+     ]
+    },
+    {
+     "id": "vass",
+     "name": "Vass Prime",
+     "parent": "core",
+     "lore": "Shipyards and the families who own them.",
+     "neighbours": [
+      "aurel"
+     ]
+    },
+    {
+     "id": "vass-docks",
+     "name": "Vass Docks",
+     "parent": "vass",
+     "neighbours": []
+    },
+    {
+     "id": "glasshold",
+     "name": "Glasshold",
+     "parent": "vass",
+     "neighbours": []
+    },
+    {
+     "id": "ilion",
+     "name": "Ilion",
+     "parent": "core",
+     "lore": "A garden world gone to seed.",
+     "neighbours": []
+    },
+    {
+     "id": "ilion-reach",
+     "name": "Ilion Reach",
+     "parent": "ilion",
+     "neighbours": []
+    },
+    {
+     "id": "tessk",
+     "name": "Tessk",
+     "parent": "rim",
+     "neighbours": [
+      "morrow"
+     ],
+     "lore": "Two suns, one well, and everyone armed.",
+     "routes": [
+      {
+       "to": "morrow",
+       "kind": "border",
+       "derived": true
+      }
+     ]
+    },
+    {
+     "id": "tessk-crossing",
+     "name": "Tessk Crossing",
+     "parent": "tessk",
+     "neighbours": [
+      "saltpan"
+     ],
+     "routes": [
+      {
+       "to": "saltpan",
+       "kind": "border",
+       "derived": true
+      }
+     ]
+    },
+    {
+     "id": "saltpan",
+     "name": "Saltpan Flats",
+     "parent": "tessk",
+     "neighbours": [
+      "tessk-crossing"
+     ]
+    },
+    {
+     "id": "morrow",
+     "name": "Morrow",
+     "parent": "rim",
+     "lore": "A cold port world where crews sign on.",
+     "neighbours": [
+      "tessk"
+     ]
+    },
+    {
+     "id": "morrow-port",
+     "name": "Morrow Port",
+     "parent": "morrow",
+     "neighbours": []
+    },
+    {
+     "id": "greywater",
+     "name": "Greywater",
+     "parent": "morrow",
+     "neighbours": []
+    },
+    {
+     "id": "kade",
+     "name": "Kade's Reach",
+     "parent": "rim",
+     "lore": "A mining belt with one station worth the name.",
+     "neighbours": []
+    },
+    {
+     "id": "kade-station",
+     "name": "Kade Station",
+     "parent": "kade",
+     "neighbours": []
+    },
+    {
+     "id": "umber",
+     "name": "Umber",
+     "parent": "drift",
+     "lore": "A dark world under permanent cloud.",
+     "neighbours": []
+    },
+    {
+     "id": "umber-deep",
+     "name": "Umber Deep",
+     "parent": "umber",
+     "neighbours": []
+    },
+    {
+     "id": "sola",
+     "name": "Sola Minor",
+     "parent": "drift",
+     "neighbours": []
+    },
+    {
+     "id": "sola-camp",
+     "name": "Sola Camp",
+     "parent": "sola",
+     "neighbours": []
+    },
+    {
+     "id": "hask",
+     "name": "Hask",
+     "parent": "drift",
+     "neighbours": []
+    },
+    {
+     "id": "hask-yard",
+     "name": "Hask Breaker Yard",
+     "parent": "hask",
+     "neighbours": []
+    },
+    {
+     "id": "ghost-relay",
+     "name": "The Ghost Relay",
+     "parent": "drift",
+     "known": false,
+     "lore": "A dead relay station still broadcasting an old distress call.",
+     "neighbours": []
+    },
+    {
+     "id": "engineer-workshop-and-fl",
+     "name": "Engineer workshop and flat.",
+     "parent": "tessk-crossing",
+     "lore": "Engineer workshop and flat. is a small, recently-established droid engineering workshop on the outskirts of Tessk Crossing. It's owned by a newcomer to the city, known only as 'Nox', who is rumored to be highly skilled but keeps to themselves. The workshop is said to be well-equipped, but there are few customers yet, as Nox is still building their reputation in the city.",
+     "controller": null,
+     "tags": [],
+     "status": "",
+     "generated": true,
+     "made": 0,
+     "visits": 1,
+     "lastVisit": null,
+     "kept": true,
+     "keptWhy": "the story begins there",
+     "from": "start",
+     "neighbours": []
+    }
+   ],
+   "lore": [
+    {
+     "id": "varro",
+     "title": "Kesh Varro",
+     "level": "topic",
+     "keywords": [
+      "Admiral Varro",
+      "the Admiral"
+     ],
+     "text": "The Concord admiral who broke the Rim blockade a generation ago; half the Rim still curses the name, the other half drinks to it."
+    }
+   ],
+   "characters": [
+    "zara-nox",
+    "kad-zantos",
+    "rella-vax",
+    "lek-korr",
+    "lor-zor",
+    "jax"
+   ],
+   "generatedStarts": {},
+   "generated": true,
+   "start": {
+    "day": 1,
+    "hour": 9
+   },
+   "player": "zara-nox",
+   "castLabel": "People",
+   "locations": [
+    {
+     "id": "back-room",
+     "name": "Back Room",
+     "desc": "A cramped workspace filled with tools, half-finished droid parts, and scorch marks on the walls from welding.",
+     "connects": [
+      "shop-floor"
+     ],
+     "region": "engineer-workshop-and-fl"
+    },
+    {
+     "id": "shop-floor",
+     "name": "Shop Floor",
+     "desc": "A large, open area with a counter at the front, several workbenches, and a droid being worked on in the center.",
+     "connects": [
+      "back-room",
+      "office",
+      "front-entrance"
+     ],
+     "region": "engineer-workshop-and-fl"
+    },
+    {
+     "id": "office",
+     "name": "Office",
+     "desc": "A small, cluttered room with a desk, chair, and a terminal displaying inventory and client information.",
+     "connects": [
+      "shop-floor",
+      "apartment"
+     ],
+     "region": "engineer-workshop-and-fl"
+    },
+    {
+     "id": "apartment",
+     "name": "Apartment",
+     "desc": "A modest living space with a bed, kitchenette, and a window overlooking the shop below.",
+     "connects": [
+      "office"
+     ],
+     "region": "engineer-workshop-and-fl"
+    },
+    {
+     "id": "front-entrance",
+     "name": "Front Entrance",
+     "desc": "A small, covered porch with a sign reading 'Nox Droid Engineering' and a door leading inside.",
+     "connects": [
+      "shop-floor"
+     ],
+     "outside": true,
+     "region": "engineer-workshop-and-fl"
+    }
+   ],
+   "clocks": [
+    {
+     "id": "new-rival",
+     "name": "New Rival",
+     "value": 0,
+     "max": 8,
+     "perHour": 0.1,
+     "fireText": "A rival engineer opens a shop nearby, undercutting Nox's prices and stealing her clients.",
+     "then": [
+      {
+       "id": "reputation-hit",
+       "name": "Reputation Hit",
+       "value": 0,
+       "max": 6,
+       "perHour": 0.2,
+       "fireText": "Nox's reputation takes a hit and she struggles to find new clients, risking the shop going under."
+      }
+     ]
+    }
+   ],
+   "extras": [
+    {
+     "id": "tenn-voss",
+     "name": "Tenn Voss",
+     "role": "Delivery Driver",
+     "location": "front-entrance",
+     "note": "Waiting with a delivery of droid parts.",
+     "pronouns": "they/them"
+    },
+    {
+     "id": "jix",
+     "name": "Jix",
+     "role": "Barfly",
+     "location": null,
+     "note": "Heard shouting drunkenly in the street last night.",
+     "pronouns": "he/him"
+    },
+    {
+     "id": "lina-nox",
+     "name": "Lina Nox",
+     "role": "Sister",
+     "location": "office",
+     "note": "Zara's estranged sister, recently arrived on Tessk.",
+     "pronouns": "she/her"
+    },
+    {
+     "id": "kade-karr",
+     "name": "Kade Karr",
+     "role": "Competitor",
+     "location": "shop-floor",
+     "note": "An up-and-coming engineer trying to impress Zara with his work.",
+     "pronouns": "he/him"
+    }
+   ],
+   "standees": [
+    {
+     "id": "locals",
+     "label": "Locals",
+     "count": 10,
+     "location": "shop-floor",
+     "state": "calm",
+     "note": "A group of regulars stopping by to see what Zara is working on."
+    },
+    {
+     "id": "rival-droids",
+     "label": "Rival Droids",
+     "count": 3,
+     "location": "shop-floor",
+     "state": "calm",
+     "note": "Droids built by Zara's new rival, left behind after an argument."
+    }
+   ],
+   "facts": [
+    "Tessk Crossing is a bustling city on the planet Tessk, known for its lawlessness and the constant hustle of its residents.",
+    "As a newcomer, you're still trying to establish your reputation as a skilled droid engineer.",
+    "Your back room is where you do your most intricate work, away from prying eyes."
+   ],
+   "opening": "The morning sun creeps through the grimy window of your back room, illuminating the cluttered workspace. The air is thick with the smell of metal and oil. You survey the half-finished droid parts strewn about, trying to recall where you left off the night before. A rusty security droid, Lor Zor, stands sentinel by the door, its optical sensors scanning the room.",
+   "region": "engineer-workshop-and-fl",
+   "eventSeeds": {
+    "regional": [
+     {
+      "text": "A dust storm hits Tessk Crossing, cutting power to the workshop and forcing Nox to jury-rig a solution to keep the droids running.",
+      "region": "tessk-crossing"
+     },
+     {
+      "text": "Lek Korr's latest invention goes haywire, causing a commotion in the workshop and drawing unwanted attention from local authorities.",
+      "region": "tessk-crossing"
+     }
+    ]
+   },
+   "characterData": [
+    {
+     "id": "zara-nox",
+     "name": "Zara Nox",
+     "pronouns": "she/her",
+     "role": "Droid Engineer",
+     "traits": [
+      "Independent",
+      "Resourceful",
+      "Keen-eyed"
+     ],
+     "want": "To build a successful droid engineering business",
+     "skills": {
+      "physical": 1,
+      "technical": 3,
+      "social": 2,
+      "knowledge": 1,
+      "stealth": 1
+     },
+     "relations": {},
+     "status": {
+      "health": "ok",
+      "location": "back-room"
+     },
+     "age": 30,
+     "description": "Zara is a skilled droid engineer, known for her creativity and ability to solve complex problems. She's set up shop in Tessk Crossing, hoping to build a reputation and a steady stream of clients.",
+     "appearance": "Zara is a cybernetically-enhanced human, with glowing green eyes and visible metal plating on her left arm and leg. She has short, dark hair and a practical, no-nonsense style of dress.",
+     "voice": "She speaks in a calm, measured tone, with a slight mechanical lilt",
+     "secret": "She's secretly made a deal with a dangerous crime lord to fund her workshop",
+     "guard": "medium"
+    },
+    {
+     "id": "kad-zantos",
+     "name": "Kad Zantos",
+     "pronouns": "she/her",
+     "role": "Client",
+     "traits": [
+      "Tough",
+      "Savvy",
+      "Guarded"
+     ],
+     "want": "To track down an old rival and settle a score.",
+     "secret": "She's not who she claims to be. She's a wanted criminal on the run from the law.",
+     "guard": "medium",
+     "voice": "She speaks in a low, measured tone, carefully choosing her words.",
+     "appearance": "She has a no-nonsense demeanor, with a muscular build and close-cropped hair, and always wears a long coat to hide her many weapons.",
+     "description": "A hardened bounty hunter who has spent years tracking down the galaxy's most dangerous criminals, she's not used to asking for help, but she's desperate to find her old rival.",
+     "skills": {
+      "physical": 3,
+      "technical": 2,
+      "social": 1,
+      "knowledge": 3,
+      "stealth": 3
+     },
+     "relations": {},
+     "status": {
+      "health": "ok",
+      "location": "office"
+     },
+     "age": 40,
+     "knows": [
+      "She's seen Nox's droids in action and thinks they're the best she's ever seen, but she's too proud to admit it."
+     ]
+    },
+    {
+     "id": "rella-vax",
+     "name": "Rella Vax",
+     "pronouns": "she/her",
+     "role": "Nox's Neighbour",
+     "traits": [
+      "Curious",
+      "Nosy",
+      "Talkative"
+     ],
+     "want": "To be the first to know everything that happens in Tessk Crossing",
+     "secret": "She once worked as an information broker for a rival gang, but left after a dangerous job went sour. She keeps her past hidden to avoid attracting unwanted attention.",
+     "guard": "medium",
+     "voice": "She speaks in a rapid, excitable tone, rarely pausing for breath.",
+     "appearance": "Short and plump, with a round, rosy face, twinkling eyes, and a perpetual look of excitement. She always wears bright, colorful clothing and has a collection of glittering jewelry.",
+     "description": "Rella Vax is the neighborhood gossip and self-appointed 'informer' of Tessk Crossing. She runs a small shop selling trinkets and knick-knacks, but her real business is gathering and selling information.",
+     "skills": {
+      "physical": 1,
+      "technical": 1,
+      "social": 3,
+      "knowledge": 3,
+      "stealth": 1
+     },
+     "relations": {},
+     "status": {
+      "health": "ok",
+      "location": "shop-floor"
+     },
+     "age": 40,
+     "knows": [
+      "She's noticed the strange droid parts Nox has been buying and suspects she's working on something big."
+     ]
+    },
+    {
+     "id": "lek-korr",
+     "name": "Lek Korr",
+     "pronouns": "she/her",
+     "role": "Local Mechanic",
+     "traits": [
+      "Friendly",
+      "Competitive",
+      "Tinkerer"
+     ],
+     "want": "To be recognized as the best mechanic in Tessk Crossing",
+     "secret": "She is secretly an inventor, creating prototype droids in her spare time",
+     "guard": "medium",
+     "voice": "She speaks with a warm, enthusiastic tone, always ready to chat about engines or droids",
+     "appearance": "Short and muscular, with grease-stained overalls and a tool belt slung low on her hips",
+     "description": "Lek Korr is a skilled mechanic with a passion for tinkering. She runs a small garage on the outskirts of Tessk Crossing, specializing in repairing and modifying vehicles and droids",
+     "skills": {
+      "physical": 3,
+      "technical": 4,
+      "social": 2,
+      "knowledge": 2,
+      "stealth": 0
+     },
+     "relations": {},
+     "status": {
+      "health": "ok",
+      "location": "shop-floor"
+     },
+     "age": 40,
+     "knows": [
+      "She thinks Nox is a brilliant engineer but worries that her methods are a bit unorthodox."
+     ]
+    },
+    {
+     "id": "lor-zor",
+     "name": "Lor Zor",
+     "pronouns": "she/her",
+     "role": "Security Droid",
+     "traits": [
+      "Rusty",
+      "Glitchy",
+      "Vigilant"
+     ],
+     "want": "To protect the shop, even if it means breaking a few rules",
+     "secret": "She was reprogrammed to protect a valuable artifact hidden in the shop, but her memory banks are deteriorating and she can't remember what it is or where it's hidden",
+     "guard": "medium",
+     "voice": "She speaks in a robotic monotone, occasionally stuttering or repeating phrases",
+     "appearance": "Her once-polished metal frame is now scratched and dented, with rust forming on her joints. She has a single, glowing red eye that scans the room constantly.",
+     "description": "Lor Zor is a malfunctioning security droid left behind by the previous tenant. She patrols the shop floor, occasionally glitching and repeating phrases like 'Intruder detected' or 'System error'. Despite her rusty appearance, she is still a formidable presence, and her programming compels her to protect the shop at all costs.",
+     "skills": {
+      "physical": 3,
+      "technical": 2,
+      "social": 0,
+      "knowledge": 1,
+      "stealth": 2
+     },
+     "relations": {},
+     "status": {
+      "health": "ok",
+      "location": "back-room"
+     },
+     "age": 40,
+     "knows": [
+      "She's heard rumors that Nox is hiding something valuable in the workshop, but she can't remember what it is."
+     ]
+    },
+    {
+     "id": "jax",
+     "name": "Jax",
+     "pronouns": "she/her",
+     "role": "Street Urchin",
+     "traits": [
+      "Quick-fingered",
+      "Street-smart",
+      "Tiny"
+     ],
+     "want": "To find a way off Tessk and start a new life",
+     "secret": "She's been stealing small parts from the workshop to sell for food, but she's running out of options",
+     "guard": "low",
+     "voice": "Softly, with a hint of a rasp",
+     "appearance": "A small, skinny girl with dirty cheeks and a mop of tangled brown hair, wearing tattered clothes that are too big for her",
+     "description": "Jax is a young street urchin who's been surviving on her wits and nimble fingers since her parents disappeared. She's drawn to Nox's workshop, hoping to learn enough to get off Tessk and find a better life",
+     "skills": {
+      "physical": 1,
+      "technical": 1,
+      "social": 1,
+      "knowledge": 1,
+      "stealth": 3
+     },
+     "relations": {},
+     "status": {
+      "health": "ok",
+      "location": "front-entrance"
+     },
+     "age": 10,
+     "knows": [
+      "She's seen Nox working late into the night and suspects she's trying to perfect a new invention."
+     ]
+    }
+   ],
+   "worldId": "open-galaxy",
+   "startId": "gen-zrey0q",
+   "worldTitle": "The Long Dark",
+   "startTitle": "A New Day in Tessk Crossing",
+   "folder": "open-galaxy",
+   "skills": [
+    "physical",
+    "technical",
+    "social",
+    "knowledge",
+    "stealth"
+   ],
+   "needs": []
+  },
+  "player": "zara-nox",
+  "order": [
+   "zara-nox",
+   "kad-zantos",
+   "rella-vax",
+   "lek-korr",
+   "lor-zor",
+   "jax"
+  ],
+  "characters": {
+   "zara-nox": {
+    "id": "zara-nox",
+    "name": "Zara Nox",
+    "pronouns": "she/her",
+    "role": "Droid Engineer",
+    "traits": [
+     "Independent",
+     "Resourceful",
+     "Keen-eyed"
+    ],
+    "want": "To build a successful droid engineering business",
+    "skills": {
+     "physical": 1,
+     "technical": 3,
+     "social": 2,
+     "knowledge": 1,
+     "stealth": 1
+    },
+    "relations": {},
+    "status": {
+     "health": "ok",
+     "location": "back-room"
+    },
+    "age": 30,
+    "description": "Zara is a skilled droid engineer, known for her creativity and ability to solve complex problems. She's set up shop in Tessk Crossing, hoping to build a reputation and a steady stream of clients.",
+    "appearance": "Zara is a cybernetically-enhanced human, with glowing green eyes and visible metal plating on her left arm and leg. She has short, dark hair and a practical, no-nonsense style of dress.",
+    "voice": "She speaks in a calm, measured tone, with a slight mechanical lilt",
+    "secret": "She's secretly made a deal with a dangerous crime lord to fund her workshop",
+    "guard": "medium",
+    "needs": {},
+    "tags": [],
+    "lastSeen": 0,
+    "tier": "local"
+   },
+   "kad-zantos": {
+    "id": "kad-zantos",
+    "name": "Kad Zantos",
+    "pronouns": "she/her",
+    "role": "Client",
+    "traits": [
+     "Tough",
+     "Savvy",
+     "Guarded"
+    ],
+    "want": "To track down an old rival and settle a score.",
+    "secret": "She's not who she claims to be. She's a wanted criminal on the run from the law.",
+    "guard": "medium",
+    "voice": "She speaks in a low, measured tone, carefully choosing her words.",
+    "appearance": "She has a no-nonsense demeanor, with a muscular build and close-cropped hair, and always wears a long coat to hide her many weapons.",
+    "description": "A hardened bounty hunter who has spent years tracking down the galaxy's most dangerous criminals, she's not used to asking for help, but she's desperate to find her old rival.",
+    "skills": {
+     "physical": 3,
+     "technical": 2,
+     "social": 1,
+     "knowledge": 3,
+     "stealth": 3
+    },
+    "relations": {},
+    "status": {
+     "health": "ok",
+     "location": "office"
+    },
+    "age": 40,
+    "knows": [
+     "She's seen Nox's droids in action and thinks they're the best she's ever seen, but she's too proud to admit it."
+    ],
+    "needs": {},
+    "tags": [],
+    "lastSeen": 0,
+    "tier": "secondary"
+   },
+   "rella-vax": {
+    "id": "rella-vax",
+    "name": "Rella Vax",
+    "pronouns": "she/her",
+    "role": "Nox's Neighbour",
+    "traits": [
+     "Curious",
+     "Nosy",
+     "Talkative"
+    ],
+    "want": "To be the first to know everything that happens in Tessk Crossing",
+    "secret": "She once worked as an information broker for a rival gang, but left after a dangerous job went sour. She keeps her past hidden to avoid attracting unwanted attention.",
+    "guard": "medium",
+    "voice": "She speaks in a rapid, excitable tone, rarely pausing for breath.",
+    "appearance": "Short and plump, with a round, rosy face, twinkling eyes, and a perpetual look of excitement. She always wears bright, colorful clothing and has a collection of glittering jewelry.",
+    "description": "Rella Vax is the neighborhood gossip and self-appointed 'informer' of Tessk Crossing. She runs a small shop selling trinkets and knick-knacks, but her real business is gathering and selling information.",
+    "skills": {
+     "physical": 1,
+     "technical": 1,
+     "social": 3,
+     "knowledge": 3,
+     "stealth": 1
+    },
+    "relations": {},
+    "status": {
+     "health": "ok",
+     "location": "shop-floor"
+    },
+    "age": 40,
+    "knows": [
+     "She's noticed the strange droid parts Nox has been buying and suspects she's working on something big."
+    ],
+    "needs": {},
+    "tags": [],
+    "lastSeen": 0,
+    "tier": "secondary"
+   },
+   "lek-korr": {
+    "id": "lek-korr",
+    "name": "Lek Korr",
+    "pronouns": "she/her",
+    "role": "Local Mechanic",
+    "traits": [
+     "Friendly",
+     "Competitive",
+     "Tinkerer"
+    ],
+    "want": "To be recognized as the best mechanic in Tessk Crossing",
+    "secret": "She is secretly an inventor, creating prototype droids in her spare time",
+    "guard": "medium",
+    "voice": "She speaks with a warm, enthusiastic tone, always ready to chat about engines or droids",
+    "appearance": "Short and muscular, with grease-stained overalls and a tool belt slung low on her hips",
+    "description": "Lek Korr is a skilled mechanic with a passion for tinkering. She runs a small garage on the outskirts of Tessk Crossing, specializing in repairing and modifying vehicles and droids",
+    "skills": {
+     "physical": 3,
+     "technical": 4,
+     "social": 2,
+     "knowledge": 2,
+     "stealth": 0
+    },
+    "relations": {},
+    "status": {
+     "health": "ok",
+     "location": "shop-floor"
+    },
+    "age": 40,
+    "knows": [
+     "She thinks Nox is a brilliant engineer but worries that her methods are a bit unorthodox."
+    ],
+    "needs": {},
+    "tags": [],
+    "lastSeen": 0,
+    "tier": "secondary"
+   },
+   "lor-zor": {
+    "id": "lor-zor",
+    "name": "Lor Zor",
+    "pronouns": "she/her",
+    "role": "Security Droid",
+    "traits": [
+     "Rusty",
+     "Glitchy",
+     "Vigilant"
+    ],
+    "want": "To protect the shop, even if it means breaking a few rules",
+    "secret": "She was reprogrammed to protect a valuable artifact hidden in the shop, but her memory banks are deteriorating and she can't remember what it is or where it's hidden",
+    "guard": "medium",
+    "voice": "She speaks in a robotic monotone, occasionally stuttering or repeating phrases",
+    "appearance": "Her once-polished metal frame is now scratched and dented, with rust forming on her joints. She has a single, glowing red eye that scans the room constantly.",
+    "description": "Lor Zor is a malfunctioning security droid left behind by the previous tenant. She patrols the shop floor, occasionally glitching and repeating phrases like 'Intruder detected' or 'System error'. Despite her rusty appearance, she is still a formidable presence, and her programming compels her to protect the shop at all costs.",
+    "skills": {
+     "physical": 3,
+     "technical": 2,
+     "social": 0,
+     "knowledge": 1,
+     "stealth": 2
+    },
+    "relations": {},
+    "status": {
+     "health": "ok",
+     "location": "back-room"
+    },
+    "age": 40,
+    "knows": [
+     "She's heard rumors that Nox is hiding something valuable in the workshop, but she can't remember what it is."
+    ],
+    "needs": {},
+    "tags": [],
+    "lastSeen": 0,
+    "tier": "local"
+   },
+   "jax": {
+    "id": "jax",
+    "name": "Jax",
+    "pronouns": "she/her",
+    "role": "Street Urchin",
+    "traits": [
+     "Quick-fingered",
+     "Street-smart",
+     "Tiny"
+    ],
+    "want": "To find a way off Tessk and start a new life",
+    "secret": "She's been stealing small parts from the workshop to sell for food, but she's running out of options",
+    "guard": "low",
+    "voice": "Softly, with a hint of a rasp",
+    "appearance": "A small, skinny girl with dirty cheeks and a mop of tangled brown hair, wearing tattered clothes that are too big for her",
+    "description": "Jax is a young street urchin who's been surviving on her wits and nimble fingers since her parents disappeared. She's drawn to Nox's workshop, hoping to learn enough to get off Tessk and find a better life",
+    "skills": {
+     "physical": 1,
+     "technical": 1,
+     "social": 1,
+     "knowledge": 1,
+     "stealth": 3
+    },
+    "relations": {},
+    "status": {
+     "health": "ok",
+     "location": "front-entrance"
+    },
+    "age": 10,
+    "knows": [
+     "She's seen Nox working late into the night and suspects she's trying to perfect a new invention."
+    ],
+    "needs": {},
+    "tags": [],
+    "lastSeen": 0,
+    "tier": "secondary"
+   }
+  },
+  "locations": {
+   "back-room": {
+    "connects": [
+     "shop-floor"
+    ],
+    "id": "back-room",
+    "name": "Back Room",
+    "desc": "A cramped workspace filled with tools, half-finished droid parts, and scorch marks on the walls from welding.",
+    "region": "engineer-workshop-and-fl"
+   },
+   "shop-floor": {
+    "connects": [
+     "back-room",
+     "office",
+     "front-entrance"
+    ],
+    "id": "shop-floor",
+    "name": "Shop Floor",
+    "desc": "A large, open area with a counter at the front, several workbenches, and a droid being worked on in the center.",
+    "region": "engineer-workshop-and-fl"
+   },
+   "office": {
+    "connects": [
+     "shop-floor",
+     "apartment"
+    ],
+    "id": "office",
+    "name": "Office",
+    "desc": "A small, cluttered room with a desk, chair, and a terminal displaying inventory and client information.",
+    "region": "engineer-workshop-and-fl"
+   },
+   "apartment": {
+    "connects": [
+     "office"
+    ],
+    "id": "apartment",
+    "name": "Apartment",
+    "desc": "A modest living space with a bed, kitchenette, and a window overlooking the shop below.",
+    "region": "engineer-workshop-and-fl"
+   },
+   "front-entrance": {
+    "connects": [
+     "shop-floor"
+    ],
+    "id": "front-entrance",
+    "name": "Front Entrance",
+    "desc": "A small, covered porch with a sign reading 'Nox Droid Engineering' and a door leading inside.",
+    "outside": true,
+    "region": "engineer-workshop-and-fl"
+   }
+  },
+  "world": {},
+  "factions": [],
+  "clocks": [
+   {
+    "value": 0,
+    "perHour": 0.1,
+    "fired": false,
+    "id": "new-rival",
+    "name": "New Rival",
+    "max": 8,
+    "fireText": "A rival engineer opens a shop nearby, undercutting Nox's prices and stealing her clients.",
+    "then": [
+     {
+      "id": "reputation-hit",
+      "name": "Reputation Hit",
+      "value": 0,
+      "max": 6,
+      "perHour": 0.2,
+      "fireText": "Nox's reputation takes a hit and she struggles to find new clients, risking the shop going under."
+     }
+    ]
+   }
+  ],
+  "time": {
+   "day": 1,
+   "hour": 9
+  },
+  "turn": 0,
+  "chapter": 1,
+  "chapterStartTurn": 1,
+  "facts": [
+   {
+    "id": "f1",
+    "turn": 0,
+    "chapter": 1,
+    "about": [
+     "kad-zantos"
+    ],
+    "text": "She's seen Nox's droids in action and thinks they're the best she's ever seen, but she's too proud to admit it.",
+    "known_by": [
+     "kad-zantos"
+    ],
+    "weight": 2
+   },
+   {
+    "id": "f2",
+    "turn": 0,
+    "chapter": 1,
+    "about": [
+     "rella-vax"
+    ],
+    "text": "She's noticed the strange droid parts Nox has been buying and suspects she's working on something big.",
+    "known_by": [
+     "rella-vax"
+    ],
+    "weight": 2
+   },
+   {
+    "id": "f3",
+    "turn": 0,
+    "chapter": 1,
+    "about": [
+     "lek-korr"
+    ],
+    "text": "She thinks Nox is a brilliant engineer but worries that her methods are a bit unorthodox.",
+    "known_by": [
+     "lek-korr"
+    ],
+    "weight": 2
+   },
+   {
+    "id": "f4",
+    "turn": 0,
+    "chapter": 1,
+    "about": [
+     "lor-zor"
+    ],
+    "text": "She's heard rumors that Nox is hiding something valuable in the workshop, but she can't remember what it is.",
+    "known_by": [
+     "lor-zor"
+    ],
+    "weight": 2
+   },
+   {
+    "id": "f5",
+    "turn": 0,
+    "chapter": 1,
+    "about": [
+     "jax"
+    ],
+    "text": "She's seen Nox working late into the night and suspects she's trying to perfect a new invention.",
+    "known_by": [
+     "jax"
+    ],
+    "weight": 2
+   },
+   {
+    "id": "f6",
+    "turn": 0,
+    "chapter": 1,
+    "about": [],
+    "text": "Tessk Crossing is a bustling city on the planet Tessk, known for its lawlessness and the constant hustle of its residents.",
+    "known_by": [
+     "all"
+    ],
+    "weight": 2
+   },
+   {
+    "id": "f7",
+    "turn": 0,
+    "chapter": 1,
+    "about": [],
+    "text": "As a newcomer, you're still trying to establish your reputation as a skilled droid engineer.",
+    "known_by": [
+     "all"
+    ],
+    "weight": 2
+   },
+   {
+    "id": "f8",
+    "turn": 0,
+    "chapter": 1,
+    "about": [],
+    "text": "Your back room is where you do your most intricate work, away from prying eyes.",
+    "known_by": [
+     "all"
+    ],
+    "weight": 2
+   }
+  ],
+  "nextFactId": 9,
+  "chapters": [],
+  "recent": [
+   {
+    "turn": 0,
+    "action": null,
+    "text": "The morning sun creeps through the grimy window of your back room, illuminating the cluttered workspace. The air is thick with the smell of metal and oil. You survey the half-finished droid parts strewn about, trying to recall where you left off the night before. A rusty security droid, Lor Zor, stands sentinel by the door, its optical sensors scanning the room."
+   }
+  ],
+  "log": [
+   {
+    "turn": 0,
+    "type": "scene",
+    "text": "The morning sun creeps through the grimy window of your back room, illuminating the cluttered workspace. The air is thick with the smell of metal and oil. You survey the half-finished droid parts strewn about, trying to recall where you left off the night before. A rusty security droid, Lor Zor, stands sentinel by the door, its optical sensors scanning the room."
+   }
+  ],
+  "flags": {
+   "chapterWorthy": false,
+   "gameOver": false
+  },
+  "tierLast": {},
+  "news": [],
+  "regions": {
+   "core": {
+    "controller": null,
+    "tags": [],
+    "status": ""
+   },
+   "rim": {
+    "controller": null,
+    "tags": [],
+    "status": ""
+   },
+   "drift": {
+    "controller": null,
+    "tags": [],
+    "status": ""
+   },
+   "aurel": {
+    "controller": null,
+    "tags": [],
+    "status": ""
+   },
+   "aurel-city": {
+    "controller": null,
+    "tags": [],
+    "status": ""
+   },
+   "throne-spire": {
+    "controller": null,
+    "tags": [],
+    "status": ""
+   },
+   "spire-vaults": {
+    "controller": null,
+    "tags": [],
+    "status": ""
+   },
+   "lowmarket": {
+    "controller": null,
+    "tags": [],
+    "status": ""
+   },
+   "vass": {
+    "controller": null,
+    "tags": [],
+    "status": ""
+   },
+   "vass-docks": {
+    "controller": null,
+    "tags": [],
+    "status": ""
+   },
+   "glasshold": {
+    "controller": null,
+    "tags": [],
+    "status": ""
+   },
+   "ilion": {
+    "controller": null,
+    "tags": [],
+    "status": ""
+   },
+   "ilion-reach": {
+    "controller": null,
+    "tags": [],
+    "status": ""
+   },
+   "tessk": {
+    "controller": null,
+    "tags": [],
+    "status": ""
+   },
+   "tessk-crossing": {
+    "controller": null,
+    "tags": [],
+    "status": ""
+   },
+   "saltpan": {
+    "controller": null,
+    "tags": [],
+    "status": ""
+   },
+   "morrow": {
+    "controller": null,
+    "tags": [],
+    "status": ""
+   },
+   "morrow-port": {
+    "controller": null,
+    "tags": [],
+    "status": ""
+   },
+   "greywater": {
+    "controller": null,
+    "tags": [],
+    "status": ""
+   },
+   "kade": {
+    "controller": null,
+    "tags": [],
+    "status": ""
+   },
+   "kade-station": {
+    "controller": null,
+    "tags": [],
+    "status": ""
+   },
+   "umber": {
+    "controller": null,
+    "tags": [],
+    "status": ""
+   },
+   "umber-deep": {
+    "controller": null,
+    "tags": [],
+    "status": ""
+   },
+   "sola": {
+    "controller": null,
+    "tags": [],
+    "status": ""
+   },
+   "sola-camp": {
+    "controller": null,
+    "tags": [],
+    "status": ""
+   },
+   "hask": {
+    "controller": null,
+    "tags": [],
+    "status": ""
+   },
+   "hask-yard": {
+    "controller": null,
+    "tags": [],
+    "status": ""
+   },
+   "ghost-relay": {
+    "controller": null,
+    "tags": [],
+    "status": "",
+    "known": false
+   },
+   "engineer-workshop-and-fl": {
+    "controller": null,
+    "tags": [],
+    "status": ""
+   }
+  },
+  "sites": {},
+  "regionChanged": {},
+  "presence": {},
+  "extras": {
+   "tenn-voss": {
+    "id": "tenn-voss",
+    "name": "Tenn Voss",
+    "role": "Delivery Driver",
+    "pronouns": "they/them",
+    "location": "front-entrance",
+    "note": "Waiting with a delivery of droid parts.",
+    "group": false,
+    "count": null,
+    "from": "author",
+    "born": 0,
+    "mentions": 0,
+    "lastMention": null,
+    "promote": false,
+    "tries": 0
+   },
+   "jix": {
+    "id": "jix",
+    "name": "Jix",
+    "role": "Barfly",
+    "pronouns": "he/him",
+    "location": null,
+    "note": "Heard shouting drunkenly in the street last night.",
+    "group": false,
+    "count": null,
+    "from": "author",
+    "born": 0,
+    "mentions": 0,
+    "lastMention": null,
+    "promote": false,
+    "tries": 0
+   },
+   "lina-nox": {
+    "id": "lina-nox",
+    "name": "Lina Nox",
+    "role": "Sister",
+    "pronouns": "she/her",
+    "location": "office",
+    "note": "Zara's estranged sister, recently arrived on Tessk.",
+    "group": false,
+    "count": null,
+    "from": "author",
+    "born": 0,
+    "mentions": 0,
+    "lastMention": null,
+    "promote": false,
+    "tries": 0
+   },
+   "kade-karr": {
+    "id": "kade-karr",
+    "name": "Kade Karr",
+    "role": "Competitor",
+    "pronouns": "he/him",
+    "location": "shop-floor",
+    "note": "An up-and-coming engineer trying to impress Zara with his work.",
+    "group": false,
+    "count": null,
+    "from": "author",
+    "born": 0,
+    "mentions": 0,
+    "lastMention": null,
+    "promote": false,
+    "tries": 0
+   }
+  },
+  "standees": {
+   "locals": {
+    "id": "locals",
+    "label": "Locals",
+    "count": 10,
+    "location": "shop-floor",
+    "state": "calm",
+    "faction": null,
+    "post": null,
+    "patrol": null,
+    "patrolHours": 0,
+    "note": "A group of regulars stopping by to see what Zara is working on."
+   },
+   "rival-droids": {
+    "id": "rival-droids",
+    "label": "Rival Droids",
+    "count": 3,
+    "location": "shop-floor",
+    "state": "calm",
+    "faction": null,
+    "post": null,
+    "patrol": null,
+    "patrolHours": 0,
+    "note": "Droids built by Zara's new rival, left behind after an argument."
+   }
+  },
+  "seenRooms": [
+   "back-room",
+   "shop-floor",
+   "office",
+   "apartment",
+   "front-entrance"
+  ],
+  "links": {},
+  "features": {},
+  "known": {
+   "kad-zantos": {
+    "loc": "office",
+    "turn": 0
+   },
+   "rella-vax": {
+    "loc": "shop-floor",
+    "turn": 0
+   },
+   "lek-korr": {
+    "loc": "shop-floor",
+    "turn": 0
+   },
+   "lor-zor": {
+    "loc": "back-room",
+    "turn": 0
+   },
+   "jax": {
+    "loc": "front-entrance",
+    "turn": 0
+   },
+   "tenn-voss": {
+    "loc": "front-entrance",
+    "turn": 0
+   },
+   "lina-nox": {
+    "loc": "office",
+    "turn": 0
+   },
+   "kade-karr": {
+    "loc": "shop-floor",
+    "turn": 0
+   },
+   "locals": {
+    "loc": "shop-floor",
+    "turn": 0
+   },
+   "rival-droids": {
+    "loc": "shop-floor",
+    "turn": 0
+   }
+  },
+  "canon": {},
+  "timeline": [],
+  "projection": true
+ },
+ "actions": [
+  {
+   "type": "turn",
+   "action": "Greet Lor",
+   "stepId": "moment",
+   "cutAt": null,
+   "rng": [
+    0.7131910228229109,
+    0.8098676558390385
+   ],
+   "calls": [
+    {
+     "kind": "worldbuild (timeline)",
+     "backend": "local",
+     "request": {
+      "system": "You are the simulation engine and narrator for an interactive, character-driven story.\n\n=== SETTING: The Long Dark ===\nA galaxy of old trade lanes and older grudges. The Core Worlds are rich and watched, the Outer Rim is lawless and dusty, and the Drift is where ships go to disappear. Hyperlanes join the sectors; a ship and fuel are worth more than most lives.\n\n=== RULES ===\n- The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. The player commands no faction.\n- The player controls only Zara Nox (id: zara-nox). Never decide Zara Nox's choices, words or feelings beyond what the player's action states.\n- Outcomes marked RESOLVED are final. Failures have real consequences. Injuries and deaths are permanent.\n- Characters act from their own personality, wants, needs, secrets and feelings, not to serve the player.\n- Tell the story impartially. Do not flatter, protect or favour Zara Nox: people judge them by what they do, plans can fail, luck does not bend their way, and the world's dangers reach them as they would anyone.\n\n=== LOCATIONS ===\n- back-room: Back Room — A cramped workspace filled with tools, half-finished droid parts, and scorch marks on the walls from welding. (connects: shop-floor)\n- shop-floor: Shop Floor — A large, open area with a counter at the front, several workbenches, and a droid being worked on in the center. (connects: back-room, office, front-entrance)\n- office: Office — A small, cluttered room with a desk, chair, and a terminal displaying inventory and client information. (connects: shop-floor, apartment)\n- apartment: Apartment — A modest living space with a bed, kitchenette, and a window overlooking the shop below. (connects: office)\n- front-entrance: Front Entrance — A small, covered porch with a sign reading 'Nox Droid Engineering' and a door leading inside. (connects: shop-floor)\n\n=== REGIONS ===\n- rim: The Outer Rim, a sector — Desert worlds, smugglers and the law a long way off.\n- tessk: Tessk, a planet in The Outer Rim — Two suns, one well, and everyone armed. (neighbours: morrow)\n- tessk-crossing: Tessk Crossing, a city in Tessk (neighbours: saltpan)\n- saltpan: Saltpan Flats, a city in Tessk (neighbours: tessk-crossing)\n- morrow: Morrow, a planet in The Outer Rim — A cold port world where crews sign on. (neighbours: tessk)\n- kade: Kade's Reach, a planet in The Outer Rim — A mining belt with one station worth the name.\nFurther away: The Core Worlds, The Drift, Greywater, Morrow Port, Kade Station, Aurel, Aurel City, Glasshold, Hask, Hask Breaker Yard, Ilion, Ilion Reach, Lowmarket, Sola Camp, Sola Minor, Spire Vaults, The Throne Spire, Umber, Umber Deep, Vass Docks, Vass Prime.\n\n=== CAST ===\n- zara-nox (PLAYER): Zara Nox (she/her), Droid Engineer, 30. Traits: Independent, Resourceful, Keen-eyed. Voice: She speaks in a calm, measured tone, with a slight mechanical lilt\n- kad-zantos: Kad Zantos (she/her), Client, 40. Traits: Tough, Savvy, Guarded. Wants: To track down an old rival and settle a score.. Voice: She speaks in a low, measured tone, carefully choosing her words.\n- rella-vax: Rella Vax (she/her), Nox's Neighbour, 40. Traits: Curious, Nosy, Talkative. Wants: To be the first to know everything that happens in Tessk Crossing. Voice: She speaks in a rapid, excitable tone, rarely pausing for breath.\n- lek-korr: Lek Korr (she/her), Local Mechanic, 40. Traits: Friendly, Competitive, Tinkerer. Wants: To be recognized as the best mechanic in Tessk Crossing. Voice: She speaks with a warm, enthusiastic tone, always ready to chat about engines or droids\n- lor-zor: Lor Zor (she/her), Security Droid, 40. Traits: Rusty, Glitchy, Vigilant. Wants: To protect the shop, even if it means breaking a few rules. Voice: She speaks in a robotic monotone, occasionally stuttering or repeating phrases\n- jax: Jax (she/her), Street Urchin, 10. Traits: Quick-fingered, Street-smart, Tiny. Wants: To find a way off Tessk and start a new life. Voice: Softly, with a hint of a rasp\n\n=== PLACES FOUND DURING THE STORY ===\n- engineer-workshop-and-fl: Engineer workshop and flat. in Tessk Crossing — Engineer workshop and flat. is a small, recently-established droid engineering workshop on the outskirts of Tessk Crossing. It's owned by a newcomer to the city, known only as 'Nox', who is rumored to be highly skilled but keeps to themselves. The workshop is said to be well-equipped, but there are few customers yet, as Nox is still building their reputation in the city.\n\n=== ESTABLISHED FACTS (known to the player) ===\n- [T0] Tessk Crossing is a bustling city on the planet Tessk, known for its lawlessness and the constant hustle of its residents.\n- [T0] As a newcomer, you're still trying to establish your reputation as a skilled droid engineer.\n- [T0] Your back room is where you do your most intricate work, away from prying eyes.",
+      "user": "=== PLANNING AHEAD: Day 1, 09:00 ===\nWorld: nothing notable\nPressures: New Rival 0/8\nRegion: Engineer workshop and flat. (engineer-workshop-and-fl): held by no one\nInside: Tessk Crossing, a city (tessk-crossing): held by no one › Tessk, a planet (tessk): held by no one › The Outer Rim, a sector (rim): held by no one\n\n=== THE TIMELINE SO FAR ===\n(nothing yet)\nAim for about one event a day.\n\n=== TASK ===\nPlan what is most likely to happen in this world over the next 3 days, between Day 1, 10:00 and Day 4, 09:00: things everyone expects (a delivery, an exam, a holiday or festival, a meeting, a scheduled broadcast) or the likely next developments of the situation, spaced like the timeline above. Write 1 to 3 events.\n- Public things only: never anyone's secret.\n- Nothing about Zara Nox's own choices, and nothing that decides how the story turns out.\n- Modest and plausible: these happen only if the story hasn't changed things.\n- \"when\" is {\"day\": number, \"hour\": 0-23}. \"scope\": \"regional\" (nearby) or \"world\" (far away, broad). \"region\": one of core, rim, drift, aurel, aurel-city, throne-spire, spire-vaults, lowmarket, vass, vass-docks, glasshold, ilion, ilion-reach, tessk, tessk-crossing, saltpan, morrow, morrow-port, greywater, kade, kade-station, umber, umber-deep, sola, sola-camp, hask, hask-yard, ghost-relay, engineer-workshop-and-fl, or null for a world event.\n- \"effects\" only if the event clearly changes something: {\"world\":[{\"key\":\"world_key\",\"value\":\"new status\"}],\"groups\":[{\"id\":\"group_id\",\"stance\":\"new stance\"}],\"clocks\":[{\"id\":\"clock_id\",\"delta\":2}],\"new_clock\":null,\"control\":[{\"region\":\"region_id\",\"to\":\"group_id or null\"}],\"add_tag\":[{\"region\":\"region_id\",\"tag\":\"short tag\"}],\"remove_tag\":[{\"region\":\"region_id\",\"tag\":\"existing tag\"}],\"region_status\":[{\"region\":\"region_id\",\"status\":\"new status\"}],\"reveal\":[{\"region\":\"hidden_region_id\"}],\"new_site\":null}, with existing ids only (world keys: ; groups: none; clocks: new-rival; regions: core, rim, drift, aurel, aurel-city, throne-spire, spire-vaults, lowmarket, vass, vass-docks, glasshold, ilion, ilion-reach, tessk, tessk-crossing, saltpan, morrow, morrow-port, greywater, kade, kade-station, umber, umber-deep, sola, sola-camp, hask, hask-yard, engineer-workshop-and-fl); otherwise null.\nReply with JSON only:\n{\"events\":[{\"when\":{\"day\":2,\"hour\":9},\"scope\":\"regional\",\"region\":\"region_id\",\"text\":\"one sentence\",\"visibility\":\"heard\",\"effects\":null}]}",
+      "max_tokens": 520,
+      "temperature": 0.8
+     },
+     "response": {
+      "text": "{\"events\":[{\"when\":{\"day\":1,\"hour\":12},\"scope\":\"regional\",\"region\":\"tessk-crossing\",\"text\":\"A delivery of rare droid parts arrives from Morrow Port, causing a temporary traffic jam near the spaceport.\",\"visibility\":\"heard\",\"effects\":null},{\"when\":{\"day\":2,\"hour\":9},\"scope\":\"regional\",\"region\":\"tessk-crossing\",\"text\":\"Rella Vax hosts her weekly neighborhood gathering, inviting locals to share gossip and complaints.\",\"visibility\":\"heard\",\"effects\":null},{\"when\":{\"day\":3,\"hour\":14},\"scope\":\"regional\",\"region\":\"tessk-crossing\",\"text\":\"A sandstorm is predicted to hit Tessk Crossing, forcing most businesses to close early.\",\"visibility\":\"heard\",\"effects\":null}]}",
+      "finish": "stop",
+      "usage": {
+       "prompt_tokens": 2090,
+       "completion_tokens": 180,
+       "total_tokens": 2270
+      }
+     }
+    },
+    {
+     "kind": "intent",
+     "backend": "local",
+     "request": {
+      "system": "You are the simulation engine and narrator for an interactive, character-driven story.\n\n=== SETTING: The Long Dark ===\nA galaxy of old trade lanes and older grudges. The Core Worlds are rich and watched, the Outer Rim is lawless and dusty, and the Drift is where ships go to disappear. Hyperlanes join the sectors; a ship and fuel are worth more than most lives.\n\n=== RULES ===\n- The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. The player commands no faction.\n- The player controls only Zara Nox (id: zara-nox). Never decide Zara Nox's choices, words or feelings beyond what the player's action states.\n- Outcomes marked RESOLVED are final. Failures have real consequences. Injuries and deaths are permanent.\n- Characters act from their own personality, wants, needs, secrets and feelings, not to serve the player.\n- Tell the story impartially. Do not flatter, protect or favour Zara Nox: people judge them by what they do, plans can fail, luck does not bend their way, and the world's dangers reach them as they would anyone.\n\n=== LOCATIONS ===\n- back-room: Back Room — A cramped workspace filled with tools, half-finished droid parts, and scorch marks on the walls from welding. (connects: shop-floor)\n- shop-floor: Shop Floor — A large, open area with a counter at the front, several workbenches, and a droid being worked on in the center. (connects: back-room, office, front-entrance)\n- office: Office — A small, cluttered room with a desk, chair, and a terminal displaying inventory and client information. (connects: shop-floor, apartment)\n- apartment: Apartment — A modest living space with a bed, kitchenette, and a window overlooking the shop below. (connects: office)\n- front-entrance: Front Entrance — A small, covered porch with a sign reading 'Nox Droid Engineering' and a door leading inside. (connects: shop-floor)\n\n=== REGIONS ===\n- rim: The Outer Rim, a sector — Desert worlds, smugglers and the law a long way off.\n- tessk: Tessk, a planet in The Outer Rim — Two suns, one well, and everyone armed. (neighbours: morrow)\n- tessk-crossing: Tessk Crossing, a city in Tessk (neighbours: saltpan)\n- saltpan: Saltpan Flats, a city in Tessk (neighbours: tessk-crossing)\n- morrow: Morrow, a planet in The Outer Rim — A cold port world where crews sign on. (neighbours: tessk)\n- kade: Kade's Reach, a planet in The Outer Rim — A mining belt with one station worth the name.\nFurther away: The Core Worlds, The Drift, Greywater, Morrow Port, Kade Station, Aurel, Aurel City, Glasshold, Hask, Hask Breaker Yard, Ilion, Ilion Reach, Lowmarket, Sola Camp, Sola Minor, Spire Vaults, The Throne Spire, Umber, Umber Deep, Vass Docks, Vass Prime.\n\n=== CAST ===\n- zara-nox (PLAYER): Zara Nox (she/her), Droid Engineer, 30. Traits: Independent, Resourceful, Keen-eyed. Voice: She speaks in a calm, measured tone, with a slight mechanical lilt\n- kad-zantos: Kad Zantos (she/her), Client, 40. Traits: Tough, Savvy, Guarded. Wants: To track down an old rival and settle a score.. Voice: She speaks in a low, measured tone, carefully choosing her words.\n- rella-vax: Rella Vax (she/her), Nox's Neighbour, 40. Traits: Curious, Nosy, Talkative. Wants: To be the first to know everything that happens in Tessk Crossing. Voice: She speaks in a rapid, excitable tone, rarely pausing for breath.\n- lek-korr: Lek Korr (she/her), Local Mechanic, 40. Traits: Friendly, Competitive, Tinkerer. Wants: To be recognized as the best mechanic in Tessk Crossing. Voice: She speaks with a warm, enthusiastic tone, always ready to chat about engines or droids\n- lor-zor: Lor Zor (she/her), Security Droid, 40. Traits: Rusty, Glitchy, Vigilant. Wants: To protect the shop, even if it means breaking a few rules. Voice: She speaks in a robotic monotone, occasionally stuttering or repeating phrases\n- jax: Jax (she/her), Street Urchin, 10. Traits: Quick-fingered, Street-smart, Tiny. Wants: To find a way off Tessk and start a new life. Voice: Softly, with a hint of a rasp\n\n=== PLACES FOUND DURING THE STORY ===\n- engineer-workshop-and-fl: Engineer workshop and flat. in Tessk Crossing — Engineer workshop and flat. is a small, recently-established droid engineering workshop on the outskirts of Tessk Crossing. It's owned by a newcomer to the city, known only as 'Nox', who is rumored to be highly skilled but keeps to themselves. The workshop is said to be well-equipped, but there are few customers yet, as Nox is still building their reputation in the city.\n\n=== ESTABLISHED FACTS (known to the player) ===\n- [T0] Tessk Crossing is a bustling city on the planet Tessk, known for its lawlessness and the constant hustle of its residents.\n- [T0] As a newcomer, you're still trying to establish your reputation as a skilled droid engineer.\n- [T0] Your back room is where you do your most intricate work, away from prying eyes.",
+      "user": "=== NOW: Day 1, 09:00 ===\nZara Nox is in Back Room.\nWorld: nothing notable\nPressures: New Rival 0/8\nRegion: Engineer workshop and flat. (engineer-workshop-and-fl): held by no one\nInside: Tessk Crossing, a city (tessk-crossing): held by no one › Tessk, a planet (tessk): held by no one › The Outer Rim, a sector (rim): held by no one\nPresent with Zara Nox: Lor Zor\nElsewhere: Kad Zantos (Office), Rella Vax (Shop Floor), Lek Korr (Shop Floor), Jax (Front Entrance)\n\n=== STATUS ===\n- Zara Nox (she/her) [zara-nox]: health unhurt; feels toward: Lor Zor neutral (0)\n- Lor Zor (she/her) [lor-zor]: health unhurt; feels toward Zara Nox: neutral (0)\n\n=== PLACES ===\nNo other places yet beyond these rooms.\nIf the player's action clearly heads somewhere that is none of these rooms (another building, a part of town, a hideout), set \"new_place\" to {\"name\":\"the place in the player's own words (like \"the chop shop\")\",\"kind\":\"what kind of place\",\"region\":\"region id\"} and leave move_to null; for a place listed above, use its name. The engine decides whether to build it.\nIf it heads somewhere bigger that isn't one of the regions (another town, a district, a planet), set \"new_region\" to {\"name\":\"in the player's own words\",\"label\":\"what kind of region (town, district, planet)\",\"parent\":\"the region id it is inside, or null\"} instead. The engine decides whether to add it.\n\n=== PRIVATE (each item is known ONLY to the character named) ===\n- Lor Zor's secret: She was reprogrammed to protect a valuable artifact hidden in the shop, but her memory banks are deteriorating and she can't remember what it is or where it's hidden (guard: medium; holds up unless stressed or trusting)\n- Lor Zor knows: She's heard rumors that Nox is hiding something valuable in the workshop, but she can't remember what it is.\n\n=== HIDDEN PLACES (the player doesn't know of them: never name one in public text unless the story makes it known; to make one known, add effects \"reveal\") ===\n- ghost-relay: The Ghost Relay (in The Drift) — A dead relay station still broadcasting an old distress call.\n\n=== MINOR PEOPLE (no intents; they can be in events, \"who\" by id) ===\n- elsewhere: tenn-voss (Tenn Voss, Front Entrance); jix (Jix, no particular place); lina-nox (Lina Nox, Office); kade-karr (Kade Karr, Shop Floor)\n\n=== UNNAMED GROUPS (people as one entity: one intent per group, never per person) ===\n- elsewhere: locals (Locals, 10, calm, Shop Floor); rival-droids (Rival Droids, 3, calm, Shop Floor)\n\n=== BACKGROUND (not with the player; one line each; for events only) ===\n- kad-zantos (Kad Zantos, Client), in Office; wants: To track down an old rival and settle a score.\n- rella-vax (Rella Vax, Nox's Neighbour), in Shop Floor; wants: To be the first to know everything that happens in Tessk…\n- lek-korr (Lek Korr, Local Mechanic), in Shop Floor; wants: To be recognized as the best mechanic in Tessk Crossing\n- jax (Jax, Street Urchin), in Front Entrance; wants: To find a way off Tessk and start a new life\n\n=== LAST SCENE ===\nThe morning sun creeps through the grimy window of your back room, illuminating the cluttered workspace. The air is thick with the smell of metal and oil. You survey the half-finished droid parts strewn about, trying to recall where you left off the night before. A rusty security droid, Lor Zor, stands sentinel by the door, its optical sensors scanning the room.\n\n=== PLAYER ACTION (time passing: a few minutes) ===\n\"Greet Lor\"\nThe player's action takes up this whole span. Others act during the same span.\n\n=== TASK ===\n1. Judge the player's action. If it is risky, contested or depends on skill, set needs_roll to true and choose a skill (one of: physical, technical, social, knowledge, stealth) and a difficulty (easy, normal, hard). Talking, looking around and simple tasks need no roll. Everyone listed as present is in the same room as Zara Nox right now, so an action about them needs no move. Only if the action clearly takes Zara Nox somewhere else, set move_to to that location id (or to a character id to go where that character is).\n2. You MUST give exactly one intent for EACH present character: lor-zor. Decide what each actually tries to do during this time, driven by their personality, wants, needs, secrets and feelings. They may help, argue, refuse, lie, deflect, pursue their own goals, or leave (move_to). Set visible to false if they act covertly so the player would not notice.\n3. \"says\": the gist of anything they say aloud this turn (or null).\n4. \"reveals\": almost always null. Only fill it if the character deliberately says their secret or private knowledge out loud this turn, and that matches their \"says\". Being asked once, or being nervous, is not enough: people deflect, make excuses or lie first.\n5. \"events\": things that happen during this span outside the player's control, to keep the world moving: offstage characters pursuing their wants and secrets, groups making moves that affect the people here, someone arriving, a call or message, something breaking down, the pressures above getting closer. How many: Usually none for a few minutes; at most 1, only if something is already about to happen. Each event has:\n   - \"text\": one sentence, with names.\n   - \"who\": character ids involved (not the player).\n   - \"where\": location id where it happens.\n   - \"visibility\": \"seen\" (happens in the player's room), \"heard\" (the player gets a sound, call or message about it) or \"hidden\" (the player has no idea).\n   - \"moves\": [{\"id\":\"character_id\",\"to\":\"location_id\"}] for offstage characters who go somewhere because of it, else [].\n   - \"scope\": \"local\" for these.\n   No regional or world events this turn; keep events local.\nReply with JSON only, exactly in this shape:\n{\"player\":{\"summary\":\"the player's action restated as a concrete attempt\",\"needs_roll\":false,\"skill\":null,\"difficulty\":\"normal\",\"move_to\":null,\"new_place\":null,\"new_region\":null},\n \"intents\":[\n  {\"id\":\"lor-zor\",\"action\":\"one sentence\",\"says\":null,\"reveals\":null,\"visible\":true,\"needs_roll\":false,\"skill\":null,\"difficulty\":\"normal\",\"move_to\":null}\n ],\n \"events\":[{\"text\":\"one sentence\",\"scope\":\"local\",\"who\":[\"character_id\"],\"where\":\"location_id\",\"visibility\":\"heard\",\"moves\":[]}]}",
+      "max_tokens": 410,
+      "temperature": 0.7
+     },
+     "response": {
+      "text": "{\"player\":{\"summary\":\"Greet Lor\",\"needs_roll\":false,\"skill\":null,\"difficulty\":\"normal\",\"move_to\":null,\"new_place\":null,\"new_region\":null},\n \"intents\":[{\"id\":\"lor-zor\",\"action\":\"Awaits further instructions\",\"says\":\"Greetings, Nox. How may I assist you today?\",\"reveals\":null,\"visible\":true,\"needs_roll\":false,\"skill\":null,\"difficulty\":\"normal\",\"move_to\":null}],\n \"events\":[]}",
+      "finish": "stop",
+      "usage": {
+       "prompt_tokens": 2990,
+       "completion_tokens": 116,
+       "total_tokens": 3106
+      }
+     }
+    },
+    {
+     "kind": "narrate",
+     "backend": "local",
+     "request": {
+      "system": "You are the simulation engine and narrator for an interactive, character-driven story.\n\n=== SETTING: The Long Dark ===\nA galaxy of old trade lanes and older grudges. The Core Worlds are rich and watched, the Outer Rim is lawless and dusty, and the Drift is where ships go to disappear. Hyperlanes join the sectors; a ship and fuel are worth more than most lives.\n\n=== RULES ===\n- The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. The player commands no faction.\n- The player controls only Zara Nox (id: zara-nox). Never decide Zara Nox's choices, words or feelings beyond what the player's action states.\n- Outcomes marked RESOLVED are final. Failures have real consequences. Injuries and deaths are permanent.\n- Characters act from their own personality, wants, needs, secrets and feelings, not to serve the player.\n- Tell the story impartially. Do not flatter, protect or favour Zara Nox: people judge them by what they do, plans can fail, luck does not bend their way, and the world's dangers reach them as they would anyone.\n\n=== LOCATIONS ===\n- back-room: Back Room — A cramped workspace filled with tools, half-finished droid parts, and scorch marks on the walls from welding. (connects: shop-floor)\n- shop-floor: Shop Floor — A large, open area with a counter at the front, several workbenches, and a droid being worked on in the center. (connects: back-room, office, front-entrance)\n- office: Office — A small, cluttered room with a desk, chair, and a terminal displaying inventory and client information. (connects: shop-floor, apartment)\n- apartment: Apartment — A modest living space with a bed, kitchenette, and a window overlooking the shop below. (connects: office)\n- front-entrance: Front Entrance — A small, covered porch with a sign reading 'Nox Droid Engineering' and a door leading inside. (connects: shop-floor)\n\n=== REGIONS ===\n- rim: The Outer Rim, a sector — Desert worlds, smugglers and the law a long way off.\n- tessk: Tessk, a planet in The Outer Rim — Two suns, one well, and everyone armed. (neighbours: morrow)\n- tessk-crossing: Tessk Crossing, a city in Tessk (neighbours: saltpan)\n- saltpan: Saltpan Flats, a city in Tessk (neighbours: tessk-crossing)\n- morrow: Morrow, a planet in The Outer Rim — A cold port world where crews sign on. (neighbours: tessk)\n- kade: Kade's Reach, a planet in The Outer Rim — A mining belt with one station worth the name.\nFurther away: The Core Worlds, The Drift, Greywater, Morrow Port, Kade Station, Aurel, Aurel City, Glasshold, Hask, Hask Breaker Yard, Ilion, Ilion Reach, Lowmarket, Sola Camp, Sola Minor, Spire Vaults, The Throne Spire, Umber, Umber Deep, Vass Docks, Vass Prime.\n\n=== CAST ===\n- zara-nox (PLAYER): Zara Nox (she/her), Droid Engineer, 30. Traits: Independent, Resourceful, Keen-eyed. Voice: She speaks in a calm, measured tone, with a slight mechanical lilt\n- kad-zantos: Kad Zantos (she/her), Client, 40. Traits: Tough, Savvy, Guarded. Wants: To track down an old rival and settle a score.. Voice: She speaks in a low, measured tone, carefully choosing her words.\n- rella-vax: Rella Vax (she/her), Nox's Neighbour, 40. Traits: Curious, Nosy, Talkative. Wants: To be the first to know everything that happens in Tessk Crossing. Voice: She speaks in a rapid, excitable tone, rarely pausing for breath.\n- lek-korr: Lek Korr (she/her), Local Mechanic, 40. Traits: Friendly, Competitive, Tinkerer. Wants: To be recognized as the best mechanic in Tessk Crossing. Voice: She speaks with a warm, enthusiastic tone, always ready to chat about engines or droids\n- lor-zor: Lor Zor (she/her), Security Droid, 40. Traits: Rusty, Glitchy, Vigilant. Wants: To protect the shop, even if it means breaking a few rules. Voice: She speaks in a robotic monotone, occasionally stuttering or repeating phrases\n- jax: Jax (she/her), Street Urchin, 10. Traits: Quick-fingered, Street-smart, Tiny. Wants: To find a way off Tessk and start a new life. Voice: Softly, with a hint of a rasp\n\n=== PLACES FOUND DURING THE STORY ===\n- engineer-workshop-and-fl: Engineer workshop and flat. in Tessk Crossing — Engineer workshop and flat. is a small, recently-established droid engineering workshop on the outskirts of Tessk Crossing. It's owned by a newcomer to the city, known only as 'Nox', who is rumored to be highly skilled but keeps to themselves. The workshop is said to be well-equipped, but there are few customers yet, as Nox is still building their reputation in the city.\n\n=== ESTABLISHED FACTS (known to the player) ===\n- [T0] Tessk Crossing is a bustling city on the planet Tessk, known for its lawlessness and the constant hustle of its residents.\n- [T0] As a newcomer, you're still trying to establish your reputation as a skilled droid engineer.\n- [T0] Your back room is where you do your most intricate work, away from prying eyes.",
+      "user": "=== SCENE FRAME ===\nStarts: Day 1, 09:00, in Back Room, with Lor Zor.\nEnds: Day 1, 09:15, Zara Nox still in Back Room.\nWorld: nothing notable\nPressures: New Rival 0/8\nRegion: Engineer workshop and flat. (engineer-workshop-and-fl): held by no one\nInside: Tessk Crossing, a city (tessk-crossing): held by no one › Tessk, a planet (tessk): held by no one › The Outer Rim, a sector (rim): held by no one\n\n=== STATUS ===\n- Zara Nox (she/her): health unhurt; looks: Zara is a cybernetically-enhanced human, with glowing green eyes and visible metal plating on her left arm and leg; feels toward: Lor Zor neutral (0)\n- Lor Zor (she/her): health unhurt; looks: Her once-polished metal frame is now scratched and dented, with rust forming on her joints\n\n=== LAST SCENE ===\nThe morning sun creeps through the grimy window of your back room, illuminating the cluttered workspace. The air is thick with the smell of metal and oil. You survey the half-finished droid parts strewn about, trying to recall where you left off the night before. A rusty security droid, Lor Zor, stands sentinel by the door, its optical sensors scanning the room.\n\n=== PLAYER ACTION (time span: a few minutes) ===\n\"Greet Lor\"\n\n=== RESOLVED (final — narrate these faithfully) ===\n- You (Zara Nox): Greet Lor → happens (no roll needed)\n- Lor Zor: Awaits further instructions → happens (no roll needed)\n    says (gist): Greetings, Nox. How may I assist you today?\n\n=== TASK ===\nWrite the next scene in second person, present tense (\"you\" is Zara Nox): 2 or 3 short paragraphs in all, each 2 to 4 sentences (60–120 words). Bring the characters to life through dialogue and small actions in their own voices.\nTime: This covers only a few minutes. Play out the stated action beat by beat. Add nothing else for the player character beyond small gestures and a line of dialogue.\nBeats: 1 beat: [+0m]. Start each beat on its own line with a time marker in brackets: minutes since the scene started, like [+0m], [+25m], [+50m] (use hours for long spans, like [+5h]). The last marker is at most [+15m]. End each beat on something the player could react to, since the player may step in between beats.\nStructure:\n1. The scene is set in Back Room. Open with Zara Nox's action, carried out in the first paragraph.\n2. Then show how the others react to it and what they do, in the order that makes sense.\n3. End on the others' latest move: a reply, a look, a question or a new problem the player can respond to. The final paragraph must NEVER be Zara Nox's own line or action; leave Zara Nox's response open for the player.\nHard rules:\n- Narrate ONLY the resolved outcomes above, faithfully. Failures should cost something.\n- Play Zara Nox naturally, in character (voice: She speaks in a calm, measured tone, with a slight mechanical lilt). If the action is vague, fill it in the way Zara Nox would: small gestures, a line or two of dialogue, how they go about it.\n- Do not make big choices for Zara Nox: no agreeing to plans, making promises, starting new tasks, revealing what Zara Nox knows beyond the action, or deciding what to do next. When a real choice comes up, stop there and leave it to the player.\n- Zara Nox never leaves Back Room. Do not take Zara Nox anywhere else.\n- Only the characters in the frame appear. Anyone \"out of your sight\" is NOT seen doing it; at most a sound or a hint.\n- Characters may leave or arrive when it fits the outcomes and events; anyone who leaves is seen leaving, not followed.\n- EVENTs tagged [regional] or [world] reach the scene the way they realistically would (a tremor, an alarm, a message or news report), and the present characters react to them in character.\n- Use each character's pronouns exactly as given in STATUS (e.g. he/him means \"he\", never \"they\").\n- Characters reveal only what is listed under REVEALS. Anything else they keep to themselves: they deflect, stall, joke or lie.\n- Do not invent new events, confessions or discoveries.\n- Stop at the end of these outcomes, on a moment that invites the player's response. Do not continue past it.\nReply with the scene text only.",
+      "max_tokens": 352,
+      "temperature": 0.8
+     },
+     "response": {
+      "text": "[+0m] You turn to face Lor Zor, your cybernetic enhancements whirring softly. \"Morning, Lor,\" you greet her, your voice a calm, measured tone with a slight mechanical lilt.\n\nLor Zor's optical sensors flicker to life, focusing on you. Her once-polished metal frame is now scratched and dented, with rust forming on her joints. \"Greetings, Nox,\" she responds in her robotic monotone. \"How may I assist you today?\"\n\nYou glance around the cluttered back room, taking in the half-finished droid parts strewn about. \"I need to get back to work on that B1 unit. Make sure no one interrupts me, would you?\"\n\nLor Zor nods, her head making a soft clicking sound. \"As you wish, Nox. I will ensure your work is not disturbed.\" She turns back to face the door, her optical sensors scanning the room vigilantly.",
+      "finish": "stop",
+      "usage": {
+       "prompt_tokens": 2422,
+       "completion_tokens": 203,
+       "total_tokens": 2625
+      }
+     }
+    }
+   ]
+  }
+ ]
+}

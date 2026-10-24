@@ -641,3 +641,17 @@ dialog { max-height: 90dvh; overflow-y: auto; }
 
 /* generated sites (task 4-4) */
 .map-routes { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; font-size: 0.8125rem; color: var(--muted); }
+
+/* Where to start in a big world (R-7) */
+.gen-where .gen-chosen { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.375rem; }
+.gen-where input[type="search"] { width: 100%; }
+.gen-results { display: flex; flex-wrap: wrap; gap: 0.25rem; margin: 0.25rem 0; }
+.gen-views { display: flex; gap: 0.25rem; margin: 0.375rem 0; }
+.gen-views button[aria-pressed="true"], .gen-pick[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.gen-tree, .gen-tree ul { list-style: none; margin: 0; padding-left: 1rem; }
+.gen-tree { padding-left: 0; max-height: 18rem; overflow-y: auto; }
+.gen-tree li { margin: 0.125rem 0; }
+.gen-tree summary { cursor: pointer; }
+.gen-pick { font-size: 0.8125rem; padding: 0.125rem 0.5rem; }
+.gen-closed { font-size: 0.8125rem; }
+#genMap .world-svg { max-height: 22rem; }

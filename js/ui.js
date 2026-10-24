@@ -312,6 +312,67 @@
     $('genDialog').showModal();
   }
 
+  // ---------- where to start (R-7) ----------
+  // A few places to start (12 or fewer): the plain list, as before. A big
+  // world: search by name, a tree, the zooming map, and Surprise me.
+  // Only startable regions can be picked; hidden ones never show.
+  const GEN_LIST_MAX = 12;
+  const regionChainText = (w, id) => S().regionChainIn(w.regions, id).slice(1).map((x) => (w.regions.find((r) => r.id === x) || {}).name).filter(Boolean).join(' › ');
+  const S = () => E.Scenario;
+  function genWhereHtml(w, regions) {
+    const all = (w.regions || []).filter((r) => r && r.id);
+    if (regions.length <= GEN_LIST_MAX) {
+      return `<fieldset class="mk-choices"><legend>Where</legend>${regions.map((r) => `<label class="mk-option"><input type="radio" name="gen-region" value="${esc(r.id)}"${gen.region === r.id ? ' checked' : ''}> <span><b>${esc(r.name)}</b>${r.lore ? ` <span class="muted">${esc(r.lore)}</span>` : ''}</span></label>`).join('')}</fieldset>`;
+    }
+    const ok = new Set(regions.map((r) => r.id));
+    const hidden = new Set(all.filter((r) => S().regionChainIn(all, r.id).some((x) => (all.find((y) => y.id === x) || {}).known === false)).map((r) => r.id));
+    const chosen = all.find((r) => r.id === gen.region);
+    const view = gen.whereView || 'tree';
+    let html = `<fieldset class="mk-choices gen-where"><legend>Where</legend>
+      <div class="gen-chosen" id="genChosen">${chosen ? `Starting in <b>${esc(chosen.name)}</b>${regionChainText(w, chosen.id) ? ` <span class="muted">in ${esc(regionChainText(w, chosen.id))}</span>` : ''}` : 'Pick where to start.'} <button type="button" id="genSurprise" class="small">🎲 Surprise me</button></div>
+      <input type="search" id="genSearch" placeholder="Search places by name" aria-label="Search places by name" value="${esc(gen.search || '')}">
+      <div id="genResults" class="gen-results">${genResultsHtml(w, regions)}</div>
+      <div class="gen-views" role="group" aria-label="Browse places"><button type="button" class="small" data-genview="tree" aria-pressed="${view === 'tree'}">List</button><button type="button" class="small" data-genview="map" aria-pressed="${view === 'map'}">Map</button></div>`;
+    if (view === 'map') html += genMapHtml(w, ok, hidden);
+    else {
+      const branch = (parent, depth) => S().regionChildrenIn(all, parent).filter((id) => !hidden.has(id)).map((id) => {
+        const r = all.find((x) => x.id === id);
+        const kids = S().regionChildrenIn(all, id).filter((x) => !hidden.has(x));
+        const row = ok.has(id) ? `<button type="button" class="gen-pick" data-genpick="${esc(id)}" aria-pressed="${gen.region === id}">${esc(r.name)}</button>` : `<span class="muted gen-closed" title="Not a place to start">${esc(r.name)}</span>`;
+        const open = depth === 0 || (chosen && S().regionChainIn(all, chosen.id).includes(id));
+        return kids.length ? `<li><details${open ? ' open' : ''}><summary>${row}</summary><ul>${branch(id, depth + 1)}</ul></details></li>` : `<li>${row}</li>`;
+      }).join('');
+      html += `<ul class="gen-tree" id="genTree">${branch(null, 0)}</ul>`;
+    }
+    // Where exactly (R-7): the place the rooms are made as, inside the region picked.
+    html += `<label>Where exactly <span class="muted small">(optional; inside the place picked above)</span><input type="text" id="genPlace" maxlength="60" value="${esc(gen.place || '')}" placeholder="a moisture farm outside the city"></label>`;
+    return html + '</fieldset>';
+  }
+  function genResultsHtml(w, regions) {
+    const q = String(gen.search || '').trim().toLowerCase();
+    if (!q) return '';
+    const hits = regions.filter((r) => r.name.toLowerCase().includes(q)).slice(0, 12);
+    return hits.length ? hits.map((r) => `<button type="button" class="gen-pick" data-genpick="${esc(r.id)}" aria-pressed="${gen.region === r.id}">${esc(r.name)}${regionChainText(w, r.id) ? ` <span class="muted">in ${esc(regionChainText(w, r.id))}</span>` : ''}</button>`).join('') : '<span class="muted small">No place to start by that name.</span>';
+  }
+  // The game's zooming map, inside the dialog: click a region with regions
+  // inside to zoom, a startable one to pick it.
+  function genMapHtml(w, ok, hidden) {
+    const sc = { regions: w.regions, map: w.map, worldId: gen.world.id };
+    const lv = E.MapDraw.level(sc, gen.mapLevel || null, { hidden });
+    const path = E.MapDraw.levelPath(sc, lv.id);
+    const crumbs = path.map((id, i) => `${i ? '<span class="sep" aria-hidden="true">›</span>' : ''}<button type="button" data-genlevel="${esc(id == null ? '' : id)}"${i === path.length - 1 ? ' aria-current="true"' : ''}>${esc(id == null ? gen.world.title : (w.regions.find((r) => r.id === id) || {}).name)}</button>`).join('');
+    const svg = E.MapDraw.worldSvg({
+      g: lv.g, regions: lv.regions, factions: w.factions || [], selected: gen.region, dim: lv.dim.concat(lv.regions.map((r) => r.id).filter((id) => !ok.has(id) && !E.MapDraw.hasLevel(sc, id, hidden))),
+      zoomable: lv.children.filter((id) => E.MapDraw.hasLevel(sc, id, hidden)), places: [], imageUrl: lv.picture && assetUrl(gen.world.folder, lv.picture.image),
+      viewBox: lv.viewBox, id: 'genMapSvg', view: lv.id == null ? 'root' : lv.id, label: 'Where to start',
+    });
+    return `<div class="map-bar"><nav class="map-crumbs" aria-label="Map levels">${crumbs}</nav></div><div id="genMap">${svg}</div>`;
+  }
+  function genPick(id) {
+    gen.region = id;
+    renderGen();
+  }
+
   function renderGen() {
     if (!gen) return;
     const w = gen.world.bundle.world;
@@ -323,9 +384,7 @@
         html += `<div class="gen-resume"><b>${GEN.done(saved) ? 'You have a finished start you haven\'t played.' : `You have an unfinished start (${n} of ${GEN.order(saved).length} steps done).`}</b> <button type="button" id="genResume" class="primary small">${GEN.done(saved) ? 'Open it' : 'Resume'}</button> <button type="button" id="genDiscard" class="small ghost">Discard</button></div>`;
       }
       const regions = GEN.regions(w);
-      if (regions.length) {
-        html += `<fieldset class="mk-choices"><legend>Where</legend>${regions.map((r) => `<label class="mk-option"><input type="radio" name="gen-region" value="${esc(r.id)}"${gen.region === r.id ? ' checked' : ''}> <span><b>${esc(r.name)}</b>${r.lore ? ` <span class="muted">${esc(r.lore)}</span>` : ''}</span></label>`).join('')}</fieldset>`;
-      }
+      if (regions.length) html += genWhereHtml(w, regions);
       const c = gen.character;
       html += '<fieldset class="mk-choices"><legend>You</legend>' +
         `<label class="mk-option"><input type="radio" name="gen-mode" value="form"${gen.mode === 'form' ? ' checked' : ''}> <span><b>Make a character</b> ${c ? `<span class="muted">${esc(c.name)}, ${esc(c.role)}</span> ` : ''}<button type="button" id="genMake" class="small">${c ? 'Edit' : 'Make one'}</button></span></label>` +
@@ -396,11 +455,25 @@
     }
     if (ev.target.id === 'genLine') { gen.line = ev.target.value; gen.mode = 'line'; ev.target.closest('.mk-option').querySelector('input[type=radio]').checked = true; }
     if (ev.target.id === 'genNote') gen.note = ev.target.value;
+    if (ev.target.id === 'genPlace') gen.place = ev.target.value;
+    // Search fills in the results without redrawing the box (keeps focus).
+    if (ev.target.id === 'genSearch') { gen.search = ev.target.value; $('genResults').innerHTML = genResultsHtml(gen.world.bundle.world, GEN.regions(gen.world.bundle.world)); }
   });
   $('genBody').addEventListener('click', (ev) => {
     if (!gen) return;
+    // The map in the picker (R-7): zoom into a region with regions inside, pick a startable one.
+    const reg = ev.target.closest && ev.target.closest('#genMap .region-g');
+    if (reg) {
+      if (reg.dataset.zoomable) { gen.mapLevel = reg.dataset.region; return renderGen(); }
+      if (GEN.regions(gen.world.bundle.world).some((r) => r.id === reg.dataset.region)) return genPick(reg.dataset.region);
+      return;
+    }
     const b = ev.target.closest('button');
     if (!b) return;
+    if (b.dataset.genpick) return genPick(b.dataset.genpick);
+    if (b.dataset.genview) { gen.whereView = b.dataset.genview; return renderGen(); }
+    if (b.dataset.genlevel != null) { gen.mapLevel = b.dataset.genlevel || null; return renderGen(); }
+    if (b.id === 'genSurprise') return genPick(GEN.surprise(gen.world.bundle.world));
     if (b.id === 'genMake') {
       gen.mode = 'form';
       const g = gen;
@@ -410,7 +483,7 @@
       });
     } else if (b.id === 'genGo') {
       try {
-        gen.job = GEN.newJob(gen.world, { region: gen.region, note: gen.note, character: gen.mode === 'form' ? gen.character : null, line: gen.mode === 'line' ? gen.line : '' });
+        gen.job = GEN.newJob(gen.world, { region: gen.region, note: gen.note, character: gen.mode === 'form' ? gen.character : null, line: gen.mode === 'line' ? gen.line : '', place: gen.place || '' });
       } catch (e) {
         gen.error = '';
         alert(e.message);

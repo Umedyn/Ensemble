@@ -713,6 +713,8 @@
     const r = tree(sc.regions).byId.get(id);
     if (!r) return null;
     if (typeof r.label === 'string' && r.label.trim()) return r.label;
+    // A region made during the story (R-6/R-7) was named for what it is; no borrowed word.
+    if (r.generated) return null;
     const labels = Array.isArray(sc.regionLabels) ? sc.regionLabels : [];
     return labels[S.regionChainIn(sc.regions, id).length - 1] || null;
   };

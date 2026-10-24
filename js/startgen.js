@@ -60,12 +60,32 @@
     return { location, roles: g.roles || [], freeform: true, skillPoints: g.skillPoints != null ? g.skillPoints : GEN.DEFAULTS.skillPoints, maxSkill: g.maxSkill != null ? g.maxSkill : GEN.DEFAULTS.maxSkill };
   };
   // Regions marked startable, or every region when none is.
+  // Where a generated start can begin (R-7): a region's own "startable"
+  // wins, else the nearest region it is inside that says; with nothing said
+  // in its chain, every region when the world marks none startable, else
+  // none. So startable: true takes in a whole branch and startable: false
+  // shuts one out. Never a hidden region (R-5), nor one inside it.
   GEN.regions = function (world) {
-    // Never a hidden region (R-5), nor one inside it.
-    const all = (world.regions || []).filter(isObj).filter((r) => !E.Scenario.regionChainIn(world.regions, r.id).some((x) => ((world.regions || []).find((y) => y.id === x) || {}).known === false));
-
-    const marked = all.filter((r) => r.startable === true);
-    return marked.length ? marked : all;
+    const list = (world.regions || []).filter(isObj);
+    const byId = new Map(list.map((r) => [r.id, r]));
+    const chain = (id) => E.Scenario.regionChainIn(list, id).map((x) => byId.get(x));
+    const anyMarked = list.some((r) => r.startable === true);
+    return list.filter((r) => {
+      const up = chain(r.id);
+      if (up.some((x) => x.known === false)) return false;
+      const said = up.find((x) => typeof x.startable === 'boolean');
+      return said ? said.startable : !anyMarked;
+    });
+  };
+  // "Surprise me" (R-7): a random startable region at the deepest level
+  // with detail, one with no startable region inside it. Engine dice, so
+  // tests can seed it.
+  GEN.surprise = function (world) {
+    const ok = GEN.regions(world);
+    if (!ok.length) return null;
+    const ids = new Set(ok.map((r) => r.id));
+    const leaves = ok.filter((r) => !ok.some((x) => x.id !== r.id && E.Scenario.regionChainIn(world.regions, x.id).includes(r.id) && ids.has(x.id)));
+    return leaves[Math.floor(E.rng() * leaves.length)].id;
   };
 
   // The world composed with an empty start in a region: the context every
@@ -109,8 +129,14 @@
     Object.values(b.characters || {}).forEach((c) => { if (c) { ids.add(c.id); if (c.name) names.add(c.name); } });
     // People only (not places), for spotting text about someone who isn't here.
     const people = [].concat(Object.values(b.characters || {}), w.extras || [], ...Object.values(b.starts || {}).map((s) => s.extras || [])).filter((c) => c && c.name).map((c) => c.name);
-    return { ids, names, people };
+    // Names from lore (R-7): its titles and keywords. Lore figures come into
+    // the story only by the player's action, never in a generated cast.
+    const lore = new Set([].concat(Array.isArray(w.lore) ? w.lore : [], ...Object.values(b.starts || {}).map((s) => (Array.isArray(s.lore) ? s.lore : [])))
+      .filter(isObj).flatMap((e) => [e.title].concat(Array.isArray(e.keywords) ? e.keywords : [])).map(norm).filter(Boolean));
+    return { ids, names, people, lore };
   };
+  // A planned name that is someone (or something) from the world's lore.
+  GEN.loreFigure = (ctx, name) => (ctx.taken.lore && ctx.taken.lore.has(norm(name)) ? name : null);
 
   // Words that name a person in text: the full name, and the surname when it
   // is 4+ letters (title case, whole word).
@@ -150,6 +176,18 @@
     return mentions(t, pc.name) || (first.length >= 3 && mentions(t, first));
   };
 
+  // ---------- where exactly (R-7) ----------
+  // The player may say where exactly they start ("a moisture farm outside
+  // Tessk Crossing"): the place the rooms step builds, inside the region
+  // they picked. Not a region of its own (playtest-r7-tessk-workshop:
+  // "Engineer workshop and flat." became a region, and the rooms step then
+  // built the workshop anyway).
+  GEN.cleanPlace = (t) => text(t, 60).replace(/[\s.,;:!]+$/, '');
+  GEN.placeProblem = function (loaded, place) {
+    const taken = (loaded.bundle.world.regions || []).find((r) => norm(r.name) === norm(place));
+    return taken ? `"${place}" is already on the map: pick it there` : null;
+  };
+
   // ---------- jobs ----------
   // opts: { region, note, character (a made character, 4-1) | line (a
   // description), onePass (the whole cast in one call; default: when the
@@ -160,9 +198,14 @@
     const region = o.region || (GEN.regions(loaded.bundle.world)[0] || {}).id || null;
     if ((loaded.bundle.world.regions || []).length && !GEN.regions(loaded.bundle.world).some((r) => r.id === region)) throw new Error(`You can't start in "${region}".`);
     if (!o.character && !text(o.line, 300)) throw new Error('Make a character, or describe one in a line.');
+    const place = GEN.cleanPlace(o.place);
+    if (place) {
+      const why = GEN.placeProblem(loaded, place);
+      if (why) throw new Error(why);
+    }
     return {
       v: 1, world: loaded.id, folder: loaded.folder, id: 'gen-' + Math.random().toString(36).slice(2, 8),
-      region, note: text(o.note, 400), line: o.character ? '' : text(o.line, 300),
+      region, note: text(o.note, 400), line: o.character ? '' : text(o.line, 300), place: place || '',
       onePass: o.onePass != null ? !!o.onePass : !E.LLM.backendFor('worldbuild').kobold,
       steps: o.character ? { player: { character: E.clone(o.character) } } : {},
       partial: {}, log: [], failed: null,
@@ -280,6 +323,7 @@
       const role = text(aged ? rawRole.slice(0, aged.index) : rawRole, 60);
       if (!name || !role) return { error: 'every planned person needs a "name" and a "role"' };
       if (ctx.taken.names.has(name) || (pc && norm(pc.name) === norm(name)) || people.some((x) => norm(x.name) === norm(name))) return { error: `the name "${name}" is already used; every person needs their own name` };
+      if (GEN.loreFigure(ctx, name)) return { error: `${name} is someone from the world's lore: make up someone new (people from the lore come into the story only when the player seeks them out)` };
       const hook = clip(p.hook, 160);
       // The player's past is theirs (rule 3; playtest-12b: "Sarah Thompson,
       // teenage daughter of Emma Thompson", who had never met anyone here).
@@ -444,6 +488,8 @@
       const name = text(x.name, 40);
       const role = text(x.role, 60);
       if (!name || !role || names.has(norm(name))) return warnings.push(`minor person "${x.name || '?'}" skipped (needs a new name and a role)`);
+      if (GEN.loreFigure(ctx, name)) return warnings.push(`minor person "${name}" skipped (someone from the world's lore: they come in only when the player seeks them out)`);
+
       names.add(norm(name));
       const loc = x.room == null || x.room === 'null' ? null : roomOf(x.room);
       // Several people under one name are a group (playtest-12b: "Young Couple").
@@ -505,6 +551,9 @@
       if (elsewhere) return { error: `a public fact names ${elsewhere}, who isn't in this start` };
       const who = GEN.leak(ctx.job, t, 4);
       if (who) return { error: `a public fact gives away ${who.name}'s secret` };
+      // Not a fact addressed to the player ("As a newcomer, you're still
+      // trying to…"): the player's past is theirs (rule 3; playtest-r7-tessk-workshop).
+      if (/\b(you|your|you're|yours|yourself)\b/i.test(t)) continue;
       facts.push(t);
     }
     // Who is with the player when it opens (playtest-api: the opening put all

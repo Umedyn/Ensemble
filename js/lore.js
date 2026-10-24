@@ -62,7 +62,6 @@
       if (e.alwaysOn === true) return; // already in the header
       // A region the player doesn't know of yet (R-5): none of its lore, even by keyword.
       if (e.level === 'region' && e.ref && Eng().regionDef(state, e.ref) && !Eng().regionKnown(state, e.ref)) return;
-
       if (e.level === 'location' && e.ref === room) add(e, i, 0, 'the player is here');
       if (e.level === 'character' && people.includes(e.ref)) add(e, i, 0, e.ref === state.player ? 'the player character' : `${nm(e.ref)} is present`);
       if (e.level === 'region' && region && e.ref === region) add(e, i, 1, "the player's region");

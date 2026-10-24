@@ -89,7 +89,10 @@
     const S = E.Scenario;
     const byId = new Map(list.map((r) => [r.id, r]));
     const order = new Map(list.map((r, i) => [r.id, i]));
-    const chain = sc.region && byId.has(sc.region) ? S.regionChainIn(list, sc.region) : [];
+    // The start's region, or (a place made for the start, R-7) the nearest
+    // region it is inside that the outline has.
+    const anchor = sc.region ? S.regionChainIn(sc.regions, sc.region).find((x) => byId.has(x)) : null;
+    const chain = anchor ? S.regionChainIn(list, anchor) : [];
     const links = (id) => (byId.get(id).neighbours || []).concat(byId.get(id).parent != null ? [byId.get(id).parent] : [], S.regionChildrenIn(list, id));
     const hops = new Map();
     let frontier = chain.slice(0, 1);
@@ -1112,9 +1115,10 @@ Reply with JSON only:
       // Not a hidden region (R-5).
       const seen = new Set(P.knownAtStart(sc).map((x) => x.id));
       const near = E.Scenario.regionNearIn(sc.regions, r.id).filter((x) => seen.has(x)).map(nameOf).filter(Boolean);
-
       if (near.length) lines.push(`Next to: ${near.join(', ')}.`);
     }
+    // Somewhere not on the map (R-7): the story starts there, inside the region above.
+    if (job.place) lines.push(`Where exactly: the player starts at ${job.place}${r ? `, in ${r.name}` : ''}.`);
     const g = sc.start;
     if (g) lines.push(`When: ${sc.timeLabel || 'Day'} ${g.day}, ${String(g.hour).padStart(2, '0')}:00.`);
     if (job.note) lines.push(`What the player wants from this story: ${job.note}`);
@@ -1168,7 +1172,7 @@ Reply with JSON only: {"name":"Full Name","pronouns":"she/her","age":30,"role":"
   GEN_TASKS.rooms = ({ sc, job }) => {
     const r = (sc.regions || []).find((x) => x.id === job.region);
     return `=== TASK: THE PLACE ===
-Invent where the story starts${r ? `, somewhere in ${r.name}` : ''}: 3 to 6 rooms or areas the player can walk between (inside one building, or a few spots close together outdoors). Each needs a short id (lowercase, dashes), a name, one sentence of description and the rooms it connects to. Every room must be reachable. Pick the room the player starts in.
+Invent where the story starts${job.place ? `, at ${job.place}` : r ? `, somewhere in ${r.name}` : ''}: 3 to 6 rooms or areas the player can walk between (inside one building, or a few spots close together outdoors). Each needs a short id (lowercase, dashes), a name, one sentence of description and the rooms it connects to. Every room must be reachable. Pick the room the player starts in.
 Reply with JSON only: {"rooms":[{"id":"back-room","name":"Back Room","desc":"One sentence.","connects":["shop-floor"],"outside":false}],"player_room":"back-room"}`;
   };
   GEN_TASKS.plan = ({ loaded }) => {
@@ -1290,7 +1294,8 @@ Reply with JSON only: {"people":[{"name":"...","role":"...","pronouns":"she/her"
     const now = TL.now(state);
     const first = TL.fmt(sc, { day: Math.floor((now + 1) / 24), hour: (Math.floor(now) + 1) % 24 });
     const last = TL.fmt(sc, { day: Math.floor((now + cfg.days * 24) / 24), hour: Math.floor(now + cfg.days * 24) % 24 });
-    const regions = (sc.regions || []).map((r) => r.id);
+    // Never a hidden region (R-5; playtest-r7-tessk-workshop).
+    const regions = (sc.regions || []).map((r) => r.id).filter((id) => Eng().regionKnown(state, id));
     return `
 === TASK ===
 Plan what is most likely to happen in this world over the next ${cfg.days} days, between ${first} and ${last}: things everyone expects (a delivery, an exam, a holiday or festival, a meeting, a scheduled broadcast) or the likely next developments of the situation, spaced like the timeline above. Write 1 to ${cfg.max} events.

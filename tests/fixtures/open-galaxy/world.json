@@ -1,0 +1,41 @@
+{
+  "title": "The Long Dark",
+  "setting": "A galaxy of old trade lanes and older grudges. The Core Worlds are rich and watched, the Outer Rim is lawless and dusty, and the Drift is where ships go to disappear. Hyperlanes join the sectors; a ship and fuel are worth more than most lives.",
+  "regionLabels": ["sector", "planet", "city"],
+  "routeKinds": { "hyperlane": { "time": "2d" } },
+  "generatedSites": {},
+  "generatedRegions": { "maxRegions": 6, "routeKind": "road" },
+  "regions": [
+    { "id": "core", "name": "The Core Worlds", "routes": [{ "to": "rim", "kind": "hyperlane" }, { "to": "drift", "kind": "hyperlane", "time": "5d" }], "lore": "Old, rich and policed: the seat of the Concord." },
+    { "id": "rim", "name": "The Outer Rim", "routes": [{ "to": "drift", "kind": "hyperlane", "time": "3d" }], "lore": "Desert worlds, smugglers and the law a long way off." },
+    { "id": "drift", "name": "The Drift", "lore": "A scatter of half-charted systems at the edge of the lanes." },
+    { "id": "aurel", "name": "Aurel", "parent": "core", "neighbours": ["vass"], "lore": "The capital world, one city wide." },
+    { "id": "aurel-city", "name": "Aurel City", "parent": "aurel", "neighbours": ["lowmarket"] },
+    { "id": "throne-spire", "name": "The Throne Spire", "parent": "aurel", "startable": false, "lore": "The Concord's seat: guarded, sealed, ceremonial." },
+    { "id": "spire-vaults", "name": "Spire Vaults", "parent": "throne-spire" },
+    { "id": "lowmarket", "name": "Lowmarket", "parent": "aurel" },
+    { "id": "vass", "name": "Vass Prime", "parent": "core", "lore": "Shipyards and the families who own them." },
+    { "id": "vass-docks", "name": "Vass Docks", "parent": "vass" },
+    { "id": "glasshold", "name": "Glasshold", "parent": "vass" },
+    { "id": "ilion", "name": "Ilion", "parent": "core", "lore": "A garden world gone to seed." },
+    { "id": "ilion-reach", "name": "Ilion Reach", "parent": "ilion" },
+    { "id": "tessk", "name": "Tessk", "parent": "rim", "neighbours": ["morrow"], "lore": "Two suns, one well, and everyone armed." },
+    { "id": "tessk-crossing", "name": "Tessk Crossing", "parent": "tessk", "neighbours": ["saltpan"] },
+    { "id": "saltpan", "name": "Saltpan Flats", "parent": "tessk" },
+    { "id": "morrow", "name": "Morrow", "parent": "rim", "lore": "A cold port world where crews sign on." },
+    { "id": "morrow-port", "name": "Morrow Port", "parent": "morrow" },
+    { "id": "greywater", "name": "Greywater", "parent": "morrow" },
+    { "id": "kade", "name": "Kade's Reach", "parent": "rim", "lore": "A mining belt with one station worth the name." },
+    { "id": "kade-station", "name": "Kade Station", "parent": "kade" },
+    { "id": "umber", "name": "Umber", "parent": "drift", "lore": "A dark world under permanent cloud." },
+    { "id": "umber-deep", "name": "Umber Deep", "parent": "umber" },
+    { "id": "sola", "name": "Sola Minor", "parent": "drift" },
+    { "id": "sola-camp", "name": "Sola Camp", "parent": "sola" },
+    { "id": "hask", "name": "Hask", "parent": "drift" },
+    { "id": "hask-yard", "name": "Hask Breaker Yard", "parent": "hask" },
+    { "id": "ghost-relay", "name": "The Ghost Relay", "parent": "drift", "known": false, "lore": "A dead relay station still broadcasting an old distress call." }
+  ],
+  "lore": [
+    { "id": "varro", "title": "Kesh Varro", "level": "topic", "keywords": ["Admiral Varro", "the Admiral"], "text": "The Concord admiral who broke the Rim blockade a generation ago; half the Rim still curses the name, the other half drinks to it." }
+  ]
+}

@@ -215,7 +215,6 @@
     return { notes };
   };
   M.renameRegion = function (world, starts, from, to, files) {
-
     if (from === to) return;
     const r = (world.regions || []).find((x) => x.id === from);
     if (!r) return;
@@ -257,9 +256,7 @@
     eachRef(world, starts, (x) => (x === id ? fallback : x), (x) => (x === id ? null : x));
     const notes = notes0.concat(moved.map((sid) => (fallback ? `start "${sid}" now starts in ${fallback}` : `start "${sid}" has no region now`)));
     unlocked.forEach((t) => notes.push(`${t} lost a requirement about who holds ${id}`));
-    if (lifted.length) notes.push(
-`${lifted.map((r) => r.name).join(', ')} ${lifted.length > 1 ? 'are' : 'is'} now ${up ? `inside ${(world.regions.find((r) => r.id === up) || {}).name || up}` : 'at the top level'}`);
-
+    if (lifted.length) notes.push(`${lifted.map((r) => r.name).join(', ')} ${lifted.length > 1 ? 'are' : 'is'} now ${up ? `inside ${(world.regions.find((r) => r.id === up) || {}).name || up}` : 'at the top level'}`);
     regionLore(world, starts, files, id).forEach((e) => {
       e.level = 'topic';
       delete e.ref;
