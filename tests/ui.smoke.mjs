@@ -1449,6 +1449,11 @@ await check('creator: a new world on the base map, with real coordinates, places
   await page.waitForFunction(() => /Outlined in 2 pieces/.test(document.getElementById('cRegionForm').textContent));
   await page.waitForFunction(() => /No problems/.test(document.getElementById('cValidation').textContent));
   await page.screenshot({ path: path.join(shots, 'creator-basemap.png') });
+  // France's own map, cut from the base map (R-9): Lyon moves onto it.
+  await page.click('[data-cutmap="france"]');
+  await page.waitForFunction(() => /France has its own map, cut from the base map, with 0 regions and 1 place inside it moved onto it/.test(document.getElementById('cBanner').textContent));
+  assert.equal(await page.inputValue('#cMapOwner'), 'france', "now editing France's map");
+  await page.waitForFunction(() => /No problems/.test(document.getElementById('cValidation').textContent));
   const [download] = await Promise.all([page.waitForEvent('download'), page.click('#cExport')]);
   const E = helpers.loadEngine();
   const files = {};
@@ -1459,8 +1464,12 @@ await check('creator: a new world on the base map, with real coordinates, places
   assert.equal(w.map.base, 'world');
   assert.ok(files['lyon-1943/maps/base.jpg'] && files['lyon-1943/maps/base.jpg'].length > 10000, 'the cut picture is in the export');
   assert.equal(w.map.regions.france.polygons.length, 2);
-  assert.equal(w.map.places[0].region, 'france', 'Lyon is in the region drawn around it');
-  const ll = E.Geo.toLonLat(w.map, w.map.places[0].at);
+  const fm = w.regions.find((r) => r.id === 'france').map;
+  assert.deepEqual([fm.image, fm.base, fm.projection], ['maps/france.jpg', 'world', 'equirectangular']);
+  assert.ok(files['lyon-1943/maps/france.jpg'] && files['lyon-1943/maps/france.jpg'].length > 10000, "France's picture is in the export");
+  assert.ok(!(w.map.places || []).length, 'Lyon left the world map…');
+  assert.equal(fm.places[0].region, 'france', "…for France's, still in the region drawn around it");
+  const ll = E.Geo.toLonLat(fm, fm.places[0].at);
   assert.ok(Math.abs(ll[0] - 4.84) < 0.1 && Math.abs(ll[1] - 45.76) < 0.1, `Lyon at ${ll}`);
 });
 

@@ -44,6 +44,9 @@ test('states go under their country, on its own map when it has one, with border
   assert.ok(fs.statSync(path.join(t.dir, 'maps', 'alandia.jpg')).size > 100);
   assert.equal(def(w, 'alandia').map.image, 'maps/alandia.jpg');
   assert.ok(t.E.Geo.projected(def(w, 'alandia').map));
+  assert.equal(def(w, 'alandia').map.base, 'world', 'the crops say which base map they match, so the creator can cut them again');
+  assert.equal(w.map.base, 'world');
+  assert.equal(t.E.MapEdit.baseOf(w), 'world');
   assert.ok(w.map.regions.alandia, 'its own outline stays on the world map');
   await t.run('regions', t.dir, '--from', 'states', '--within', '--places', 'cities');
   w = t.read();
@@ -90,6 +93,21 @@ test('states go under their country, on its own map when it has one, with border
   // Places on a region's own map are known to the story like the world map's.
   const header = t.E.Prompts.header(t.E.Engine.newGame(t.E.Scenario.startScenario(loaded)));
   assert.match(header, /- north-alandia: The North[^\n]*\[places: Norby \(capital\)\]/);
+  t.done();
+});
+
+test('the creator and the tool share the region crop: what is inside moves, its own outline stays, the bounds come from the outline', async () => {
+  const t = await landsWorld();
+  await t.run('regions', t.dir, '--from', 'states', '--within', '--places', 'cities');
+  const w = t.read();
+  const M = t.E.MapEdit;
+  assert.deepEqual(plain(M.regionBounds(w, 'borovia')), [9, -1, 21, 11], 'its outline plus a margin');
+  assert.equal(M.regionBounds(w, 'nowhere'), null);
+  const map = { image: 'maps/borovia.jpg', width: 240, height: 240, projection: 'equirectangular', bounds: [9, -1, 21, 11], base: 'world', regions: {} };
+  assert.deepEqual(plain(M.cropRegion(w, 'borovia', map)), { moved: 2, places: 2 });
+  assert.ok(def(w, 'borovia').map.regions['west-borovia'] && w.map.regions.borovia && !w.map.regions['west-borovia']);
+  const wex = def(w, 'borovia').map.places.find((p) => p.id === 'wexley');
+  assert.deepEqual(plain(t.E.Geo.toLonLat(def(w, 'borovia').map, wex.at).map((v) => Math.round(v))), [12, 5], 'still where it really is');
   t.done();
 });
 

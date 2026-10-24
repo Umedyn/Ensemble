@@ -207,6 +207,8 @@ Everything a creator needs to build a world without touching JSON.
 - [ ] Fix whatever turns out to be survival-specific. Add a test named after each fix.
 - [ ] More layout styles (`office floor`, `club`, `compound`, `sewer`, …) for `js/layouts.js`, added when a new world's generated sites need them (from phase 3).
 - [ ] **Official real-world worlds** (decided 2026-10-22): "pick a place and live in it" worlds, such as the modern world and WWII, sharing the topographic base map (task 4-5).
+  - **Sharper close-ups**: the shared picture is about 23 pixels a degree and the 1:50m source about 30, so a country's own map is soft and a province's or city's blurry. Add `npm run basemap -- fetch --hires` for Natural Earth's 1:10m relief raster (about 60 pixels a degree; a much bigger download, so optional), with `crop` using it when it's there; the shared map in the repo stays as it is. Check the file's name on Natural Earth's server when building it.
+  - `geography` (a shared base image and its land outlines, for official maps), left from R-3 and R-9.
   - Geography from Natural Earth (public domain; done in 4-5). Historical border datasets exist, but licenses vary (some noncommercial, share-alike or GPL): check each against a possible paid build, or draw borders by hand.
   - **Modern world**: real places, fictional people. Living politicians, celebrities and business owners stay as lore (Phase 5 › Real people); real companies get fictional stand-ins in the story.
   - **WWII**: historical figures as distant presences (a radio broadcast, orders from above) rather than playable characters by default. If ever sold in Germany, check the rules on Nazi symbols in games (allowed in artistic works with an age rating, but needs care).

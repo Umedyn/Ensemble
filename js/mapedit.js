@@ -185,6 +185,76 @@
   // Every map in the world: the world's and the regions' own (R-3), as
   // [{ owner (null for the world's), map }].
   M.maps = (world) => [].concat(world.map ? [{ owner: null, map: world.map }] : [], (world.regions || []).filter((r) => r && r.map).map((r) => ({ owner: r.id, map: r.map })));
+
+  // ---------- cutting maps from a base map (task 4-5, R-9) ----------
+  // Shared by the creator and tools/basemap.mjs. One outline or point moved
+  // from one projected map onto another (clipped to its picture), or null
+  // when nothing of it is on the new one.
+  M.moveShape = function (oldMap, newMap, sh) {
+    const G = E.Geo;
+    const move = (p) => G.toPixel(newMap, G.toLonLat(oldMap, p));
+    if (sh.point) { const p = move(sh.point).map(Math.round); return p[0] >= 0 && p[1] >= 0 && p[0] <= newMap.width && p[1] <= newMap.height ? { point: p } : null; }
+    const rings = G.pieces(sh).map((r) => G.clip(r.map(move), [0, 0, newMap.width, newMap.height])).filter(Boolean).map((r) => r.map((p) => p.map(Math.round)));
+    return !rings.length ? null : rings.length === 1 ? { polygon: rings[0] } : { polygons: rings };
+  };
+  // A projected map's regions, places and rooms moved onto a new map (another crop).
+  M.reproject = function (oldMap, newMap) {
+    const G = E.Geo;
+    const move = (p) => G.toPixel(newMap, G.toLonLat(oldMap, p));
+    const regions = {};
+    Object.entries(oldMap.regions || {}).forEach(([id, sh]) => { const m = M.moveShape(oldMap, newMap, sh); if (m) regions[id] = m; });
+    const inside = (p) => p[0] >= 0 && p[1] >= 0 && p[0] <= newMap.width && p[1] <= newMap.height;
+    const places = (oldMap.places || []).map((p) => Object.assign({}, p, { at: move(p.at).map(Math.round) })).filter((p) => inside(p.at));
+    const locations = {};
+    Object.entries(oldMap.locations || {}).forEach(([id, p]) => { const q = move(p).map(Math.round); if (inside(q)) locations[id] = q; });
+    return Object.assign({}, newMap, { regions, places, locations });
+  };
+  // A region's outline in degrees plus a margin, [W, S, E, N]: the default
+  // bounds of its own map. null when it isn't on a projected map.
+  M.regionBounds = function (world, id, margin) {
+    const m = M.maps(world).map((x) => x.map).find((x) => x.regions && x.regions[id] && E.Geo.projected(x));
+    if (!m) return null;
+    const pts = E.Geo.pieces(m.regions[id]).flat().concat(m.regions[id].point ? [m.regions[id].point] : []).map((p) => E.Geo.toLonLat(m, p));
+    const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+    const [w, e, s, n] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+    const k = margin == null ? 0.1 : margin;
+    const dx = Math.max(0.5, (e - w) * k), dy = Math.max(0.5, (n - s) * k);
+    const r = (v) => Math.round(v * 100) / 100;
+    return [r(Math.max(-180, w - dx)), r(Math.max(-90, s - dy)), r(Math.min(180, e + dx)), r(Math.min(90, n + dy))];
+  };
+  // The base map a world was cut from (the first map that says), or null.
+  M.baseOf = (world) => (M.maps(world).map((x) => x.map).find((m) => m.base && E.Geo.projected(m)) || {}).base || null;
+  // Gives a region its own map (R-9): what is inside it (outlines, points
+  // and places on the other projected maps) moves onto it; its own outline
+  // stays on its parent's level. A projected map it already has keeps
+  // what's on it, moved. → { moved, places } (counts); throws on a map
+  // without a projection that already has regions on it.
+  M.cropRegion = function (world, id, newMap) {
+    const def = (world.regions || []).find((r) => r.id === id);
+    let map = newMap;
+    if (def.map && E.Geo.projected(def.map)) map = M.reproject(def.map, newMap);
+    else if (def.map && Object.keys(def.map.regions || {}).length) throw new Error(`${def.name}'s map has no projection, so what's on it can't be moved onto the new picture. Remove it first.`);
+    map.regions = map.regions || {};
+    const inside = new Set(world.regions.filter((r) => r.id !== id && E.Scenario.regionChainIn(world.regions, r.id).includes(id)).map((r) => r.id));
+    let moved = 0, places = 0;
+    M.maps(world).map((x) => x.map).filter((m) => m !== def.map && E.Geo.projected(m)).forEach((m) => {
+      Object.keys(m.regions || {}).filter((r) => inside.has(r)).forEach((r) => {
+        const sh = M.moveShape(m, map, m.regions[r]);
+        if (sh) { map.regions[r] = sh; moved++; }
+        delete m.regions[r];
+      });
+      if (!Array.isArray(m.places)) return;
+      const mine = m.places.filter((p) => p.region === id || inside.has(p.region));
+      mine.forEach((p) => {
+        const at = E.Geo.toPixel(map, E.Geo.toLonLat(m, p.at)).map(Math.round);
+        if (at[0] >= 0 && at[1] >= 0 && at[0] <= map.width && at[1] <= map.height) { map.places = (map.places || []).filter((q) => q.id !== p.id).concat(Object.assign({}, p, { at })); places++; }
+      });
+      m.places = m.places.filter((p) => !mine.includes(p));
+    });
+    if (map.places && !map.places.length) delete map.places;
+    def.map = map;
+    return { moved, places };
+  };
   // A new region (R-4), inside another or at the top level, with an id from
   // its name that no region or room has. → its id.
   M.addRegion = function (world, name, parent, takenRooms) {

@@ -342,7 +342,7 @@
         ${touching.size ? '<button type="button" id="cAddTouching" class="small">Add touching regions</button>' : ''}</fieldset>
       ${routeRows(w, r)}
       <div class="c-mapbtns small">${r.map ? `<span>🗺 Has its own map.</span> ${ui.mapOwner === r.id ? '' : `<button type="button" class="small" data-editmap="${esc(r.id)}">Edit its map</button>`} <button type="button" class="small danger" data-dropmap="${esc(r.id)}">${ui.confirmDropMap === r.id ? 'Click again to remove' : 'Remove its map'}</button>`
-        : `<label class="btn small">Attach a map…<input type="file" data-attachmap="${esc(r.id)}" accept="image/*" hidden></label> <span class="muted">a picture of the regions inside ${esc(r.name)}</span>`}</div>
+        : `<label class="btn small">Attach a map…<input type="file" data-attachmap="${esc(r.id)}" accept="image/*" hidden></label>${M.baseOf(w) && (S.library.baseMaps || {})[M.baseOf(w)] && M.regionBounds(w, r.id) ? ` <button type="button" class="small" data-cutmap="${esc(r.id)}">Cut from the base map</button>` : ''} <span class="muted">a picture of the regions inside ${esc(r.name)}</span>`}</div>
       <div class="muted small">${!insideOwner(r.id) ? `Not inside ${esc(ownerRegion().name)}, so not on ${esc(mapName())}.` : mh().map ? (sh ? (sh.polygon ? `Outlined with ${sh.polygon.length} corners.` : sh.polygons ? `Outlined in ${sh.polygons.length} pieces (islands and parts). Click a piece to pick it.` : 'Placed as a point.') : 'Not on the map yet: draw it or place it as a point.') : ''}</div>
       ${sh && sh.polygons && ui.piece != null && sh.polygons[ui.piece] ? `<button type="button" id="cRemovePiece" class="small">Remove piece ${ui.piece + 1} of ${sh.polygons.length}</button>` : ''}
       ${r.wiki && r.wiki.title ? `<div class="small">Wikipedia: <a href="https://en.wikipedia.org/wiki/${encodeURIComponent(r.wiki.title.replace(/ /g, '_'))}" target="_blank" rel="noopener noreferrer">${esc(r.wiki.title)}</a> <span class="muted">(for the research helper)</span></div>` : ''}
@@ -726,6 +726,24 @@
     if (t.id === 'cAddNext' && sel) { addRegion(undefined, sel.parent != null ? sel.parent : null); return changed(); }
     const em = t.closest('[data-editmap]');
     if (em) { ui.mapOwner = em.dataset.editmap; ui.vb = null; ui.mode = 'select'; return render(); }
+    // A region's own map cut from the base map the world is on (R-9): framed
+    // by its outline, with what's inside it moved onto the new picture.
+    const cm = t.closest('[data-cutmap]');
+    if (cm) {
+      const r = w.regions.find((x) => x.id === cm.dataset.cutmap);
+      const base = S.library.baseMaps[M.baseOf(w)];
+      const bounds = M.regionBounds(w, r.id);
+      cropBase(base, bounds).then((c) => {
+        const file = `maps/${r.id}.jpg`;
+        cw.assets[file] = c.blob;
+        urls.delete(file);
+        const n = M.cropRegion(w, r.id, { image: file, width: c.width, height: c.height, projection: 'equirectangular', bounds, base: base.id, regions: {}, credit: base.credit, license: base.license });
+        ui.mapOwner = r.id; ui.vb = null; ui.mode = 'select';
+        banner(`${esc(r.name)} has its own map, cut from the base map${n.moved || n.places ? `, with ${n.moved} region${n.moved === 1 ? '' : 's'} and ${n.places} place${n.places === 1 ? '' : 's'} inside it moved onto it` : ''}. For a sharper picture: <code>npm run basemap -- crop &lt;world folder&gt; --region ${esc(r.id)}</code>.`);
+        changed();
+      }).catch((err) => banner(`Couldn't cut the map: ${esc(err.message)}`, 'bad'));
+      return;
+    }
     const dm = t.closest('[data-dropmap]');
     if (dm) {
       if (ui.confirmDropMap !== dm.dataset.dropmap) { ui.confirmDropMap = dm.dataset.dropmap; return render(); }
@@ -2447,21 +2465,26 @@
     open(b.folder, b.files, assets, false, true);
     if (baseId) {
       const m = b.files['world.json'].map;
-      banner(`Started on the base map, ${esc(m.bounds.join(', '))}. Add regions here, or import real countries and capitals: <code>npm run basemap -- regions &lt;world folder&gt; --within --places capitals</code> (after exporting). For a sharper picture of a small area: <code>npm run basemap -- crop &lt;world folder&gt; --bounds ${esc(m.bounds.join(','))}</code>.`);
+      banner(`Started on the base map, ${esc(m.bounds.join(', '))}. Add regions here, or import real countries and capitals: <code>npm run basemap -- regions &lt;world folder&gt; --within --places capitals</code> (after exporting). For a sharper picture of a small area: <code>npm run basemap -- crop &lt;world folder&gt; --bounds ${esc(m.bounds.join(','))}</code>. For more detail in one country: <code>crop &lt;world folder&gt; --region &lt;id&gt;</code> gives it its own map (or "Cut from the base map" on the region), <code>regions &lt;world folder&gt; --from states --within --places cities</code> puts its provinces under it and its cities in them.`);
     }
   }
   // A world started on a base map gets its picture cut again after a reload
   // (drafts don't keep images).
   async function recropIfMissing() {
-    const m = cw && world().map;
-    const base = m && m.base && (S.library.baseMaps || {})[m.base];
-    if (!base || cw.assets[m.image] || cw.server) return;
-    try {
-      const c = await cropBase(base, m.bounds, m.width);
-      cw.assets[m.image] = c.blob;
-      urls.delete(m.image);
-      render();
-    } catch (e) { /* the "isn't loaded" note stays */ }
+    if (!cw || cw.server) return;
+    // The world's map and any region's own (R-9).
+    let cut = false;
+    for (const { map: m } of M.maps(world())) {
+      const base = m.base && (S.library.baseMaps || {})[m.base];
+      if (!base || cw.assets[m.image]) continue;
+      try {
+        const c = await cropBase(base, m.bounds, m.width);
+        cw.assets[m.image] = c.blob;
+        urls.delete(m.image);
+        cut = true;
+      } catch (e) { /* the "isn't loaded" note stays */ }
+    }
+    if (cut) render();
   }
   // Drafts: working copies in this browser whose world isn't on the server.
   function listDrafts() {

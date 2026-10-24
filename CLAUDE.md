@@ -43,7 +43,7 @@ No build step and no runtime dependencies. Playwright (UI tests) and jpeg-js (th
 - `js/charform.js`: the character form (task 4-1, shared since 6-2), a DOM file loaded by the game and the creator; author mode for the creator's Characters tab
 - `js/cards.js`: character card import (task 6-2): Tavern PNG text chunks and JSON (v1–v3), the conversion call, the checks on its reply (sheet fields, limits, world skills, no lines to the player or from the card's scenario); DOM-free
 - `js/siteedit.js`: site map editing for the creator's Sites tab (task 6-3): drafts and saving to the world, rooms, snapping, doors on shared edges, entrances, spots, a new image, copies, keeping a site from a save, the library export, the matching test box; DOM-free
-- `js/mapedit.js`: map editing for the creator (ids, neighbour suggestions, vertex edits, renaming and deleting regions with their references); DOM-free
+- `js/mapedit.js`: map editing for the creator (ids, neighbour suggestions, vertex edits, renaming and deleting regions with their references; cutting a region's own map from a base map, shared with the base map tool); DOM-free
 - `js/ui.js`: the game page; the only game file that touches the DOM
 - `creator.html` + `js/creator.js` + `css/creator.css`: the creator (task 3-5); `creator.js` is its only DOM file, and tabs are a registry (`TABS`)
 - `library/`: shared, original or public-domain material: site maps (task 6-3: `index.json` and `sites/<id>.json` with their images) and base maps (task 4-5: `maps/world/`, the topographic world map)
