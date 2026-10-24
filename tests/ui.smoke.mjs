@@ -771,12 +771,14 @@ await check('phone: the map button swaps the story for the map', async (page) =>
   assert.ok(await page.isVisible('#log'));
 });
 
-// Task 3-4: world and regional views, with a map image (the holdout's town) and without (Ares Deep).
+// Task 3-4: world and regional views, with a map image (the holdout's town)
+// and without (Ares Deep). Since R-3 the levels are the zooming map's: the
+// world (root) and the player's region (a leaf, zoomed as the Region view was).
 await check('world and regional views: regions by who holds them, the info strip, zoom', async (page) => {
   await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
   await newGame(page);
   await sceneReady(page);
-  await page.click('[data-mapview="world"]');
+  await page.click('[data-maplevel="root"]');
   assert.equal(await page.locator('#worldSvg image').count(), 1, 'the town map image');
   assert.equal(await page.locator('#worldSvg .region-g').count(), 5);
   assert.ok(await page.locator('.region-g[data-region="ridge-town"] .region-shape.fc-1').count(), 'Ridge in The Ridge\'s colour');
@@ -794,12 +796,13 @@ await check('world and regional views: regions by who holds them, the info strip
   await page.click('[data-zoom="reset"]');
   assert.deepEqual((await page.getAttribute('#worldSvg', 'viewBox')).split(' ').map(Number), full);
   await page.screenshot({ path: path.join(shots, 'map-world.png') });
-  await page.click('[data-mapview="region"]');
+  await page.click('[data-maplevel="local"]');
+  await page.click('.map-crumbs [data-maplevel="highway-strip"]');
   const region = (await page.getAttribute('#worldSvg', 'viewBox')).split(' ').map(Number);
   assert.ok(region[2] < full[2], 'zoomed to your region and its neighbours');
   assert.match(await page.textContent('#worldSvg'), /Sales Floor/, 'rooms placed on the map');
   await page.screenshot({ path: path.join(shots, 'map-region.png') });
-  await page.click('[data-mapview="local"]');
+  await page.click('[data-maplevel="local"]');
   assert.ok(await page.locator('#mapPane .map-room').count(), 'back to the rooms');
   assert.equal(await page.locator('#mapPane .sd-lock').count(), 1, "the office door is locked (task 3-6)");
   assert.match(await page.textContent('#mapPane'), /forklift/);
@@ -808,12 +811,14 @@ await check('world and regional views: regions by who holds them, the info strip
   await page.selectOption('#scenarioSelect', 'server:mars-station');
   await newGame(page);
   await sceneReady(page);
-  await page.click('[data-mapview="world"]');
+  await page.click('[data-maplevel="root"]');
   assert.equal(await page.locator('#worldSvg image').count(), 1, 'the Hellas rim');
   assert.equal(await page.locator('#worldSvg .region-g').count(), 4);
   assert.equal(await page.locator('#worldSvg .region-edge').count(), 0);
   await page.screenshot({ path: path.join(shots, 'map-world-mars.png') });
-  await page.click('[data-mapview="region"]');
+  await page.click('[data-maplevel="local"]');
+  await page.click('.map-crumbs [data-maplevel="station"]');
+
   assert.match(await page.textContent('#worldSvg'), /Rover Garage/, 'rooms placed on the regional map');
   await page.screenshot({ path: path.join(shots, 'map-region-mars.png') });
 });
@@ -823,11 +828,89 @@ await check('phone: the world view fits and the level switch works', async (page
   await newGame(page);
   await sceneReady(page);
   await page.click('#btnMapPhone');
-  await page.click('[data-mapview="world"]');
+  await page.click('[data-maplevel="root"]');
   const box = await page.locator('#worldSvg').boundingBox();
   assert.ok(box.x >= 0 && box.x + box.width <= 390, 'fits the screen');
   await page.screenshot({ path: path.join(shots, 'phone-map-world.png') });
+  // One level at a time; the breadcrumb is the way back (R-3).
+  await page.click('[data-maplevel="local"]');
+  await page.click('.map-crumbs [data-maplevel="town"]');
+  assert.equal(await page.getAttribute('#worldSvg', 'data-view'), 'town');
+  const bar = await page.locator('.map-bar').boundingBox();
+  assert.ok(bar.x >= 0 && bar.x + bar.width <= 390, 'the breadcrumb fits the screen');
+  await page.screenshot({ path: path.join(shots, 'phone-map-zoom.png') });
+  await page.click('.map-crumbs [data-maplevel="root"]');
+  assert.equal(await page.getAttribute('#worldSvg', 'data-view'), 'root');
 });
+
+// R-3: one map that zooms through the region tree. The breadcrumb from the
+// world to the room; a level with a picture (Harmon's town map) and one
+// without (the same world with its picture taken out: node maps of each
+// level's children and their routes); travel buttons fill the action box.
+await check('the zooming map: breadcrumb, levels with and without a picture, travel buttons', async (page) => {
+  await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+  await newGame(page);
+  await sceneReady(page);
+  await page.click('[data-maplevel="local"]');
+  assert.match(await page.textContent('.map-crumbs'), /Holdout at Harmon's\s*›\s*Harmon\s*›\s*The highway strip\s*›\s*Sales Floor/);
+  // Harmon has no picture of its own: the town map, zoomed to its parts, the rest dimmed.
+  await page.click('.map-crumbs [data-maplevel="town"]');
+  assert.equal(await page.locator('#worldSvg image').count(), 1, 'the picture is underneath');
+  assert.equal(await page.evaluate(() => document.querySelector('#worldSvg').firstElementChild.tagName), 'image', 'drawn first, under everything');
+  assert.equal(await page.locator('#worldSvg .region-g.dim').count(), 2, 'the junction and Ridge are outside Harmon');
+  assert.ok(await page.locator('.region-g[data-region="highway-strip"] .region-shape.here').count());
+  await page.screenshot({ path: path.join(shots, 'map-level-town.png') });
+  // A leaf is picked, not zoomed; the info strip goes up a level by name.
+  await page.locator('.region-g[data-region="main-street"] .region-shape').click({ position: { x: 30, y: 60 } });
+  assert.equal(await page.getAttribute('#worldSvg', 'data-view'), 'town');
+  assert.match(await page.textContent('#regionInfo'), /Main Street, a part of town in Harmon.*Zoom in/);
+  await page.click('[data-maplevel="root"]');
+  assert.equal(await page.getAttribute('#worldSvg', 'data-view'), 'root');
+  // Remembered per world: a reload opens the same level.
+  await page.reload();
+  await sceneReady(page);
+  assert.equal(await page.getAttribute('#worldSvg', 'data-view'), 'root');
+  // Travel buttons: the routes out of the highway strip, clicking fills the action box.
+  await page.click('[data-maplevel="local"]');
+  await page.click('.map-route[data-say="I go to Highway junction."]');
+  assert.equal(await page.inputValue('#actionInput'), 'I go to Highway junction.');
+  await page.fill('#actionInput', '');
+  // Without a picture: node maps of each level's children, routes by kind.
+  await page.evaluate(() => {
+    const s = JSON.parse(localStorage.getItem('ensemble.autosave'));
+    delete s.scenario.map;
+    s.characters.pike.status.location = 'lot';
+    s.locations.lot.region = 'junction';
+    localStorage.setItem('ensemble.autosave', JSON.stringify(s));
+  });
+  await page.reload();
+  await sceneReady(page);
+  await page.click('[data-maplevel="root"]');
+  assert.equal(await page.locator('#worldSvg image').count(), 0);
+  assert.deepEqual((await page.locator('#worldSvg .region-g').evaluateAll((els) => els.map((e) => e.dataset.region))).sort(), ['junction', 'ridge-town', 'town'], 'the top level only');
+  assert.equal(await page.locator('#worldSvg .region-edge.kind-road').count(), 1, 'the road to Ridge');
+  await page.screenshot({ path: path.join(shots, 'map-level-nodes.png') });
+  await page.click('.region-g[data-region="town"]');
+  assert.equal(await page.getAttribute('#worldSvg', 'data-view'), 'town', 'a region with regions inside it zooms in');
+  assert.deepEqual((await page.locator('#worldSvg .region-g').evaluateAll((els) => els.map((e) => e.dataset.region))).sort(), ['highway-strip', 'main-street', 'residential']);
+  await page.click('[data-maplevel="local"]');
+  await page.click('.map-route[data-say="I drive to Ridge."]');
+  assert.equal(await page.inputValue('#actionInput'), 'I drive to Ridge.');
+  assert.match(await page.getAttribute('.map-route[data-say="I drive to Ridge."]', 'title'), /road, 45m/);
+  // Stopped on a journey (R-2): a travel card, not a floor plan.
+  await page.evaluate(() => {
+    const s = JSON.parse(localStorage.getItem('ensemble.autosave'));
+    s.locations['on-the-way'] = { id: 'on-the-way', name: 'On the way to Ridge', desc: 'Somewhere on the way to Ridge, in Highway junction.', outside: true, region: 'junction', site: 'on-the-way', transit: true, connects: ['lot', 'floor'], links: [] };
+    s.characters.pike.status.location = 'on-the-way';
+    localStorage.setItem('ensemble.autosave', JSON.stringify(s));
+  });
+  await page.reload();
+  await sceneReady(page);
+  assert.match(await page.textContent('.travel-card'), /On the way to Ridge, in Highway junction/);
+  await page.click('.travel-card .map-route[data-say="I go back to Sales Floor."]');
+  assert.equal(await page.inputValue('#actionInput'), 'I go back to Sales Floor.');
+});
+
 
 // Task 3-5: the creator. Draw a region on a map image, export the world as
 // a zip, check the zip loads, then play it in the game from disk.
@@ -911,7 +994,7 @@ await check('creator: draw a region on a map image, export, and play the export'
   await page.selectOption('#scenarioSelect', 'disk:mars-station');
   await newGame(page);
   await sceneReady(page);
-  await page.click('[data-mapview="world"]');
+  await page.click('[data-maplevel="root"]');
   assert.equal(await page.locator('#worldSvg image').count(), 1, 'the map image came from the export');
   assert.ok(await page.locator('.region-g[data-region="station"] polygon.fc-4').count(), 'drawn, in the sponsor\'s colour');
 });

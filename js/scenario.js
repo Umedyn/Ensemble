@@ -288,6 +288,12 @@
       const rooms = new Set([].concat(world.locations || [], ...startIds.map((sid) => (starts[sid] && starts[sid].locations) || [])).map((l) => l && l.id));
       Object.keys(world.map.locations).forEach((id) => req(rooms.has(id), `map: unknown location "${id}"`));
     }
+    // And on a region's own map (R-3).
+    (Array.isArray(world.regions) ? world.regions : []).filter((r) => isObj(r) && isObj(r.map) && isObj(r.map.locations)).forEach((r) => {
+      const rooms = new Set([].concat(world.locations || [], ...startIds.map((sid) => (starts[sid] && starts[sid].locations) || [])).map((l) => l && l.id));
+      Object.keys(r.map.locations).forEach((id) => req(rooms.has(id), `${r.name || r.id}'s map: unknown location "${id}"`));
+    });
+
     // Regions the world map leaves out get an automatic point (task 3-4).
     // A region with regions inside it needs no shape: its children stand for it (R-1).
     if (isObj(world.map) && Array.isArray(world.regions)) world.regions.forEach((r) => {
@@ -896,38 +902,48 @@
   // get a point placed automatically (validateWorld warns).
   S.FACTION_COLORS = 8;
   S.PLACE_KINDS = ['capital', 'city', 'town', 'place'];
+  // The world's map (the root's) and any region's own map (R-3): the same
+  // format; a region's map outlines only regions inside it.
   function mapProblems(sc, locIds) {
-    if (sc.map == null) return [];
+    const problems = sc.map == null ? [] : oneMapProblems(sc, sc.map, 'map', null, locIds);
+    const list = Array.isArray(sc.regions) ? sc.regions.filter(isObj) : [];
+    list.filter((r) => r.map != null).forEach((r) => {
+      const inside = new Set(list.filter((x) => x.id !== r.id && S.regionChainIn(list, x.id).includes(r.id)).map((x) => x.id));
+      problems.push(...oneMapProblems(sc, r.map, `${r.name || r.id}'s map`, { ids: inside, name: r.name || r.id }, locIds));
+    });
+    return problems;
+  }
+  function oneMapProblems(sc, m, at, within, locIds) {
     const problems = [];
     const req = (cond, msg) => { if (!cond) problems.push(msg); };
-    const m = sc.map;
-    if (!isObj(m) || !E.isImagePath(m.image) || !(m.width > 0) || !(m.height > 0)) return ['"map" needs an "image" in the world folder, a "width" and a "height"'];
+    if (!isObj(m) || !E.isImagePath(m.image) || !(m.width > 0) || !(m.height > 0)) return [`"${at}" needs an "image" in the world folder, a "width" and a "height"`];
     const regionIds = new Set((Array.isArray(sc.regions) ? sc.regions : []).map((r) => r && r.id));
     const inside = (p) => Array.isArray(p) && p.length === 2 && p.every((n) => typeof n === 'number') && p[0] >= 0 && p[1] >= 0 && p[0] <= m.width && p[1] <= m.height;
     Object.entries(isObj(m.regions) ? m.regions : {}).forEach(([id, shape]) => {
-      req(regionIds.has(id), `map: unknown region "${id}"`);
+      req(regionIds.has(id), `${at}: unknown region "${id}"`);
+      if (within && regionIds.has(id)) req(within.ids.has(id), `${at}: "${id}" isn't inside ${within.name}`);
       if (isObj(shape) && shape.polygon != null) {
-        req(Array.isArray(shape.polygon) && shape.polygon.length >= 3, `map: region "${id}" polygon needs at least 3 points`);
-        req(Array.isArray(shape.polygon) && shape.polygon.every(inside), `map: region "${id}" polygon has a point outside the image`);
+        req(Array.isArray(shape.polygon) && shape.polygon.length >= 3, `${at}: region "${id}" polygon needs at least 3 points`);
+        req(Array.isArray(shape.polygon) && shape.polygon.every(inside), `${at}: region "${id}" polygon has a point outside the image`);
       } else if (isObj(shape) && shape.polygons != null) {
         // A region in several pieces (islands; task 4-5).
         const ok = Array.isArray(shape.polygons) && shape.polygons.length && shape.polygons.every((r) => Array.isArray(r) && r.length >= 3);
-        req(ok, `map: region "${id}" "polygons" must be a list of pieces, each of at least 3 points`);
-        if (ok) req(shape.polygons.every((r) => r.every(inside)), `map: region "${id}" has a point outside the image`);
+        req(ok, `${at}: region "${id}" "polygons" must be a list of pieces, each of at least 3 points`);
+        if (ok) req(shape.polygons.every((r) => r.every(inside)), `${at}: region "${id}" has a point outside the image`);
       } else if (isObj(shape) && shape.point != null) {
-        req(inside(shape.point), `map: region "${id}" point is outside the image`);
-      } else problems.push(`map: region "${id}" needs a "polygon", "polygons" or a "point"`);
+        req(inside(shape.point), `${at}: region "${id}" point is outside the image`);
+      } else problems.push(`${at}: region "${id}" needs a "polygon", "polygons" or a "point"`);
     });
     // Where the image is on the globe (task 4-5), and named places on it:
     // capitals and cities with no rooms, which the story knows by name.
     problems.push(...E.Geo.projectionProblems(m));
-    req(m.base == null || (typeof m.base === 'string' && m.base.trim()), 'map: "base" must be the id of the base map it was cut from');
-    ['credit', 'license'].forEach((k) => req(m[k] == null || typeof m[k] === 'string', `map: "${k}" must be text`));
-    if (m.places != null && !Array.isArray(m.places)) problems.push('map: "places" must be a list of {id, name, kind, at, region}');
+    req(m.base == null || (typeof m.base === 'string' && m.base.trim()), `${at}: "base" must be the id of the base map it was cut from`);
+    ['credit', 'license'].forEach((k) => req(m[k] == null || typeof m[k] === 'string', `${at}: "${k}" must be text`));
+    if (m.places != null && !Array.isArray(m.places)) problems.push(`${at}: "places" must be a list of {id, name, kind, at, region}`);
     const placeIds = new Set();
     (Array.isArray(m.places) ? m.places : []).forEach((pl) => {
-      const where = `map: place "${(pl && pl.id) || '?'}"`;
-      if (!isObj(pl)) return problems.push('map: "places" must be a list of {id, name, kind, at, region}');
+      const where = `${at}: place "${(pl && pl.id) || '?'}"`;
+      if (!isObj(pl)) return problems.push(`${at}: "places" must be a list of {id, name, kind, at, region}`);
       req(typeof pl.id === 'string' && /^[a-z0-9][a-z0-9_-]*$/.test(pl.id), `${where}: "id" must be lowercase letters, digits, - or _`);
       req(!placeIds.has(pl.id), `${where} is listed twice`);
       placeIds.add(pl.id);
@@ -940,7 +956,7 @@
     });
     // Rooms may belong to another start (the map is the world's); unknown ids
     // are checked once against every start in validateWorld.
-    Object.entries(isObj(m.locations) ? m.locations : {}).forEach(([id, p]) => req(inside(p), `map: location "${id}" is outside the image`));
+    Object.entries(isObj(m.locations) ? m.locations : {}).forEach(([id, p]) => req(inside(p), `${at}: location "${id}" is outside the image`));
     return problems;
   }
 

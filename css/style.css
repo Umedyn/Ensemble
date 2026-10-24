@@ -287,14 +287,30 @@ button:disabled { opacity: .5; cursor: default; }
 :root[data-theme="hv"] .sd .sd-label { fill: var(--text); }
 .map-more { fill: var(--muted); font-size: 10px; font-family: var(--sans); }
 .map-empty { color: var(--muted); text-align: center; margin-top: 40px; }
-/* World and regional views (task 3-4) */
-.map-tabs { display: flex; gap: 0; margin-bottom: 8px; align-items: center; }
-.map-tabs button { font-size: 0.75rem; padding: 3px 10px; border-radius: 0; }
-.map-tabs button:first-child { border-radius: 6px 0 0 6px; }
-.map-tabs button.last { border-radius: 0 6px 6px 0; }
-.map-tabs button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
-.map-tabs .zoom { margin-left: auto; display: flex; gap: 4px; }
-.map-tabs .zoom button { border-radius: 6px; padding: 3px 8px; }
+/* The zooming map (R-3): a breadcrumb through the region tree, where-I-am
+   and whole-world jumps, and zoom buttons for the pictured levels. */
+.map-bar { display: flex; flex-wrap: wrap; gap: 0.375rem; margin-bottom: 0.5rem; align-items: center; }
+.map-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 0.125rem; font-size: 0.8125rem; min-width: 0; }
+.map-crumbs button { font-size: 0.8125rem; padding: 0.125rem 0.375rem; border: none; background: none; color: var(--muted); }
+.map-crumbs button:hover { color: var(--text); text-decoration: underline; }
+.map-crumbs button[aria-current="true"] { color: var(--accent); font-weight: 700; }
+.map-crumbs .sep { color: var(--muted); }
+.map-bar .jumps, .map-bar .zoom { display: flex; gap: 0.25rem; }
+.map-bar .jumps { margin-left: auto; }
+.map-bar .jumps button, .map-bar .zoom button { font-size: 0.75rem; padding: 0.1875rem 0.5rem; border-radius: 0.375rem; }
+.region-g.dim { opacity: 0.35; }
+.region-shape.branch { stroke: var(--accent); stroke-dasharray: 8 4; stroke-width: 3; }
+.region-g[data-zoomable] { cursor: zoom-in; }
+.region-edge.kind-road { stroke-width: 3; }
+.region-edge.kind-rail { stroke-dasharray: 10 3 2 3; }
+.region-edge.kind-sea { stroke-dasharray: 2 6; stroke-linecap: round; }
+.region-edge.kind-air, .region-edge.kind-other { stroke-dasharray: 12 8; }
+.region-edge.kind-checkpoint { stroke-width: 3; stroke-dasharray: 3 3; }
+.region-edge.closed { stroke: var(--bad); opacity: 0.6; }
+.region-info .linkish { font-size: inherit; }
+.travel-card { border: 1px solid var(--line); border-radius: 0.375rem; padding: 0.75rem; font-size: 0.875rem; }
+.travel-card p { margin: 0 0 0.5rem; }
+.map-route[disabled] { opacity: 0.55; cursor: not-allowed; }
 .world-svg { width: 100%; height: auto; display: block; touch-action: none; cursor: grab; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
 .world-svg.panning { cursor: grabbing; }
 .region-shape { stroke: var(--line-strong); stroke-width: 2; fill-opacity: 0.45; cursor: pointer; vector-effect: non-scaling-stroke; }

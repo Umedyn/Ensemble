@@ -99,3 +99,74 @@ test('older saves get an empty change list', () => {
   assert.equal(up.version, E.Engine.STATE_VERSION);
   assert.deepEqual(plain(up.regionChanged), {});
 });
+
+// ---------- the zooming map (R-3) ----------
+
+test('levels with a picture: the world as before, a region without a map zooms the picture to its parts, a leaf as the regional view was', () => {
+  const { E, state } = newGame('zombie-holdout');
+  const sc = state.scenario;
+  const D = E.MapDraw;
+  const root = D.level(sc, null);
+  const before = D.geometry(sc.regions, sc.map, 'zombie-holdout');
+  assert.deepEqual(Object.keys(root.g.shapes).sort(), Object.keys(before.shapes).sort(), 'the same regions as the world view');
+  assert.deepEqual([...root.viewBox], [...before.full]);
+  assert.equal(root.picture, sc.map);
+  const town = D.level(sc, 'town');
+  assert.equal(town.picture, sc.map, 'Harmon has no map: the world\'s, zoomed');
+  assert.deepEqual([...town.children].sort(), ['highway-strip', 'main-street', 'residential']);
+  assert.deepEqual([...town.dim].sort(), ['junction', 'ridge-town']);
+  assert.ok(town.viewBox[3] < before.full[3], 'zoomed to the town\'s strip of the map');
+  const leaf = D.level(sc, 'highway-strip');
+  assert.equal(leaf.leaf, true);
+  assert.deepEqual([...leaf.viewBox], [...D.focusBox(before, 'highway-strip', E.Engine.nearbyRegions(state))], 'framed as the Region view was');
+  assert.deepEqual([...D.levelPath(sc, 'highway-strip')], [null, 'town', 'highway-strip']);
+  assert.equal(D.hasLevel(sc, 'town'), true);
+  assert.equal(D.hasLevel(sc, 'ridge-town'), false);
+});
+
+test('the picture is drawn first, under every shape, route and label (decoration, never data)', () => {
+  const { E, state } = newGame('zombie-holdout');
+  const lv = E.MapDraw.level(state.scenario, 'town');
+  const svg = E.MapDraw.worldSvg({ g: lv.g, regions: lv.regions, factions: state.factions, imageUrl: 'maps/town.svg', dim: lv.dim });
+  assert.match(svg, /^<svg[^>]*><image /);
+  assert.equal((svg.match(/class="region-g dim"/g) || []).length, 2);
+});
+
+test('levels without a picture: node maps of each level\'s children, with routes lifted from inside them, by kind, closed ones marked', () => {
+  const { E, state } = newGame('zombie-holdout');
+  const sc = Object.assign({}, state.scenario);
+  delete sc.map;
+  const D = E.MapDraw;
+  const root = D.level(sc, null);
+  assert.deepEqual(plain(root.regions.map((r) => r.id)).sort(), ['junction', 'ridge-town', 'town'], 'the top level only');
+  assert.deepEqual(plain(root.g.kinds), { 'junction|town': 'border', 'junction|ridge-town': 'road' }, 'the town\'s parts touch the junction, so the town does');
+  const town = D.level(sc, 'town');
+  assert.deepEqual(plain(town.regions.map((r) => r.id)).sort(), ['highway-strip', 'main-street', 'residential']);
+  const svg = D.worldSvg({ g: root.g, regions: root.regions, factions: state.factions, closed: new Set(['junction|ridge-town']) });
+  assert.match(svg, /class="region-edge kind-road closed"/);
+  assert.match(svg, /class="region-edge kind-border"/);
+  assert.equal(D.level(sc, 'ridge-town').leaf, true);
+});
+
+test('a region may carry a map of its own, outlining only regions inside it', () => {
+  const E = loadEngine();
+  const files = worldFiles('zombie-holdout');
+  const town = files['world.json'].regions.find((r) => r.id === 'town');
+  town.map = { image: 'maps/town.svg', width: 400, height: 300, regions: { 'main-street': { polygon: [[0, 0], [200, 0], [200, 200]] } }, locations: { floor: [10, 10] } };
+  const w = E.Scenario.prepareWorld('zombie-holdout', E.clone(files));
+  assert.equal(w.starts[0].error, undefined);
+  const lv = E.MapDraw.level(w.starts[0].scenario, 'town');
+  assert.equal(lv.owner, 'town');
+  assert.deepEqual(Object.keys(lv.g.shapes).sort(), ['highway-strip', 'main-street', 'residential'], 'its own outline, and points for the other parts');
+  assert.deepEqual([...lv.viewBox], [0, 0, 400, 300]);
+  assert.deepEqual(plain(E.MapDraw.level(w.starts[0].scenario, 'main-street').picture), town.map, 'a leaf inside uses the nearest picture');
+
+  town.map.regions['ridge-town'] = { point: [5, 5] };
+  assert.match(E.Scenario.prepareWorld('zombie-holdout', E.clone(files)).starts[0].error, /Harmon's map: "ridge-town" isn't inside Harmon/);
+  delete town.map.regions['ridge-town'];
+  town.map.locations.nowhere = [1, 1];
+  assert.throws(() => E.Scenario.prepareWorld('zombie-holdout', E.clone(files)), /Harmon's map: unknown location "nowhere"/);
+  town.map.width = 0;
+  delete town.map.locations.nowhere;
+  assert.match(E.Scenario.prepareWorld('zombie-holdout', E.clone(files)).starts[0].error, /"Harmon's map" needs an "image"/);
+});

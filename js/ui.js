@@ -1000,12 +1000,12 @@
     return `<div class="world groups" title="${esc(def.lore || '')}"><b>${esc(def.name)}</b>${up.length ? ` <span class="muted">(in ${esc(up.join(', '))})</span>` : ''}: ${esc(bits.join('; '))}</div>`;
   }
 
-  const regionName = (id) => { const d = id && E.Engine.regionDef(state, id); return d ? ` · ${esc(d.name)}` : ''; };
+  const newsRegion = (id) => { const d = id && E.Engine.regionDef(state, id); return d ? ` · ${esc(d.name)}` : ''; };
   function renderNews() {
     const news = (state.news || []).slice().reverse().slice(0, 6);
     $('newsPanel').classList.toggle('hidden', !news.length);
     $('news').innerHTML = news.map((n) =>
-      `<div class="news-item"><span class="muted">${n.scope === 'world' ? '🌍' : '🗺️'} ${esc(n.time)}${regionName(n.region)}</span><div>${esc(n.text)}</div>` +
+      `<div class="news-item"><span class="muted">${n.scope === 'world' ? '🌍' : '🗺️'} ${esc(n.time)}${newsRegion(n.region)}</span><div>${esc(n.text)}</div>` +
       (n.effects && n.effects.length ? `<div class="muted small">${n.effects.map(esc).join(' · ')}</div>` : '') + '</div>'
     ).join('');
   }
@@ -1158,6 +1158,37 @@
   }
   try { new ResizeObserver(sizeDetailedMap).observe($('mapPane')); } catch (e) {}
   const KIND_WORD = { open: 'way', door: 'door', 'locked door': 'locked door', vent: 'vent', hatch: 'hatch', window: 'window', stairs: 'stairs' };
+  // Region routes as travel buttons (R-3): an icon and the words the engine
+  // reads as setting out ("I drive to Ridge.").
+  const TRAVEL = {
+    border: ['🚶', 'I go to'], checkpoint: ['🛂', 'I go to'], road: ['🚗', 'I drive to'], rail: ['🚆', 'I take the train to'],
+    sea: ['⛵', 'I sail to'], air: ['✈️', 'I fly to'], hyperlane: ['🚀', 'I travel to'], portal: ['🌀', 'I travel to'],
+  };
+  // The routes out of the player's region that can lead somewhere: the world
+  // builds places, or the story already has a room or place there.
+  function travelRoutes() {
+    const from = E.Engine.playerRegion(state);
+    if (!from) return [];
+    const sc = state.scenario;
+    const somewhere = (id) => E.Sites.enabled(sc) || Object.values(state.locations).some((l) => l.region && E.Engine.regionChain(state, l.region).includes(id))
+      || Object.values(state.sites || {}).some((s) => s.region && E.Engine.regionChain(state, s.region).includes(id));
+    return E.Engine.routesFrom(state, from).filter((r) => somewhere(r.to)).map((r) => {
+      const [icon, verb] = TRAVEL[r.kind] || ['🧭', 'I travel to'];
+      const name = regionName(r.to);
+      const time = E.Scenario.sayHours(r.hours);
+      return { to: r.to, name, icon, time, closed: r.closed, risky: r.risky, say: `${verb} ${name}.`,
+        title: `${r.kind}${time ? `, ${time}` : ''}${r.closed ? `; closed: ${r.closed}${r.risky ? ' (you could risk it)' : ''}` : r.risky ? '; risky' : ''}` };
+    });
+  }
+  // Waiting on the road (R-2): where the journey stopped, and the way on or back.
+  function travelCardHtml(here) {
+    const l = state.locations[here];
+    const [on, back] = l.connects || [];
+    const btn = (to, say, icon) => (state.locations[to] ? `<button type="button" class="small map-route" data-say="${esc(say)}">${icon} ${esc(say.replace(/^I go /, '').replace(/\.$/, ''))}</button>` : '');
+    return `<div class="travel-card"><p><b>${esc(l.name)}</b>${l.region ? `, in ${esc(regionName(l.region))}` : ''}.</p><p>${esc(l.desc || '')}</p><div class="map-routes">` +
+      btn(on, `I go on to ${state.locations[on] ? state.locations[on].name : ''}.`, '↗') + ' ' + btn(back, `I go back to ${state.locations[back] ? state.locations[back].name : ''}.`, '↩') +
+      `</div></div><ul class="sr-only" id="mapList"><li>${esc(l.name)} (you are here)</li></ul>`;
+  }
   function localMapHtml() {
     const here = state.characters[state.player].status.location;
     const tokens = mapTokens();
@@ -1167,6 +1198,8 @@
     const lm = site === E.Sites.HOME ? state.scenario.localMap : null;
     const im = site !== E.Sites.HOME ? E.Sites.imageMap(state, site) : null;
     let svg;
+    // Stopped on a journey (R-2): no floor plan, just the way on and back.
+    if (state.locations[here].transit) return travelCardHtml(here);
     if (im) svg = imageMapSvg(site, im, here, tokens);
     else if (lm) {
       const url = portraitUrl(lm.image);
@@ -1201,9 +1234,15 @@
       // Never smaller than about three quarters of full size (the pane scrolls).
       svg = `<svg class="map-svg" viewBox="-4 -4 ${W + 8} ${H + 8}" style="min-width:${Math.round(W * 0.75)}px" role="img" aria-label="Map">${remote}${rooms}${marks}${levels}</svg>`;
     }
-    // Ways to other places (routes, task 4-4): clicking one fills in the action box.
+    // Ways to other places: trips to places made during the story (task
+    // 4-4), then the routes out of this region (R-3) with kind and time.
+    // Clicking one fills in the action box; the engine decides the rest.
     const routes = E.Sites.trips(state, site);
-    if (routes.length) svg += `<div class="map-routes">Ways to other places: ${routes.map((r) => `<button type="button" class="small map-route" data-name="${esc(r.name)}" title="From ${esc(state.locations[r.from].name)}">↗ ${esc(r.name)}</button>`).join(' ')}</div>`;
+    const regionRoutes = travelRoutes();
+    if (routes.length || regionRoutes.length) {
+      svg += `<div class="map-routes">Ways to other places: ${routes.map((r) => `<button type="button" class="small map-route" data-name="${esc(r.name)}" title="From ${esc(state.locations[r.from].name)}">↗ ${esc(r.name)}</button>`).join(' ')}` +
+        regionRoutes.map((r) => `<button type="button" class="small map-route" data-say="${esc(r.say)}"${r.closed && !r.risky ? ' disabled' : ''} title="${esc(r.title)}">${r.icon} ${esc(r.name)}${r.time ? ` · ${esc(r.time)}` : ''}${r.closed ? (r.risky ? ' ⚠' : ' (closed)') : ''}</button>`).join(' ') + '</div>';
+    }
     // The same in words, for screen readers.
     const list = Object.keys(state.locations).filter((id) => seen(id) && E.Sites.siteOf(state, id) === site).map((id) => {
       const who = (tokens[id] || []).map((t) => (t.player ? 'you' : t.kind === 'standee' ? `${t.count} ${t.label}` : t.label) + (t.now ? '' : ' (last seen)'));
@@ -1212,69 +1251,102 @@
     return svg + `<ul class="sr-only" id="mapList">${list}</ul>`;
   }
 
-  // ---------- world and regional views (task 3-4) ----------
-  // Regions coloured by who holds them (theme colours --f1…--f8, picked by
-  // the faction's "color" or a hash of its id), tag badges, your region
-  // marked, and an info strip for the region you pick. Public state only:
-  // controller, tags, status and the lore summary. The regional view is the
-  // same map zoomed to your region and its neighbours. Drag to pan; wheel,
-  // pinch or the buttons to zoom.
+  // ---------- the zooming map (task 3-4; one map through the tree, R-3) ----------
+  // A breadcrumb from the world down to the player's room: each level is a
+  // region (MapDraw.level: its picture, zoomed, or a node map of its
+  // children), and the bottom is the local map. Regions are coloured by who
+  // holds them (theme colours --f1…--f8), with tag badges, your region and
+  // your branch marked, and an info strip for the region you pick. Public
+  // state only: controller, tags, status and the lore summary. Clicking a
+  // region with regions inside it zooms in; any other picks it. Drag to pan;
+  // wheel, pinch or the buttons to zoom.
   const MAPVIEW_KEY = 'ensemble.mapview';
   let mapSel = null; // the region picked for the info strip
-  const viewBoxes = {}; // per view: the panned/zoomed viewBox, until reset or a new game
+  let curLevel = null; // the level drawn last (MapDraw.level)
+  const viewBoxes = {}; // per level: the panned/zoomed viewBox, until reset or a new game
   const pulsed = new Set(); // "id@turn": a change pulses once
   function mapViewAll() { try { return JSON.parse(store.get(MAPVIEW_KEY)) || {}; } catch (e) { return {}; } }
   const hasRegions = () => !!(state && (state.scenario.regions || []).length);
+  // The level shown: "local", "root" (the world) or a region id. Saved
+  // before R-3: "world" is the root, "region" the player's region.
   function mapView() {
-    const v = hasRegions() ? mapViewAll()[state.scenario.worldId] : null;
-    return ['local', 'region', 'world'].includes(v) ? v : 'local';
+    if (!hasRegions()) return 'local';
+    const v = mapViewAll()[state.scenario.worldId];
+    if (v === 'world') return 'root';
+    if (v === 'region') return E.Engine.playerRegion(state) || 'root';
+    return v === 'root' || v === 'local' || E.Engine.regionDef(state, v) ? v : 'local';
+  }
+  function setMapView(v) {
+    const all = mapViewAll();
+    all[state.scenario.worldId] = v;
+    store.set(MAPVIEW_KEY, JSON.stringify(all));
+    mapSel = null;
+    renderMap();
   }
   const factionClass = (fid) => E.MapDraw.factionClass(state.factions, fid);
-  const factionName = (fid) => E.MapDraw.factionName(state.factions, fid);
-  const worldGeometry = () => E.MapDraw.geometry(state.scenario.regions, state.scenario.map, state.scenario.worldId);
-  function worldMapHtml(view) {
-    const g = worldGeometry();
+  const regionName = (id) => (id && E.Engine.regionDef(state, id) ? E.Engine.regionDef(state, id).name : id);
+  // Connections on a node map that are closed now: every route behind one
+  // (between the regions shown, or regions inside them) needs something
+  // that doesn't hold. As "a|b" keys.
+  function closedEdges(lv) {
+    const tally = new Map();
+    (state.scenario.regions || []).forEach((r) => E.Engine.routesFrom(state, r.id).forEach((x) => {
+      const a = lv.liftTo(r.id), b = lv.liftTo(x.to);
+      if (!a || !b || a === b) return;
+      const key = [a, b].sort().join('|');
+      const t = tally.get(key) || { open: 0, closed: 0 };
+      t[x.closed ? 'closed' : 'open']++;
+      tally.set(key, t);
+    }));
+    return new Set([...tally].filter(([, t]) => t.closed && !t.open).map(([k]) => k));
+  }
+  function levelHtml(levelId) {
+    const sc = state.scenario;
+    const lv = curLevel = E.MapDraw.level(sc, levelId);
     const mine = E.Engine.playerRegion(state);
-    const near = E.Engine.nearbyRegions(state);
-    const defaultBox = view === 'region' && near.length ? E.MapDraw.focusBox(g, mine, near) : g.full;
+    const branch = mine ? E.Engine.regionChain(state, mine) : [];
     // A region changed this turn pulses once.
-    const pulse = (state.scenario.regions || []).filter((r) => {
+    const pulse = (sc.regions || []).filter((r) => {
       const ch = (state.regionChanged || {})[r.id];
       const key = `${r.id}@${state.turn}`;
       if (!ch || ch.turn !== state.turn || pulsed.has(key)) return false;
       pulsed.add(key);
       return true;
     }).map((r) => r.id);
-    // Rooms placed on the map, in the regional view.
-    const rooms = view === 'region' && g.image && g.image.locations
-      ? Object.entries(g.image.locations).filter(([id]) => state.locations[id] && state.seenRooms.includes(id)).map(([id, p]) => ({ x: p[0], y: p[1], name: state.locations[id].name }))
-      : [];
+    // Rooms placed on the picture, at a leaf (as the regional view had them).
+    const rooms = lv.leaf ? lv.rooms.filter((p) => state.locations[p.id] && state.seenRooms.includes(p.id)).map((p) => ({ x: p.x, y: p.y, name: state.locations[p.id].name })) : [];
+    const key = levelId == null ? 'root' : levelId;
     return E.MapDraw.worldSvg({
-      g, regions: state.scenario.regions, now: state.regions, factions: state.factions, mine, selected: mapSel, pulse, rooms,
-      places: E.MapDraw.placesOf(state.scenario.map),
-      imageUrl: g.image && portraitUrl(g.image.image), viewBox: viewBoxes[view] || defaultBox, id: 'worldSvg', view,
-      label: view === 'world' ? 'World map' : 'Map of your region and its neighbours',
-    }) + regionInfoHtml(view);
+      g: lv.g, regions: lv.regions, now: state.regions, factions: state.factions, mine, branch, selected: mapSel, pulse, rooms,
+      places: lv.picture ? E.MapDraw.placesOf(lv.picture) : [], dim: lv.dim, closed: lv.picture ? null : closedEdges(lv),
+
+      zoomable: lv.children.filter((id) => E.MapDraw.hasLevel(sc, id)),
+      imageUrl: lv.picture && portraitUrl(lv.picture.image), viewBox: viewBoxes[key] || lv.viewBox, id: 'worldSvg', view: key,
+      label: levelId == null ? 'World map' : `Map of ${regionName(levelId)}`,
+    }) + regionInfoHtml(lv);
   }
-  function regionInfoHtml(view) {
-    const id = mapSel || E.Engine.playerRegion(state);
+  function regionInfoHtml(lv) {
+    const id = mapSel || (lv.id != null ? lv.id : E.Engine.playerRegion(state));
     const r = id && E.Engine.regionDef(state, id);
     if (!r) return '<div class="region-info muted">Pick a region to see who holds it.</div>';
     const now = state.regions[id];
     const ch = (state.regionChanged || {})[id];
     const fc = factionClass(now.controller);
-    // Where it sits in the tree (R-1), and who holds a parent's children.
-    const bits = [`<b>${esc(r.name)}</b>${esc(E.Prompts.regionWhat(state.scenario, id, true))}${id === E.Engine.playerRegion(state) ? ' (you are here)' : ''}`,
-
+    // Where it sits in the tree (R-1): the regions it is inside, each a level to go to.
+    const up = E.Engine.regionChain(state, id).slice(1);
+    const label = E.Scenario.regionLabel(state.scenario, id);
+    const inWords = up.length ? ` in ${up.map((x) => `<button type="button" class="linkish" data-maplevel="${esc(x)}">${esc(regionName(x))}</button>`).join(' › ')}` : '';
+    const zoom = id !== lv.id ? ` <button type="button" class="small" data-maplevel="${esc(id)}">Zoom in ›</button>` : '';
+    const bits = [`<b>${esc(r.name)}</b>${label ? `, ${/^[aeiou]/i.test(label) ? 'an' : 'a'} ${esc(label)}` : ''}${inWords}${id === E.Engine.playerRegion(state) ? ' (you are here)' : ''}${zoom}`,
       `<span class="swatch ${fc}"></span>held by ${esc(E.Engine.regionHolder(state, id).text)}`];
     if (now.status) bits.push(esc(now.status));
     if (now.tags.length) bits.push(`tags: ${esc(now.tags.join(', '))}`);
     let html = `<div class="region-info" id="regionInfo">${bits.join(' · ')}`;
     if (ch && ch.turn === state.turn) html += `<div class="changed">This turn: ${esc(ch.what.join(', '))}.</div>`;
     if (r.lore) html += `<div class="muted">${esc(r.lore)}</div>`;
-    if (view === 'region' && id === E.Engine.playerRegion(state)) {
-      const placed = (state.scenario.map && state.scenario.map.locations) || {};
-      const rest = Object.values(state.locations).filter((l) => l.region === id && !l.site && !placed[l.id] && state.seenRooms.includes(l.id)).map((l) => l.name);
+    if (lv.leaf && id === E.Engine.playerRegion(state)) {
+      const placed = new Set(lv.rooms.map((p) => p.id));
+      const rest = Object.values(state.locations).filter((l) => l.region === id && !l.site && !placed.has(l.id) && state.seenRooms.includes(l.id)).map((l) => l.name);
       if (rest.length) html += `<div class="muted">Rooms here: ${esc(rest.join(', '))}</div>`;
     }
     // Places made during the story (task 4-4), in this region.
@@ -1282,15 +1354,23 @@
     if (places.length) html += `<div class="muted">Places: ${places.map((s) => esc(s.name) + (s.stub ? (s.visits ? ' (been there)' : ' (not visited yet)') : '')).join(', ')}</div>`;
     return html + '</div>';
   }
+  // The breadcrumb: the world, the regions down to the level shown, and (at
+  // the bottom) the room the player is in. "Where I am" and "Whole world" jump.
+  function mapBarHtml(view) {
+    const sc = state.scenario;
+    const here = state.characters[state.player].status.location;
+    const levelId = view === 'local' ? E.Engine.playerRegion(state) : view === 'root' ? null : view;
+    const path = E.MapDraw.levelPath(sc, levelId).map((id) => ({ key: id == null ? 'root' : id, name: id == null ? (sc.worldTitle || sc.title) : regionName(id) }));
+    if (view === 'local') path.push({ key: 'local', name: state.locations[here] ? state.locations[here].name : 'Here' });
+    const crumbs = path.map((c, i) => `${i ? '<span class="sep" aria-hidden="true">›</span>' : ''}<button type="button" data-maplevel="${esc(c.key)}"${i === path.length - 1 ? ' aria-current="true"' : ''}>${esc(c.name)}</button>`).join('');
+    const zoom = view === 'local' ? '' : `<span class="zoom"><button type="button" data-zoom="in" aria-label="Zoom in" title="Zoom in">+</button><button type="button" data-zoom="out" aria-label="Zoom out" title="Zoom out">−</button><button type="button" data-zoom="reset" aria-label="Reset the view" title="Reset the view">⟲</button></span>`;
+    return `<div class="map-bar"><nav class="map-crumbs" aria-label="Map levels">${crumbs}</nav>${zoom}<span class="jumps"><button type="button" data-maplevel="local" title="Where I am">📍 Where I am</button><button type="button" data-maplevel="root" title="The whole world">🌍 Whole world</button></span></div>`;
+  }
   function renderMap() {
     const pane = $('mapPane');
     if (!state) { pane.innerHTML = ''; return; }
     const view = mapView();
-    const tabs = hasRegions()
-      ? `<div class="map-tabs" role="group" aria-label="Map level">${['local', 'region', 'world'].map((v, i) => `<button type="button" data-mapview="${v}" class="${i === 2 ? 'last' : ''}" aria-pressed="${v === view}">${({ local: 'Local', region: 'Region', world: 'World' })[v]}</button>`).join('')}` +
-        (view === 'local' ? '' : `<span class="zoom"><button type="button" data-zoom="in" aria-label="Zoom in" title="Zoom in">+</button><button type="button" data-zoom="out" aria-label="Zoom out" title="Zoom out">−</button><button type="button" data-zoom="reset" aria-label="Reset the view" title="Reset the view">⟲</button></span>`) + '</div>'
-      : '';
-    pane.innerHTML = tabs + (view === 'local' ? localMapHtml() : worldMapHtml(view));
+    pane.innerHTML = (hasRegions() ? mapBarHtml(view) : '') + (view === 'local' ? localMapHtml() : levelHtml(view === 'root' ? null : view));
     sizeDetailedMap();
   }
   // Zoom the world map's viewBox around a point (in map units), within limits.
@@ -1299,7 +1379,7 @@
     if (!svg) return;
     const view = svg.dataset.view;
     const [x, y, w, h] = svg.getAttribute('viewBox').split(/\s+/).map(Number);
-    const full = worldGeometry().full;
+    const full = curLevel ? curLevel.g.full : [0, 0, 800, 560];
     const nw = Math.min(full[2] * 2, Math.max(full[2] / 8, w * factor)), nh = h * (nw / w);
     const px = cx == null ? x + w / 2 : cx, py = cy == null ? y + h / 2 : cy;
     viewBoxes[view] = [px - (px - x) * (nw / w), py - (py - y) * (nh / h), nw, nh];
@@ -1347,9 +1427,17 @@
     if (!pointers.size) drag = null;
     if (ev.type === 'pointerup' && !wasDrag && ev.target.closest) {
       const g = ev.target.closest('.region-g');
-      if (g) { mapSel = g.dataset.region; renderMap(); }
+      if (g) pickRegion(g.dataset.region, !!g.dataset.zoomable);
     }
   };
+  // A region on the map: one with regions inside it zooms in (R-3); any
+  // other is picked for the info strip.
+  function pickRegion(id, zoomable) {
+    if (zoomable) return setMapView(id);
+    mapSel = id;
+    renderMap();
+  }
+
   $('mapPane').addEventListener('pointerup', endDrag);
   $('mapPane').addEventListener('pointercancel', endDrag);
   $('mapPane').addEventListener('wheel', (ev) => {
@@ -1360,17 +1448,11 @@
     zoomWorld(ev.deltaY > 0 ? 1.15 : 1 / 1.15, p.x, p.y);
   }, { passive: false });
   $('mapPane').addEventListener('click', (ev) => {
-    const tab = ev.target.closest('[data-mapview]');
-    if (tab && state) {
-      const all = mapViewAll();
-      all[state.scenario.worldId] = tab.dataset.mapview;
-      store.set(MAPVIEW_KEY, JSON.stringify(all));
-      mapSel = null;
-      return renderMap();
-    }
+    const lvl = ev.target.closest('[data-maplevel]');
+    if (lvl && state) return setMapView(lvl.dataset.maplevel);
     const z = ev.target.closest('[data-zoom]');
     if (z) {
-      if (z.dataset.zoom === 'reset') { const v = mapView(); delete viewBoxes[v]; return renderMap(); }
+      if (z.dataset.zoom === 'reset') { delete viewBoxes[mapView()]; return renderMap(); }
       zoomWorld(z.dataset.zoom === 'in' ? 1 / 1.4 : 1.4);
     }
   });
@@ -1391,7 +1473,7 @@
       return fillAction(`Talk to ${who ? (tok.dataset.kind === 'extra' ? who.name : E.Engine.shortName(who)) : id}.`);
     }
     const route = el.closest('.map-route');
-    if (route) return fillAction(`Go to ${route.dataset.name}.`);
+    if (route) return route.disabled ? null : fillAction(route.dataset.say || `Go to ${route.dataset.name}.`);
     // A gameplay piece on the detailed map (task 3-7); decoration has no data.
     const feat = el.closest('.map-feature');
     if (feat) return fillAction(`Look at ${/^(the|a|an|my|your|his|her|their|\w+'s)\b/i.test(feat.dataset.feature) ? '' : 'the '}${feat.dataset.feature}.`);
@@ -1405,7 +1487,13 @@
   $('mapPane').addEventListener('keydown', (ev) => {
     if (ev.key !== 'Enter' && ev.key !== ' ') return;
     const reg = ev.target.closest && ev.target.closest('.region-g');
-    if (reg) { ev.preventDefault(); mapSel = reg.dataset.region; renderMap(); const el = document.querySelector(`.region-g[data-region="${reg.dataset.region}"]`); if (el) el.focus(); return; }
+    if (reg) {
+      ev.preventDefault();
+      pickRegion(reg.dataset.region, !!reg.dataset.zoomable);
+      const el = document.querySelector(`.region-g[data-region="${reg.dataset.region}"]`) || document.querySelector('.region-g');
+      if (el) el.focus();
+      return;
+    }
     if (!ev.target.closest('.map-token, .map-room, .map-feature')) return;
     ev.preventDefault();
     mapActivate(ev.target);

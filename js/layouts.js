@@ -149,12 +149,21 @@
     const radius = 90 + 45 * n;
     list.forEach((r, i) => { const a = rot + (2 * Math.PI * i) / Math.max(1, n); pos[r.id] = { x: Math.cos(a) * radius, y: Math.sin(a) * radius * 0.7 }; });
     const ids = new Set(list.map((r) => r.id));
+    // Edges from neighbours and routes (R-2) between the regions shown; a
+    // route's kind wins over a plain border (R-3 draws them by kind).
     const edges = [];
+    const kinds = {};
     const seen = new Set();
-    list.forEach((r) => (r.neighbours || []).forEach((o) => {
-      const k = [r.id, o].sort().join('|');
-      if (ids.has(o) && !seen.has(k)) { seen.add(k); edges.push([r.id, o].sort()); }
-    }));
+    const link = (a, b, kind) => {
+      const k = [a, b].sort().join('|');
+      if (!ids.has(b) || a === b) return;
+      if (!seen.has(k)) { seen.add(k); edges.push([a, b].sort()); }
+      if (kind && kind !== 'border' || !kinds[k]) kinds[k] = kind || 'border';
+    };
+    list.forEach((r) => {
+      (r.neighbours || []).forEach((o) => link(r.id, o, null));
+      (Array.isArray(r.routes) ? r.routes : []).forEach((x) => x && link(r.id, x.to, x.kind || 'border'));
+    });
     const ideal = 220;
     for (let it = 0; it < 300; it++) {
       const f = {};
@@ -200,7 +209,7 @@
     return {
       width: n ? Math.round(Math.max(...xs) - minX + w / 2 + 20) : 0,
       height: n ? Math.round(Math.max(...ys) - minY + h / 2 + 20) : 0,
-      nodes, edges,
+      nodes, edges, kinds,
     };
   };
   // Where a region's label and pin go on an image map: the middle of its

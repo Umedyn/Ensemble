@@ -8,6 +8,7 @@
   const D = (E.MapDraw = {});
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   D.esc = esc;
+  const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
 
   // A faction's colour class: its "color" (1–8), else one picked from its id.
   D.factionClass = function (factions, fid) {
@@ -40,8 +41,68 @@
     const nm = E.Layouts.regionMap(regions, seed);
     const anchors = {}, shapes = {};
     Object.entries(nm.nodes).forEach(([id, n]) => { anchors[id] = [n.x, n.y]; shapes[id] = { box: n }; });
-    return { image: null, anchors, shapes, edges: nm.edges, full: [0, 0, nm.width, nm.height] };
+    return { image: null, anchors, shapes, edges: nm.edges, kinds: nm.kinds, full: [0, 0, nm.width, nm.height] };
   };
+
+  // ---------- the zooming map (R-3) ----------
+  // One level of the map: a region (or null, the world) and what it shows.
+  // Its picture is the nearest map up the chain: its own, an ancestor's, or
+  // the world's. With a picture, everything outlined on it is drawn as
+  // before (the picture is decoration underneath, never data: rule 11), and
+  // the view zooms to the level; regions outside it are dimmed. Without one,
+  // a node map of its children and their routes. A leaf shows its parent's
+  // view, zoomed to it.
+  // → { id, picture (map or null), owner (whose map), regions (definitions
+  // to draw), g, viewBox, children (ids a click zooms into), dim (ids outside
+  // the level), rooms ([{id, x, y}] placed on the picture, in the level) }
+  D.level = function (sc, levelId) {
+    const S = E.Scenario;
+    const list = (sc.regions || []).filter((r) => r && r.id);
+    const def = (id) => list.find((r) => r.id === id) || null;
+    const id = levelId != null && def(levelId) ? levelId : null;
+    const chainOf = (x) => S.regionChainIn(list, x);
+    const inside = (x, of) => of == null || (x !== of && chainOf(x).includes(of));
+    const children = S.regionChildrenIn(list, id);
+    // A leaf shows its parent's level, zoomed to it.
+    const leaf = id != null && !children.length && !def(id).map;
+    const base = leaf ? (def(id).parent != null && def(def(id).parent) ? def(id).parent : null) : id;
+    const owner = (base != null ? chainOf(base) : []).find((x) => def(x).map) || null;
+    const picture = owner ? def(owner).map : sc.map || null;
+    const seed = `${sc.worldId || ''}${base ? ':' + base : ''}`;
+    if (picture) {
+      const regions = list.filter((r) => inside(r.id, owner));
+      const g = D.geometry(regions, picture, seed);
+      const focus = id == null || id === owner ? null : (leaf ? [id] : list.filter((r) => inside(r.id, id)).map((r) => r.id).filter((x) => g.shapes[x]));
+      // A leaf: as the regional view was, twice its size within what's near it.
+      const near = leaf ? [id].concat(S.regionNearIn(list, id)).filter((x) => g.shapes[x]) : [];
+      const viewBox = leaf && g.shapes[id] ? D.focusBox(g, id, near) : focus && focus.length ? D.regionBox(g, focus) : g.full;
+
+      const dim = id == null || id === owner || leaf ? [] :
+ regions.map((r) => r.id).filter((x) => g.shapes[x] && x !== id && !inside(x, id));
+      const rooms = Object.entries(isObj(picture.locations) ? picture.locations : {}).map(([room, p]) => ({ id: room, x: p[0], y: p[1] }));
+      return { id, leaf, picture, owner, regions, g, viewBox, children: regions.map((r) => r.id).filter((x) => g.shapes[x] && inside(x, id) && !dim.includes(x)), dim, rooms };
+    }
+    // Routes between regions inside the ones shown count as routes between
+    // them (the town's parts touch the junction, so the town does), a kind
+    // other than a border winning.
+    const kids = S.regionChildrenIn(list, base);
+    const up = (x) => S.regionChainIn(list, x).find((c) => kids.includes(c)) || null;
+    const lifted = new Map(kids.map((k) => [k, new Map()]));
+    list.forEach((r) => [].concat((r.neighbours || []).map((to) => ({ to, kind: 'border' })), Array.isArray(r.routes) ? r.routes : []).forEach((x) => {
+      const a = up(r.id), b = x && up(x.to);
+      if (!a || !b || a === b) return;
+      const was = lifted.get(a).get(b);
+      if (!was || (was === 'border' && x.kind && x.kind !== 'border')) lifted.get(a).set(b, x.kind || 'border');
+    }));
+    const shown = kids.map((k) => Object.assign({}, def(k), { neighbours: [], routes: [...lifted.get(k)].map(([to, kind]) => ({ to, kind })) }));
+    const g = D.geometry(shown, null, seed);
+    return { id, leaf, picture: null, owner: null, regions: shown, g, viewBox: leaf ? D.regionBox(g, [id]) : g.full, children: leaf ? [] : shown.map((r) => r.id), dim: [], rooms: [], liftTo: up };
+
+  };
+  // The levels from the world down to one: [null, …ancestors, id].
+  D.levelPath = (sc, id) => [null].concat(id == null ? [] : E.Scenario.regionChainIn(sc.regions || [], id).reverse());
+  // Can a region be zoomed into (it has regions inside it, or a map)?
+  D.hasLevel = (sc, id) => { const r = (sc.regions || []).find((x) => x && x.id === id); return !!r && (!!r.map || E.Scenario.regionChildrenIn(sc.regions, id).length > 0); };
   // The box around some regions, padded.
   D.regionBox = function (g, ids) {
     const pts = [];
@@ -98,13 +159,22 @@
       const b = E.Geo.bbox(sh.polygons);
       return b[2] - b[0] >= String(r.name).length * 15 * k * 0.55;
     };
-    const edges = g.edges.map(([a, b]) => `<line class="region-edge" x1="${g.anchors[a][0]}" y1="${g.anchors[a][1]}" x2="${g.anchors[b][0]}" y2="${g.anchors[b][1]}"/>`).join('');
+    // Routes on the node map (R-3): a line style per kind, closed ones marked.
+    const closed = o.closed || new Set();
+    const kindClass = (k) => (['border', 'road', 'rail', 'sea', 'air', 'checkpoint'].includes(k) ? k : 'other');
+    const edges = g.edges.map(([a, b]) => {
+      const key = `${a}|${b}`;
+      const kind = (g.kinds || {})[key] || 'border';
+      return `<line class="region-edge kind-${kindClass(kind)}${closed.has(key) ? ' closed' : ''}" x1="${g.anchors[a][0]}" y1="${g.anchors[a][1]}" x2="${g.anchors[b][0]}" y2="${g.anchors[b][1]}"><title>${esc(kind)}${closed.has(key) ? ' (closed)' : ''}</title></line>`;
+    }).join('');
+    const dim = new Set(o.dim || []);
+    const zoomable = new Set(o.zoomable || []);
     const pulse = new Set(o.pulse || []);
     const parents = new Set((o.regions || []).map((r) => r.parent).filter((p) => p != null));
     const body = (o.regions || []).filter((r) => g.shapes[r.id]).sort((a, b) => parents.has(b.id) - parents.has(a.id)).map((r) => {
       const now = (o.now || {})[r.id] || { controller: r.controller || null, tags: r.tags || [] };
       const fc = D.factionClass(o.factions, now.controller);
-      const cls = `region-shape ${fc}${fc === 'none' ? ' none' : ''}${r.id === o.mine ? ' here' : ''}${r.id === o.selected ? ' selected' : ''}`;
+      const cls = `region-shape ${fc}${fc === 'none' ? ' none' : ''}${r.id === o.mine ? ' here' : ''}${(o.branch || []).includes(r.id) && r.id !== o.mine ? ' branch' : ''}${r.id === o.selected ? ' selected' : ''}`;
       const [ax, ay] = g.anchors[r.id];
       const show = fits(r);
       const tags = show ? (now.tags || []).slice(0, 2).concat((now.tags || []).length > 2 ? [`+${now.tags.length - 2}`] : []) : [];
@@ -119,7 +189,7 @@
       const pin = r.id === o.mine ? `<circle class="region-pin" cx="${ax}" cy="${n1(ay - 24 * k)}" r="${n1(6 * k)}"/>` : '';
       const label = `${r.name}, held by ${D.factionName(o.factions, now.controller)}${r.id === o.mine ? ', you are here' : ''}`;
       const text = show ? `<text class="region-label" x="${ax}" y="${ay}" text-anchor="middle"${k > 1 ? ` style="font-size:${n1(15 * k)}px;stroke-width:${n1(4 * k)}px"` : ''}>${esc(r.name)}</text>` : '';
-      return `<g class="region-g${pulse.has(r.id) ? ' changed' : ''}" tabindex="0" role="button" data-region="${esc(r.id)}" aria-label="${esc(label)}">${shapeSvg(r.id, cls)}${text}${badges}${pin}</g>`;
+      return `<g class="region-g${pulse.has(r.id) ? ' changed' : ''}${dim.has(r.id) ? ' dim' : ''}" tabindex="0" role="button" data-region="${esc(r.id)}"${zoomable.has(r.id) ? ' data-zoomable="1"' : ''} aria-label="${esc(label)}${zoomable.has(r.id) ? ', zoom in' : ''}">${shapeSvg(r.id, cls)}${text}${badges}${pin}</g>`;
     }).join('');
     const small = k > 1 ? ` style="font-size:${n1(11 * k)}px;stroke-width:${n1(3 * k)}px"` : '';
     const rooms = (o.rooms || []).map((p) => `<circle class="region-loc" cx="${p.x}" cy="${p.y}" r="${n1(4 * k)}"/><text class="region-loc-label" x="${n1(p.x + 7 * k)}" y="${n1(p.y + 4 * k)}"${small}>${esc(p.name)}</text>`).join('');

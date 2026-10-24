@@ -221,7 +221,7 @@ Regions become a free-form tree with routes, and maps attach to any region, so o
 - [x] **Open worlds** (R-0, goes first): a world with only a title and a setting plays (no starts, characters, skills or regions); "Make my own" by default; defaults for every `generatedStarts` field; a world start date. The minimum-world test guards everything after it.
 - [x] **The region tree** (R-1): `parent`, `label` and per-depth labels; chain and nearby helpers; control at any level; prompts carry the player's chain, nearby regions and a static outline; lore falls back up the chain; migration from flat lists.
 - [x] **Routes** (R-2): kinds, times and `requires` (the timeline's precondition grammar), `risky` crossings as rolls; `neighbours` become border routes; long trips run as skips; multi-leg travel.
-- [ ] **Maps on any region and one zooming map** (R-3): a breadcrumb through the tree, node maps where there's no picture, travel buttons with kind and time.
+- [x] **Maps on any region and one zooming map** (R-3): a breadcrumb through the tree, node maps where there's no picture, travel buttons with kind and time.
 - [ ] **Creator** (R-4): a tree view, route kinds, "attach a map", templates (one country, one city, planets), WORLDS.md rewritten in three steps.
 - [ ] **Presence and unknown regions** (R-5): several groups per region, contested ground; `known: false` branches revealed by the story.
 - [ ] **Generated regions** (R-6): `new_region` like `new_place`, one level up, fading like sites.
