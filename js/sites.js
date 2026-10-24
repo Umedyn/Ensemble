@@ -126,6 +126,7 @@
     const req = (c, msg) => { if (!c) out.push(`${where}: ${msg}`); };
     req(m.id === id, `has id "${m.id}"`);
     req(typeof m.type === 'string' && m.type.trim(), 'needs a "type" (warehouse, tavern, farmhouse…)');
+    req(m.tactical == null || typeof m.tactical === 'boolean', '"tactical" must be true or false (R-8: always shown and played as a floor plan)');
     req(m.tags == null || (Array.isArray(m.tags) && m.tags.every((t) => typeof t === 'string')), '"tags" must be a list of words');
     req(m.setting == null || (Array.isArray(m.setting) && m.setting.every((t) => typeof t === 'string' && t.trim())), '"setting" must be a list of setting tags, like ["modern"]');
     req(typeof m.credit === 'string' && m.credit.trim() && typeof m.license === 'string' && m.license.trim(), 'needs "credit" and "license"');
@@ -328,6 +329,20 @@
     const ctx = { header: E.Prompts.header(state), job: { log: [] } };
     const warnings = [];
     let layout;
+    // A flavour place (R-8): one call, 1 to 3 rooms and who is there, no
+    // guards on posts or patrols. A library map still wins when one fits.
+    if (!map && ST.mapFocus(sc) === 'region' && !req.tactical) {
+      if (phase) phase(`Building ${req.name}…`);
+      const both = await E.StartGen.attempt(ctx, `worldbuild (site: ${req.name})`, E.Prompts.siteFlavour(state, req), 900, (raw) => ST.checkFlavour(state, raw, id));
+      ctx.job.log.filter((l) => l.error).forEach((l) => warnings.push(`try ${l.attempt} rejected: ${l.error}`));
+      warnings.push(...both.warnings);
+      const site = {
+        id, name: req.name, kind: req.kind, region: req.region, entry: both.layout.entry, rooms: both.layout.rooms.map((r) => r.id),
+        entrances: both.layout.entrances, note: both.people.note || '', from: req.from, why: text(req.why, 200), map: null, flavour: true,
+        made: state.turn, visits: 0, lastVisit: null, kept: false, summary: (req.stub && req.stub.summary) || '',
+      };
+      return { site, rooms: both.layout.rooms, extras: both.people.extras, standees: both.people.standees, warnings };
+    }
     if (map) {
       layout = ST.fromMap(state, map, id);
       warnings.push(`library map "${map.id}" (${map.credit}, ${map.license})`);
@@ -344,6 +359,7 @@
     const site = {
       id, name: req.name, kind: req.kind, region: req.region, entry: layout.entry, rooms: layout.rooms.map((r) => r.id),
       entrances: layout.entrances, note: people.note || '', from: req.from, why: text(req.why, 200), map: map ? map.id : null,
+      ...(map && map.tactical === true ? { tactical: true } : {}),
       made: state.turn, visits: 0, lastVisit: null, kept: false, summary: (req.stub && req.stub.summary) || '',
     };
     return { site, rooms: layout.rooms, extras: people.extras, standees: people.standees, warnings };
@@ -400,14 +416,16 @@
   };
 
   // The model's layout → { rooms, entry, entrances, warnings } or { error }.
-  ST.checkLayout = function (state, raw, siteId) {
+  // limits: [fewest, most] rooms (default ST.ROOMS; a flavour place, R-8: 1 to 3).
+  ST.checkLayout = function (state, raw, siteId, limits) {
+    const [min, max] = limits || ST.ROOMS;
     const list = isObj(raw) && Array.isArray(raw.rooms) ? raw.rooms.filter(isObj) : [];
-    if (list.length < ST.ROOMS[0]) return { error: `make ${ST.ROOMS[0]} to ${ST.ROOMS[1]} rooms (got ${list.length})` };
-    const warnings = list.length > ST.ROOMS[1] ? [`kept the first ${ST.ROOMS[1]} of ${list.length} rooms`] : [];
+    if (list.length < min) return { error: `make ${min} to ${max} rooms (got ${list.length})` };
+    const warnings = list.length > max ? [`kept the first ${max} of ${list.length} rooms`] : [];
     const used = takenIds(state, [siteId]);
     const names = new Set(Object.values(state.locations).map((l) => norm(l.name)));
     const rooms = [];
-    for (const r of list.slice(0, ST.ROOMS[1])) {
+    for (const r of list.slice(0, max)) {
       const name = text(r.name, 40);
       const desc = E.StartGen.clip(r.desc, 240);
       if (!name || !desc) return { error: 'every room needs a "name" and a "desc"' };
@@ -450,6 +468,141 @@
     if (!entrances.some((e) => e.room === entry.id)) entrances.unshift({ room: entry.id, kind: 'door', watched: false });
     rooms.forEach((r) => { delete r._raw; delete r._alias; if (!r.links.length) delete r.links; });
     return { rooms, entry: entry.id, entrances: entrances.slice(0, 4), warnings };
+  };
+
+  // ---------- map focus (R-8) ----------
+  // How much the local layout matters in this world: "local" (tense stories:
+  // doors, sight lines, patrols, ways out) or "region" (everyday ones: the
+  // city is the lived space, rooms are flavour). The world's mapFocus, else
+  // local where danger is lethal (any of its genre tags, so a grim intrigue
+  // world counts) or a group is hostile, or there are no known genre tags;
+  // else region. It changes presentation and cost, never the rules.
+  ST.mapFocus = function (sc) {
+    if (sc.mapFocus === 'local' || sc.mapFocus === 'region') return sc.mapFocus;
+    const { known } = E.Genres.split(sc.tags);
+    if (!known.length || known.some((k) => E.Genres.table[k].danger === 'lethal')) return 'local';
+    return (sc.standees || []).some((g) => g && g.state === 'hostile') ? 'local' : 'region';
+  };
+  // Danger in a place right now: an alert or hostile group, a secure room,
+  // or an open emergency with the player there.
+  ST.danger = function (state, siteId) {
+    const rooms = new Set(ST.rooms(state, siteId).map((l) => l.id));
+    if ([...rooms].some((id) => state.locations[id].secure)) return true;
+    if (Object.values(state.standees || {}).some((g) => rooms.has(g.location) && (g.state === 'alert' || g.state === 'hostile'))) return true;
+    return !!(state.crisis && rooms.has(state.characters[state.player].status.location));
+  };
+  // A tactical place shows its floor plan and sends every room's detail; a
+  // flavour place is a scene card and a line of rooms. The world's focus,
+  // the author's tactical: true, a place that grew, or danger now.
+  ST.tactical = function (state, siteId) {
+    if (ST.mapFocus(state.scenario) === 'local') return true;
+    const s = siteId !== ST.HOME ? (state.sites || {})[siteId] : null;
+    if (s && (s.tactical || s.grown)) return true;
+    if (siteId === ST.HOME && state.scenario.tactical === true) return true;
+    return ST.danger(state, siteId);
+  };
+  // The places the player knows inside a region (null: anywhere), as pins
+  // for a region-focused map: home (named by its first room there) and the
+  // places made during the story, each with the trip from where the player
+  // is (hours, null when no route is known). → [{ site, name, region, here, hours, visited }]
+  ST.regularPlaces = function (state, regionId) {
+    const inside = (r) => !regionId || (r && Eng().regionChain(state, r).includes(regionId));
+    const mine = Eng().playerRegion(state);
+    const at = ST.playerSite(state);
+    const trip = (r) => {
+      const t = Eng().regionTrip(state, mine, r);
+      return t.legs ? t.hours : null;
+    };
+    const out = [];
+    const home = new Map();
+    Object.values(state.locations).filter((l) => !l.site && !l.transit && l.region && state.seenRooms.includes(l.id) && inside(l.region))
+      .forEach((l) => { if (!home.has(l.region)) home.set(l.region, l); });
+    home.forEach((l, r) => out.push({ site: ST.HOME, name: l.name, region: r, here: at === ST.HOME && Eng().playerRegion(state) === r, hours: trip(r), visited: true }));
+    Object.values(state.sites || {}).filter((s) => inside(s.region) && Eng().regionKnown(state, s.region))
+      .forEach((s) => out.push({ site: s.id, name: s.name, region: s.region, here: at === s.id, hours: trip(s.region), visited: !s.stub || !!s.visits }));
+    return out;
+  };
+  // A flavour place's one reply: its rooms and who is there.
+  ST.checkFlavour = function (state, raw, siteId) {
+    const layout = ST.checkLayout(state, raw, siteId, [1, 3]);
+    if (layout.error) return layout;
+    layout.rooms.forEach((r) => { delete r.secure; });
+    const people = ST.checkOccupants(state, raw, layout, siteId, false);
+    if (people.error) return people;
+    people.standees.forEach((g) => { delete g.post; delete g.patrol; });
+    return { layout, people, warnings: (layout.warnings || []).concat(people.warnings || []) };
+  };
+  // A flavour place where danger has come turns tactical: one call adds 2
+  // to 4 rooms around the ones it has, which never move (same ids, names,
+  // descriptions and links). Called at the start of a turn. → Debug lines.
+  ST.growIfDanger = async function (state, phase) {
+    const siteId = ST.playerSite(state);
+    const s = (state.sites || {})[siteId];
+    if (!s || !s.flavour || s.grown || s.stub || ST.mapFocus(state.scenario) === 'local' || !ST.danger(state, siteId)) return [];
+    if (phase) phase(`${s.name} gets dangerous…`);
+    const ctx = { header: E.Prompts.header(state), job: { log: [] } };
+    const layout = { rooms: ST.rooms(state, siteId).map((l) => E.clone(l)), entry: s.entry };
+    let out;
+    try {
+      out = await E.StartGen.attempt(ctx, `worldbuild (site grows: ${s.name})`, E.Prompts.siteGrow(state, { name: s.name, kind: s.kind, region: s.region }, layout), 700, (raw) => ST.checkGrowth(state, raw, siteId));
+    } catch (err) {
+      return [`${s.name} didn't grow: ${err.message}`];
+    }
+    out.rooms.forEach((r) => { state.locations[r.id] = Object.assign({ connects: [] }, r, { region: s.region, site: siteId, seen: false }); });
+    out.rooms.forEach((r) => r.connects.forEach((c) => {
+      const old = state.locations[c];
+      if (old && !old.connects.includes(r.id)) old.connects = old.connects.concat(r.id);
+    }));
+    s.rooms = s.rooms.concat(out.rooms.map((r) => r.id));
+    s.grown = true;
+    Eng().initSite(state);
+    return [`${s.name} grew: ${out.rooms.map((r) => r.name).join(', ')}`].concat(out.warnings || []);
+  };
+  // New rooms only: each linked to the place or to another new room; a
+  // reply that changes a room the place has is refused (rooms never move).
+  ST.checkGrowth = function (state, raw, siteId) {
+    const have = ST.rooms(state, siteId);
+    const list = isObj(raw) && Array.isArray(raw.rooms) ? raw.rooms.filter(isObj) : [];
+    const touched = list.find((r) => have.some((h) => h.id === r.id || norm(h.name) === norm(r.name)));
+    if (touched) return { error: `keep the rooms that are there as they are (${touched.name || touched.id}); only add new ones` };
+    if (list.length < 2) return { error: `add 2 to 4 new rooms (got ${list.length})` };
+    const used = takenIds(state, [siteId]);
+    const names = new Set(Object.values(state.locations).map((l) => norm(l.name)));
+    const rooms = [];
+    for (const r of list.slice(0, 4)) {
+      const name = text(r.name, 40);
+      const desc = E.StartGen.clip(r.desc, 240);
+      if (!name || !desc) return { error: 'every new room needs a "name" and a "desc"' };
+      if (names.has(norm(name))) return { error: `"${name}" is already a room on the map; give this one its own name` };
+      names.add(norm(name));
+      const room = { id: fresh(used, r.id && /^[a-z0-9][a-z0-9_-]*$/.test(String(r.id)) ? String(r.id) : name, 'room'), name, desc, connects: [], links: [], _raw: r, _alias: [String(r.id || ''), name] };
+      if (r.outside === true) room.outside = true;
+      const feats = (Array.isArray(r.features) ? r.features : []).slice(0, 3).map((f) => text(isObj(f) ? f.name : f, 30)).filter(Boolean);
+      if (feats.length) room.features = feats;
+      if (r.secure === true) room.secure = true;
+      rooms.push(room);
+    }
+    const find = (ref) => rooms.find((x) => x.id === ref || x._alias.some((a) => a && norm(a) === norm(ref))) || have.find((h) => h.id === ref || norm(h.name) === norm(ref));
+    const warnings = [];
+    rooms.forEach((r) => (Array.isArray(r._raw.links) ? r._raw.links : []).forEach((k) => {
+      const to = find(isObj(k) ? k.to : k);
+      if (!to || to === r || r.connects.includes(to.id)) return;
+      r.connects.push(to.id);
+      if (rooms.includes(to)) to.connects.push(r.id);
+      r.links.push({ to: to.id, kind: ST.KINDS.includes(isObj(k) && k.kind) ? k.kind : 'door' });
+    }));
+    // Every new room reaches the place: one that doesn't gets a door to the way in.
+    const reach = new Set(have.map((h) => h.id));
+    let grew = true;
+    while (grew) { grew = false; rooms.forEach((r) => { if (!reach.has(r.id) && r.connects.some((c) => reach.has(c))) { reach.add(r.id); grew = true; } }); }
+    const entry = (state.sites[siteId] || {}).entry || have[0].id;
+    rooms.filter((r) => !reach.has(r.id)).forEach((r) => {
+      warnings.push(`${r.name} connected nowhere; a door to ${state.locations[entry].name} added`);
+      r.connects.push(entry); r.links.push({ to: entry, kind: 'door' });
+    });
+    rooms.filter((r) => r.secure && r.connects.length !== 1).forEach((r) => { delete r.secure; });
+    rooms.forEach((r) => { delete r._raw; delete r._alias; if (!r.links.length) delete r.links; });
+    return { rooms, warnings };
   };
 
   // The people and groups there → { extras, standees, note, renames, warnings } or { error }.

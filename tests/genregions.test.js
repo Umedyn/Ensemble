@@ -54,7 +54,7 @@ test('built: a region with checked lore and a route from here, a place to arrive
   assert.equal(E.Engine.regionOf(state, state.characters.you.status.location), r.id, 'arrived at a place inside it');
   assert.ok(Object.values(state.sites).some((s) => s.region === r.id && !s.stub));
   assert.match(out.res.outcomes[0].action, /\(the way: by road to Kessa \(2h\)\)/);
-  assert.deepEqual(calls.map((c) => c.kind).filter((k) => /worldbuild/.test(k)), ['worldbuild (region: Kessa)', 'worldbuild (site: Kessa)', 'worldbuild (site people: Kessa)']);
+  assert.deepEqual(calls.map((c) => c.kind).filter((k) => /worldbuild/.test(k)), ['worldbuild (region: Kessa)', 'worldbuild (site: Kessa)'], 'the city template is region-focused (R-8): the place is flavour, one call');
   const now = E.Prompts.header(state);
   const tail = header.indexOf('\n=== STORY SO FAR');
   assert.ok(now.startsWith(header.slice(0, tail > 0 ? tail : header.length)), 'the static header is unchanged (rule 7)');

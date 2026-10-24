@@ -235,7 +235,8 @@
   Eng.playerRegion = (state) => Eng.regionOf(state, state.characters[state.player].status.location);
   Eng.regionChain = (state, id) => E.Scenario.regionChainIn(state.scenario.regions, id).filter((r) => state.regions && state.regions[r]);
   Eng.regionChildren = (state, id) => E.Scenario.regionChildrenIn(state.scenario.regions, id).filter((r) => state.regions && state.regions[r]);
-  Eng.regionNear = (state, id) => E.Scenario.regionNearIn(state.scenario.regions, id).filter((r) => state.regions && state.regions[r]);
+  // A region-focused world (R-8) gives regions more of the prompt: 12 near, not 8.
+  Eng.regionNear = (state, id) => E.Scenario.regionNearIn(state.scenario.regions, id, E.Sites.mapFocus(state.scenario) === 'region' ? 12 : E.Scenario.REGION_NEAR).filter((r) => state.regions && state.regions[r]);
   // Hidden regions (R-5) are never near: the player doesn't know of them.
   Eng.nearbyRegions = (state) => {
     const id = Eng.playerRegion(state);
@@ -3582,6 +3583,8 @@
     // Facts the player learned last turn may name a hidden region (R-5).
     const early = { guards: [] };
     Eng.revealAround(state, early);
+    // A flavour place where danger has come grows into a tactical one (R-8).
+    (await E.Sites.growIfDanger(state, phase)).forEach((t) => guard(early, 'resolve', 'site grown', t));
     if (stepId === 'major') {
       const out = await skipTurn(state, action, phase);
       out.report = report || { applied: [], rejected: [] };

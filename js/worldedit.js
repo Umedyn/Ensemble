@@ -218,6 +218,7 @@
       label: 'One city',
       start: 'old-town', room: ['corner-cafe', 'Corner Café', 'Six tables, a chalkboard menu and a window onto the square.'],
       world: {
+        mapFocus: 'region',
         regionLabels: ['city', 'district'],
         routeKinds: { bus: { time: '20m' }, rail: { time: '15m' } },
         regions: [

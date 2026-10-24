@@ -1263,6 +1263,42 @@
       btn(on, `I go on to ${state.locations[on] ? state.locations[on].name : ''}.`, '↗') + ' ' + btn(back, `I go back to ${state.locations[back] ? state.locations[back].name : ''}.`, '↩') +
       `</div></div><ul class="sr-only" id="mapList"><li>${esc(l.name)} (you are here)</li></ul>`;
   }
+  // Ways to other places: trips to places made during the story (task
+  // 4-4), then the routes out of this region (R-3) with kind and time.
+  // Clicking one fills in the action box; the engine decides the rest.
+  function waysHtml(site) {
+    const routes = E.Sites.trips(state, site);
+    const regionRoutes = travelRoutes();
+    if (!routes.length && !regionRoutes.length) return '';
+    return `<div class="map-routes">Ways to other places: ${routes.map((r) => `<button type="button" class="small map-route" data-name="${esc(r.name)}" title="From ${esc(state.locations[r.from].name)}">↗ ${esc(r.name)}</button>`).join(' ')}` +
+      regionRoutes.map((r) => `<button type="button" class="small map-route" data-say="${esc(r.say)}"${r.closed && !r.risky ? ' disabled' : ''} title="${esc(r.title)}">${r.icon} ${esc(r.name)}${r.time ? ` · ${esc(r.time)}` : ''}${r.closed ? (r.risky ? ' ⚠' : ' (closed)') : ''}</button>`).join(' ') + '</div>';
+  }
+  // The places the player knows on a region level (R-8): pins with the
+  // time to get there; clicking one fills in the action box.
+  function placePinsHtml(levelId) {
+    const pins = E.Sites.regularPlaces(state, levelId);
+    if (!pins.length) return '';
+    return `<div class="map-routes map-places">Places: ${pins.map((p) => {
+      const time = p.here ? 'you are here' : p.hours ? E.Scenario.sayHours(p.hours) : p.hours === 0 ? 'nearby' : '';
+      return `<button type="button" class="small map-route" data-say="${esc(`I go to ${p.name}.`)}"${p.here ? ' disabled' : ''} title="${esc(`${p.name}, in ${regionName(p.region)}${p.visited ? '' : ' (not visited yet)'}`)}">📌 ${esc(p.name)}${time ? ` · ${esc(time)}` : ''}</button>`;
+    }).join(' ')}</div>`;
+  }
+  // A flavour place (R-8): a scene card, the room you're in, the others by
+  // name, who is here, and the floor plan a toggle away.
+  const floorPlans = new Set(); // sites whose floor plan was asked for
+  function sceneCardHtml(site, here, tokens) {
+    const l = state.locations[here];
+    const s = (state.sites || {})[site];
+    const others = E.Sites.rooms(state, site).filter((r) => r.id !== here && state.seenRooms.includes(r.id));
+    const who = (tokens[here] || []).filter((t) => !t.player && t.now).map((t) => (t.kind === 'standee' ? `${t.count} ${t.label}` : t.label));
+    const feats = E.Engine.features(state, here).map((f) => f.name + (f.state ? ` (${f.state})` : ''));
+    return `<div class="travel-card scene-card"><p><b>${esc(s && s.name !== l.name ? `${s.name}: ${l.name}` : l.name)}</b>${l.region ? `, in ${esc(regionName(l.region))}` : ''}.</p><p>${esc(l.desc || '')}</p>` +
+      (feats.length ? `<p class="muted">${esc(feats.join(' · '))}</p>` : '') +
+      `<p class="muted">${who.length ? `Here: ${esc(who.join(', '))}.` : 'No one else you know of here.'}</p>` +
+      (others.length ? `<div class="map-routes">${others.map((r) => `<button type="button" class="small map-route" data-say="${esc(`I go to the ${r.name}.`)}">↗ ${esc(r.name)}</button>`).join(' ')}</div>` : '') +
+      `<button type="button" class="small" data-floorplan="${esc(site)}">Show the floor plan</button></div>` + waysHtml(site) +
+      `<ul class="sr-only" id="mapList"><li>${esc(l.name)} (you are here): ${esc(who.join(', ') || 'no one you know of')}</li></ul>`;
+  }
   function localMapHtml() {
     const here = state.characters[state.player].status.location;
     const tokens = mapTokens();
@@ -1274,6 +1310,8 @@
     let svg;
     // Stopped on a journey (R-2): no floor plan, just the way on and back.
     if (state.locations[here].transit) return travelCardHtml(here);
+    // A flavour place (R-8) is a scene card until the player asks for the plan.
+    if (!im && !lm && !E.Sites.tactical(state, site) && !floorPlans.has(site)) return sceneCardHtml(site, here, tokens);
     if (im) svg = imageMapSvg(site, im, here, tokens);
     else if (lm) {
       const url = portraitUrl(lm.image);
@@ -1308,15 +1346,8 @@
       // Never smaller than about three quarters of full size (the pane scrolls).
       svg = `<svg class="map-svg" viewBox="-4 -4 ${W + 8} ${H + 8}" style="min-width:${Math.round(W * 0.75)}px" role="img" aria-label="Map">${remote}${rooms}${marks}${levels}</svg>`;
     }
-    // Ways to other places: trips to places made during the story (task
-    // 4-4), then the routes out of this region (R-3) with kind and time.
-    // Clicking one fills in the action box; the engine decides the rest.
-    const routes = E.Sites.trips(state, site);
-    const regionRoutes = travelRoutes();
-    if (routes.length || regionRoutes.length) {
-      svg += `<div class="map-routes">Ways to other places: ${routes.map((r) => `<button type="button" class="small map-route" data-name="${esc(r.name)}" title="From ${esc(state.locations[r.from].name)}">↗ ${esc(r.name)}</button>`).join(' ')}` +
-        regionRoutes.map((r) => `<button type="button" class="small map-route" data-say="${esc(r.say)}"${r.closed && !r.risky ? ' disabled' : ''} title="${esc(r.title)}">${r.icon} ${esc(r.name)}${r.time ? ` · ${esc(r.time)}` : ''}${r.closed ? (r.risky ? ' ⚠' : ' (closed)') : ''}</button>`).join(' ') + '</div>';
-    }
+    if (floorPlans.has(site) && !im && !lm && !E.Sites.tactical(state, site)) svg += `<button type="button" class="small" data-scenecard="${esc(site)}">Show the scene card</button>`;
+    svg += waysHtml(site);
     // The same in words, for screen readers.
     const list = Object.keys(state.locations).filter((id) => seen(id) && E.Sites.siteOf(state, id) === site).map((id) => {
       const who = (tokens[id] || []).map((t) => (t.player ? 'you' : t.kind === 'standee' ? `${t.count} ${t.label}` : t.label) + (t.now ? '' : ' (last seen)'));
@@ -1348,7 +1379,9 @@
     const v = mapViewAll()[state.scenario.worldId];
     if (v === 'world') return 'root';
     if (v === 'region') return E.Engine.playerRegion(state) || 'root';
-    return v === 'root' || v === 'local' || (E.Engine.regionDef(state, v) && E.Engine.regionKnown(state, v)) ? v : 'local';
+    if (v === 'root' || v === 'local' || (v && E.Engine.regionDef(state, v) && E.Engine.regionKnown(state, v))) return v;
+    // Nothing picked yet: a region-focused world (R-8) opens at the player's region.
+    return E.Sites.mapFocus(state.scenario) === 'region' && E.Engine.playerRegion(state) ? E.Engine.playerRegion(state) : 'local';
   }
   function setMapView(v) {
     const all = mapViewAll();
@@ -1400,7 +1433,14 @@
       zoomable: lv.children.filter((id) => E.MapDraw.hasLevel(sc, id, hidden)),
       imageUrl: lv.picture && portraitUrl(lv.picture.image), viewBox: viewBoxes[key] || lv.viewBox, id: 'worldSvg', view: key,
       label: levelId == null ? 'World map' : `Map of ${regionName(levelId)}`,
-    }) + regionInfoHtml(lv);
+    }) + regionInfoHtml(lv) + (E.Sites.mapFocus(sc) === 'region' ? regionMoveHtml(levelId) : '');
+  }
+  // A region-focused world (R-8) moves at the region level: the places you
+  // know as pins, and, on your own branch, the ways out.
+  function regionMoveHtml(levelId) {
+    const mine = E.Engine.playerRegion(state);
+    const onBranch = mine && (levelId == null || E.Engine.regionChain(state, mine).includes(levelId));
+    return placePinsHtml(levelId) + (onBranch ? waysHtml(E.Sites.playerSite(state)) : '');
   }
   function regionInfoHtml(lv) {
     const id = mapSel || (lv.id != null ? lv.id : E.Engine.playerRegion(state));
@@ -1551,6 +1591,11 @@
       if (tok.dataset.kind === 'standee') return fillAction(`Watch the ${state.standees[id] ? state.standees[id].label : id}.`);
       const who = tok.dataset.kind === 'extra' ? state.extras[id] : state.characters[id];
       return fillAction(`Talk to ${who ? (tok.dataset.kind === 'extra' ? who.name : E.Engine.shortName(who)) : id}.`);
+    }
+    const plan = el.closest('[data-floorplan],[data-scenecard]');
+    if (plan) {
+      if (plan.dataset.floorplan != null) floorPlans.add(plan.dataset.floorplan); else floorPlans.delete(plan.dataset.scenecard);
+      return renderMap();
     }
     const route = el.closest('.map-route');
     if (route) return route.disabled ? null : fillAction(route.dataset.say || `Go to ${route.dataset.name}.`);

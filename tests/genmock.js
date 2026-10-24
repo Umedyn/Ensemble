@@ -35,13 +35,24 @@ function replies(over = {}) {
     ], entry: 'storefront', entrances: [{ room: 'storefront', kind: 'front door', watched: false }] },
     siteOccupants: { people: [{ name: 'Dale Ruiz', role: 'pharmacist hiding out', pronouns: 'he/him', room: 'Behind the Counter', note: 'has the cabinet keys and trusts no one' }],
       groups: [{ label: 'the dead', count: 'four', room: 'storefront', state: 'calm', note: 'shuffling between the racks' }], note: 'Antibiotics in the drug room cabinets.' },
+    // A flavour place (R-8): the café round the corner, in one reply.
+    siteFlavour: { rooms: [
+      { id: 'cafe-floor', name: 'Café Floor', desc: 'Six tables, a chalkboard menu and a hissing espresso machine.', links: [{ to: 'cafe-back', kind: 'door' }], features: ['espresso machine'] },
+      { id: 'cafe-back', name: 'Back Room', desc: 'Sacks of beans and a mop bucket.', secure: true },
+    ], entry: 'cafe-floor', people: [{ name: 'Rosa Vint', role: 'barista', pronouns: 'she/her', room: 'cafe-floor', note: 'knows every regular by order' }],
+    groups: [{ label: 'regulars', count: 4, room: 'cafe-floor', state: 'calm', post: 'cafe-floor', patrol: ['cafe-floor', 'cafe-back'] }], note: 'The noticeboard has a flat-share ad.' },
+    // A flavour place growing when danger comes (R-8).
+    siteGrow: { rooms: [
+      { id: 'stairwell', name: 'Stairwell', desc: 'Concrete steps up to the flats above.', links: [{ to: 'cafe-back', kind: 'door' }] },
+      { id: 'yard', name: 'Yard', desc: 'Bins and a gate onto the alley.', links: [{ to: 'stairwell', kind: 'door' }], outside: true },
+    ] },
     opening: { title: 'Day 23: the diner', summary: 'You are a trucker sheltering in a highway diner.', facts: ['The town clinic burned on the first night.'],
       opening: 'Rain drums on the diner roof, steady and close. The coffee machine is dead, but Lena pours you a cup of cold tea anyway and slides it down the counter without a word.\n\nOwen stands by the window with his hat in his hands, watching the road like it owes him something.\n\nKay sits in the far booth, one gloved hand in her lap. "Are we staying here tonight?" she asks.' },
   };
   return Object.assign(base, over);
 }
 const STEP_OF = [
-  ["THE PLAYER'S CHARACTER", 'player'], ['TASK: THE PLACE', 'rooms'], ['TASK: WHO IS HERE', 'plan'], ['TASK: WRITE ONE PERSON', 'person'],
+  ["THE PLAYER'S CHARACTER", 'player'], ['TASK: THE PLACE AND WHO IS THERE', 'siteFlavour'], ['TASK: MORE OF THIS PLACE', 'siteGrow'], ['TASK: THE PLACE', 'rooms'], ['TASK: WHO IS HERE', 'plan'], ['TASK: WRITE ONE PERSON', 'person'],
   ['TASK: WRITE THE PEOPLE', 'cast'], ['TASK: A NEW REGION', 'region'],
  ['TASK: REWRITE ONE ROOM', 'room'], ['TASK: THE LAYOUT', 'siteLayout'], ['TASK: WHO AND WHAT IS HERE', 'siteOccupants'], ['TASK: TIES AND PRESSURES', 'ties'], ['TASK: MINOR PEOPLE AND GROUPS', 'extras'], ['TASK: THE OPENING', 'opening'],
 ];

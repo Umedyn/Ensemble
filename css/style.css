@@ -310,6 +310,7 @@ button:disabled { opacity: .5; cursor: default; }
 .region-info .linkish { font-size: inherit; }
 .travel-card { border: 1px solid var(--line); border-radius: 0.375rem; padding: 0.75rem; font-size: 0.875rem; }
 .travel-card p { margin: 0 0 0.5rem; }
+.scene-card .map-routes { margin: 0 0 0.5rem; }
 .map-route[disabled] { opacity: 0.55; cursor: not-allowed; }
 .world-svg { width: 100%; height: auto; display: block; touch-action: none; cursor: grab; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
 .world-svg.panning { cursor: grabbing; }

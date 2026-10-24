@@ -60,14 +60,20 @@
   // A room's region is shown only when the rooms are in more than one.
   // The authored rooms (sc.locations), so a way inferred in play (task 3-6)
   // never changes the header; the live ways are in the user message.
+  // In a region-focused world (R-8) rooms are flavour: names and links here,
+  // and the current room's description in the user message (inRoom).
   B.places = ({ state, sc }) => {
     const rooms = sc.locations && sc.locations.length ? sc.locations : Object.values(state.locations);
     const many = new Set(rooms.map((l) => l.region)).size > 1;
+    const brief = E.Sites.mapFocus(sc) === 'region';
     return ['\n=== LOCATIONS ==='].concat(rooms.map((l) => {
       const c = l.connects && l.connects.length ? ` (connects: ${l.connects.join(', ')})` : '';
-      return `- ${l.id}: ${l.name} — ${l.desc}${c}${many && l.region ? ` [region: ${l.region}]` : ''}`;
+      return `- ${l.id}: ${l.name}${brief ? '' : ` — ${l.desc}`}${c}${many && l.region ? ` [region: ${l.region}]` : ''}`;
     }));
   };
+  // "Corner Café — six tables and a chalkboard menu" in a region-focused
+  // world (the header leaves descriptions out), else the name.
+  const inRoom = (state, loc, id) => (loc ? `${loc.name}${E.Sites.mapFocus(state.scenario) === 'region' && loc.desc ? ` (${loc.desc.replace(/\.$/, '')})` : ''}` : id);
   // Static geography (task 3-1): names, neighbours and lore. Who holds a
   // region, its tags and status change in play, so they go in the user
   // message (regionLines), never here.
@@ -251,7 +257,9 @@
   P.ROUTES_MAX = 8;
   function routeLine(state, id) {
     const S = E.Scenario;
-    const list = Eng().routesFrom(state, id).filter((r) => r.kind !== 'border' || r.hours > 0 || r.closed || r.risky).slice(0, P.ROUTES_MAX);
+    // A region-focused world (R-8) lists plain borders too: travel is how it moves.
+    const all = E.Sites.mapFocus(state.scenario) === 'region';
+    const list = Eng().routesFrom(state, id).filter((r) => all || r.kind !== 'border' || r.hours > 0 || r.closed || r.risky).slice(0, P.ROUTES_MAX);
     if (!list.length) return '';
     const one = (r) => {
       const bits = [r.kind].concat(r.hours ? [S.sayHours(r.hours)] : [], r.closed ? [`closed: ${r.closed.replace(/^the .*? needs /, 'needs ')}${r.risky ? ', but can be risked' : ''}`] : r.risky ? ['risky'] : []);
@@ -359,7 +367,7 @@
       .map((id) => `${name(state, id)} (${state.locations[state.characters[id].status.location]?.name || '?'})`);
     const lines = [
       `=== NOW: ${E.fmtTime(state)} ===`,
-      `${pc.name} is in ${loc ? loc.name : pc.status.location}.`,
+      `${pc.name} is in ${inRoom(state, loc, pc.status.location)}.`,
       worldLines(state),
       `Present with ${pc.name}: ${present.length ? present.map((id) => name(state, id)).join(', ') : 'no one'}`,
     ];
@@ -669,7 +677,7 @@ ${intentExample(state, present, action, due)}`;
       (groups.length ? `\nUnnamed groups around (exactly these, no more): ${groups.map((g) => `${Eng().standeeLabel(state, g)} in ${state.locations[g.location].name}`).join('; ')}.` : '');
   }
   B.sceneFrame = ({ state, presentStart, frame, pc, startLoc, endLoc, moved, left, arrived, res }) => `=== SCENE FRAME ===
-Starts: ${frame.startTime}, in ${startLoc ? startLoc.name : frame.startLoc}, with ${presentStart.length ? presentStart.map((id) => name(state, id)).join(', ') : 'no one'}.
+Starts: ${frame.startTime}, in ${startLoc ? inRoom(state, startLoc, frame.startLoc) : frame.startLoc}, with ${presentStart.length ? presentStart.map((id) => name(state, id)).join(', ') : 'no one'}.
 Ends: ${E.fmtTime(state)}, ${pc.name} ${moved ? `now in ${endLoc.name}` : `still in ${startLoc ? startLoc.name : frame.startLoc}`}.` +
       // When the player moves, people who stay put are left behind, not leaving.
       (left.length ? `\nDuring the scene, ${left.map((id) => state.characters[id].status.location === frame.startLoc
@@ -1237,6 +1245,22 @@ The story heads to ${req.name}, ${label} ${parent ? `in ${parent.name}` : 'in th
 Write what everyone here knows about it, in one or two sentences: what kind of place it is, who lives there and how things are there now. Public knowledge only: no one's secrets, nothing that hasn't happened yet, and none of the story's people by name.
 Reply with JSON only: {"lore":"one or two sentences"}`;
   };
+  // A flavour place (R-8): rooms and who is there in one call, small and
+  // without guards on posts or patrols.
+  P.layouts.siteFlavour = ['siteRequest', 'siteFlavourTask'];
+  P.siteFlavour = (state, req) => P.build('siteFlavour', { state, req });
+  B.siteFlavourTask = () => `
+=== TASK: THE PLACE AND WHO IS THERE ===
+Describe this place in 1 to 3 rooms or areas (one is fine for a café or a room), one short sentence each, with an id (lowercase, dashes), the rooms it links to, up to 3 features that matter, and "outside": true for open ground. Name the room the player arrives in. Then who is there when the player arrives: up to 2 named people (with a role, the room and a note for the story engine) and up to 2 unnamed groups (a crowd, regulars) with how many and the room. Add a short note of what there is to find or do here (never shown to the player). An empty place is fine.
+Reply with JSON only: {"rooms":[{"id":"cafe","name":"Café","desc":"One sentence.","links":[],"features":["counter"],"outside":false}],"entry":"cafe","people":[{"name":"...","role":"...","pronouns":"she/her","room":"cafe","note":"..."}],"groups":[{"label":"regulars","count":4,"room":"cafe","state":"calm"}],"note":"..."}`;
+  // A flavour place turning tactical (R-8): more rooms around the ones it
+  // has, which never move.
+  P.layouts.siteGrow = ['siteRequest', 'siteRooms', 'siteGrowTask'];
+  P.siteGrow = (state, req, layout) => P.build('siteGrow', { state, req, layout });
+  B.siteGrowTask = ({ layout }) => `
+=== TASK: MORE OF THIS PLACE ===
+Things have turned dangerous here, so the place needs more of its layout: add 2 to 4 rooms or areas around the ones above (a back room, a stairwell, a yard, the way out the back). Keep the rooms above exactly as they are; only add new ones, each linked to a room above or to another new one, with a kind (open, door, locked door, vent, hatch, window, stairs), up to 3 features, "outside": true for open ground and "secure": true for a vault or cell (one way in only).
+Reply with JSON only: {"rooms":[{"id":"stairwell","name":"Stairwell","desc":"One sentence.","links":[{"to":"${layout.rooms[0] ? layout.rooms[0].id : 'room-id'}","kind":"door"}],"features":[],"outside":false,"secure":false}]}`;
   P.layouts.siteLayout = ['siteRequest', 'siteLayoutTask'];
   P.siteLayout = (state, req) => P.build('siteLayout', { state, req });
   P.layouts.siteOccupants = ['siteRequest', 'siteRooms', 'siteOccupantsTask'];

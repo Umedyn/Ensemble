@@ -75,9 +75,13 @@ test('nearby is capped, so a city of many wards stays a short line', () => {
   const { E, state } = treeGame((f) => {
     for (let i = 0; i < 20; i++) f['world.json'].regions.push({ id: `ward-${i}`, name: `Ward ${i}`, parent: 'kessel' });
   });
+  // The flat is a slice-of-life world: region-focused (R-8), so regions get 12.
+  assert.equal(E.Sites.mapFocus(state.scenario), 'region');
   const near = E.Engine.regionNear(state, 'old-quarter');
-  assert.equal(near.length, E.Scenario.REGION_NEAR);
+  assert.equal(near.length, 12);
   assert.deepEqual([...near.slice(0, 2)], ['docks', 'hill'], 'neighbours and the first siblings first');
+  state.scenario.mapFocus = 'local';
+  assert.equal(E.Engine.regionNear(state, 'old-quarter').length, E.Scenario.REGION_NEAR, 'a local-focused world: 8');
 });
 
 test('labels: a region\'s own wins, else the world\'s for its depth; none is fine', () => {

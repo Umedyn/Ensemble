@@ -903,7 +903,8 @@ await check('presence and unknown regions: a contested junction, a hidden lava t
   assert.match(await page.textContent('#regionInfo'), /present: Coastal rescue convoy \(some\), The Ridge \(a little\); contested/);
   await page.selectOption('#scenarioSelect', 'server:mars-station');
   await newGame(page);
-  await sceneReady(page);
+  // The holdout's scene also ended on turn 0: wait for the station's.
+  await page.waitForFunction(() => /Ares Deep/.test(document.getElementById('sceneBar').textContent));
   await page.click('[data-maplevel="root"]');
   assert.equal(await page.locator('.region-g[data-region="lava-tube"]').count(), 0, 'hidden: not on the map');
   assert.ok(!/lava/i.test(await page.textContent('#mapPane')));
@@ -1143,10 +1144,21 @@ await check('creator: a region tree, routes, route kinds and a map on a region, 
   await page.screenshot({ path: path.join(shots, 'creator-region-tree.png') });
   // Test play: it loads in the game and plays a turn.
   const [game] = await Promise.all([page.context().waitForEvent('page'), page.click('#cTest')]);
-  await game.waitForFunction(() => /turn 0$/.test(document.getElementById('sceneBar').textContent.trim()), null, { timeout: 15000 });
+  await game.waitForFunction(() => /turn 0$/.test(((document.getElementById('sceneBar') || {}).textContent || '').trim()), null, { timeout: 15000 });
   await act(game, 'I look around the café.');
+  // A city is region-focused (R-8): the map opens at your district, with
+  // the places you know as pins and the ways out under it.
+  assert.equal(await game.textContent('.map-crumbs [aria-current="true"]'), 'Old Town');
+  assert.match(await game.textContent('.map-places'), /Corner Café · you are here/);
+  assert.match(await game.textContent('#mapPane'), /Ways to other places:/);
   await game.click('[data-maplevel="local"]');
   assert.match(await game.textContent('.map-crumbs'), /Tree City\s*›\s*Brightwater\s*›\s*Old Town\s*›\s*Corner Café/);
+  // The café is flavour: a scene card, the floor plan a toggle away.
+  assert.match(await game.textContent('.scene-card'), /Corner Café[\s\S]*Six tables/);
+  await game.click('[data-floorplan]');
+  await game.waitForSelector('#mapPane svg');
+  await game.click('[data-scenecard]');
+  await game.waitForSelector('.scene-card');
   await game.close();
   // The other templates load as they are.
   for (const kind of ['country', 'planets']) {
@@ -1207,7 +1219,7 @@ await check('creator: a new world from nothing, test played and exported', async
   // Test play: the game opens with the working copy and plays a turn.
   const [game] = await Promise.all([page.context().waitForEvent('page'), page.click('#cTest')]);
   game.on('pageerror', (e) => { throw e; });
-  await game.waitForFunction(() => /turn 0$/.test(document.getElementById('sceneBar').textContent.trim()), null, { timeout: 15000 });
+  await game.waitForFunction(() => /turn 0$/.test(((document.getElementById('sceneBar') || {}).textContent || '').trim()), null, { timeout: 15000 });
   assert.equal(await game.inputValue('#scenarioSelect'), 'test:harbor-watch');
   assert.match(await game.textContent('#log'), /harbor bell rings twice/);
   await act(game, 'I walk over to Ana.');
@@ -1282,7 +1294,7 @@ await check('creator: create, edit and import characters', async (page) => {
   await page.click('#cTabs [data-tab="portraits"]');
   assert.match(await page.textContent('#cMain'), /Juniper Vale: their own \(juniper-vale\.png\)/);
   const [game] = await Promise.all([page.context().waitForEvent('page'), page.click('#cTest')]);
-  await game.waitForFunction(() => /turn 0$/.test(document.getElementById('sceneBar').textContent.trim()), null, { timeout: 15000 });
+  await game.waitForFunction(() => /turn 0$/.test(((document.getElementById('sceneBar') || {}).textContent || '').trim()), null, { timeout: 15000 });
   assert.match(await game.textContent('body'), /Juniper Vale/);
   await game.close();
   const [download] = await Promise.all([page.waitForEvent('download'), page.click('#cExport')]);
