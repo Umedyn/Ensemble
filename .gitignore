@@ -12,3 +12,6 @@ docs/tasks/
 
 # build-time downloads (npm run basemap)
 .cache/
+
+# Local instructions for Claude Code
+CLAUDE.md
