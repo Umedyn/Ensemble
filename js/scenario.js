@@ -16,7 +16,7 @@
   const START_OWN = ['id', 'title', 'summary', 'start', 'player', 'cast', 'opening', 'castLabel', 'region', 'playerSlot', 'generated'];
   // World fields a start may override (merge rules below).
   const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'tagThresholds', 'portraitSet', 'factions', 'world',
-    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'regionLabels', 'routeKinds', 'standees', 'site', 'localMap', 'map', 'entrances', 'lore', 'timeline', 'projectTimeline'];
+    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'regionLabels', 'routeKinds', 'presence', 'standees', 'site', 'localMap', 'map', 'entrances', 'lore', 'timeline', 'projectTimeline'];
   const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'date', 'characters', 'starts', 'generatedStarts', 'generatedSites', 'sites', ...OVERRIDABLE];
   const WORLD_RESERVED = [];
   const START_RESERVED = [];
@@ -25,7 +25,7 @@
   // unioned, plain objects merge shallowly; anything else is replaced.
   const ID_LISTS = ['locations', 'clocks', 'factions', 'extras', 'regions', 'standees', 'lore', 'timeline'];
   const STRING_LISTS = ['rules', 'facts', 'tags'];
-  const OBJECTS = ['world', 'eventRates', 'eventSeeds', 'tiers', 'routeKinds'];
+  const OBJECTS = ['world', 'eventRates', 'eventSeeds', 'tiers', 'routeKinds', 'presence'];
 
   const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
   const castId = (entry) => (typeof entry === 'string' ? entry : entry && entry.id);
@@ -752,6 +752,7 @@
       req(r.notable == null || typeof r.notable === 'boolean', `${where}: "notable" must be true or false`);
       req(r.wiki == null || (isObj(r.wiki) && [r.wiki.title, r.wiki.wikidata].every((v) => v == null || (typeof v === 'string' && v.trim()))), `${where}: "wiki" must be {title, wikidata}`);
       req(r.label == null || (typeof r.label === 'string' && r.label.trim() && r.label.length <= 30), `${where}: "label" must be a short word (30 characters at most), such as "province"`);
+      req(r.known == null || typeof r.known === 'boolean', `${where}: "known" must be true or false (false: hidden until the story reveals it)`);
       if (r.parent != null) req(ids.has(r.parent), `${nameOf(r)} is inside "${r.parent}", which isn't one of the regions`);
       if (r.routes != null && !Array.isArray(r.routes)) problems.push(`${where}: "routes" must be a list of {to, kind, time, requires}`);
       (Array.isArray(r.routes) ? r.routes : []).forEach((x, i) => {
@@ -782,6 +783,23 @@
       const byId = {};
       list.forEach((r) => { r.neighbours = (r.neighbours || []).slice(); byId[r.id] = r; });
       list.forEach((r) => r.neighbours.forEach((n) => { if (!byId[n].neighbours.includes(r.id)) byId[n].neighbours.push(r.id); }));
+    }
+    // Presence (R-5): {group: {region: 0–1}}, several groups per region.
+    if (sc.presence != null) {
+      if (!isObj(sc.presence)) problems.push('"presence" must be an object: {group id: {region id: strength from 0 to 1}}');
+      else Object.entries(sc.presence).forEach(([g, m]) => {
+        req(groupIds.has(g), `presence: "${g}" is not one of the groups`);
+        if (!isObj(m)) return problems.push(`presence.${g} must be {region id: strength from 0 to 1}`);
+        Object.entries(m).forEach(([rid, v]) => {
+          req(ids.has(rid), `presence.${g}: unknown region "${rid}"`);
+          req(typeof v === 'number' && v >= 0 && v <= 1, `presence.${g}.${rid} must be a number from 0 to 1`);
+        });
+      });
+    }
+    // A start can't begin in a region the player doesn't know of (R-5).
+    if (ids.has(sc.region)) {
+      const hid = S.regionChainIn(list, sc.region).map((x) => byId.get(x)).find((x) => x && x.known === false);
+      req(!hid, `the start is in ${nameOf(hid)}, which is hidden ("known": false): start somewhere the player knows`);
     }
     if (ids.size) {
       req(ids.has(sc.region), sc.region == null ? 'the start needs a "region" (where the player starts)' : `start region "${sc.region}" is not one of the regions`);

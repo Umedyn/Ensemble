@@ -994,7 +994,8 @@
     const def = id && E.Engine.regionDef(state, id);
     const r = def && state.regions && state.regions[id];
     if (!r) return '';
-    const bits = [`held by ${E.Engine.regionHolder(state, id).text}`].concat(r.tags.length ? [r.tags.join(', ')] : [], r.status ? [r.status] : []);
+    const present = E.Engine.presenceText(state, id);
+    const bits = [`held by ${E.Engine.regionHolder(state, id).text}`].concat(present ? [`present: ${present}`] : [], r.tags.length ? [r.tags.join(', ')] : [], r.status ? [r.status] : []);
     // The regions it is inside (R-1): "in Harmon County".
     const up = E.Engine.regionChain(state, id).slice(1).map((x) => E.Engine.regionDef(state, x).name);
     return `<div class="world groups" title="${esc(def.lore || '')}"><b>${esc(def.name)}</b>${up.length ? ` <span class="muted">(in ${esc(up.join(', '))})</span>` : ''}: ${esc(bits.join('; '))}</div>`;
@@ -1274,7 +1275,7 @@
     const v = mapViewAll()[state.scenario.worldId];
     if (v === 'world') return 'root';
     if (v === 'region') return E.Engine.playerRegion(state) || 'root';
-    return v === 'root' || v === 'local' || E.Engine.regionDef(state, v) ? v : 'local';
+    return v === 'root' || v === 'local' || (E.Engine.regionDef(state, v) && E.Engine.regionKnown(state, v)) ? v : 'local';
   }
   function setMapView(v) {
     const all = mapViewAll();
@@ -1302,7 +1303,10 @@
   }
   function levelHtml(levelId) {
     const sc = state.scenario;
-    const lv = curLevel = E.MapDraw.level(sc, levelId);
+    // Regions the player doesn't know of are left out (R-5); contested ones marked.
+    const hidden = E.Engine.hiddenRegions(state);
+    const lv = curLevel = E.MapDraw.level(sc, levelId, { hidden });
+    const contested = lv.regions.map((r) => r.id).filter((id) => E.Engine.presenceIn(state, id).contested);
     const mine = E.Engine.playerRegion(state);
     const branch = mine ? E.Engine.regionChain(state, mine) : [];
     // A region changed this turn pulses once.
@@ -1317,10 +1321,10 @@
     const rooms = lv.leaf ? lv.rooms.filter((p) => state.locations[p.id] && state.seenRooms.includes(p.id)).map((p) => ({ x: p.x, y: p.y, name: state.locations[p.id].name })) : [];
     const key = levelId == null ? 'root' : levelId;
     return E.MapDraw.worldSvg({
-      g: lv.g, regions: lv.regions, now: state.regions, factions: state.factions, mine, branch, selected: mapSel, pulse, rooms,
+      g: lv.g, regions: lv.regions, now: state.regions, factions: state.factions, mine, branch, selected: mapSel, pulse, rooms, contested,
       places: lv.picture ? E.MapDraw.placesOf(lv.picture) : [], dim: lv.dim, closed: lv.picture ? null : closedEdges(lv),
 
-      zoomable: lv.children.filter((id) => E.MapDraw.hasLevel(sc, id)),
+      zoomable: lv.children.filter((id) => E.MapDraw.hasLevel(sc, id, hidden)),
       imageUrl: lv.picture && portraitUrl(lv.picture.image), viewBox: viewBoxes[key] || lv.viewBox, id: 'worldSvg', view: key,
       label: levelId == null ? 'World map' : `Map of ${regionName(levelId)}`,
     }) + regionInfoHtml(lv);
@@ -1341,6 +1345,9 @@
       `<span class="swatch ${fc}"></span>held by ${esc(E.Engine.regionHolder(state, id).text)}`];
     if (now.status) bits.push(esc(now.status));
     if (now.tags.length) bits.push(`tags: ${esc(now.tags.join(', '))}`);
+    // Who else is there (R-5).
+    const present = E.Engine.presenceText(state, id);
+    if (present) bits.push(`present: ${esc(present)}`);
     let html = `<div class="region-info" id="regionInfo">${bits.join(' · ')}`;
     if (ch && ch.turn === state.turn) html += `<div class="changed">This turn: ${esc(ch.what.join(', '))}.</div>`;
     if (r.lore) html += `<div class="muted">${esc(r.lore)}</div>`;

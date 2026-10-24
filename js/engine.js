@@ -37,8 +37,10 @@
       sites: {}, // generated places (task 4-4)
     };
     // Regions (task 3-1): what changes in play; the definition stays in the scenario.
-    (sc.regions || []).forEach((r) => { state.regions[r.id] = { controller: r.controller ?? null, tags: (r.tags || []).slice(), status: r.status || '' }; });
+    (sc.regions || []).forEach((r) => { state.regions[r.id] = Object.assign({ controller: r.controller ?? null, tags: (r.tags || []).slice(), status: r.status || '' }, r.known === false ? { known: false } : {}); });
     state.regionChanged = {};
+    // Presence (R-5): {group: {region: 0–1}}, changed by events.
+    state.presence = E.clone(sc.presence || {});
     (sc.locations || []).forEach((l) => (state.locations[l.id] = Object.assign({ connects: [] }, l)));
     sc.characterData.forEach((raw) => {
       const c = E.clone(raw);
@@ -83,7 +85,7 @@
 
   // Saves and autosaves from older versions are upgraded one step at a time
   // when loaded. Each step takes a state at version n and returns n + 1.
-  Eng.STATE_VERSION = 14;
+  Eng.STATE_VERSION = 15;
   Eng.migrations = {
     // Worlds and starts (docs/WORLDS.md): the scenario records where it came from.
     1: (state) => {
@@ -206,6 +208,13 @@
       state.version = 14;
       return state;
     },
+    // Presence (R-5): older games have none. Unknown regions need nothing:
+    // a region with no "known" is known.
+    14: (state) => {
+      [state, state.pending && state.pending.pre].filter(Boolean).forEach((s) => { if (!s.presence) s.presence = {}; });
+      state.version = 15;
+      return state;
+    },
   };
   Eng.migrate = function (state) {
     if (state.version == null) state.version = 1;
@@ -227,10 +236,11 @@
   Eng.regionChain = (state, id) => E.Scenario.regionChainIn(state.scenario.regions, id).filter((r) => state.regions && state.regions[r]);
   Eng.regionChildren = (state, id) => E.Scenario.regionChildrenIn(state.scenario.regions, id).filter((r) => state.regions && state.regions[r]);
   Eng.regionNear = (state, id) => E.Scenario.regionNearIn(state.scenario.regions, id).filter((r) => state.regions && state.regions[r]);
+  // Hidden regions (R-5) are never near: the player doesn't know of them.
   Eng.nearbyRegions = (state) => {
     const id = Eng.playerRegion(state);
     if (!id || !Eng.regionDef(state, id) || !state.regions || !state.regions[id]) return [];
-    return [id].concat(Eng.regionNear(state, id));
+    return [id].concat(Eng.regionNear(state, id).filter((x) => Eng.regionKnown(state, x)));
   };
   // ---------- routes and trips (R-2) ----------
   // Every way out of each region: its own routes, routes to it that aren't
@@ -261,7 +271,8 @@
   const legWhy = (state, e) => `the ${e.kind} to ${(Eng.regionDef(state, e.to) || {}).name || e.to} needs ${E.Timeline.say(state, e.requires)}`;
   // The routes out of a region as they are now, for the prompt: [{ to, kind,
   // hours, closed (why, or null), risky }], explicit ones only.
-  Eng.routesFrom = (state, id) => (routeEdges(state.scenario).get(id) || []).filter((e) => !e.implicit)
+  Eng.routesFrom = (state, id) => (routeEdges(state.scenario).get(id) || []).filter((e) => !e.implicit && Eng.regionKnown(state, e.to))
+
     .map((e) => ({ to: e.to, kind: e.kind, hours: e.hours, risky: e.risky, closed: legOpen(state, e) ? null : legWhy(state, e) }));
   // The way from one region to another: { legs: [edge], hours } along the
   // quickest open path, or { blocked: true, why, legs (the path if its
@@ -318,6 +329,57 @@
   Eng.sayTrip = (state, trip) => (trip.legs || []).filter((e) => e.kind !== 'border' || e.hours).map(
 (e) => `by ${e.kind} to ${(Eng.regionDef(state, e.to) || {}).name || e.to}${e.hours ? ` (${E.Scenario.sayHours(e.hours)})` : ''}`).join(', then ') || 'a short way';
 
+  // ---------- unknown regions and presence (R-5) ----------
+  // A region with "known": false, and everything inside it, is hidden from
+  // the player (map, sidebar) and the narrator (every prompt line) until the
+  // story reveals it: an effect, the player being there, or the player
+  // knowing a fact (or hearing an event) that names it.
+  Eng.regionKnown = (state, id) => E.Scenario.regionChainIn(state.scenario.regions, id).every((x) => !(state.regions && state.regions[x] && state.regions[x].known === false));
+  Eng.hiddenRegions = (state) => new Set((state.scenario.regions || []).map((r) => r.id).filter((id) => !Eng.regionKnown(state, id)));
+  // Reveals a region and the hidden regions it is inside. → names revealed.
+  Eng.revealRegion = function (state, id, res, why) {
+    const out = [];
+    E.Scenario.regionChainIn(state.scenario.regions, id).forEach((x) => {
+      const now = state.regions && state.regions[x];
+      if (!now || now.known !== false) return;
+      now.known = true;
+      state.regionChanged = state.regionChanged || {};
+      state.regionChanged[x] = { turn: state.turn, what: ['found'] };
+      out.push(Eng.regionDef(state, x).name);
+    });
+    if (out.length && res) guard(res, 'resolve', 'region revealed', `${out.join(', ')}: ${why}`);
+    return out;
+  };
+  const nameIn = (text, name) => new RegExp(`(^|[^\\w])${String(name).replace(/^the\s+/i, '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w])`, 'i').test(String(text || ''));
+  // Hidden regions a text names (public event text, a fact the player knows).
+  Eng.revealNamed = function (state, text, res, why) {
+    Eng.hiddenRegions(state).forEach((id) => { if (Eng.regionKnown(state, id)) return; if (nameIn(text, Eng.regionDef(state, id).name)) Eng.revealRegion(state, id, res, why); });
+  };
+  // At the start of a turn, and after moves: the player is in it, or knows a
+  // fact naming it.
+  Eng.revealAround = function (state, res) {
+    if (!Eng.hiddenRegions(state).size) return;
+    const here = Eng.playerRegion(state);
+    if (here && !Eng.regionKnown(state, here)) Eng.revealRegion(state, here, res, 'the player is there');
+    (state.facts || []).filter((f) => E.Memory.knows(f, state.player)).forEach((f) => Eng.revealNamed(state, f.text, res, 'the player knows a fact about it'));
+  };
+  // Who is present in a region, strongest first, in words; contested when
+  // the two strongest are both at least 0.25 and within 0.2 of each other.
+  // → { groups: [{ id, name, strength, word }], contested }
+  Eng.PRESENCE_WORDS = [[0.67, 'strong'], [0.34, 'some'], [0, 'a little']];
+  Eng.presenceIn = function (state, id) {
+    const groups = Object.entries(state.presence || {}).map(([g, m]) => ({ id: g, strength: Number((m || {})[id]) || 0 }))
+      .filter((x) => x.strength > 0).sort((a, b) => b.strength - a.strength)
+      .map((x) => Object.assign(x, { name: ((state.factions || []).find((f) => f.id === x.id) || { name: x.id }).name, word: Eng.PRESENCE_WORDS.find(([at]) => x.strength >= at)[1] }));
+    const contested = groups.length >= 2 && groups[1].strength >= 0.25 && groups[0].strength - groups[1].strength <= 0.2;
+    return { groups, contested };
+  };
+  // "the Ridge (strong), the convoy (some); contested" or "".
+  Eng.presenceText = function (state, id) {
+    const p = Eng.presenceIn(state, id);
+    return p.groups.length ? `${p.groups.map((g) => `${g.name} (${g.word})`).join(', ')}${p.contested ? '; contested' : ''}` : '';
+  };
+
   // The player's region, its ancestors and what's near: where a regional
   // event may happen and which event ideas apply (a seed on France counts in Paris).
   Eng.regionsAround = (state) => {
@@ -332,7 +394,8 @@
     const name = (fid) => { const f = fid && (state.factions || []).find((x) => x.id === fid); return f ? f.name : 'no one'; };
     if (!now) return { text: 'no one', controller: null, mixed: false };
     if (now.controller) return { text: name(now.controller), controller: now.controller, mixed: false };
-    const kids = Eng.regionChildren(state, id);
+    // Hidden ones (R-5) don't count: the summary would give them away.
+    const kids = Eng.regionChildren(state, id).filter((k) => Eng.regionKnown(state, k));
     if (!kids.length) return { text: 'no one', controller: null, mixed: false };
     const counts = new Map();
     kids.forEach((k) => { const c = state.regions[k].controller || null; counts.set(c, (counts.get(c) || 0) + 1); });
@@ -1306,7 +1369,41 @@
         return `${r.def.name}: ${r.now.status}`;
       },
     },
+    // Presence (R-5): how strongly a group is in a region, 0–1. The engine
+    // rations the swing: at most 0.5 a change.
+    presence: {
+      list: true, max: 2,
+      apply(state, p) {
+        const r = region(state, p);
+        if (r.reject) return r;
+        const f = p.group && (state.factions || []).find((x) => x.id === p.group);
+        if (!f) return reject(`unknown group "${p.group}" for presence in ${p.region}`);
+        const to = Number(p.to);
+        if (!Number.isFinite(to)) return reject(`no "to" (0 to 1) for ${f.id} in ${p.region}`);
+        state.presence = state.presence || {};
+        const was = Number((state.presence[f.id] || {})[p.region]) || 0;
+        const now = Math.round(E.clamp(E.clamp(to, 0, 1), was - Eng.PRESENCE_STEP, was + Eng.PRESENCE_STEP) * 100) / 100;
+        if (now === was) return null;
+        state.presence[f.id] = Object.assign({}, state.presence[f.id], { [p.region]: now });
+        if (!now) delete state.presence[f.id][p.region];
+        r.stamp('presence changed');
+        const word = now ? Eng.PRESENCE_WORDS.find(([at]) => now >= at)[1] : 'gone';
+        return `${r.def.name}: ${f.name} ${word}${Eng.presenceIn(state, p.region).contested ? ' (contested)' : ''}`;
+      },
+    },
+    // Unknown regions (R-5): the story reveals one (and what it is inside).
+    reveal: {
+      list: true, max: 1,
+      apply(state, v) {
+        const r = region(state, v);
+        if (r.reject) return r;
+        if (Eng.regionKnown(state, v.region)) return null;
+        const names = Eng.revealRegion(state, v.region, null, '');
+        return `found: ${names.join(', ')}`;
+      },
+    },
   };
+  Eng.PRESENCE_STEP = 0.5;
   // The region an effect item names: { def, now } or a rejection. stamp()
   // records what changed this turn, for the world view (task 3-4).
   function region(state, item) {
@@ -1415,6 +1512,9 @@
       if (vis === 'hidden') {
         if (who.length) E.Memory.addFact(state, { about: who, text, known_by: who, weight: 2 });
       } else {
+        // A public event somewhere hidden, or naming it, makes it known (R-5).
+        if (region && !Eng.regionKnown(state, region)) Eng.revealRegion(state, region, res, 'a public event happens there');
+        Eng.revealNamed(state, text, res, 'a public event names it');
         res.events.push((vis === 'heard' ? '(heard from elsewhere; only a sound, call or message reaches the player) ' : '') + tag + text);
         if (scope !== 'local') {
           E.Memory.addFact(state, { about: who, text, known_by: ['all'], weight: scope === 'world' ? 3 : 2 });
@@ -3088,11 +3188,15 @@
     // playtest-agenda-skips: "keep to routine" put Kit outside as the storm hit).
     const pw = journey ? null : Eng.resolveLocation(state, obj.player_where, false);
     if (journey) endJourney(state, plan, frame, res);
+    // Arriving somewhere hidden, or a major event naming it, reveals it (R-5).
+    if (res.major && res.major.text) Eng.revealNamed(state, res.major.text, res, 'the event that ends the downtime names it');
     if (pw && pw !== frame.startLoc) {
       if (planNames(state, action, pw)) state.characters[state.player].status.location = pw;
       else guard(res, 'resolve', 'move cancelled', `the downtime put the player in ${pw}; their plan doesn't take them there`);
     }
+    Eng.revealAround(state, res);
     // The agenda that ends the downtime brings its person to the player.
+
     if (plan.reason === 'agenda') {
       const c = state.characters[plan.agenda.id];
       if (activeAgenda(c) && c.agenda.due) {
@@ -3468,6 +3572,9 @@
     const report = await Eng.commitPending(state, cutAt, phase);
     if (state.flags.gameOver) { phase(''); return { report, ended: true }; }
     Eng.clearTransit(state);
+    // Facts the player learned last turn may name a hidden region (R-5).
+    const early = { guards: [] };
+    Eng.revealAround(state, early);
     if (stepId === 'major') {
       const out = await skipTurn(state, action, phase);
       out.report = report || { applied: [], rejected: [] };
@@ -3525,12 +3632,15 @@
     if (journey && !journey.failed) {
       const log = state.log;
       replaceState(state, Object.assign(pre, { log }));
-      const notes = siteNotes.concat(timelineNotes, [{ type: 'journey', detail: `a trip of ${E.Scenario.sayHours(journey.trip.hours)} is longer than ${step.label}: the turn is the journey (the scene's intent call is set aside)` }]);
+      const notes = early.guards.map((g) => ({ type: g.type, detail: g.detail })).concat(siteNotes, timelineNotes, [{ type: 'journey', detail: `a trip of ${E.Scenario.sayHours(journey.trip.hours)} is longer than ${step.label}: the turn is the journey (the scene's intent call is set aside)` }]);
       const out = await skipTurn(state, action, phase, { journey, notes });
       out.report = report || { applied: [], rejected: [] };
       return out;
     }
     const res = Eng.resolve(state, intentObj, present, action, step.id, due, { crossingRoll: journey && journey.failed });
+    res.guards.unshift(...early.guards);
+    // Moving into a hidden region reveals it.
+    Eng.revealAround(state, res);
     if (crisis) {
       res.crisisText = crisis.text;
       if (answersCrisis(intentObj, action, crisis)) state.ignored = [];

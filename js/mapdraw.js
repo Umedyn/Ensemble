@@ -55,9 +55,11 @@
   // → { id, picture (map or null), owner (whose map), regions (definitions
   // to draw), g, viewBox, children (ids a click zooms into), dim (ids outside
   // the level), rooms ([{id, x, y}] placed on the picture, in the level) }
-  D.level = function (sc, levelId) {
+  // opts.hidden: regions the player doesn't know of (R-5), left out entirely.
+  D.level = function (sc, levelId, opts) {
     const S = E.Scenario;
-    const list = (sc.regions || []).filter((r) => r && r.id);
+    const hidden = (opts && opts.hidden) || new Set();
+    const list = (sc.regions || []).filter((r) => r && r.id && !hidden.has(r.id));
     const def = (id) => list.find((r) => r.id === id) || null;
     const id = levelId != null && def(levelId) ? levelId : null;
     const chainOf = (x) => S.regionChainIn(list, x);
@@ -102,7 +104,7 @@
   // The levels from the world down to one: [null, …ancestors, id].
   D.levelPath = (sc, id) => [null].concat(id == null ? [] : E.Scenario.regionChainIn(sc.regions || [], id).reverse());
   // Can a region be zoomed into (it has regions inside it, or a map)?
-  D.hasLevel = (sc, id) => { const r = (sc.regions || []).find((x) => x && x.id === id); return !!r && (!!r.map || E.Scenario.regionChildrenIn(sc.regions, id).length > 0); };
+  D.hasLevel = (sc, id, hidden) => { const r = (sc.regions || []).find((x) => x && x.id === id); return !!r && (!!r.map || E.Scenario.regionChildrenIn(sc.regions, id).some((c) => !(hidden && hidden.has(c)))); };
   // The box around some regions, padded.
   D.regionBox = function (g, ids) {
     const pts = [];
@@ -174,7 +176,7 @@
     const body = (o.regions || []).filter((r) => g.shapes[r.id]).sort((a, b) => parents.has(b.id) - parents.has(a.id)).map((r) => {
       const now = (o.now || {})[r.id] || { controller: r.controller || null, tags: r.tags || [] };
       const fc = D.factionClass(o.factions, now.controller);
-      const cls = `region-shape ${fc}${fc === 'none' ? ' none' : ''}${r.id === o.mine ? ' here' : ''}${(o.branch || []).includes(r.id) && r.id !== o.mine ? ' branch' : ''}${r.id === o.selected ? ' selected' : ''}`;
+      const cls = `region-shape ${fc}${fc === 'none' ? ' none' : ''}${(o.contested || []).includes(r.id) ? ' contested' : ''}${r.id === o.mine ? ' here' : ''}${(o.branch || []).includes(r.id) && r.id !== o.mine ? ' branch' : ''}${r.id === o.selected ? ' selected' : ''}`;
       const [ax, ay] = g.anchors[r.id];
       const show = fits(r);
       const tags = show ? (now.tags || []).slice(0, 2).concat((now.tags || []).length > 2 ? [`+${now.tags.length - 2}`] : []) : [];
@@ -187,7 +189,7 @@
         return out;
       }).join('');
       const pin = r.id === o.mine ? `<circle class="region-pin" cx="${ax}" cy="${n1(ay - 24 * k)}" r="${n1(6 * k)}"/>` : '';
-      const label = `${r.name}, held by ${D.factionName(o.factions, now.controller)}${r.id === o.mine ? ', you are here' : ''}`;
+      const label = `${r.name}, held by ${D.factionName(o.factions, now.controller)}${(o.contested || []).includes(r.id) ? ', contested' : ''}${r.id === o.mine ? ', you are here' : ''}`;
       const text = show ? `<text class="region-label" x="${ax}" y="${ay}" text-anchor="middle"${k > 1 ? ` style="font-size:${n1(15 * k)}px;stroke-width:${n1(4 * k)}px"` : ''}>${esc(r.name)}</text>` : '';
       return `<g class="region-g${pulse.has(r.id) ? ' changed' : ''}${dim.has(r.id) ? ' dim' : ''}" tabindex="0" role="button" data-region="${esc(r.id)}"${zoomable.has(r.id) ? ' data-zoomable="1"' : ''} aria-label="${esc(label)}${zoomable.has(r.id) ? ', zoom in' : ''}">${shapeSvg(r.id, cls)}${text}${badges}${pin}</g>`;
     }).join('');

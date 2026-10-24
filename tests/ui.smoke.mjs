@@ -843,6 +843,34 @@ await check('phone: the world view fits and the level switch works', async (page
   assert.equal(await page.getAttribute('#worldSvg', 'data-view'), 'root');
 });
 
+// R-5: presence and unknown regions. The holdout's junction is contested
+// (the convoy and the Ridge); Ares Deep's lava tube is hidden until the
+// story reveals it, then it is on the map.
+await check('presence and unknown regions: a contested junction, a hidden lava tube', async (page) => {
+  await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+  await newGame(page);
+  await sceneReady(page);
+  await page.click('[data-maplevel="root"]');
+  assert.ok(await page.locator('.region-g[data-region="junction"] .region-shape.contested').count(), 'drawn as contested');
+  await page.locator('.region-g[data-region="junction"] .region-shape').click({ position: { x: 60, y: 40 } });
+  assert.match(await page.textContent('#regionInfo'), /present: Coastal rescue convoy \(some\), The Ridge \(a little\); contested/);
+  await page.selectOption('#scenarioSelect', 'server:mars-station');
+  await newGame(page);
+  await sceneReady(page);
+  await page.click('[data-maplevel="root"]');
+  assert.equal(await page.locator('.region-g[data-region="lava-tube"]').count(), 0, 'hidden: not on the map');
+  assert.ok(!/lava/i.test(await page.textContent('#mapPane')));
+  await page.evaluate(() => {
+    const s = JSON.parse(localStorage.getItem('ensemble.autosave'));
+    s.regions['lava-tube'].known = true;
+    localStorage.setItem('ensemble.autosave', JSON.stringify(s));
+  });
+  await page.reload();
+  await sceneReady(page);
+  assert.equal(await page.locator('.region-g[data-region="lava-tube"]').count(), 1, 'revealed: on the map');
+  await page.screenshot({ path: path.join(shots, 'map-revealed.png') });
+});
+
 // R-3: one map that zooms through the region tree. The breadcrumb from the
 // world to the room; a level with a picture (Harmon's town map) and one
 // without (the same world with its picture taken out: node maps of each

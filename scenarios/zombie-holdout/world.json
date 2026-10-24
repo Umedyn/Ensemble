@@ -72,6 +72,15 @@
       "color": 1
     }
   ],
+  "presence": {
+    "ridge": {
+      "ridge-town": 1,
+      "junction": 0.3
+    },
+    "convoy": {
+      "junction": 0.4
+    }
+  },
   "regionLabels": [
     "town",
     "part of town"

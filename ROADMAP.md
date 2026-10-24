@@ -223,7 +223,7 @@ Regions become a free-form tree with routes, and maps attach to any region, so o
 - [x] **Routes** (R-2): kinds, times and `requires` (the timeline's precondition grammar), `risky` crossings as rolls; `neighbours` become border routes; long trips run as skips; multi-leg travel.
 - [x] **Maps on any region and one zooming map** (R-3): a breadcrumb through the tree, node maps where there's no picture, travel buttons with kind and time.
 - [x] **Creator** (R-4): a tree view, route kinds, "attach a map", templates (one country, one city, planets), WORLDS.md rewritten in three steps.
-- [ ] **Presence and unknown regions** (R-5): several groups per region, contested ground; `known: false` branches revealed by the story.
+- [x] **Presence and unknown regions** (R-5): several groups per region, contested ground; `known: false` branches revealed by the story.
 - [ ] **Generated regions** (R-6): `new_region` like `new_place`, one level up, fading like sites.
 - [ ] **Start anywhere** (R-7): pick a start in a big tree by search or zoom, or "Surprise me"; `startable` on branches.
 - [ ] **Map focus by genre and stakes** (R-8): tactical local maps for tense stories, the city as the lived space for everyday ones; flavour sites in one call that turn tactical when danger arrives.

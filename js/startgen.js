@@ -61,7 +61,9 @@
   };
   // Regions marked startable, or every region when none is.
   GEN.regions = function (world) {
-    const all = (world.regions || []).filter(isObj);
+    // Never a hidden region (R-5), nor one inside it.
+    const all = (world.regions || []).filter(isObj).filter((r) => !E.Scenario.regionChainIn(world.regions, r.id).some((x) => ((world.regions || []).find((y) => y.id === x) || {}).known === false));
+
     const marked = all.filter((r) => r.startable === true);
     return marked.length ? marked : all;
   };

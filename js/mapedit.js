@@ -78,8 +78,13 @@
   function eachRef(world, starts, fn, neighbourFn) {
     const nf = neighbourFn || fn;
     (world.regions || []).forEach((r) => { r.neighbours = [...new Set((r.neighbours || []).map((n) => nf(n)).filter((n) => n && n !== r.id))]; });
+    // Presence (R-5) is keyed by region inside each group: renamed, or gone with it.
+    [world].concat(Object.values(starts || {})).forEach((s) => Object.values((s && s.presence) || {}).forEach((m) => {
+      Object.keys(m || {}).forEach((rid) => { const v = nf(rid); if (v !== rid) { if (v) m[v] = m[rid]; delete m[rid]; } });
+    }));
     // Routes (R-2): where they go (a route to a deleted region goes), and the
     // regions their requirements name.
+
     (world.regions || []).filter((r) => Array.isArray(r.routes)).forEach((r) => {
       r.routes = r.routes.filter((x) => x && typeof x === 'object').map((x) => Object.assign(x, { to: nf(x.to) })).filter((x) => x.to && x.to !== r.id);
       r.routes.forEach((x) => controlsOf(x.requires).forEach((c) => { const v = fn(c.region); if (v) c.region = v; }));

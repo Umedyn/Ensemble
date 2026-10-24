@@ -602,12 +602,15 @@
       (s.factions || []).forEach((f) => (f.id = map(f.id)));
       (s.regions || []).forEach((r) => { if (r.controller === from) r.controller = to; });
       (s.standees || []).forEach((g) => { if (g.faction === from) g.faction = to; });
+      // Presence (R-5) is keyed by group.
+      if (s.presence && s.presence[from]) { s.presence[to] = s.presence[from]; delete s.presence[from]; }
     });
     events(files).forEach((ev) => {
       (ev.preconditions || []).flatMap(controlsOf).forEach((c) => { if (c.group === from) c.group = to; });
       const fx = ev.effects || {};
       (fx.groups || []).forEach((g) => { if (g && g.id === from) g.id = to; });
       (fx.control || []).forEach((c) => { if (c && c.to === from) c.to = to; });
+      (fx.presence || []).forEach((p) => { if (p && p.group === from) p.group = to; });
     });
     return '';
   };
@@ -617,6 +620,7 @@
       if (s.factions) s.factions = s.factions.filter((f) => f.id !== id);
       (s.regions || []).forEach((r) => { if (r.controller === id) { r.controller = null; notes.push(`${r.name || r.id} is held by no one now`); } });
       (s.standees || []).forEach((g) => { if (g.faction === id) delete g.faction; });
+      if (s.presence && s.presence[id]) { delete s.presence[id]; notes.push(`${id} is present nowhere now`); if (!Object.keys(s.presence).length) delete s.presence; }
     });
     events(files).forEach((ev) => {
       if (ev.preconditions) {
@@ -629,6 +633,7 @@
       if (fx) {
         if (fx.groups) { fx.groups = fx.groups.filter((g) => !g || g.id !== id); if (!fx.groups.length) delete fx.groups; }
         if (fx.control) { fx.control = fx.control.filter((c) => !c || c.to !== id); if (!fx.control.length) delete fx.control; }
+        if (fx.presence) { fx.presence = fx.presence.filter((p) => !p || p.group !== id); if (!fx.presence.length) delete fx.presence; }
         if (!Object.keys(fx).length) delete ev.effects;
       }
     });

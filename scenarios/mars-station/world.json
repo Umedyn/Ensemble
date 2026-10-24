@@ -275,6 +275,17 @@
         "crater-rim"
       ],
       "lore": "An automated Halvorsen relay and weather station a day's drive along the rim, the nearest other built thing on the planet."
+    },
+    {
+      "id": "lava-tube",
+      "name": "Collapsed lava tube",
+      "label": "cave",
+      "parent": "crater-rim",
+      "known": false,
+      "controller": null,
+      "tags": [],
+      "status": "unmapped",
+      "lore": "A void under the rim where an old lava tube caved in. Nobody has mapped how far it runs or what the collapse opened up."
     }
   ],
   "map": {
@@ -408,6 +419,12 @@
             650,
             300
           ]
+        ]
+      },
+      "lava-tube": {
+        "point": [
+          120,
+          262
         ]
       }
     },

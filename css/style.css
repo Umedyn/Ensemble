@@ -315,6 +315,8 @@ button:disabled { opacity: .5; cursor: default; }
 .world-svg.panning { cursor: grabbing; }
 .region-shape { stroke: var(--line-strong); stroke-width: 2; fill-opacity: 0.45; cursor: pointer; vector-effect: non-scaling-stroke; }
 .region-shape.none { fill: var(--panel-2); fill-opacity: 0.35; stroke-dasharray: 6 4; }
+/* Contested ground (R-5): a second, dashed outline */
+.region-shape.contested { stroke: var(--bad); stroke-dasharray: 4 3; stroke-width: 3; }
 .region-shape.here { stroke: var(--accent); stroke-width: 4; }
 .region-shape.selected { stroke: var(--focus); stroke-width: 4; }
 .region-node.none { fill: var(--panel-2); }

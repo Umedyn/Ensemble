@@ -155,7 +155,8 @@ test('the header lists the static geography and does not change when a region ch
   const after = E.Prompts.header(state);
   assert.ok(after.startsWith(before));
   assert.equal(after.slice(before.length), '\n- [T0] Smoke rises over town.');
-  assert.match(E.Prompts.intent(state, [], 'Look out.', 'about an hour', 'hour', {}), /Highway junction \(junction\): held by Coastal rescue convoy; tags: blocked, checkpoint; convoy trucks parked across the ramp/);
+  assert.match(E.Prompts.intent(state, [], 'Look out.', 'about an hour', 'hour', {}), /Highway junction \(junction\): held by Coastal rescue convoy; present: Coastal rescue convoy \(some\), The Ridge \(a little\); contested; tags: blocked, checkpoint; convoy trucks parked across the ramp/
+);
 });
 
 test('only the player\'s region and its neighbours reach the user message', () => {

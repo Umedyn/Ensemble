@@ -267,7 +267,8 @@
     // Anywhere a route goes (R-2): a far place is a long trip, and a closed
     // way (not risky) refuses it before anything is built.
     const here = Eng().playerRegion(state);
-    const regions = sc.regions || [];
+    // Hidden regions (R-5) can't be named: the player doesn't know of them.
+    const regions = (sc.regions || []).filter((r) => Eng().regionKnown(state, r.id));
     let region = here;
     let note = null;
     if (regions.length) {
@@ -302,7 +303,8 @@
   // doesn't reach: not theirs or one they are inside, and the move (if any)
   // ends somewhere outside it. → the region, or null.
   ST.regionHeadedFor = function (state, moveTo, actionText) {
-    const regions = state.scenario.regions || [];
+    const regions = (state.scenario.regions || []).filter((r) => Eng().regionKnown(state, r.id));
+
     if (!regions.length || !Eng().setsOut(actionText)) return null;
     const here = Eng().playerRegion(state);
     const mine = here ? Eng().regionChain(state, here) : [];

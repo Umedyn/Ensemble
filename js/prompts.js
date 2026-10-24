@@ -25,7 +25,7 @@
   // later genre, lore titles, geography) goes before them.
   const B = (P.blocks = {});
   P.layouts = {};
-  P.LIVE_HEADER = ['newcomers', 'chapters', 'facts'];
+  P.LIVE_HEADER = ['regionsFound', 'newcomers', 'chapters', 'facts'];
   P.build = function (layout, ctx) {
     const parts = [];
     P.layouts[layout].forEach((id) => {
@@ -36,7 +36,7 @@
     return parts.join('\n');
   };
 
-  P.layouts.header = ['intro', 'setting', 'genre', 'rules', 'places', 'regions', 'groups', 'loreAlways', 'cast', 'newcomers', 'chapters', 'facts'];
+  P.layouts.header = ['intro', 'setting', 'genre', 'rules', 'places', 'regions', 'groups', 'loreAlways', 'cast', 'regionsFound', 'newcomers', 'chapters', 'facts'];
   P.header = (state) => P.build('header', { state, sc: state.scenario, pc: state.characters[state.player] });
 
   B.intro = () => 'You are the simulation engine and narrator for an interactive, character-driven story.';
@@ -80,8 +80,10 @@
   // whole game (rule 7). Named places on the map are listed with their region.
   P.REGIONS_FULL = 24;
   P.REGION_NAMES_MAX = 60;
+  // Regions known at the start (R-5): none hidden, nor inside a hidden one.
+  P.knownAtStart = (sc) => (sc.regions || []).filter((r) => r && !E.Scenario.regionChainIn(sc.regions, r.id).some((x) => ((sc.regions || []).find((y) => y.id === x) || {}).known === false));
   P.regionOutline = function (sc) {
-    const list = sc.regions || [];
+    const list = P.knownAtStart(sc);
     if (list.length <= P.REGIONS_FULL) return { full: list, far: [] };
     const S = E.Scenario;
     const byId = new Map(list.map((r) => [r.id, r]));
@@ -123,16 +125,27 @@
     return (label ? `, ${/^[aeiou]/i.test(label) ? 'an' : 'a'} ${label}` : '') + (parent ? ` in ${parent.name}` : '');
   };
   B.regions = ({ sc }) => {
-    if (!(sc.regions || []).length) return null;
+    const known = P.knownAtStart(sc);
+    if (!known.length) return null;
     const { full, far } = P.regionOutline(sc);
+    const shown = new Set(known.map((r) => r.id));
     const places = (sc.map && Array.isArray(sc.map.places)) ? sc.map.places : [];
     const placesIn = (id) => places.filter((p) => p.region === id).map((p) => (p.kind === 'capital' ? `${p.name} (capital)` : p.name));
     const lines = ['\n=== REGIONS ==='].concat(full.map((r) => {
       const pl = placesIn(r.id);
-      return `- ${r.id}: ${r.name}${P.regionWhat(sc, r.id, true)}${r.lore ? ` — ${r.lore}` : ''}${r.neighbours && r.neighbours.length ? ` (neighbours: ${r.neighbours.join(', ')})` : ''}${pl.length ? ` [places: ${pl.join(', ')}]` : ''}`;
+      const nb = (r.neighbours || []).filter((n) => shown.has(n));
+      return `- ${r.id}: ${r.name}${P.regionWhat(sc, r.id, true)}${r.lore ? ` — ${r.lore}` : ''}${nb.length ? ` (neighbours: ${nb.join(', ')})` : ''}${pl.length ? ` [places: ${pl.join(', ')}]` : ''}`;
     }));
-    if (far.length) lines.push(`Further away: ${far.map((r) => r.name).join(', ')}${sc.regions.length > full.length + far.length ? ', and others' : ''}.`);
+    if (far.length) lines.push(`Further away: ${far.map((r) => r.name).join(', ')}${known.length > full.length + far.length ? ', and others' : ''}.`);
     return lines;
+  };
+  // Live (R-5): regions found during the story, in the world's order. It
+  // sits with the other live blocks at the end of the header (rule 7).
+
+  B.regionsFound = ({ state, sc }) => {
+    const start = new Set(P.knownAtStart(sc).map((r) => r.id));
+    const found = (sc.regions || []).filter((r) => !start.has(r.id) && Eng().regionKnown(state, r.id));
+    return found.length ? ['\n=== PLACES FOUND DURING THE STORY ==='].concat(found.map((r) => `- ${r.id}: ${r.name}${P.regionWhat(sc, r.id, true)}${r.lore ? ` — ${r.lore}` : ''}`)) : null;
   };
   B.groups = ({ sc }) => (sc.factions && sc.factions.length
     ? ['\n=== GROUPS ==='].concat(sc.factions.map((f) => `- ${f.id}: ${f.name} — ${f.desc}`))
@@ -217,6 +230,9 @@
       const def = Eng().regionDef(state, id);
       const r = state.regions[id];
       const bits = [`held by ${Eng().regionHolder(state, id).text}`];
+      // Who else is there (R-5), in words.
+      const present = Eng().presenceText(state, id);
+      if (present) bits.push(`present: ${present}`);
       if (r.tags.length) bits.push(`tags: ${r.tags.join(', ')}`);
       if (r.status) bits.push(r.status);
       return `${def.name}${withLabel ? P.regionWhat(state.scenario, id) : ''} (${id}): ${bits.join('; ')}`;
@@ -239,6 +255,16 @@
     };
     return `\nRoutes from here: ${list.map(one).join(' | ')}`;
   }
+  // Regions the player doesn't know of yet (R-5): only in the intent calls'
+  // user messages, like secrets (rule 6), so an event can reveal one.
+  B.hiddenPlaces = ({ state }) => {
+    const hidden = [...Eng().hiddenRegions(state)].map((id) => Eng().regionDef(state, id));
+    if (!hidden.length) return null;
+    return ['\n=== HIDDEN PLACES (the player doesn\'t know of them: never name one in public text unless the story makes it known; to make one known, add effects "reveal") ==='].concat(hidden.map((r) => {
+      const up = E.Scenario.regionChainIn(state.scenario.regions, r.id).slice(1).map((x) => Eng().regionDef(state, x).name);
+      return `- ${r.id}: ${r.name}${up.length ? ` (in ${up.join(' › ')})` : ''}${r.lore ? ` — ${r.lore}` : ''}`;
+    }));
+  };
   // Event ideas (eventSeeds) are text or {text, region}. Regional ideas for
   // regions away from the player are left out (an idea for a region the
   // player is inside counts, R-1); the rest say where they are.
@@ -247,6 +273,7 @@
     return ((state.scenario.eventSeeds || {})[scope] || []).map((s) => {
       if (typeof s === 'string') return s;
       if (!s.region) return s.text;
+      if (!Eng().regionKnown(state, s.region)) return null; // hidden (R-5)
       if (scope === 'regional' && !near.includes(s.region)) return null;
       const def = Eng().regionDef(state, s.region);
       return `${s.text} (${def ? def.name : s.region})`;
@@ -254,8 +281,12 @@
   }
   // The JSON shape of an event's effects; region effects only when the world has regions.
   function effectShape(state) {
-    const region = Object.keys(state.regions || {}).length
+    const has = Object.keys(state.regions || {}).length;
+    const region = has
       ? ',"control":[{"region":"region_id","to":"group_id or null"}],"add_tag":[{"region":"region_id","tag":"short tag"}],"remove_tag":[{"region":"region_id","tag":"existing tag"}],"region_status":[{"region":"region_id","status":"new status"}]'
+        // Presence (R-5): only for worlds that use it; reveal only while something is hidden.
+        + (Object.keys(state.presence || {}).length ? ',"presence":[{"group":"group_id","region":"region_id","to":0.5}]' : '')
+        + (Eng().hiddenRegions(state).size ? ',"reveal":[{"region":"hidden_region_id"}]' : '')
       : '';
     const site = E.Sites.enabled(state.scenario) ? ',"new_site":null' : '';
     return `{"world":[{"key":"world_key","value":"new status"}],"groups":[{"id":"group_id","stance":"new stance"}],"clocks":[{"id":"clock_id","delta":2}],"new_clock":null${region}${site}}`;
@@ -263,7 +294,9 @@
   // Valid ids for effects. Every region, not just nearby ones: the world can
   // shift far from the player (their current state stays nearby-only).
   function effectIds(state) {
-    const regions = Object.keys(state.regions || {});
+    // Hidden regions (R-5) are listed apart, in the hidden places block.
+    const hidden = Eng().hiddenRegions(state);
+    const regions = Object.keys(state.regions || {}).filter((id) => !hidden.has(id));
     return `world keys: ${Object.keys(state.world).join(', ')}; groups: ${(state.factions || []).map((f) => f.id).join(', ') || 'none'}; clocks: ${state.clocks.filter((c) => !c.fired).map((c) => c.id).join(', ') || 'none'}${regions.length ? `; regions: ${regions.join(', ')}` : ''}`;
   }
 
@@ -353,7 +386,7 @@
   };
 
   // ---------- intent ----------
-  P.layouts.intent = ['now', 'lore', 'knownPlaces', 'private', 'extrasHere', 'standees', 'offstage', 'background', 'agendaDue', 'lastScene', 'crisisNow', 'reckoningNow', 'intentAction', 'intentTask'];
+  P.layouts.intent = ['now', 'lore', 'knownPlaces', 'private', 'hiddenPlaces', 'extrasHere', 'standees', 'offstage', 'background', 'agendaDue', 'lastScene', 'crisisNow', 'reckoningNow', 'intentAction', 'intentTask'];
   // Places beyond the start's rooms (task 4-4): the rooms of the place the
   // player is in (made during the story, so not in the header) and the
   // places the story knows of. Only in worlds that build new places.
@@ -724,7 +757,7 @@ Reply with the new beats only.`;
     return h >= 1 ? `about ${h} ${h === 1 ? 'hour' : 'hours'}` : 'under an hour';
   }
 
-  P.layouts.skipIntent = ['skipFrame', 'lore', 'people','agendaDuring', 'lastScene', 'skipTask'];
+  P.layouts.skipIntent = ['skipFrame', 'lore', 'people', 'hiddenPlaces', 'agendaDuring', 'lastScene', 'skipTask'];
   P.skipIntent = (state, action, plan, frame, res, agendaSteps) =>
     P.build('skipIntent', { state, pc: state.characters[state.player], action, plan, frame, res, agendaSteps: agendaSteps || [] });
 
@@ -1073,7 +1106,10 @@ Reply with JSON only:
       const nameOf = (id) => ((sc.regions || []).find((x) => x.id === id) || {}).name;
       const up = E.Scenario.regionChainIn(sc.regions, r.id).slice(1).map(nameOf).filter(Boolean);
       if (up.length) lines.push(`Inside: ${up.join(' › ')}.`);
-      const near = E.Scenario.regionNearIn(sc.regions, r.id).map(nameOf).filter(Boolean);
+      // Not a hidden region (R-5).
+      const seen = new Set(P.knownAtStart(sc).map((x) => x.id));
+      const near = E.Scenario.regionNearIn(sc.regions, r.id).filter((x) => seen.has(x)).map(nameOf).filter(Boolean);
+
       if (near.length) lines.push(`Next to: ${near.join(', ')}.`);
     }
     const g = sc.start;

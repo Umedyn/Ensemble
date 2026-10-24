@@ -333,6 +333,8 @@
       <label>Inside <select data-field="parent"><option value="">the world (top level)</option>${M.parentChoices(w, r.id).map((x) => `<option value="${esc(x.id)}"${r.parent === x.id ? ' selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>
       <label>Label <span class="muted small">(a word such as province, city or planet; display only)</span><input data-field="label" value="${esc(r.label || '')}" maxlength="30" placeholder="${esc((w.regionLabels || [])[S.regionChainIn(w.regions, r.id).length - 1] || '')}"></label>
       <label>Held by <select data-field="controller"><option value="">no one</option>${(w.factions || []).map((f) => `<option value="${esc(f.id)}"${r.controller === f.id ? ' selected' : ''}>${esc(f.name)}</option>`).join('')}</select></label>
+      <label class="c-check"><input type="checkbox" data-field="hidden"${r.known === false ? ' checked' : ''}> Hidden until the story reveals it <span class="muted small">(and everything inside it)</span></label>
+      ${(w.factions || []).length ? `<fieldset class="c-neigh"><legend>Present here <span class="muted small">(0 to 1; several groups can be; empty: none)</span></legend>${(w.factions || []).map((f) => `<label class="c-row"><span><span class="swatch ${D.factionClass(w.factions, f.id)}"></span>${esc(f.name)}</span> <input type="number" min="0" max="1" step="0.05" data-presence="${esc(f.id)}" value="${esc(((w.presence || {})[f.id] || {})[r.id] ?? '')}" aria-label="${esc(f.name)} present in ${esc(r.name)}"></label>`).join('')}</fieldset>` : ''}
       <label>Tags <span class="muted small">(comma-separated, up to ${S.REGION_TAGS})</span><input data-field="tags" value="${esc((r.tags || []).join(', '))}"></label>
       <label>Status <input data-field="status" value="${esc(r.status || '')}" maxlength="120"></label>
       <label>Lore summary <span class="muted small" id="cLoreCount">${(r.lore || '').length}/400</span> <span class="muted small">Public knowledge: secrets go in a character's secret, events still to come in the timeline.</span><textarea data-field="lore" rows="3" maxlength="400">${esc(r.lore || '')}</textarea></label>
@@ -685,6 +687,18 @@
     const r = ui.sel && (w.regions || []).find((x) => x.id === ui.sel);
     if (!r) return;
     if (t.dataset.field === 'controller') { r.controller = t.value || null; return changed(); }
+    // Unknown regions and presence (R-5).
+    if (t.dataset.field === 'hidden') { if (t.checked) r.known = false; else delete r.known; return changed(); }
+    if (t.dataset.presence) {
+      const g = t.dataset.presence;
+      const v = t.value === '' ? null : Number(t.value);
+      w.presence = w.presence || {};
+      w.presence[g] = Object.assign({}, w.presence[g]);
+      if (v == null || !Number.isFinite(v) || v <= 0) delete w.presence[g][r.id]; else w.presence[g][r.id] = Math.min(1, v);
+      if (!Object.keys(w.presence[g]).length) delete w.presence[g];
+      if (!Object.keys(w.presence).length) delete w.presence;
+      return changed();
+    }
     if (t.dataset.field === 'parent') { if (t.value) r.parent = t.value; else delete r.parent; return changed(['canvas', 'list']); }
 
     if (t.dataset.neigh) { M.setNeighbour(w, r.id, t.dataset.neigh, t.checked); return changed(); }

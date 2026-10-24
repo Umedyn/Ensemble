@@ -62,10 +62,13 @@ test('a region left off the map is warned about and gets a point along the botto
 
 test('the node map for a world without an image is the same every time and its boxes never overlap', () => {
   const a = newGame(), b = newGame();
-  const p = plain(a.E.Layouts.regionMap(a.state.scenario.regions, 'mars-station'));
-  assert.deepEqual(plain(b.E.Layouts.regionMap(b.state.scenario.regions, 'mars-station')), p);
+  // The regions the player knows of (R-5: the lava tube is hidden), as the game draws them.
+  const known = (g, s) => s.scenario.regions.filter((r) => g.Engine.regionKnown(s, r.id));
+  const p = plain(a.E.Layouts.regionMap(known(a.E, a.state), 'mars-station'));
+  assert.deepEqual(plain(b.E.Layouts.regionMap(known(b.E, b.state), 'mars-station')), p);
   const loaded = a.E.Engine.migrate(plain(a.state));
-  assert.deepEqual(plain(a.E.Layouts.regionMap(loaded.scenario.regions, 'mars-station')), p, 'after a save');
+  assert.deepEqual(plain(a.E.Layouts.regionMap(known(a.E, loaded), 'mars-station')), p, 'after a save');
+
   const nodes = Object.entries(p.nodes);
   assert.equal(nodes.length, 4);
   nodes.forEach(([x, n], i) => nodes.slice(i + 1).forEach(([y, o]) => {
