@@ -71,7 +71,9 @@ A world folder holds the setting and a pool of characters (`world.json`, `charac
 3. Load it with **Open folder** in the game, or add it to `scenarios/index.json` when running with the local server.
 4. If the game reports problems, the messages say which field is wrong. With Node installed, `npm run check` validates every world and start.
 
-The **Creator** (top bar, or `creator.html`) edits a world without touching JSON. So far it has the Map tab: load a map image, draw regions on it, set who holds them, their tags, neighbours and lore, place rooms, pick where each start begins and each group's colour, and export the world folder as a zip. Problems show as you edit. More tabs follow.
+The **Creator** (top bar, or `creator.html`) edits a world without touching JSON: its world, groups, starts, characters, map, sites, lore and timeline, with problems shown as you edit, and exports the world folder as a zip. **New world** can start blank, on the shared base map, or from a template (One country with provinces, One city, Planets and travel).
+
+**Regions in three steps:** a flat list of regions is a whole world; add `parent` where you want more detail; add `routes` and `map` only if travel or pictures matter. See `docs/WORLDS.md` › Regions in three steps, with worked examples (a country with zones, detail in one place, planets).
 
 Older single-file scenario folders (`scenario.json` + `characters/`) still work and load as a world with one start.
 

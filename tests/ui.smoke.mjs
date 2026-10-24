@@ -999,6 +999,92 @@ await check('creator: draw a region on a map image, export, and play the export'
   assert.ok(await page.locator('.region-g[data-region="station"] polygon.fc-4').count(), 'drawn, in the sponsor\'s colour');
 });
 
+// R-4: the region tree in the creator. A world from the "One city"
+// template; regions added inside and next to, one dragged to another
+// parent; a route kind of the world's own and a route using it; a map
+// attached to a district, with a region drawn on it; test played. Then
+// the other templates load with no problems.
+await check('creator: a region tree, routes, route kinds and a map on a region, from a template', async (page) => {
+  await page.goto(BASE + 'creator.html');
+  await page.waitForFunction(() => document.querySelectorAll('#cWorld option').length > 1);
+  await page.click('#cNew');
+  await page.fill('#cNewTitle', 'Tree City');
+  await page.selectOption('#cNewTemplate', 'city');
+  await page.click('#cNewGo');
+  await page.waitForSelector('#cRegionList [data-sel="brightwater"]');
+  assert.match(await page.textContent('#cValidation'), /No problems/, 'the template loads as it is');
+  // + Inside and + Next to.
+  await page.click('#cRegionList [data-sel="old-town"]');
+  await page.click('#cAddInside');
+  await page.fill('[data-field="name"]', 'Market Lane');
+  await page.click('#cAddNext');
+  await page.fill('[data-field="name"]', 'Bell Street');
+  assert.equal(await page.inputValue('[data-field="parent"]'), 'old-town', 'next to Market Lane: inside Old Town too');
+  // Drag Bell Street onto the Harbour.
+  await page.dragAndDrop('#cRegionList [data-sel="bell-street"]', '#cRegionList [data-sel="harbour"]');
+  await page.click('#cRegionList [data-sel="bell-street"]');
+  assert.equal(await page.inputValue('[data-field="parent"]'), 'harbour', 'dragged inside the Harbour');
+  // Dragging a region into its own branch is refused, in words.
+  await page.dragAndDrop('#cRegionList [data-sel="brightwater"]', '#cRegionList [data-sel="harbour"]');
+  assert.match(await page.textContent('#cBanner'), /Not moved: Brightwater can't go inside The Harbour: The Harbour is inside Brightwater/);
+  // A route kind of the world's own, and a route that uses it.
+  await page.fill('#cNewKind', 'tram');
+  await page.click('#cAddKind');
+  await page.fill('[data-kind="tram"][data-kf="time"]', '10m');
+  await page.press('[data-kind="tram"][data-kf="time"]', 'Tab');
+  await page.click('#cRegionList [data-sel="old-town"]');
+  await page.click('#cAddRoute');
+  await page.selectOption('[data-route="1"][data-rf="to"]', 'university');
+  await page.fill('[data-route="1"][data-rf="kind"]', 'tram');
+  await page.press('[data-route="1"][data-rf="kind"]', 'Tab');
+  await page.click('[data-rqadd="r:1"]');
+  await page.fill('[data-rq="r:1"][data-pf="a"]', 'trams');
+  await page.press('[data-rq="r:1"][data-pf="a"]', 'Tab');
+  await page.fill('[data-rq="r:1"][data-pf="b"]', 'running');
+  await page.press('[data-rq="r:1"][data-pf="b"]', 'Tab');
+  await page.waitForFunction(() => /No problems/.test(document.getElementById('cValidation').textContent));
+  // A bad time shows next to the region, by name.
+  await page.fill('[data-route="1"][data-rf="time"]', 'soon');
+  await page.press('[data-route="1"][data-rf="time"]', 'Tab');
+  await page.waitForFunction(() => /Old Town's route to University Quarter: "time" must be like/.test(document.getElementById('cRegionProblems').textContent));
+  await page.fill('[data-route="1"][data-rf="time"]', '');
+  await page.press('[data-route="1"][data-rf="time"]', 'Tab');
+  // A map of its own for Old Town, with Market Lane drawn on it.
+  await page.setInputFiles('[data-attachmap="old-town"]', path.join(here, '..', 'scenarios', 'zombie-holdout', 'maps', 'town.svg'));
+  await page.waitForSelector('#cSvg image');
+  assert.match(await page.textContent('#cHint'), /This is Old Town's map: it shows the regions inside Old Town/);
+  assert.match(await page.textContent('#cMapOwner'), /Old Town's map/);
+  await page.click('#cRegionList [data-sel="market-lane"]');
+  await page.click('[data-mode="draw"]');
+  const box = await page.locator('#cSvg').boundingBox();
+  for (const [fx, fy] of [[0.2, 0.2], [0.5, 0.2], [0.5, 0.6]]) await page.mouse.click(box.x + box.width * fx, box.y + box.height * fy);
+  await page.keyboard.press('Enter');
+  assert.match(await page.textContent('#cRegionForm'), /Outlined with 3 corners/);
+  assert.match(await page.textContent('#cRegionList'), /Old Town 🗺/);
+  // The harbour isn't inside Old Town: not on this map.
+  await page.click('#cRegionList [data-sel="harbour"]');
+  assert.match(await page.textContent('#cRegionForm'), /Not inside Old Town, so not on Old Town's map/);
+  await page.waitForFunction(() => /No problems/.test(document.getElementById('cValidation').textContent));
+  await page.screenshot({ path: path.join(shots, 'creator-region-tree.png') });
+  // Test play: it loads in the game and plays a turn.
+  const [game] = await Promise.all([page.context().waitForEvent('page'), page.click('#cTest')]);
+  await game.waitForFunction(() => /turn 0$/.test(document.getElementById('sceneBar').textContent.trim()), null, { timeout: 15000 });
+  await act(game, 'I look around the café.');
+  await game.click('[data-maplevel="local"]');
+  assert.match(await game.textContent('.map-crumbs'), /Tree City\s*›\s*Brightwater\s*›\s*Old Town\s*›\s*Corner Café/);
+  await game.close();
+  // The other templates load as they are.
+  for (const kind of ['country', 'planets']) {
+    await page.click('#cNew');
+    await page.fill('#cNewTitle', `Template ${kind}`);
+    await page.selectOption('#cNewTemplate', kind);
+    await page.click('#cNewGo');
+    await page.waitForSelector('#cRegionList');
+    await page.waitForFunction(() => /No problems/.test(document.getElementById('cValidation').textContent));
+  }
+  assert.match(await page.textContent('#cRegionList'), /Veyra[\s\S]*Veyra Starport[\s\S]*Ossam[\s\S]*Thule Drift/);
+});
+
 // Task 6-1: a world built entirely in the creator: New world, the World,
 // Groups and Starts tabs, test play in a new tab (a turn against the mock
 // model, the player's own game untouched), then export and load the zip.

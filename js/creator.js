@@ -21,7 +21,7 @@
   // The working copy: { folder, files: {path: JSON}, assets: {path: File|Blob}, server }
   let cw = null;
   // Map tab state.
-  const ui = { tab: 'map', mode: 'select', sel: null, drawing: [], room: '', vb: null, autoIds: new Set(), confirmDelete: false, piece: null, place: null, addPiece: false };
+  const ui = { tab: 'map', mode: 'select', sel: null, drawing: [], room: '', vb: null, autoIds: new Set(), confirmDelete: false, piece: null, place: null, addPiece: false, mapOwner: null, kindOpen: null, confirmDropMap: null };
   // Lore and timeline tabs (task 5-3): the entry or event being edited, the
   // region a link from the map points at, and the lore test box's inputs.
   const lui = { sel: null, confirm: false, focus: null, test: { startId: '', room: '', action: '', scene: '' } };
@@ -93,7 +93,9 @@
     Object.assign(cui, { sel: null, confirm: false, sc: null, form: null, errors: [], review: null, cf: null });
     Object.assign(xui, XUI());
     ui.autoIds = new Set();
+    Object.assign(ui, { mapOwner: null, kindOpen: null, confirmDropMap: null });
     banner('');
+
     let saved = null;
     try { saved = JSON.parse(store.get(SAVE_KEY(folder))); } catch (e) { saved = null; }
     if (draft) banner('This world is kept only in this browser until you export it. <button type="button" id="cDeleteDraft" class="small">Delete this draft</button>');
@@ -166,7 +168,10 @@
       : `<b class="good">No problems.</b>${r.warnings.length ? ` Warnings:<ul>${r.warnings.map((w) => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}`;
     const form = $('cRegionProblems');
     if (form && ui.sel) {
-      const mine = r.problems.filter((p) => p.includes(`"${ui.sel}"`));
+      // By id ("region "x"") or by name: tree and route messages name regions (R-1).
+      const reg = (world().regions || []).find((x) => x.id === ui.sel);
+      const named = reg && reg.name && reg.name.length >= 3 ? reg.name : null;
+      const mine = r.problems.filter((p) => p.includes(`"${ui.sel}"`) || (named && p.includes(named)));
       form.innerHTML = mine.map((p) => `<div class="bad small">${esc(p)}</div>`).join('');
     }
     // The lore entry or timeline event being edited: its own problems and warnings.
@@ -195,6 +200,17 @@
     }
     return cw.server && location.protocol !== 'file:' ? `scenarios/${encodeURIComponent(cw.folder)}/${path.split('/').map(encodeURIComponent).join('/')}` : null;
   }
+  // ---------- which map is being edited (R-4) ----------
+  // The world's map, or a region's own (R-3). mh() is what holds it (the
+  // world or that region), so every tool below edits mh().map; mapPath() is
+  // where it is in world.json, for bound fields.
+  const ownerRegion = () => (ui.mapOwner ? (world().regions || []).find((r) => r.id === ui.mapOwner) || null : null);
+  function mh() { const r = ownerRegion(); if (!r) ui.mapOwner = null; return r || world(); }
+  const mapPath = () => { const r = ownerRegion(); return r ? `regions.${world().regions.indexOf(r)}.map` : 'map'; };
+  // Regions this map can show: all for the world's, those inside the owner for a region's.
+  const insideOwner = (id) => !ui.mapOwner || (id !== ui.mapOwner && S.regionChainIn(world().regions || [], id).includes(ui.mapOwner));
+  const regionsHere = () => (world().regions || []).filter((r) => insideOwner(r.id));
+  const mapName = () => (ownerRegion() ? `${ownerRegion().name}'s map` : 'the world map');
   function loadImage(file) {
     const url = URL.createObjectURL(file);
     const img = new Image();
@@ -202,17 +218,17 @@
       const w = world();
       const path = 'maps/' + file.name.replace(/[^\w .-]+/g, '_');
       const width = img.naturalWidth || 800, height = img.naturalHeight || 600;
-      const scaleX = w.map ? width / w.map.width : 1, scaleY = w.map ? height / w.map.height : 1;
+      const scaleX = mh().map ? width / mh().map.width : 1, scaleY = mh().map ? height / mh().map.height : 1;
       // Shapes drawn on a previous image are scaled to the new one.
       const scale = (p) => [Math.round(p[0] * scaleX), Math.round(p[1] * scaleY)];
       const regions = {};
-      Object.entries((w.map && w.map.regions) || {}).forEach(([id, sh]) => (regions[id] = sh.polygons ? { polygons: sh.polygons.map((r) => r.map(scale)) } : sh.polygon ? { polygon: sh.polygon.map(scale) } : { point: scale(sh.point) }));
+      Object.entries((mh().map && mh().map.regions) || {}).forEach(([id, sh]) => (regions[id] = sh.polygons ? { polygons: sh.polygons.map((r) => r.map(scale)) } : sh.polygon ? { polygon: sh.polygon.map(scale) } : { point: scale(sh.point) }));
       const locations = {};
-      Object.entries((w.map && w.map.locations) || {}).forEach(([id, p]) => (locations[id] = scale(p)));
-      const places = ((w.map && w.map.places) || []).map((pl) => Object.assign({}, pl, { at: scale(pl.at) }));
+      Object.entries((mh().map && mh().map.locations) || {}).forEach(([id, p]) => (locations[id] = scale(p)));
+      const places = ((mh().map && mh().map.places) || []).map((pl) => Object.assign({}, pl, { at: scale(pl.at) }));
       // Another picture: where it is on the globe isn't known any more.
-      if (w.map && w.map.projection) banner('The new picture has no latitude and longitude: to keep them, crop it with npm run basemap instead.');
-      w.map = Object.assign({ image: path, width, height, regions, locations }, places.length ? { places } : {});
+      if (mh().map && mh().map.projection) banner('The new picture has no latitude and longitude: to keep them, crop it with npm run basemap instead.');
+      mh().map = Object.assign({ image: path, width, height, regions, locations }, places.length ? { places } : {});
       cw.assets[path] = file;
       urls.set(path, url);
       ui.vb = null;
@@ -244,42 +260,60 @@
     return `<div class="c-map">
       <div class="c-canvas-col">
         <div class="c-toolbar" role="toolbar" aria-label="Map tools">
+          ${M.maps(w).length > 1 || ui.mapOwner ? `<label class="c-row small">Editing <select id="cMapOwner" aria-label="Which map">${M.maps(w).map((m) => `<option value="${esc(m.owner || '')}"${(m.owner || null) === (ui.mapOwner || null) ? ' selected' : ''}>${m.owner ? `${esc(regions.find((r) => r.id === m.owner).name)}'s map` : 'the world map'}</option>`).join('')}${ui.mapOwner && !mh().map ? `<option value="${esc(ui.mapOwner)}" selected>${esc(ownerRegion().name)}'s map (no image yet)</option>` : ''}</select></label><span class="sep"></span>` : ''}
           ${['select', 'draw', 'point', 'room', 'place'].map((m) => `<button type="button" data-mode="${m}" aria-pressed="${ui.mode === m}">${({ select: 'Select', draw: 'Draw region', point: 'Point', room: 'Place room', place: 'Add place' })[m]}</button>`).join('')}
           ${ui.mode === 'draw' ? `<label class="c-check small"><input type="checkbox" id="cAddPiece"${ui.addPiece ? ' checked' : ''}> add as another piece</label>` : ''}
           <span class="sep"></span>
-          <label class="btn">${w.map ? 'Change image' : 'Load image'}<input type="file" id="cImage" accept="image/*" hidden></label>
-          ${w.map ? '<button type="button" id="cNoImage" title="Use the automatic node map instead">Remove image</button>' : ''}
+          <label class="btn">${mh().map ? 'Change image' : 'Load image'}<input type="file" id="cImage" accept="image/*" hidden></label>
+          ${mh().map ? '<button type="button" id="cNoImage" title="Use the automatic node map instead">Remove image</button>' : ''}
           <span class="zoom"><button type="button" data-czoom="in" aria-label="Zoom in">+</button><button type="button" data-czoom="out" aria-label="Zoom out">−</button><button type="button" data-czoom="reset" aria-label="Reset the view">⟲</button></span>
         </div>
         <div id="cCanvas" class="c-canvas"></div>
-        <div class="c-hint" id="cHint">${esc(w.map ? HINTS[ui.mode] : 'Load a map image to draw regions on it. Without one, the game lays the regions out from their neighbours, as shown here.')} <span id="cCoords" class="c-coords"></span></div>
+        <div class="c-hint" id="cHint">${esc(mh().map ? HINTS[ui.mode] + (ui.mapOwner ? ` This is ${mapName()}: it shows the regions inside ${ownerRegion().name}.` : '') : ui.mapOwner ? `Load a picture for ${ownerRegion().name}: it will show the regions inside it.` : 'Load a map image to draw regions on it. Without one, the game lays the regions out from their neighbours, as shown here.')} <span id="cCoords" class="c-coords"></span></div>
       </div>
       <aside class="c-panel">
-        <section><h3>Regions</h3><div id="cRegionList" class="c-list"></div><button type="button" id="cAddRegion" class="small">+ Region</button></section>
+        <section><h3>Regions</h3><p class="muted small">A list is a whole world. Drag a region onto another to put it inside; drop it on <i>Top level</i> to take it out.</p>
+          <div id="cRegionList" class="c-list c-tree"></div>
+          <button type="button" id="cAddRegion" class="small">+ Region</button>${ui.sel && regions.some((r) => r.id === ui.sel) ? ` <button type="button" id="cAddInside" class="small">+ Inside ${esc(regions.find((r) => r.id === ui.sel).name)}</button> <button type="button" id="cAddNext" class="small">+ Next to it</button>` : ''}</section>
         <section id="cRegionForm">${regionForm()}</section>
-        ${w.map ? `<section><h3>Rooms on the map</h3><select id="cRoomPick" aria-label="Room to place"><option value="">Pick a room…</option>${rooms().map((r) => `<option value="${esc(r.id)}"${r.id === ui.room ? ' selected' : ''}>${esc(r.name)}${r.from !== 'world' ? ` (${esc(r.from)})` : ''}${w.map.locations && w.map.locations[r.id] ? ' ✓' : ''}</option>`).join('')}</select>
-          <ul class="c-placed">${Object.keys(w.map.locations || {}).map((id) => `<li>${esc((rooms().find((r) => r.id === id) || { name: id }).name)} <span class="muted">${esc(M.regionAt(w.map, w.map.locations[id]) || 'outside every region')}</span> <button type="button" class="small ghost" data-unplace="${esc(id)}" aria-label="Remove ${esc(id)} from the map">✕</button></li>`).join('')}</ul></section>` : ''}
-        ${w.map ? placesSection(w) : ''}
+        ${mh().map ? `<section><h3>Rooms on the map</h3><select id="cRoomPick" aria-label="Room to place"><option value="">Pick a room…</option>${rooms().map((r) => `<option value="${esc(r.id)}"${r.id === ui.room ? ' selected' : ''}>${esc(r.name)}${r.from !== 'world' ? ` (${esc(r.from)})` : ''}${mh().map.locations && mh().map.locations[r.id] ? ' ✓' : ''}</option>`).join('')}</select>
+          <ul class="c-placed">${Object.keys(mh().map.locations || {}).map((id) => `<li>${esc((rooms().find((r) => r.id === id) || { name: id }).name)} <span class="muted">${esc(M.regionAt(mh().map, mh().map.locations[id]) || 'outside every region')}</span> <button type="button" class="small ghost" data-unplace="${esc(id)}" aria-label="Remove ${esc(id)} from the map">✕</button></li>`).join('')}</ul></section>` : ''}
+        ${mh().map ? placesSection(w) : ''}
         ${regions.length ? `<section><h3>Where each start begins</h3>${startList.map(([sid, st]) => `<label class="c-row">${esc(st.title || sid)} <select data-startregion="${esc(sid)}">${regions.map((r) => `<option value="${esc(r.id)}"${st.region === r.id ? ' selected' : ''}>${esc(r.name)}</option>`).join('')}${st.region ? '' : '<option value="" selected>(none)</option>'}</select></label>`).join('')}</section>` : ''}
+        ${regions.length > 1 ? routeKindsSection(w) : ''}
         ${factions.length ? `<section><h3>Group colours</h3>${factions.map((f) => `<label class="c-row"><span><span class="swatch ${D.factionClass(factions, f.id)}"></span>${esc(f.name)}</span> <select data-fcolor="${esc(f.id)}"><option value="">auto</option>${[1, 2, 3, 4, 5, 6, 7, 8].map((n) => `<option value="${n}"${f.color === n ? ' selected' : ''}>colour ${n}</option>`).join('')}</select></label>`).join('')}</section>` : ''}
       </aside>
     </div>`;
   }
+  // The route kinds table (R-4): the built-in kinds and the world's own,
+  // each with its time, whether it's risky and what it needs; the world
+  // keeps only what differs from the defaults (routeKinds).
+  function routeKindsSection(w) {
+    const refs = LE.refs(cw.files);
+    const rows = M.routeKindRows(w).map((k) => `<details class="c-kind"${ui.kindOpen === k.kind ? ' open' : ''} data-kindcard="${esc(k.kind)}"><summary><b>${esc(k.kind)}</b> <span class="muted small">${esc(k.time)}${k.risky ? ', risky' : ''}${k.requires ? ', needs something' : ''}${k.builtIn ? '' : ' (this world\'s own)'}</span></summary>
+      <div class="c-row2"><label>Time <input data-kind="${esc(k.kind)}" data-kf="time" value="${esc(k.time)}" placeholder="45m, 4h, 2d" size="8"></label>
+      <label class="c-check small"><input type="checkbox" data-kind="${esc(k.kind)}" data-kf="risky"${k.risky ? ' checked' : ''}> risky: the player can try anyway, as a roll</label></div>
+      <label>Roll with <select data-kind="${esc(k.kind)}" data-kf="skill"><option value="">stealth, or the first skill</option>${(w.skills || E.DEFAULT_SKILLS).map((s) => `<option value="${esc(s)}"${k.skill === s ? ' selected' : ''}>${esc(s)}</option>`).join('')}</select></label>
+      <div class="small">Needs: ${k.requires ? preRow(LE.rowOf(k.requires), `k:${k.kind}`, refs, 'rq') : `<button type="button" class="small" data-rqadd="k:${esc(k.kind)}">+ a condition</button>`}</div>
+      ${k.builtIn ? '' : `<button type="button" class="small danger" data-kinddel="${esc(k.kind)}">Remove this kind</button>`}</details>`).join('');
+    return `<section><h3>Route kinds</h3><p class="muted small">How each way of travelling works in this world. A route's own time or needs win over its kind's.</p>${rows}
+      <div class="c-row"><input id="cNewKind" placeholder="ferry, mule track…" maxlength="30" aria-label="A new kind"> <button type="button" id="cAddKind" class="small">+ Kind</button></div></section>`;
+  }
   // Named places on the map (task 4-5): capitals, cities, towns. Bound fields
   // on world.json; latitude and longitude when the map is projected.
   function placesSection(w) {
-    const list = w.map.places || [];
+    const list = mh().map.places || [];
     const i = list.findIndex((pl) => pl.id === ui.place);
     const pl = list[i];
     const G = E.Geo;
     let form = '';
     if (pl) {
-      const ll = G.projected(w.map) && Array.isArray(pl.at) ? G.toLonLat(w.map, pl.at) : null;
-      form = `<div class="c-card">${fld('world.json', `map.places.${i}.name`, 'text', 'Name', { max: 60, live: 'canvas' })}
-        <div class="c-row2">${fld('world.json', `map.places.${i}.kind`, 'text', 'Kind', { blank: 'place', options: ['capital', 'city', 'town'].map((x) => ({ id: x, name: x })) })}
-        ${fld('world.json', `map.places.${i}.region`, 'text', 'Region', { blank: 'none', options: idList(w.regions) })}</div>
+      const ll = G.projected(mh().map) && Array.isArray(pl.at) ? G.toLonLat(mh().map, pl.at) : null;
+      form = `<div class="c-card">${fld('world.json', `${mapPath()}.places.${i}.name`, 'text', 'Name', { max: 60, live: 'canvas' })}
+        <div class="c-row2">${fld('world.json', `${mapPath()}.places.${i}.kind`, 'text', 'Kind', { blank: 'place', options: ['capital', 'city', 'town'].map((x) => ({ id: x, name: x })) })}
+        ${fld('world.json', `${mapPath()}.places.${i}.region`, 'text', 'Region', { blank: 'none', options: idList(w.regions) })}</div>
         ${ll ? `<div class="c-row2"><label>Latitude <input type="number" step="0.01" data-placell="1" value="${ll[1].toFixed(2)}"></label><label>Longitude <input type="number" step="0.01" data-placell="0" value="${ll[0].toFixed(2)}"></label></div>` : ''}
-        ${fld('world.json', `map.places.${i}.notable`, 'bool', 'Named on the map even zoomed out')}
+        ${fld('world.json', `${mapPath()}.places.${i}.notable`, 'bool', 'Named on the map even zoomed out')}
         <button type="button" id="cDelPlace" class="small danger">Remove place</button></div>`;
     }
     return `<section><h3>Places <span class="muted small">${list.length}</span></h3>
@@ -291,8 +325,8 @@
     const r = ui.sel && (w.regions || []).find((x) => x.id === ui.sel);
     if (!r) return '<p class="muted">Pick a region on the map or in the list, or add one.</p>';
     const others = (w.regions || []).filter((x) => x.id !== r.id);
-    const touching = new Set(w.map ? M.suggestNeighbours(w.map).filter((p) => p.includes(r.id)).map((p) => (p[0] === r.id ? p[1] : p[0])) : []);
-    const sh = w.map && w.map.regions && w.map.regions[r.id];
+    const touching = new Set(mh().map ? M.suggestNeighbours(mh().map).filter((p) => p.includes(r.id)).map((p) => (p[0] === r.id ? p[1] : p[0])) : []);
+    const sh = mh().map && mh().map.regions && mh().map.regions[r.id];
     return `<h3>${esc(r.name)} <span class="muted small">(${esc(r.id)})</span></h3>
       <div id="cRegionProblems"></div>
       <label>Name <input data-field="name" value="${esc(r.name)}" maxlength="40"></label>
@@ -302,13 +336,33 @@
       <label>Tags <span class="muted small">(comma-separated, up to ${S.REGION_TAGS})</span><input data-field="tags" value="${esc((r.tags || []).join(', '))}"></label>
       <label>Status <input data-field="status" value="${esc(r.status || '')}" maxlength="120"></label>
       <label>Lore summary <span class="muted small" id="cLoreCount">${(r.lore || '').length}/400</span> <span class="muted small">Public knowledge: secrets go in a character's secret, events still to come in the timeline.</span><textarea data-field="lore" rows="3" maxlength="400">${esc(r.lore || '')}</textarea></label>
-      <fieldset class="c-neigh"><legend>Neighbours</legend>${others.map((o) => `<label><input type="checkbox" data-neigh="${esc(o.id)}"${M.areNeighbours(w, r.id, o.id) ? ' checked' : ''}> ${esc(o.name)}${touching.has(o.id) ? ' <span class="muted small">(touching)</span>' : ''}</label>`).join('') || '<span class="muted">No other regions.</span>'}
+      <fieldset class="c-neigh"><legend>Borders <span class="muted small">(next door: no travel time)</span></legend>${others.map((o) => `<label><input type="checkbox" data-neigh="${esc(o.id)}"${M.areNeighbours(w, r.id, o.id) ? ' checked' : ''}> ${esc(o.name)}${touching.has(o.id) ? ' <span class="muted small">(touching)</span>' : ''}</label>`).join('') || '<span class="muted">No other regions.</span>'}
         ${touching.size ? '<button type="button" id="cAddTouching" class="small">Add touching regions</button>' : ''}</fieldset>
-      <div class="muted small">${w.map ? (sh ? (sh.polygon ? `Outlined with ${sh.polygon.length} corners.` : sh.polygons ? `Outlined in ${sh.polygons.length} pieces (islands and parts). Click a piece to pick it.` : 'Placed as a point.') : 'Not on the map yet: draw it or place it as a point.') : ''}</div>
+      ${routeRows(w, r)}
+      <div class="c-mapbtns small">${r.map ? `<span>🗺 Has its own map.</span> ${ui.mapOwner === r.id ? '' : `<button type="button" class="small" data-editmap="${esc(r.id)}">Edit its map</button>`} <button type="button" class="small danger" data-dropmap="${esc(r.id)}">${ui.confirmDropMap === r.id ? 'Click again to remove' : 'Remove its map'}</button>`
+        : `<label class="btn small">Attach a map…<input type="file" data-attachmap="${esc(r.id)}" accept="image/*" hidden></label> <span class="muted">a picture of the regions inside ${esc(r.name)}</span>`}</div>
+      <div class="muted small">${!insideOwner(r.id) ? `Not inside ${esc(ownerRegion().name)}, so not on ${esc(mapName())}.` : mh().map ? (sh ? (sh.polygon ? `Outlined with ${sh.polygon.length} corners.` : sh.polygons ? `Outlined in ${sh.polygons.length} pieces (islands and parts). Click a piece to pick it.` : 'Placed as a point.') : 'Not on the map yet: draw it or place it as a point.') : ''}</div>
       ${sh && sh.polygons && ui.piece != null && sh.polygons[ui.piece] ? `<button type="button" id="cRemovePiece" class="small">Remove piece ${ui.piece + 1} of ${sh.polygons.length}</button>` : ''}
       ${r.wiki && r.wiki.title ? `<div class="small">Wikipedia: <a href="https://en.wikipedia.org/wiki/${encodeURIComponent(r.wiki.title.replace(/ /g, '_'))}" target="_blank" rel="noopener noreferrer">${esc(r.wiki.title)}</a> <span class="muted">(for the research helper)</span></div>` : ''}
       ${(() => { const u = LE.regionUse(cw.files, r.id); return `<div class="small c-uses">Lore: <button type="button" class="linkish" data-golore="${esc(r.id)}">${u.lore} entr${u.lore === 1 ? 'y' : 'ies'}</button> · Timeline: <button type="button" class="linkish" data-gotimeline="${esc(r.id)}">${u.events} event${u.events === 1 ? '' : 's'}</button></div>`; })()}
       <button type="button" id="cDeleteRegion" class="small danger">${ui.confirmDelete ? 'Click again to delete' : 'Delete region'}</button>`;
+  }
+  // A region's routes (R-2), each a row: where, how, how long, one way,
+  // risky, and what it needs (the timeline's condition rows).
+  function routeRows(w, r) {
+    const refs = LE.refs(cw.files);
+    const kinds = M.routeKindRows(w).map((k) => k.kind);
+    const rows = (Array.isArray(r.routes) ? r.routes : []).map((x, i) => `<div class="c-route">
+      <div class="c-row2"><label>To <select data-route="${i}" data-rf="to">${(w.regions || []).filter((o) => o.id !== r.id).map((o) => `<option value="${esc(o.id)}"${x.to === o.id ? ' selected' : ''}>${esc(o.name)}</option>`).join('')}</select></label>
+      <label>By <input data-route="${i}" data-rf="kind" value="${esc(x.kind || '')}" list="cKindList" placeholder="road" size="9"></label>
+      <label>Time <input data-route="${i}" data-rf="time" value="${esc(x.time ?? '')}" placeholder="${esc((M.routeKindRows(w).find((k) => k.kind === (x.kind || 'border')) || {}).time || '1h')}" size="6"></label></div>
+      <label class="c-check small"><input type="checkbox" data-route="${i}" data-rf="oneWay"${x.oneWay ? ' checked' : ''}> one way</label>
+      <label class="c-check small"><input type="checkbox" data-route="${i}" data-rf="risky"${x.risky ? ' checked' : ''}> risky</label>
+      <div class="small">Needs: ${x.requires ? preRow(LE.rowOf(x.requires), `r:${i}`, refs, 'rq') : `<button type="button" class="small" data-rqadd="r:${i}">+ a condition</button>`}</div>
+      <button type="button" class="small ghost" data-routedel="${i}" aria-label="Remove this route">✕ Remove route</button></div>`).join('');
+    return `<fieldset class="c-routes"><legend>Routes <span class="muted small">(travel with a kind, a time or a condition)</span></legend>${rows}
+      <datalist id="cKindList">${kinds.map((k) => `<option value="${esc(k)}">`).join('')}</datalist>
+      ${(w.regions || []).length > 1 ? '<button type="button" id="cAddRoute" class="small">+ Route</button>' : ''}</fieldset>`;
   }
   function renderRegionList() {
     const el = $('cRegionList');
@@ -320,15 +374,18 @@
     const walk = (id) => S.regionChildrenIn(list, id).forEach((c) => { order.push(list.find((x) => x.id === c)); walk(c); });
     walk(null);
     list.forEach((r) => { if (!order.includes(r)) order.push(r); }); // in a loop: listed anyway, validation says why
-    el.innerHTML = order.map((r) => {
+    // Each row can be dragged onto another (inside it) or onto Top level (R-4).
+    el.innerHTML = (list.length > 1 ? '<div class="c-drop-top" data-droptop="1">Top level</div>' : '') + order.map((r) => {
       const kids = S.regionChildrenIn(list, r.id).length;
-      const placed = !w.map || kids || (w.map.regions && w.map.regions[r.id]);
+      const here = insideOwner(r.id);
+      const placed = !here || !mh().map || kids || (mh().map.regions && mh().map.regions[r.id]);
       const depth = S.regionChainIn(list, r.id).length - 1;
-      return `<button type="button" data-sel="${esc(r.id)}" aria-pressed="${r.id === ui.sel}"${depth ? ` style="margin-left:${depth}rem"` : ''}><span class="swatch
- ${D.factionClass(w.factions, r.controller)}"></span>${esc(r.name)}${placed ? '' : ' <span class="muted small">(not on the map)</span>'}</button>`;
+      return `<button type="button" draggable="true" data-sel="${esc(r.id)}" aria-pressed="${r.id === ui.sel}"${depth ? ` style="margin-left:${depth}rem"` : ''}${here ? '' : ' class="c-outside"'}><span class="swatch
+ ${D.factionClass(w.factions, r.controller)}"></span>${esc(r.name)}${r.map ? ' <span title="Has its own map">🗺</span>' : ''}${placed ? '' : ' <span class="muted small">(not on the map)</span>'}</button>`;
     }).join('') || '<span class="muted">No regions yet.</span>';
   }
-  function geometry() { const w = world(); return D.geometry(w.regions || [], w.map || null, w.id || cw.folder); }
+  // What the canvas shows: the regions on the map being edited.
+  function geometry() { const w = world(); return D.geometry(regionsHere(), mh().map || null, w.id || cw.folder); }
   function renderCanvas() {
     const el = $('cCanvas');
     if (!el) return;
@@ -337,20 +394,20 @@
     const vb = ui.vb || g.full;
     const unit = vb[2] / 120; // handle size that stays the same on screen
     let overlay = '';
-    const sh = w.map && ui.sel && w.map.regions && w.map.regions[ui.sel];
+    const sh = mh().map && ui.sel && mh().map.regions && mh().map.regions[ui.sel];
     // Handles on every piece of the selected region (task 4-5: islands).
     if (sh && ui.mode === 'select') E.Geo.pieces(sh).forEach((ring, k) => { overlay += ring.map((p, i) => `<circle class="c-handle${ui.piece === k ? ' piece' : ''}" data-i="${k}:${i}" cx="${p[0]}" cy="${p[1]}" r="${unit}"/>`).join(''); });
-    const selPlace = w.map && ui.place && (w.map.places || []).find((x) => x.id === ui.place);
+    const selPlace = mh().map && ui.place && (mh().map.places || []).find((x) => x.id === ui.place);
     if (selPlace) overlay += `<circle class="c-place-sel" cx="${selPlace.at[0]}" cy="${selPlace.at[1]}" r="${unit * 1.8}"/>`;
     if (ui.drawing.length) {
       overlay += `<polyline class="c-draw" points="${ui.drawing.map((p) => p.join(',')).join(' ')}" style="stroke-width:${unit / 3}"/>`;
       overlay += ui.drawing.map((p, i) => `<circle class="c-draw-pt${i === 0 ? ' first' : ''}" cx="${p[0]}" cy="${p[1]}" r="${i === 0 ? unit * 1.3 : unit * 0.8}"/>`).join('');
     }
     const roomList = rooms();
-    const placed = w.map ? Object.entries(w.map.locations || {}).map(([id, p]) => ({ x: p[0], y: p[1], name: (roomList.find((r) => r.id === id) || { name: id }).name })) : [];
-    const imageUrl = w.map ? assetUrl(w.map.image) : null;
-    el.innerHTML = D.worldSvg({ g, regions: w.regions || [], factions: w.factions, selected: ui.sel, imageUrl, viewBox: vb, id: 'cSvg', view: 'world', label: 'Map being edited', rooms: placed, places: D.placesOf(w.map), overlay })
-      + (w.map && !imageUrl ? `<div class="c-missing">The image <b>${esc(w.map.image)}</b> isn't loaded. Pick it again with <b>Change image</b> (shapes stay where they are).</div>` : '');
+    const placed = mh().map ? Object.entries(mh().map.locations || {}).map(([id, p]) => ({ x: p[0], y: p[1], name: (roomList.find((r) => r.id === id) || { name: id }).name })) : [];
+    const imageUrl = mh().map ? assetUrl(mh().map.image) : null;
+    el.innerHTML = D.worldSvg({ g, regions: regionsHere(), factions: w.factions, selected: ui.sel, imageUrl, viewBox: vb, id: 'cSvg', view: 'world', label: 'Map being edited', rooms: placed, places: D.placesOf(mh().map), overlay })
+      + (mh().map && !imageUrl ? `<div class="c-missing">The image <b>${esc(mh().map.image)}</b> isn't loaded. Pick it again with <b>Change image</b> (shapes stay where they are).</div>` : '');
   }
   // Replacing the tab blurs a focused field, whose change handler may ask
   // for another render while this one runs: that one waits and runs after.
@@ -385,27 +442,35 @@
     const r = m ? pt.matrixTransform(m.inverse()) : { x: 0, y: 0 };
     return [Math.round(r.x), Math.round(r.y)];
   };
-  function addRegion(name) {
+  // A new region: inside `parent` (default: the region whose map is being
+  // edited, so it can go on that map; R-4), or at the top level.
+  function addRegion(name, parent) {
     const w = world();
-    const id = M.slug(name || 'new region', (w.regions || []).map((r) => r.id).concat(rooms().map((r) => r.id)));
-    w.regions = (w.regions || []).concat([{ id, name: name || 'New region', controller: null, tags: [], status: '', neighbours: [], lore: '' }]);
+    const id = M.addRegion(w, name, parent === undefined ? ui.mapOwner : parent, rooms().map((r) => r.id));
     ui.autoIds.add(id);
     // The first region: every start begins in it, so the world stays valid.
     if (w.regions.length === 1) Object.values(starts()).forEach((st) => { if (!st.region) st.region = id; });
     ui.sel = id;
     return id;
   }
+  // A region outside the one whose map this is can't be drawn on it.
+  function notHere(id) {
+    if (!id || insideOwner(id)) return false;
+    banner(esc(`${(world().regions || []).find((r) => r.id === id).name} isn't inside ${ownerRegion().name}, so it can't go on ${mapName()}. Pick a region inside it, or switch to the map it belongs on.`), 'bad');
+    return true;
+  }
   function finishDrawing() {
     const w = world();
-    if (ui.drawing.length < 3 || !w.map) return;
+    if (ui.drawing.length < 3 || !mh().map) return;
+    if (notHere(ui.sel)) { ui.drawing = []; return renderCanvas(); }
     const id = ui.sel || addRegion();
-    w.map.regions = w.map.regions || {};
-    const had = E.Geo.pieces(w.map.regions[id]);
+    mh().map.regions = mh().map.regions || {};
+    const had = E.Geo.pieces(mh().map.regions[id]);
     // "Add as another piece": an island or an exclave of the same region.
-    if (ui.addPiece && had.length) { w.map.regions[id] = { polygons: had.concat([ui.drawing.slice()]) }; ui.piece = had.length; }
-    else { w.map.regions[id] = { polygon: ui.drawing.slice() }; ui.piece = null; }
+    if (ui.addPiece && had.length) { mh().map.regions[id] = { polygons: had.concat([ui.drawing.slice()]) }; ui.piece = had.length; }
+    else { mh().map.regions[id] = { polygon: ui.drawing.slice() }; ui.piece = null; }
     // Places inside it that belong to no region yet are in it now.
-    (w.map.places || []).forEach((pl) => { if (!pl.region && E.Geo.inside(pl.at, ui.drawing)) pl.region = id; });
+    (mh().map.places || []).forEach((pl) => { if (!pl.region && E.Geo.inside(pl.at, ui.drawing)) pl.region = id; });
     ui.drawing = [];
     ui.mode = 'select';
     changed();
@@ -428,7 +493,7 @@
     const w = world();
     if (drag.vertex != null) {
       const [k, i] = drag.vertex.split(':').map(Number);
-      ringOf(w.map.regions[ui.sel], k)[i] = toSvg(ev);
+      ringOf(mh().map.regions[ui.sel], k)[i] = toSvg(ev);
       renderCanvas();
     } else if (ui.mode === 'select') {
       const rect = $('cSvg').getBoundingClientRect();
@@ -448,22 +513,22 @@
     const handle = ev.target.closest('.c-handle');
     if (ui.mode === 'select') {
       if (handle && ev.altKey) {
-        const sh = w.map.regions[ui.sel];
+        const sh = mh().map.regions[ui.sel];
         const [k, i] = handle.dataset.i.split(':').map(Number);
         setRing(sh, k, M.removeVertex(ringOf(sh, k), i));
         return changed(['canvas']);
       }
       const g = ev.target.closest('.region-g');
-      const id = g ? g.dataset.region : w.map ? M.regionAt(w.map, p) : null;
+      const id = g ? g.dataset.region : mh().map ? M.regionAt(mh().map, p) : null;
       // A second click on the selected region picks the piece under it.
-      const sh = id && w.map && w.map.regions && w.map.regions[id];
+      const sh = id && mh().map && mh().map.regions && mh().map.regions[id];
       ui.piece = sh && sh.polygons ? sh.polygons.findIndex((ring) => E.Geo.inside(p, ring)) : null;
       if (ui.piece === -1) ui.piece = null;
       ui.sel = id;
       ui.confirmDelete = false;
       return render();
     }
-    if (!w.map) return;
+    if (!mh().map) return;
     if (ui.mode === 'draw') {
       const unit = (ui.vb || geometry().full)[2] / 120;
       if (ui.drawing.length >= 3 && Math.hypot(p[0] - ui.drawing[0][0], p[1] - ui.drawing[0][1]) <= unit * 2) return finishDrawing();
@@ -472,31 +537,32 @@
     }
     if (ui.mode === 'point') {
       if (!ui.sel) return banner('Pick a region first, then place it.');
-      w.map.regions = w.map.regions || {};
-      w.map.regions[ui.sel] = { point: p };
+      if (notHere(ui.sel)) return;
+      mh().map.regions = mh().map.regions || {};
+      mh().map.regions[ui.sel] = { point: p };
       return changed();
     }
     if (ui.mode === 'place') {
-      w.map.places = w.map.places || [];
-      const taken = w.map.places.map((x) => x.id).concat((w.regions || []).map((r) => r.id), rooms().map((r) => r.id));
+      mh().map.places = mh().map.places || [];
+      const taken = mh().map.places.map((x) => x.id).concat((w.regions || []).map((r) => r.id), rooms().map((r) => r.id));
       const id = M.slug('new place', taken);
-      const region = M.regionAt(w.map, p);
-      w.map.places.push(Object.assign({ id, name: 'New place', kind: 'town', at: p }, region ? { region } : {}));
+      const region = M.regionAt(mh().map, p);
+      mh().map.places.push(Object.assign({ id, name: 'New place', kind: 'town', at: p }, region ? { region } : {}));
       ui.place = id;
       ui.mode = 'select';
       return changed();
     }
     if (ui.mode === 'room') {
       if (!ui.room) return banner('Pick a room first, then click where it is.');
-      w.map.locations = w.map.locations || {};
-      w.map.locations[ui.room] = p;
+      mh().map.locations = mh().map.locations || {};
+      mh().map.locations[ui.room] = p;
       return changed();
     }
   });
   $('cMain').addEventListener('dblclick', (ev) => {
     if (!cw || ui.mode !== 'select' || !ev.target.closest || !ev.target.closest('#cSvg')) return;
     const w = world();
-    const sh = w.map && ui.sel && w.map.regions && w.map.regions[ui.sel];
+    const sh = mh().map && ui.sel && mh().map.regions && mh().map.regions[ui.sel];
     if (!sh || !(sh.polygon || sh.polygons)) return;
     const p = toSvg(ev);
     let best = null;
@@ -510,7 +576,7 @@
     const out = $('cCoords');
     if (!cw || !out || ui.tab !== 'map') return;
     const w = world();
-    out.textContent = w.map && E.Geo.projected(w.map) && ev.target.closest && ev.target.closest('#cSvg') ? E.Geo.fmtLonLat(E.Geo.toLonLat(w.map, toSvg(ev))) : '';
+    out.textContent = mh().map && E.Geo.projected(mh().map) && ev.target.closest && ev.target.closest('#cSvg') ? E.Geo.fmtLonLat(E.Geo.toLonLat(mh().map, toSvg(ev))) : '';
   });
   $('cMain').addEventListener('wheel', (ev) => {
     if (!cw || !ev.target.closest || !ev.target.closest('#cSvg')) return;
@@ -542,9 +608,9 @@
     const sel = t.closest('[data-sel]');
     if (sel) { ui.sel = sel.dataset.sel; ui.confirmDelete = false; return render(); }
     if (t.id === 'cAddRegion') { addRegion(); return changed(); }
-    if (t.id === 'cNoImage') { delete w.map; ui.vb = null; return changed(); }
+    if (t.id === 'cNoImage') { delete mh().map; ui.vb = null; return changed(); }
     if (t.id === 'cAddTouching') {
-      M.suggestNeighbours(w.map).filter((p) => p.includes(ui.sel)).forEach(([a, b]) => M.setNeighbour(w, a, b, true));
+      M.suggestNeighbours(mh().map).filter((p) => p.includes(ui.sel)).forEach(([a, b]) => M.setNeighbour(w, a, b, true));
       return changed();
     }
     if (t.id === 'cDeleteRegion') {
@@ -556,17 +622,17 @@
       return changed();
     }
     const un = t.closest('[data-unplace]');
-    if (un) { delete w.map.locations[un.dataset.unplace]; return changed(); }
+    if (un) { delete mh().map.locations[un.dataset.unplace]; return changed(); }
     if (t.id === 'cRemovePiece') {
-      const sh = w.map.regions[ui.sel];
+      const sh = mh().map.regions[ui.sel];
       sh.polygons.splice(ui.piece, 1);
-      if (sh.polygons.length === 1) w.map.regions[ui.sel] = { polygon: sh.polygons[0] };
+      if (sh.polygons.length === 1) mh().map.regions[ui.sel] = { polygon: sh.polygons[0] };
       ui.piece = null;
       return changed();
     }
     if (t.id === 'cDelPlace') {
-      w.map.places = (w.map.places || []).filter((x) => x.id !== ui.place);
-      if (!w.map.places.length) delete w.map.places;
+      mh().map.places = (mh().map.places || []).filter((x) => x.id !== ui.place);
+      if (!mh().map.places.length) delete mh().map.places;
       ui.place = null;
       return changed();
     }
@@ -602,11 +668,11 @@
     if (t.id === 'cPlacePick') { ui.place = t.value || null; return render(); }
     if (t.id === 'cAddPiece') { ui.addPiece = t.checked; return; }
     if (t.dataset.placell != null) {
-      const pl = (w.map.places || []).find((x) => x.id === ui.place);
-      const ll = E.Geo.toLonLat(w.map, pl.at);
+      const pl = (mh().map.places || []).find((x) => x.id === ui.place);
+      const ll = E.Geo.toLonLat(mh().map, pl.at);
       ll[Number(t.dataset.placell)] = Number(t.value);
-      const at = E.Geo.toPixel(w.map, ll).map(Math.round);
-      if (at[0] < 0 || at[1] < 0 || at[0] > w.map.width || at[1] > w.map.height) { banner('That is off this map.', 'bad'); return render(); }
+      const at = E.Geo.toPixel(mh().map, ll).map(Math.round);
+      if (at[0] < 0 || at[1] < 0 || at[0] > mh().map.width || at[1] > mh().map.height) { banner('That is off this map.', 'bad'); return render(); }
       pl.at = at;
       return changed();
     }
@@ -622,6 +688,108 @@
     if (t.dataset.field === 'parent') { if (t.value) r.parent = t.value; else delete r.parent; return changed(['canvas', 'list']); }
 
     if (t.dataset.neigh) { M.setNeighbour(w, r.id, t.dataset.neigh, t.checked); return changed(); }
+  });
+
+  // ---------- the region tree, region maps, routes and route kinds (R-4) ----------
+  // A route's or route kind's condition, by the key its rows carry: "r:<i>"
+  // (the selected region's route i) or "k:<kind>". → { get, set }.
+  function rqTarget(key) {
+    const w = world();
+    if (key.startsWith('k:')) {
+      const kind = key.slice(2);
+      return { get: () => ((w.routeKinds || {})[kind] || {}).requires || null, set: (p) => { M.setRouteKind(w, kind, 'requires', p); ui.kindOpen = kind; } };
+    }
+    const r = (w.regions || []).find((x) => x.id === ui.sel);
+    const i = Number(key.slice(2));
+    return { get: () => (r && r.routes && r.routes[i] ? r.routes[i].requires || null : null), set: (p) => M.setRouteField(w, ui.sel, i, 'requires', p) };
+  }
+  $('cMain').addEventListener('click', (ev) => {
+    if (!cw || ui.tab !== 'map') return;
+    const t = ev.target;
+    const w = world();
+    const sel = ui.sel && (w.regions || []).find((r) => r.id === ui.sel);
+    if (t.id === 'cAddInside' && sel) { addRegion(undefined, sel.id); return changed(); }
+    if (t.id === 'cAddNext' && sel) { addRegion(undefined, sel.parent != null ? sel.parent : null); return changed(); }
+    const em = t.closest('[data-editmap]');
+    if (em) { ui.mapOwner = em.dataset.editmap; ui.vb = null; ui.mode = 'select'; return render(); }
+    const dm = t.closest('[data-dropmap]');
+    if (dm) {
+      if (ui.confirmDropMap !== dm.dataset.dropmap) { ui.confirmDropMap = dm.dataset.dropmap; return render(); }
+      const r = w.regions.find((x) => x.id === dm.dataset.dropmap);
+      delete r.map;
+      if (ui.mapOwner === r.id) ui.mapOwner = null;
+      ui.confirmDropMap = null;
+      ui.vb = null;
+      return changed();
+    }
+    if (t.id === 'cAddRoute' && sel) { M.addRoute(w, sel.id); return changed(); }
+    const rd = t.closest('[data-routedel]');
+    if (rd && sel) { M.removeRoute(w, sel.id, Number(rd.dataset.routedel)); return changed(); }
+    const ra = t.closest('[data-rqadd]');
+    if (ra) { rqTarget(ra.dataset.rqadd).set(LE.preOf(LE.newRow('world', LE.refs(cw.files)))); return changed(); }
+    const rx = t.closest('[data-rqdel]');
+    if (rx) { rqTarget(rx.dataset.rqdel).set(null); return changed(); }
+    if (t.id === 'cAddKind') {
+      const out = M.addRouteKind(w, $('cNewKind').value);
+      if (out.error) return banner(esc(`That kind can't be added: ${out.error}.`), 'bad');
+      banner('');
+      ui.kindOpen = out.kind;
+      return changed();
+    }
+    const kd = t.closest('[data-kinddel]');
+    if (kd) { M.removeRouteKind(w, kd.dataset.kinddel); return changed(); }
+  });
+  $('cMain').addEventListener('change', (ev) => {
+    if (!cw || ui.tab !== 'map') return;
+    const t = ev.target;
+    const w = world();
+    if (t.id === 'cMapOwner') { ui.mapOwner = t.value || null; ui.vb = null; ui.mode = 'select'; return render(); }
+    if (t.dataset.attachmap && t.files && t.files[0]) { ui.mapOwner = t.dataset.attachmap; return loadImage(t.files[0]); }
+    if (t.dataset.route != null && ui.sel) {
+      const v = t.type === 'checkbox' ? t.checked : t.value;
+      M.setRouteField(w, ui.sel, Number(t.dataset.route), t.dataset.rf, v);
+      return changed();
+    }
+    if (t.dataset.kind != null) {
+      M.setRouteKind(w, t.dataset.kind, t.dataset.kf, t.type === 'checkbox' ? t.checked : t.value);
+      ui.kindOpen = t.dataset.kind;
+      return changed();
+    }
+    if (t.dataset.rq != null) {
+      const target = rqTarget(t.dataset.rq);
+      let row = LE.rowOf(target.get());
+      if (t.dataset.pf === 'kind') row = Object.assign(LE.newRow(t.value, LE.refs(cw.files)), { negate: row.negate });
+      else if (t.dataset.pf === 'negate') row.negate = t.checked;
+      else row[t.dataset.pf] = t.value;
+      target.set(LE.preOf(row));
+      return changed();
+    }
+  });
+  $('cMain').addEventListener('toggle', (ev) => {
+    const d = ev.target;
+    if (d.dataset && d.dataset.kindcard) { if (d.open) ui.kindOpen = d.dataset.kindcard; else if (ui.kindOpen === d.dataset.kindcard) ui.kindOpen = null; }
+  }, true);
+  // Dragging a region onto another puts it inside; onto Top level, out.
+  $('cMain').addEventListener('dragstart', (ev) => {
+    const b = ev.target.closest && ev.target.closest('#cRegionList [data-sel]');
+    if (!b) return;
+    ev.dataTransfer.setData('text/plain', b.dataset.sel);
+    ev.dataTransfer.effectAllowed = 'move';
+  });
+  $('cMain').addEventListener('dragover', (ev) => {
+    if (ev.target.closest && ev.target.closest('#cRegionList [data-sel], #cRegionList [data-droptop]')) ev.preventDefault();
+  });
+  $('cMain').addEventListener('drop', (ev) => {
+    const onto = ev.target.closest && ev.target.closest('#cRegionList [data-sel], #cRegionList [data-droptop]');
+    if (!onto || !cw) return;
+    ev.preventDefault();
+    const id = ev.dataTransfer.getData('text/plain');
+    if (!id || id === onto.dataset.sel) return;
+    const out = M.setParent(world(), id, onto.dataset.droptop ? null : onto.dataset.sel);
+    if (out.error) return banner(esc(`Not moved: ${out.error}.`), 'bad');
+    banner(out.notes.length ? esc(out.notes.join('; ')) : '');
+    ui.sel = id;
+    changed();
   });
 
   // ---------- links between tabs ----------
@@ -846,10 +1014,12 @@
     if (f && f.scrollIntoView) f.scrollIntoView({ block: 'nearest' });
   }
   const PRE_LABEL = { alive: 'is alive', controls: 'holds a region', clock: 'a pressure is at least', world: 'a world value is', event: 'knows about an event', words: 'knows something (words)' };
-  function preRow(row, i, refs) {
-    const by = `<select data-pre="${i}" data-pf="by" aria-label="Who knows">${options(refs.characters, row.by, 'the player')}</select>`;
-    const sel = (f, list, v, blank) => `<select data-pre="${i}" data-pf="${f}">${options(list, v, blank)}</select>`;
-    const inp = (f, v, type, ph) => `<input data-pre="${i}" data-pf="${f}" value="${esc(v ?? '')}"${type ? ` type="${type}"` : ''}${ph ? ` placeholder="${esc(ph)}"` : ''}>`;
+  // attr: the data attribute the rows answer to ("pre" for timeline events,
+  // "rq" for a route's or route kind's condition, R-4).
+  function preRow(row, i, refs, attr = 'pre') {
+    const by = `<select data-${attr}="${i}" data-pf="by" aria-label="Who knows">${options(refs.characters, row.by, 'the player')}</select>`;
+    const sel = (f, list, v, blank) => `<select data-${attr}="${i}" data-pf="${f}">${options(list, v, blank)}</select>`;
+    const inp = (f, v, type, ph) => `<input data-${attr}="${i}" data-pf="${f}" value="${esc(v ?? '')}"${type ? ` type="${type}"` : ''}${ph ? ` placeholder="${esc(ph)}"` : ''}>`;
     const values = {
       alive: sel('a', refs.characters, row.a),
       controls: `${sel('a', refs.groups, row.a, 'no one')} holds ${sel('b', refs.regions, row.b)}`,
@@ -858,9 +1028,9 @@
       event: `${by} knows about ${sel('a', refs.events.filter((x) => x.id !== tui.sel).map((x) => ({ id: x.id, name: E.shorten(x.name, 50) })), row.a)}`,
       words: `${by} knows ${inp('a', row.a, null, 'convoy, coast')}`,
     }[row.kind];
-    return `<div class="c-pre"><select data-pre="${i}" data-pf="kind" aria-label="Kind of condition">${LE.PRE_ROWS.map((k) => `<option value="${k}"${k === row.kind ? ' selected' : ''}>${esc(PRE_LABEL[k])}</option>`).join('')}</select>
-      <label class="c-check small"><input type="checkbox" data-pre="${i}" data-pf="negate"${row.negate ? ' checked' : ''}> not</label>
-      <div class="c-pre-values">${values}</div><button type="button" class="small ghost" data-predel="${i}" aria-label="Remove condition">✕</button></div>`;
+    return `<div class="c-pre"><select data-${attr}="${i}" data-pf="kind" aria-label="Kind of condition">${LE.PRE_ROWS.map((k) => `<option value="${k}"${k === row.kind ? ' selected' : ''}>${esc(PRE_LABEL[k])}</option>`).join('')}</select>
+      <label class="c-check small"><input type="checkbox" data-${attr}="${i}" data-pf="negate"${row.negate ? ' checked' : ''}> not</label>
+      <div class="c-pre-values">${values}</div><button type="button" class="small ghost" data-${attr}del="${i}" aria-label="Remove condition">✕</button></div>`;
   }
   function eventForm() {
     const x = tui.sel && LE.findEvent(cw.files, tui.sel);
@@ -2208,6 +2378,7 @@
   $('cNew').addEventListener('click', () => {
     const bases = Object.values(S.library.baseMaps || {});
     banner(`<label>Title of the new world <input id="cNewTitle" maxlength="80" placeholder="The Lighthouse"></label>
+      <label>Start from <select id="cNewTemplate"><option value="">a blank world</option>${Object.entries(WE.TEMPLATES).map(([k, t]) => `<option value="${esc(k)}">${esc(t.label)}</option>`).join('')}</select></label>
       ${bases.length ? `<label>Map <select id="cNewBase"><option value="">none (draw your own, or no map)</option>${bases.map((b) => `<option value="${esc(b.id)}">${esc(b.title)}</option>`).join('')}</select></label>
       <label>Area <select id="cNewArea">${AREAS.map(([name], k) => `<option value="${k}">${esc(name)}</option>`).join('')}</select></label>
       <label>or bounds <input id="cNewBounds" placeholder="W,S,E,N in degrees" size="18"></label>` : ''}
@@ -2235,7 +2406,9 @@
     return { blob, width: outW, height: outH };
   }
   async function newWorld(title) {
-    const b = WE.blankWorld(title, folders());
+    // A template (R-4) shapes the regions, labels and route kinds; blank otherwise.
+    const kind = $('cNewTemplate') ? $('cNewTemplate').value : '';
+    const b = kind ? WE.templateWorld(kind, title, folders()) : WE.blankWorld(title, folders());
     const assets = {};
     const baseId = $('cNewBase') ? $('cNewBase').value : '';
     if (baseId) {
@@ -2254,7 +2427,7 @@
     store.set(SAVE_KEY(b.folder), JSON.stringify({ files: b.files, at: Date.now(), draft: true }));
     addOption('draft:' + b.folder, `${b.files['world.json'].title} (draft)`);
     $('cWorld').value = 'draft:' + b.folder;
-    ui.tab = baseId ? 'map' : 'world';
+    ui.tab = baseId || kind ? 'map' : 'world';
     open(b.folder, b.files, assets, false, true);
     if (baseId) {
       const m = b.files['world.json'].map;

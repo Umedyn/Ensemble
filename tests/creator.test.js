@@ -245,3 +245,67 @@ test('the map links a region to its lore and timeline events', () => {
   assert.deepEqual(plain(LE.regionUse(f, 'ridge-town')), { lore: 1, events: 1 });
   assert.ok(LE.eventMentions({ preconditions: [{ not: { controls: { group: 'x', region: 'junction' } } }] }, 'junction'));
 });
+
+// ---------- the region tree, routes and route kinds (R-4) ----------
+
+test('the tree: regions added inside and next to, re-parented, never into a loop', () => {
+  const M = E.MapEdit;
+  const w = { regions: [] };
+  const top = M.addRegion(w, 'Kestria', null);
+  const north = M.addRegion(w, 'Northmarch', top);
+  const south = M.addRegion(w, 'Saltcoast', w.regions.find((r) => r.id === north).parent);
+  assert.deepEqual(plain(w.regions.map((r) => [r.id, r.parent || null])), [['kestria', null], ['northmarch', 'kestria'], ['saltcoast', 'kestria']]);
+  assert.equal(M.addRegion(w, 'Kestria', null), 'kestria-2', 'ids stay unique');
+  assert.deepEqual(plain(M.setParent(w, 'kestria', 'northmarch')), { error: "Kestria can't go inside Northmarch: Northmarch is inside Kestria" });
+  assert.match(M.setParent(w, 'northmarch', 'northmarch').error, /that is itself/);
+  assert.deepEqual(plain(M.setParent(w, south, north)), { notes: [] });
+  assert.equal(w.regions.find((r) => r.id === 'saltcoast').parent, 'northmarch');
+  M.setParent(w, south, null);
+  assert.equal(w.regions.find((r) => r.id === 'saltcoast').parent, undefined, 'top level');
+});
+
+test('region maps follow the tree: a region moved out comes off the map; rename and delete reach every map', () => {
+  const M = E.MapEdit;
+  const w = { map: { image: 'w.png', width: 10, height: 10, regions: { a: { point: [1, 1] } } }, regions: [
+    { id: 'a', name: 'A', map: { image: 'a.png', width: 10, height: 10, regions: { b: { point: [1, 1] }, c: { point: [2, 2] } } } },
+    { id: 'b', name: 'B', parent: 'a' }, { id: 'c', name: 'C', parent: 'a' },
+  ] };
+  assert.deepEqual(plain(M.maps(w).map((m) => m.owner)), [null, 'a']);
+  assert.deepEqual(plain(M.setParent(w, 'c', null)), { notes: ['C is no longer inside A, so it came off that map'] });
+  assert.deepEqual(Object.keys(w.regions[0].map.regions), ['b']);
+  M.renameRegion(w, {}, 'b', 'bee', {});
+  assert.deepEqual(Object.keys(w.regions[0].map.regions), ['bee']);
+  const notes = M.deleteRegion(w, {}, 'a', {});
+  assert.ok(notes.includes("A's own map went with it"));
+  assert.deepEqual(Object.keys(w.map.regions), []);
+});
+
+test('routes and route kinds edit from the form: only what was set is kept, and it validates', () => {
+  const M = E.MapEdit;
+  const files = worldFiles('zombie-holdout');
+  const w = files['world.json'];
+  const i = M.addRoute(w, 'main-street', 'residential');
+  M.setRouteField(w, 'main-street', i, 'kind', 'bus');
+  M.setRouteField(w, 'main-street', i, 'time', '20m');
+  M.setRouteField(w, 'main-street', i, 'risky', true);
+  M.setRouteField(w, 'main-street', i, 'risky', false);
+  M.setRouteField(w, 'main-street', i, 'requires', { world: 'vehicles', is: 'running' });
+  assert.deepEqual(plain(w.regions.find((r) => r.id === 'main-street').routes), [{ to: 'residential', kind: 'bus', time: '20m', requires: { world: 'vehicles', is: 'running' } }]);
+  assert.equal(M.addRouteKind(w, 'bus').kind, 'bus');
+  assert.match(M.addRouteKind(w, 'road').error, /already a kind "road"/);
+  M.setRouteKind(w, 'bus', 'time', '25m');
+  M.setRouteKind(w, 'road', 'time', '2h');
+  assert.equal(w.routeKinds.road, undefined, 'the default time is not written');
+  M.setRouteKind(w, 'road', 'risky', true);
+  assert.deepEqual(plain(w.routeKinds), { bus: { time: '25m' }, road: { risky: true } });
+  const rows = M.routeKindRows(w);
+  assert.deepEqual(plain(rows.find((k) => k.kind === 'sea')), { kind: 'sea', builtIn: true, time: '1d', risky: false, skill: '', requires: null, set: false });
+  assert.equal(rows[rows.length - 1].kind, 'bus', 'the world\'s own kinds after the built-in ones');
+  const loaded = E.Scenario.prepareWorld('zombie-holdout', plain(files));
+  assert.equal(loaded.starts[0].error, undefined);
+  M.removeRoute(w, 'main-street', 0);
+  M.removeRouteKind(w, 'bus');
+  M.setRouteKind(w, 'road', 'risky', false);
+  assert.equal(w.regions.find((r) => r.id === 'main-street').routes, undefined);
+  assert.equal(w.routeKinds, undefined, 'nothing left: no routeKinds');
+});

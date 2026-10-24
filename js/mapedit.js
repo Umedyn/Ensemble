@@ -113,16 +113,112 @@
     const list = world.regions || [];
     return list.filter((r) => r.id !== id && !E.Scenario.regionChainIn(list, r.id).includes(id));
   };
+  // ---------- routes and route kinds (R-4) ----------
+  // A region's own routes as written (borders stay "neighbours"). Fields
+  // are set from form text: time as typed ("45m"), booleans, a condition
+  // object or null; empty values go, so the file holds only what was set.
+  M.addRoute = function (world, from, to) {
+    const r = (world.regions || []).find((x) => x.id === from);
+    if (!r) return -1;
+    const other = (world.regions || []).find((x) => x.id !== from && (!to || x.id === to));
+    r.routes = (Array.isArray(r.routes) ? r.routes : []).concat([{ to: other ? other.id : '', kind: 'road' }]);
+    return r.routes.length - 1;
+  };
+  M.setRouteField = function (world, from, i, field, value) {
+    const r = (world.regions || []).find((x) => x.id === from);
+    const x = r && Array.isArray(r.routes) ? r.routes[i] : null;
+    if (!x || !E.Scenario.ROUTE_FIELDS.includes(field)) return;
+    const empty = value == null || value === '' || value === false;
+    if (empty && field !== 'to') delete x[field]; else x[field] = typeof value === 'string' ? value.trim() : value;
+  };
+  M.removeRoute = function (world, from, i) {
+    const r = (world.regions || []).find((x) => x.id === from);
+    if (!r || !Array.isArray(r.routes)) return;
+    r.routes.splice(i, 1);
+    if (!r.routes.length) delete r.routes;
+  };
+  // The route kinds table: the built-in kinds and the world's own, each with
+  // what it is now (the world's setting over the default) and whether the
+  // world changes it. → [{ kind, builtIn, time, risky, skill, requires, set }]
+  M.routeKindRows = function (world) {
+    const own = (world.routeKinds && typeof world.routeKinds === 'object') ? world.routeKinds : {};
+    const kinds = Object.keys(E.Scenario.ROUTE_KINDS).concat(Object.keys(own).filter((k) => !E.Scenario.ROUTE_KINDS[k]));
+    return kinds.map((kind) => {
+      const def = E.Scenario.ROUTE_KINDS[kind] || {};
+      const set = own[kind] || {};
+      return { kind, builtIn: !!E.Scenario.ROUTE_KINDS[kind], time: set.time != null ? set.time : E.Scenario.sayHours(def.time != null ? def.time : E.Scenario.ROUTE_HOURS) || '0m',
+        risky: !!set.risky, skill: set.skill || '', requires: set.requires || null, set: Object.keys(set).length > 0 };
+    });
+  };
+  // One setting of a kind: kept only when it differs from the built-in
+  // default (a time equal to it goes); a kind with nothing left goes too,
+  // except a new kind of the world's own, which stays as {}.
+  M.setRouteKind = function (world, kind, field, value) {
+    if (!['time', 'risky', 'skill', 'requires'].includes(field)) return;
+    const own = world.routeKinds = (world.routeKinds && typeof world.routeKinds === 'object') ? world.routeKinds : {};
+    const k = own[kind] = own[kind] || {};
+    const def = E.Scenario.ROUTE_KINDS[kind];
+    const same = field === 'time' && def && E.Scenario.parseHours(value) === def.time;
+    if (value == null || value === '' || value === false || same) delete k[field]; else k[field] = typeof value === 'string' ? value.trim() : value;
+    if (!Object.keys(k).length && def) delete own[kind];
+    if (!Object.keys(own).length) delete world.routeKinds;
+  };
+  // A kind of the world's own (such as "ferry"). → its name, or an error.
+  M.addRouteKind = function (world, name) {
+    const kind = String(name || '').trim().toLowerCase().slice(0, 30);
+    if (!kind) return { error: 'give the kind a name' };
+    if (E.Scenario.ROUTE_KINDS[kind] || (world.routeKinds && world.routeKinds[kind])) return { error: `there is already a kind "${kind}"` };
+    world.routeKinds = Object.assign({}, world.routeKinds, { [kind]: { time: '1h' } });
+    return { kind };
+  };
+  M.removeRouteKind = function (world, kind) {
+    if (!world.routeKinds) return;
+    delete world.routeKinds[kind];
+    if (!Object.keys(world.routeKinds).length) delete world.routeKinds;
+  };
+
+  // Every map in the world: the world's and the regions' own (R-3), as
+  // [{ owner (null for the world's), map }].
+  M.maps = (world) => [].concat(world.map ? [{ owner: null, map: world.map }] : [], (world.regions || []).filter((r) => r && r.map).map((r) => ({ owner: r.id, map: r.map })));
+  // A new region (R-4), inside another or at the top level, with an id from
+  // its name that no region or room has. → its id.
+  M.addRegion = function (world, name, parent, takenRooms) {
+    const id = M.slug(name || 'new region', (world.regions || []).map((r) => r.id).concat(takenRooms || []));
+    const r = { id, name: name || 'New region', controller: null, tags: [], status: '', neighbours: [], lore: '' };
+    if (parent != null && (world.regions || []).some((x) => x.id === parent)) r.parent = parent;
+    world.regions = (world.regions || []).concat([r]);
+    return id;
+  };
+  // Puts a region inside another (null: the top level). Refuses a loop, in
+  // words. Shapes on a region's map for regions no longer inside it go, and
+  // say so. → { error } or { notes }.
+  M.setParent = function (world, id, parent) {
+    const list = world.regions || [];
+    const r = list.find((x) => x.id === id);
+    if (!r) return { error: `no region "${id}"` };
+    const p = parent == null || parent === '' ? null : list.find((x) => x.id === parent);
+    if (parent != null && parent !== '' && !p) return { error: `no region "${parent}"` };
+    if (p && (p.id === id || E.Scenario.regionChainIn(list, p.id).includes(id))) return { error: `${r.name} can't go inside ${p.name}: ${p.id === id ? 'that is itself' : `${p.name} is inside ${r.name}`}` };
+    if (p) r.parent = p.id; else delete r.parent;
+    const notes = [];
+    M.maps(world).filter((m) => m.owner && m.map.regions).forEach(({ owner, map }) => {
+      Object.keys(map.regions).filter((x) => !E.Scenario.regionChainIn(list, x).slice(1).includes(owner)).forEach((x) => {
+        delete map.regions[x];
+        notes.push(`${(list.find((y) => y.id === x) || { name: x }).name} is no longer inside ${(list.find((y) => y.id === owner) || { name: owner }).name}, so it came off that map`);
+      });
+    });
+    return { notes };
+  };
   M.renameRegion = function (world, starts, from, to, files) {
 
     if (from === to) return;
     const r = (world.regions || []).find((x) => x.id === from);
     if (!r) return;
     r.id = to;
-    if (world.map && world.map.regions && world.map.regions[from]) {
-      world.map.regions[to] = world.map.regions[from];
-      delete world.map.regions[from];
-    }
+    // Its shape on every map: the world's and the regions' own (R-3).
+    M.maps(world).forEach(({ map }) => {
+      if (map.regions && map.regions[from]) { map.regions[to] = map.regions[from]; delete map.regions[from]; }
+    });
     eachRef(world, starts, (id) => (id === from ? to : id));
     // The regions inside it (R-1).
     (world.regions || []).forEach((x) => { if (x.parent === from) x.parent = to; });
@@ -138,12 +234,14 @@
   // topics (the text is the author's). Returns notes for the page.
   M.deleteRegion = function (world, starts, id, files) {
     const gone = (world.regions || []).find((r) => r.id === id);
+    const notes0 = [];
     world.regions = (world.regions || []).filter((r) => r.id !== id);
     // The regions inside it move up to its own parent (R-1).
     const up = gone && gone.parent != null && world.regions.some((r) => r.id === gone.parent) ? gone.parent : null;
     const lifted = world.regions.filter((r) => r.parent === id);
     lifted.forEach((r) => { if (up) r.parent = up; else delete r.parent; });
-    if (world.map && world.map.regions) delete world.map.regions[id];
+    M.maps(world).forEach(({ map }) => { if (map.regions) delete map.regions[id]; });
+    if (gone && gone.map) notes0.push(`${gone.name}'s own map went with it`);
     // A route's requirement about who holds it goes (R-2), before refs move to the fallback.
     const unlocked = [];
     world.regions.forEach((r) => (Array.isArray(r.routes) ? r.routes : []).forEach((x) => {
@@ -152,7 +250,7 @@
     const fallback = world.regions[0] ? world.regions[0].id : null;
     const moved = Object.entries(starts || {}).filter(([, s]) => s.region === id).map(([sid]) => sid);
     eachRef(world, starts, (x) => (x === id ? fallback : x), (x) => (x === id ? null : x));
-    const notes = moved.map((sid) => (fallback ? `start "${sid}" now starts in ${fallback}` : `start "${sid}" has no region now`));
+    const notes = notes0.concat(moved.map((sid) => (fallback ? `start "${sid}" now starts in ${fallback}` : `start "${sid}" has no region now`)));
     unlocked.forEach((t) => notes.push(`${t} lost a requirement about who holds ${id}`));
     if (lifted.length) notes.push(
 `${lifted.map((r) => r.name).join(', ')} ${lifted.length > 1 ? 'are' : 'is'} now ${up ? `inside ${(world.regions.find((r) => r.id === up) || {}).name || up}` : 'at the top level'}`);

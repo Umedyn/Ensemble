@@ -191,6 +191,76 @@
     return { folder, files };
   };
 
+  // ---------- templates for New world (R-4) ----------
+  // A blank world with regions already shaped for a kind of story, labels
+  // per level and route kinds set, so a creator starts from something that
+  // plays. Names are original. Each loads valid: one start in a sensible
+  // region, one room there, one person to play. New places are built when
+  // the story goes somewhere (generatedSites), so routes lead somewhere.
+  const R = (id, name, extra) => Object.assign({ id, name, controller: null, tags: [], status: '', lore: '' }, extra);
+  WE.TEMPLATES = {
+    country: {
+      label: 'One country with provinces',
+      start: 'northmarch', room: ['market-square', 'Market Square', 'Cobbles, a shuttered bank and a fountain that still runs.'],
+      world: {
+        regionLabels: ['country', 'province', 'town'],
+        routeKinds: { road: { time: '3h' } },
+        regions: [
+          R('kestria', 'Kestria', { lore: 'A small country of farms, river towns and one long railway.' }),
+          R('northmarch', 'Northmarch', { parent: 'kestria', neighbours: ['eastvale', 'lowfield'], routes: [{ to: 'saltcoast', kind: 'rail', time: '4h' }], lore: 'Hill country and mill towns along the border.' }),
+          R('eastvale', 'Eastvale', { parent: 'kestria', neighbours: ['northmarch', 'saltcoast'], lore: 'Orchards and vineyards in a wide valley.' }),
+          R('saltcoast', 'Saltcoast', { parent: 'kestria', neighbours: ['eastvale', 'lowfield'], lore: 'Fishing ports, the capital and the sea.' }),
+          R('lowfield', 'Lowfield', { parent: 'kestria', neighbours: ['saltcoast', 'northmarch'], lore: 'Flat farmland and slow rivers.' }),
+        ],
+      },
+    },
+    city: {
+      label: 'One city',
+      start: 'old-town', room: ['corner-cafe', 'Corner Café', 'Six tables, a chalkboard menu and a window onto the square.'],
+      world: {
+        regionLabels: ['city', 'district'],
+        routeKinds: { bus: { time: '20m' }, rail: { time: '15m' } },
+        regions: [
+          R('brightwater', 'Brightwater', { lore: 'A harbour city of a million people, old at the centre and new at the edges.' }),
+          R('old-town', 'Old Town', { parent: 'brightwater', neighbours: ['harbour', 'university'], routes: [{ to: 'suburbs', kind: 'rail' }], lore: 'Narrow streets, cafés and the town hall.' }),
+          R('harbour', 'The Harbour', { parent: 'brightwater', neighbours: ['old-town'], routes: [{ to: 'suburbs', kind: 'bus' }], lore: 'Docks, fish markets and warehouses turned into flats.' }),
+          R('university', 'University Quarter', { parent: 'brightwater', neighbours: ['old-town'], routes: [{ to: 'suburbs', kind: 'bus' }], lore: 'Lecture halls, bookshops and cheap noodles.' }),
+          R('suburbs', 'The Suburbs', { parent: 'brightwater', lore: 'Houses with gardens, schools and a shopping centre.' }),
+        ],
+      },
+    },
+    planets: {
+      label: 'Planets and travel',
+      start: 'veyra-port', room: ['docking-ring', 'Docking Ring', 'A curved concourse of airlocks, cargo sleds and departure boards.'],
+      world: {
+        regionLabels: ['planet', 'city'],
+        world: { ship: 'ready' },
+        routeKinds: { hyperlane: { time: '2d', requires: { world: 'ship', is: 'ready' } } },
+        regions: [
+          R('veyra', 'Veyra', { routes: [{ to: 'ossam', kind: 'hyperlane' }, { to: 'thule-drift', kind: 'hyperlane', time: '4d' }], lore: 'A temperate world of trade guilds and crowded starports.' }),
+          R('veyra-port', 'Veyra Starport', { parent: 'veyra', lore: 'The busiest port in the sector, run by the guilds.' }),
+          R('ossam', 'Ossam', { routes: [{ to: 'thule-drift', kind: 'hyperlane' }], lore: 'A desert moon of mines and water rights.' }),
+          R('thule-drift', 'Thule Drift', { lore: 'An ice field of salvage stations at the edge of charted space.' }),
+        ],
+      },
+    },
+  };
+  // → { folder, files }, like blankWorld.
+  WE.templateWorld = function (kind, title, takenFolders) {
+    const t = WE.TEMPLATES[kind];
+    const b = WE.blankWorld(title, takenFolders);
+    if (!t) return b;
+    const w = b.files['world.json'];
+    Object.assign(w, clone(t.world), { generatedSites: {} });
+    if (t.world.world) w.world = Object.assign({}, w.world, clone(t.world.world));
+    const st = b.files['starts/start.json'];
+    const [id, name, desc] = t.room;
+    st.region = t.start;
+    st.locations = [{ id, name, desc, connects: [] }];
+    st.cast = [{ id: 'you', status: { location: id } }];
+    return b;
+  };
+
   // A zip from the creator's own export (or any zip of a world folder):
   // entries under one top folder or at the root. → { folder, files, assets: {path: bytes} }
   WE.fromZip = function (entries, fallbackFolder) {

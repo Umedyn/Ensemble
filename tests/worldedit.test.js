@@ -396,3 +396,28 @@ test('portraits get a free path under portraits/', () => {
   assert.equal(WE.portraitPath(files, {}, 'Juniper Vale.PNG'), 'portraits/juniper-vale.png');
   assert.equal(WE.portraitPath(files, { 'portraits/okafor.png': {} }, 'x.png', 'okafor'), 'portraits/okafor-2.png');
 });
+
+// ---------- templates (R-4) ----------
+
+test('every New world template loads, starts and plays a turn', async () => {
+  for (const kind of Object.keys(WE.TEMPLATES)) {
+    const b = WE.templateWorld(kind, `Test ${kind}`, []);
+    const G = loadEngine();
+    const w = G.Scenario.prepareWorld(b.folder, plain(b.files));
+    assert.equal(w.starts[0].error, undefined, `${kind}: ${w.starts[0].error}`);
+    assert.deepEqual([...w.warnings], [], kind);
+    const state = G.Engine.newGame(G.Scenario.startScenario(w));
+    assert.ok(G.Engine.regionChain(state, G.Engine.playerRegion(state)).length >= 2 || kind === 'planets', `${kind}: the start is inside a bigger region`);
+    mockLLM(G, ({ kind: k }) => (k === 'intent' ? { player: { summary: 'look around' }, intents: [], events: [] }
+      : k === 'update' ? { facts: [], state: [], relations: [], player_attitude: [] } : '[+0m] It is quiet.'));
+    await G.Engine.runTurn(state, 'Look around.', 'moment');
+    assert.equal(state.turn, 1, kind);
+  }
+  const p = WE.templateWorld('planets', 'Stars', []);
+  const G = loadEngine();
+  const state = G.Engine.newGame(G.Scenario.startScenario(G.Scenario.prepareWorld(p.folder, plain(p.files))));
+  assert.equal(G.Engine.regionTrip(state, 'veyra-port', 'ossam').hours, 48, 'a hyperlane, two days');
+  state.world.ship = 'grounded';
+  assert.match(G.Engine.regionTrip(state, 'veyra-port', 'ossam').why, /needs ship is "ready"/);
+  assert.deepEqual([...WE.templateWorld('city', 'Town', []).files['world.json'].regionLabels], ['city', 'district']);
+});

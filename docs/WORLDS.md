@@ -102,6 +102,60 @@ With no `starts` the picker offers only **✦ Make my own start** (as if the wor
 | `timeline` | object[] | canon events (task 5-2), past and future. See [Canon timeline](#canon-timeline). Starts add to or replace events by `id` |
 | `projectTimeline` | false \| object | default on: when no event is planned in the next few days, the model projects likely ones. `false` turns it off; `{days, max}` (1–14 and 1–5; defaults 3 and 3) tunes it. Starts may override |
 
+### Regions in three steps
+
+Three ideas, and you only meet the ones your story uses: **regions** (where the story can be), **routes** (how people travel) and **maps** (optional pictures). Every region field is optional, and a world with no images plays fully.
+
+1. **A flat list is a whole world.** `"regions": [{"id": "harbour", "name": "The Harbour", "neighbours": ["old-town"]}, …]`. Neighbours are next door: no travel time.
+2. **Add `parent` where you want more detail.** A region inside another: a city's districts, a country's provinces. Depth can differ by branch, so one place can be detailed while the rest stays broad. `label` (or the world's `regionLabels`) names what each one is.
+3. **Add `routes` and `map` only if travel or pictures matter.** Routes give a way of travelling a kind, a time and conditions; a map is a picture of the regions inside a region.
+
+In the creator's Map tab: **+ Inside** and **+ Next to it** grow the tree, and dragging a region onto another moves it inside. Each region's form has its borders, its routes and **Attach a map…**. The **Route kinds** table sets how each way of travelling works for the whole world. **New world** can start from a template (One country with provinces, One city, Planets and travel) that already has regions, labels and route kinds set.
+
+**A country with zones** (France, 1942). The world stays broad and France is split, so the power struggle shows:
+
+```json
+"regionLabels": ["country", "zone"],
+"regions": [
+  { "id": "france", "name": "France", "neighbours": ["spain", "switzerland"] },
+  { "id": "occupied", "name": "Occupied Zone", "parent": "france", "controller": "germany",
+    "routes": [{ "to": "free", "kind": "checkpoint", "requires": { "world": "papers", "is": "yes" }, "risky": true }] },
+  { "id": "free", "name": "Free Zone", "parent": "france", "controller": "vichy" },
+  { "id": "spain", "name": "Spain" }, { "id": "switzerland", "name": "Switzerland" }
+]
+```
+
+Crossing the demarcation line needs papers; without them the player can risk it as a roll. Spain and Switzerland are one region each.
+
+**Detail in one place** (a school story in an original city). Only the ward the story lives in is detailed, and the walk to school is a route:
+
+```json
+"regionLabels": ["city", "ward", "neighbourhood"],
+"regions": [
+  { "id": "kiyosaka", "name": "Kiyosaka" },
+  { "id": "minami", "name": "Minami Ward", "parent": "kiyosaka", "neighbours": ["kita"] },
+  { "id": "kita", "name": "Kita Ward", "parent": "kiyosaka" },
+  { "id": "home", "name": "Sakuradai", "parent": "minami", "routes": [{ "to": "school", "kind": "walk", "time": "15m" }] },
+  { "id": "school", "name": "Hoshino High", "parent": "minami" }
+],
+"routeKinds": { "rail": { "time": "20m" } }
+```
+
+**Planets** (original names). Regions are planets, travel takes days and needs a ship:
+
+```json
+"regionLabels": ["planet", "city"],
+"world": { "ship": "ready" },
+"routeKinds": { "hyperlane": { "time": "2d", "requires": { "world": "ship", "is": "ready" } } },
+"regions": [
+  { "id": "veyra", "name": "Veyra", "routes": [{ "to": "ossam", "kind": "hyperlane" }] },
+  { "id": "veyra-port", "name": "Veyra Starport", "parent": "veyra" },
+  { "id": "ossam", "name": "Ossam" }
+]
+```
+
+Veyra can get a planet map (`"map"`) later; without one, the game draws its cities as a node map.
+
 ### The region tree
 
 Task R-1. A flat list of regions is a whole world; add `parent` only where the story needs more detail. France can go four levels deep while the rest of Europe stays one region each:
