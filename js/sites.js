@@ -24,6 +24,42 @@
 
   ST.HOME = 'home';
   const REFERS_BACK = /\b(?:the plan|do it|let'?s go|let'?s move|move out|enact|carry (?:it |that )?out|go now|head out|hit it|we go|time to go)\b/i;
+  // Words for the same kind of place, so the player's words name a new place
+  // without its exact name ("I go inside the house" for "home-calloway").
+  ST.PLACE_WORDS = [
+    ['home', 'house', 'flat', 'apartment', 'cottage', 'cabin', 'farmhouse', 'homestead', 'bungalow', 'trailer'],
+    ['shop', 'store', 'market', 'grocer', 'grocery', 'supermarket', 'boutique'],
+    ['bar', 'pub', 'tavern', 'saloon', 'inn', 'club', 'nightclub', 'lounge'],
+    ['cafe', 'coffee', 'diner', 'restaurant', 'canteen', 'teahouse', 'bistro', 'eatery'],
+    ['hotel', 'motel', 'inn', 'lodge', 'hostel'],
+    ['school', 'academy', 'college', 'classroom', 'university', 'campus'],
+    ['church', 'chapel', 'temple', 'shrine', 'mosque', 'synagogue', 'cathedral', 'kirk'],
+    ['hospital', 'clinic', 'infirmary', 'surgery'],
+    ['office', 'workplace', 'headquarters', 'hq'],
+    ['harbour', 'harbor', 'dock', 'docks', 'pier', 'wharf', 'quay', 'port', 'marina'],
+    ['boat', 'ship', 'vessel', 'dory', 'trawler', 'yacht'],
+    ['garage', 'workshop', 'shed', 'barn'],
+    ['warehouse', 'depot', 'storehouse'],
+    ['station', 'terminal', 'depot'],
+    ['police', 'precinct', 'cop', 'cops', 'sheriff'],
+    ['park', 'garden', 'gardens', 'square', 'plaza'],
+  ];
+  // Rule 3: only the player's own words take them to a new place. They name
+  // it when a word of its name or kind (3+ letters), a word for the same
+  // kind of place, or a plain plural of one, is in them;
+  // "my place", "home" and "our house" name a place that carries the player's name.
+  ST.namedBy = function (state, actionText, name, kind) {
+    const prev = REFERS_BACK.test(String(actionText || '')) && state.recent && state.recent[0] && state.recent[0].action ? state.recent[0].action : '';
+    const singular = (w) => [w, w.replace(/s$/, ''), w.replace(/es$/, '')];
+    const said = new Set(norm(actionText + ' ' + prev).split(' ').filter(Boolean).flatMap(singular));
+    const own = norm(`${name} ${kind || ''}`).split(' ').filter((w) => w.length >= 3);
+    const alike = (w) => singular(w).concat(...ST.PLACE_WORDS.filter((g) => singular(w).some((x) => g.includes(x))));
+    if (own.some((w) => alike(w).some((x) => said.has(x)))) return true;
+    // A place named after the player: their home in their words.
+    const pc = state.characters && state.characters[state.player];
+    const theirs = pc && norm(pc.name).split(' ').filter((w) => w.length >= 3).some((w) => own.includes(w));
+    return !!theirs && ['my', 'our', 'home', 'mine'].some((w) => said.has(w));
+  };
   ST.ROOMS = [2, 6];
   ST.DEFAULTS = { maxSites: 8, keepDays: 3 };
   ST.KINDS = ['open', 'door', 'locked door', 'vent', 'hatch', 'window', 'stairs'];
@@ -292,10 +328,10 @@
     }
     // The player's own words should name it (rule 3: only the player's intent moves them).
     // "enact the plan", "let's go": the player's previous action counts too
-    // (playtest-api-chop-shop: the plan named the chop shop a turn earlier).
-    const prev = REFERS_BACK.test(String(actionText || '')) && state.recent && state.recent[0] && state.recent[0].action ? state.recent[0].action : '';
-    const words = new Set(norm(actionText + ' ' + prev).split(' '));
-    if (!norm(name).split(' ').some((w) => w.length >= 3 && words.has(w)) && !norm(ask && ask.kind).split(' ').some((w) => w.length >= 3 && words.has(w))) {
+    // (playtest-api-chop-shop: the plan named the chop shop a turn earlier);
+    // other words for the same kind of place count (playtest-house-home:
+    // "I go inside the house" for "home-calloway").
+    if (!ST.namedBy(state, actionText, name, ask && ask.kind)) {
       return { error: `the player's words don't name "${name}"` };
     }
     return { build: { name, kind: text(ask && ask.kind, 40) || name, region }, note: [headed, note].filter(Boolean).join('; ') || null };
@@ -831,9 +867,7 @@
     if (same) return null; // known: the usual way there (Sites.regionHeadedFor)
     if (ST.byName(state, name) || Eng().resolveLocation(state, name, false)) return null;
     // The player's own words name it (rule 3).
-    const prev = REFERS_BACK.test(String(actionText || '')) && state.recent && state.recent[0] && state.recent[0].action ? state.recent[0].action : '';
-    const words = new Set(norm(actionText + ' ' + prev).split(' '));
-    if (!norm(name).split(' ').some((w) => w.length >= 3 && words.has(w))) return { error: `the player's words don't name "${name}"` };
+    if (!ST.namedBy(state, actionText, name, null)) return { error: `the player's words don't name "${name}"` };
     let parent = null;
     if (ask.parent != null && ask.parent !== '' && ask.parent !== 'none' && ask.parent !== 'null') {
       const pr = regions.find((r) => r.id === ask.parent || norm(r.name) === norm(ask.parent));

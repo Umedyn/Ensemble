@@ -292,3 +292,18 @@ test('playtest-r2-ridge: a place named after a region is in that region, so the 
   assert.ok(moment.out.res.guards.some((g) => g.type === 'journey' && /arrived at .* after 45m/.test(g.detail)), moment.out.res.guards.map((g) => g.type).join(', '));
   assert.ok(moment.calls.some((c) => /The downtime is a journey: travelling from The highway strip to .* in Ridge: .*by road to Ridge \(45m\)/.test(c.user)));
 });
+
+test('playtest-house-home: the player names a new place in other words (house for home, the bar for a pub, plurals, "my place" for their own), never by saying nothing about it', () => {
+  const { E, state } = newGame('zombie-holdout');
+  const want = (p, words) => E.Sites.wanted(state, p, words) || {};
+  const refused = (p, words) => want(p, words).error || '';
+  // The log: the model proposed "home-calloway" for "I go inside the house."
+  assert.equal(refused({ move_to: 'home-pike' }, 'I go inside the house.'), '');
+  assert.equal(refused({ new_place: { name: 'The Anchor', kind: 'pub' } }, 'I head over to the bar.'), '');
+  assert.equal(refused({ new_place: { name: 'the old dock', kind: 'dock' } }, 'I walk down to the docks.'), '');
+  assert.equal(refused({ new_place: { name: 'the Pike residence', kind: 'residence' } }, 'I go back to my place.'), '', "a place with the player's name is theirs");
+  // Still the player's own words (rule 3).
+  assert.match(refused({ move_to: 'home-pike' }, 'I look around.'), /the player's words don't name "home-pike"/);
+  assert.match(refused({ new_place: { name: 'the pharmacy', kind: 'pharmacy' } }, 'I go inside the house.'), /don't name "the pharmacy"/);
+  assert.match(refused({ new_place: { name: 'the Ortiz residence', kind: 'residence' } }, 'I go back to my place.'), /don't name/, "someone else's place isn't the player's");
+});
