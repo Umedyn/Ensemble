@@ -48,17 +48,35 @@
   // it when a word of its name or kind (3+ letters), a word for the same
   // kind of place, or a plain plural of one, is in them;
   // "my place", "home" and "our house" name a place that carries the player's name.
+  const singular = (w) => [w, w.replace(/s$/, ''), w.replace(/es$/, '')];
+  const alike = (w) => singular(w).concat(...ST.PLACE_WORDS.filter((g) => singular(w).some((x) => g.includes(x))));
+  const placeWords = (name, kind) => norm(`${name} ${kind || ''}`).split(' ').filter((w) => w.length >= 3);
+  // The place carries the player's name (their surname: their family's house).
+  const playersOwn = (state, own) => {
+    const pc = state.characters && state.characters[state.player];
+    return !!pc && norm(pc.name).split(' ').filter((w) => w.length >= 3).some((w) => own.includes(w));
+  };
   ST.namedBy = function (state, actionText, name, kind) {
     const prev = REFERS_BACK.test(String(actionText || '')) && state.recent && state.recent[0] && state.recent[0].action ? state.recent[0].action : '';
-    const singular = (w) => [w, w.replace(/s$/, ''), w.replace(/es$/, '')];
     const said = new Set(norm(actionText + ' ' + prev).split(' ').filter(Boolean).flatMap(singular));
-    const own = norm(`${name} ${kind || ''}`).split(' ').filter((w) => w.length >= 3);
-    const alike = (w) => singular(w).concat(...ST.PLACE_WORDS.filter((g) => singular(w).some((x) => g.includes(x))));
+    const own = placeWords(name, kind);
     if (own.some((w) => alike(w).some((x) => said.has(x)))) return true;
     // A place named after the player: their home in their words.
-    const pc = state.characters && state.characters[state.player];
-    const theirs = pc && norm(pc.name).split(' ').filter((w) => w.length >= 3).some((w) => own.includes(w));
-    return !!theirs && ['my', 'our', 'home', 'mine'].some((w) => said.has(w));
+    return playersOwn(state, own) && ['my', 'our', 'home', 'mine'].some((w) => said.has(w));
+  };
+  // Why the player already knows a new place's layout, or null: it carries
+  // their name, they call it theirs ("my house", "our shop") or go home to
+  // it, or they had been there before it faded. Its rooms are all seen when
+  // it is built, so the map shows the whole place.
+  ST.knownWhy = function (state, req, actionText) {
+    if (req.stub && req.stub.visits > 0) return 'the player has been there before';
+    const own = placeWords(req.name, req.kind);
+    if (playersOwn(state, own)) return 'it carries the player\'s name';
+    const said = norm(actionText);
+    const claimed = [...said.matchAll(/\b(?:my|our)\s+([a-z0-9]+)/g)].map((m) => m[1]);
+    if (claimed.some((w) => own.some((o) => alike(o).some((x) => singular(w).includes(x))))) return 'the player calls it theirs';
+    if (/\bhome\b/.test(said) && own.some((o) => alike(o).includes('home'))) return 'the player\'s home';
+    return null;
   };
   ST.ROOMS = [2, 6];
   ST.DEFAULTS = { maxSites: 8, keepDays: 3 };
@@ -764,6 +782,12 @@
     ST.add(pre, E.clone(built), from);
     p.move_to = built.site.entry;
     const s = built.site;
+    // A place the player already knows: the whole layout, not just the entry.
+    const known = ST.knownWhy(state, req, actionText);
+    if (known) {
+      [state, pre].forEach((st) => { st.seenRooms = [...new Set((st.seenRooms || []).concat(built.rooms.map((r) => r.id)))]; });
+      notes.push({ type: 'site known', detail: `${s.name}: ${known}, so its whole layout is known` });
+    }
     // Debug lines are short, so one for the site and one per note.
     notes.push({ type: 'site built', detail: `${s.name} (${s.kind}, ${s.region || 'no region'}): ${built.rooms.map((r) => r.name).join(', ')}; ${built.extras.length} people, ${built.standees.length} groups${s.map ? `; library map ${s.map}` : ''}` });
     notes.push({ type: 'site why', detail: req.from === 'intent' ? `the player's action: "${text(actionText, 150)}"` : `an event: ${s.why || s.name}` });
@@ -779,6 +803,9 @@
     const s = (state.sites || {})[now];
     if (!s) return;
     if (ST.siteOf(state, startLoc) !== now) s.visits += 1;
+    // The player's own place (their name on it): its whole layout, also for
+    // one built before this rule (playtest-known-house).
+    if (playersOwn(state, placeWords(s.name, s.kind))) state.seenRooms = [...new Set((state.seenRooms || []).concat(s.rooms))];
     s.lastVisit = { day: state.time.day, hour: state.time.hour, turn: state.turn };
     if (s.visits >= 2 && !s.kept) { s.kept = true; s.keptWhy = 'a second visit'; }
   };

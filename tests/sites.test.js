@@ -307,3 +307,43 @@ test('playtest-house-home: the player names a new place in other words (house fo
   assert.match(refused({ new_place: { name: 'the pharmacy', kind: 'pharmacy' } }, 'I go inside the house.'), /don't name "the pharmacy"/);
   assert.match(refused({ new_place: { name: 'the Ortiz residence', kind: 'residence' } }, 'I go back to my place.'), /don't name/, "someone else's place isn't the player's");
 });
+
+test("playtest-known-house: a place the player already knows shows its whole layout when it's built; somewhere new shows only the way in", async () => {
+  const { E, state } = newGame('zombie-holdout');
+  turnMock(E, { move_to: 'home-pike' });
+  const out = await E.Engine.runTurn(state, 'I go inside the house.', 'moment');
+  const s = state.sites['home-pike'];
+  assert.ok(s, 'built');
+  assert.ok(s.rooms.every((r) => state.seenRooms.includes(r)), 'every room of the Pike house is known');
+  assert.ok(out.res.guards.some((g) => g.type === 'site known' && /carries the player's name/.test(g.detail)));
+  // Somewhere new: only what the player has seen.
+  const t = newGame('zombie-holdout');
+  turnMock(t.E, PHARMACY);
+  await t.E.Engine.runTurn(t.state, 'I head to the pharmacy on Main Street.', 'hour');
+  const p = t.state.sites['the-pharmacy'] || Object.values(t.state.sites)[0];
+  assert.ok(p.rooms.some((r) => !t.state.seenRooms.includes(r)), 'the pharmacy keeps its fog');
+});
+
+test('what makes a new place known: the player\'s name on it, "my" or "our" before it, going home, or a visit before it faded', () => {
+  const { E, state } = newGame('zombie-holdout');
+  const why = (req, words) => E.Sites.knownWhy(state, Object.assign({ kind: req.name }, req), words);
+  assert.match(why({ name: 'home-pike' }, 'I go inside.'), /carries the player's name/);
+  assert.match(why({ name: 'the Lowe house', kind: 'house' }, 'I head back to my house.'), /calls it theirs/);
+  assert.match(why({ name: 'Harbor Hardware', kind: 'shop' }, 'We open up our store.'), /calls it theirs/, 'another word for the same kind of place');
+  assert.match(why({ name: 'the flat', kind: 'flat' }, 'I go home.'), /the player's home/);
+  assert.match(why({ name: 'the Anchor', kind: 'pub', stub: { visits: 1 } }, 'Back to the Anchor.'), /been there before/);
+  assert.equal(why({ name: 'the Anchor', kind: 'pub' }, 'I go to the pub with my sister.'), null, '"my" about someone else');
+  assert.equal(why({ name: 'the Ortiz house', kind: 'house' }, 'I go inside the house.'), null);
+  assert.equal(why({ name: 'the Anchor', kind: 'pub', stub: { visits: 0 } }, 'I go to the Anchor.'), null, 'a place only heard of');
+});
+
+test('playtest-known-house: a house with the player\'s name built before this rule shows its layout on the next turn there', async () => {
+  const { E, state } = newGame('zombie-holdout');
+  turnMock(E, { move_to: 'home-pike' });
+  await E.Engine.runTurn(state, 'I go inside the house.', 'moment');
+  const rooms = [...state.sites['home-pike'].rooms];
+  state.seenRooms = state.seenRooms.filter((r) => !rooms.slice(1).includes(r)); // as an older save had it
+  turnMock(E, {});
+  await E.Engine.runTurn(state, 'I look around.', 'moment');
+  assert.ok(rooms.every((r) => state.seenRooms.includes(r)));
+});
