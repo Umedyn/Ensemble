@@ -135,6 +135,9 @@
 
   // Time steps the player can choose per action. "nextMorning" is computed.
   E.timeSteps = [
+    // One exchange of a conversation, so a long talk doesn't eat the evening
+    // a few minutes at a time.
+    { id: 'minute', label: 'A minute', hours: 1 / 60, words: '40–90', lengthMult: 1 },
     // 0.7 cut nearly every moment scene off on the 12B (playtest-albee-promoted).
     { id: 'moment', label: 'A few minutes', hours: 0.25, words: '60–120', lengthMult: 1.1 },
     { id: 'hour', label: 'About an hour', hours: 1, words: '100–200', lengthMult: 1.2 },

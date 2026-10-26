@@ -933,3 +933,22 @@ test('every world tells the story impartially: no flattering, protecting or favo
     assert.ok(E.Prompts.header(state).includes(`- Tell the story impartially. Do not flatter, protect or favour ${pc}: people judge them by what they do, plans can fail, luck does not bend their way, and the world's dangers reach them as they would anyone.`), w);
   });
 });
+
+// ---------- time steps ----------
+
+test('a minute step: one exchange of a conversation moves the clock a minute, not a quarter hour, and asks for a short scene', async () => {
+  const { E, state } = newGame('mars-station');
+  assert.equal(E.timeSteps[0].id, 'minute', 'first in the list');
+  const calls = mockLLM(E, ({ kind }) => (kind === 'intent' ? { player: { summary: 'asks Teo about the rattle' }, intents: [], events: [] }
+    : kind === 'update' ? { facts: [], state: [], relations: [], player_attitude: [] } : '[+0m] Teo shrugs. "It started last week."'));
+  const t0 = state.time.day * 24 + state.time.hour;
+  const stress = state.characters[state.player].needs.stress;
+  for (let i = 0; i < 6; i++) await E.Engine.runTurn(state, 'Ask Teo about the rattle.', 'minute');
+  assert.equal(Math.round((state.time.day * 24 + state.time.hour - t0) * 60), 6, 'six exchanges, six minutes');
+  assert.match(E.fmtTime(state), /:06$|:\d6$/);
+  assert.ok(Math.abs(state.characters[state.player].needs.stress - stress) < 0.05, 'needs barely move');
+  const narrate = calls.find((c) => c.kind === 'narrate');
+  assert.match(narrate.user, /1 or 2 short paragraphs/);
+  assert.match(narrate.user, /This covers about a minute: the next exchange of the conversation/);
+  assert.match(calls.find((c) => c.kind === 'intent').user, /None, unless something was already about to happen this very minute/);
+});

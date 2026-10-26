@@ -1204,7 +1204,7 @@
   }
 
 
-  const EVENT_CAP = { moment: 1, hour: 1, hours: 2, morning: 3 };
+  const EVENT_CAP = { minute: 1, moment: 1, hour: 1, hours: 2, morning: 3 };
 
   // Director events: things that happen during the span outside the player's
   // control. Seen/heard ones reach the narrator; hidden ones become private facts.

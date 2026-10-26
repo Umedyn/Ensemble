@@ -391,6 +391,7 @@
   };
 
   const EVENT_GUIDE = {
+    minute: 'None, unless something was already about to happen this very minute.',
     moment: 'Usually none for a few minutes; at most 1, only if something is already about to happen.',
     hour: '0 or 1.',
     hours: '1 or 2.',
@@ -622,6 +623,7 @@ ${intentExample(state, present, action, due)}`;
   // How much the narrator may fill in for the player depends on the time step:
   // short steps are beat-by-beat, long ones hand routine over to the narrator.
   const STEP_GUIDE = {
+    minute: "This covers about a minute: the next exchange of the conversation, or one quick action. Play just that: the player character's words or deed and how the others answer. Nothing else happens to the player character, and the scene doesn't move on.",
     moment: 'This covers only a few minutes. Play out the stated action beat by beat. Add nothing else for the player character beyond small gestures and a line of dialogue.',
     hour: 'This covers about an hour, all spent on the stated action. Play the key exchange as a live scene and compress the rest of the hour with a line or two ("For the next forty minutes…"). You may show how it naturally unfolds, but the player character starts no new activities and goes nowhere else. Their manner toward others matches the feelings listed in STATUS.',
     hours: 'This covers a few hours. You may compress time ("By midday…") and show the stated action carried through, plus routine (eating, working). In that routine the player character treats each person according to the feelings listed in STATUS (no friendly chats with someone they resent). No big decisions or new plans for the player character.',
@@ -630,8 +632,9 @@ ${intentExample(state, present, action, due)}`;
 
   // Length as paragraphs: the 12B writes about twice the words it is asked
   // for, and follows a count of short paragraphs better (playtest-r2-drive-to-ridge).
-  const PARA_GUIDE = { moment: '2 or 3', hour: '3 to 5', hours: '4 to 6', morning: '5 to 7' };
+  const PARA_GUIDE = { minute: '1 or 2', moment: '2 or 3', hour: '3 to 5', hours: '4 to 6', morning: '5 to 7' };
   const BEAT_GUIDE = {
+    minute: '1 beat: [+0m].',
     moment: '1 beat: [+0m].',
     hour: '2 or 3 beats.',
     hours: '2 to 4 beats.',

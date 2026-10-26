@@ -231,6 +231,7 @@ Each secret-keeper has a `guard`:
 
 | step | span | narration | events |
 |---|---|---|---|
+| a minute | 1 min | 1–2 short paragraphs (40–90 words): the next exchange of a conversation, or one quick action | none unless already about to happen |
 | a few minutes | 15 min | 2–3 short paragraphs (60–120 words), beat by beat | usually none |
 | about an hour | about 1 h (follows the scene) | 3–5 paragraphs (100–200), key exchange live, rest compressed | 0–1 |
 | a few hours | up to 3 h (follows the scene) | 4–6 paragraphs (150–250), routine allowed | 1–2 |
