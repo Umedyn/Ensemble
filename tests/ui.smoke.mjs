@@ -163,6 +163,28 @@ await check('undo and reroll', async (page) => {
   assert.equal(await page.locator('#debugBody details.note').count(), 2, 'Debug lists the undo and the reroll');
 });
 
+// Task 5-7: lore packs from packs/, turned on per world in the picker.
+await check('lore packs: only for their world, ticked in the picker, in the game and its Debug notes', async (page) => {
+  assert.equal(await page.isVisible('#btnPacks'), false, 'Ares Deep has no packs');
+  await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+  await page.waitForSelector('#btnPacks:not(.hidden)');
+  assert.equal(await page.textContent('#btnPacks'), 'Lore packs');
+  await page.click('#btnPacks');
+  assert.match(await page.textContent('#packList'), /Harmon County life[\s\S]*4 entries, 1 event/);
+  await page.check('[data-pack="harmon-county"]');
+  await page.locator('#packDialog form').screenshot({ path: path.join(shots, 'lore-packs.png') });
+  await page.click('#packDialog button[value="close"]');
+  assert.equal(await page.textContent('#btnPacks'), 'Lore packs (1)');
+  await newGame(page);
+  await sceneReady(page);
+  await page.click('#btnDebug');
+  assert.match(await page.textContent('#debugBody'), /lore packs: Harmon County life/);
+  // Remembered for the world after a reload.
+  await page.reload();
+  await page.waitForSelector('#btnPacks:not(.hidden)');
+  assert.equal(await page.textContent('#btnPacks'), 'Lore packs (1)');
+});
+
 await check('debug shows a turn report with tokens, prompt time and guards', async (page) => {
   await newGame(page);
   await act(page, 'I open up the recycler.');
@@ -1057,6 +1079,17 @@ await check('creator: draw a region on a map image, export, and play the export'
   await page.fill('[data-lt="action"]', 'Ask about the drill.');
   await page.waitForFunction(() => /Airlock drill the player's region; "drill" in the action/.test(document.getElementById('cLoreTest').textContent));
   await page.screenshot({ path: path.join(shots, 'creator-lore.png') });
+  // Task 5-7: a new lore pack, its entry edited in the same form, problems named.
+  await page.click('#cNewPack');
+  await page.waitForSelector('#cPackList [data-pack="new-pack"]');
+  assert.match(await page.textContent('#cLoreForm'), /Stored in packs\/new-pack\/pack\.json/);
+  assert.match(await page.textContent('#cValidation'), /pack "new-pack": "credit" must say who made it/);
+  await page.fill('[data-pf="new-pack|credit"]', 'Smoke Test');
+  await page.fill('[data-pf="new-pack|license"]', 'CC BY 4.0');
+  await page.fill('[data-lf="title"]', 'Station radio');
+  await page.waitForFunction(() => /No problems/.test(document.getElementById('cValidation').textContent));
+  assert.match(await page.textContent('#cPackList'), /Station radio[\s\S]*Ready to share/);
+  await page.locator('.c-packs').screenshot({ path: path.join(shots, 'creator-packs.png') });
   // And a timeline event with a condition that diverges when it breaks.
   await page.click('#cTabs [data-tab="timeline"]');
   assert.match(await page.textContent('#cEventList'), /Before the start[\s\S]*Sol 1, 10:00[\s\S]*From the start on[\s\S]*Sol 216, 14:00/);

@@ -181,7 +181,9 @@
       const tokens = E.estTokens(L.line(p.e));
       if (used + tokens > budget) return;
       used += tokens;
-      out.push({ id: p.e.id, title: p.e.title, level: p.e.level, text: p.e.text, why: p.why.join('; '), tokens });
+      // An entry from a lore pack says so (task 5-7).
+      const from = p.e.pack ? ` (from the pack "${E.Packs ? E.Packs.title(state.scenario, p.e.pack) : p.e.pack}")` : '';
+      out.push({ id: p.e.id, title: p.e.title, level: p.e.level, text: p.e.text, why: p.why.join('; ') + from, tokens });
     });
     return out;
   };
@@ -226,7 +228,8 @@
       if (!isObj(e)) return problems.push(`${where}: each lore entry must be {id, title, level, text}${typeof e === 'string' ? ` (lore file ids work in world.json only: "${e}")` : ''}`);
       const at = `${where}: lore "${e.id || '?'}"`;
       const req = (cond, msg) => { if (!cond) problems.push(`${at}: ${msg}`); };
-      req(typeof e.id === 'string' && /^[a-z0-9][a-z0-9_-]*$/.test(e.id), '"id" must be lowercase letters, digits, - or _');
+      // "<pack>:<id>" for an entry from a lore pack (task 5-7).
+      req(typeof e.id === 'string' && /^([a-z0-9][a-z0-9_-]*:)?[a-z0-9][a-z0-9_-]*$/.test(e.id), '"id" must be lowercase letters, digits, - or _');
       if (seen.has(e.id)) problems.push(`${at} is listed twice`);
       seen.add(e.id);
       req(typeof e.title === 'string' && e.title.trim() && e.title.length <= lim.title, `"title" must be text of at most ${lim.title} characters`);

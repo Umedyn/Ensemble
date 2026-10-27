@@ -429,6 +429,9 @@ details.rolls li { margin: 2px 0; }
 .web-label { fill: var(--text); font-size: 0.6875rem; paint-order: stroke; stroke: var(--panel); stroke-width: 3px; stroke-linejoin: round; }
 .web-list { list-style: none; padding: 0; margin: 8px 0; font-size: 0.8125rem; max-height: 30dvh; overflow-y: auto; }
 .web-list li { margin: 3px 0; }
+.pack-list { list-style: none; padding: 0; margin: 0.5rem 0; max-height: 50dvh; overflow-y: auto; }
+.pack-list li { margin: 0.5rem 0; }
+.pack-list li .small { margin-left: 1.5rem; }
 .web-list li.seen { padding-left: 0.75rem; }
 .settings label.web-toggle { flex-direction: row; gap: 6px; align-items: center; }
 .elsewhere > summary { cursor: pointer; font-size: 0.75rem; color: var(--muted); margin: 2px 0 8px; }

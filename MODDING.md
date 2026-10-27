@@ -58,9 +58,13 @@ How such a hub would work (planned, like Bethesda's Creations):
 
 ## Lore packs and real people
 
-Lore is the game's wiki: the game pulls in only what fits where the player is and what's happening, so one world can hold very different lives. Planned add-on **lore packs** ("Tokyo school life", "Silicon Valley startups") plug into an existing world, a smaller way to contribute than a whole world. Write entries for what a small model gets wrong or vague, the world's deviations from reality, and the facts the story will lean on; short and specific beats long and general.
+Lore is the game's wiki: the game pulls in only what fits where the player is and what's happening, so one world can hold very different lives. Add-on **lore packs** ("Tokyo school life", "Silicon Valley startups") plug into an existing world, a smaller way to contribute than a whole world. Write entries for what a small model gets wrong or vague, the world's deviations from reality, and the facts the story will lean on; short and specific beats long and general.
 
 Real public figures belong in lore, not in the cast: they're news and background, met only if the player seeks them out. In real-world maps, people in lore count as real unless marked `fictional: true`, and real people are never part of mature content, in any mode. Fictional characters from other works aren't real people; for them only copyright matters (see Responsibility for mods). Portraits or voices imitating a real person, including the actor who played a fictional character, aren't allowed in official spaces without permission.
+
+### Making and sharing a lore pack
+
+A pack is a folder with a `pack.json` naming the world it adds to, your credit and your license, and its entries (format: `docs/WORLDS.md` › Lore packs). The easiest way to make one is the Creator: open the world, then **+ New pack** in the Lore tab, write your entries, and **Export pack** for a zip of just your folder. You own your pack, as you own a world you make (see What you own); the world's author owns the world. To share it, send the zip: players unzip it into `packs/` and add its id to `packs/index.json`, or pick its folder with Open folder. Players turn it on per world in the start picker. A pack only adds lore: it can't change the world's own entries unless that world's author allows it (`"lorePacks": {"replace": true}`). The content rules apply to packs as to any lore: no one's secrets, nothing that hasn't happened yet as of the start (use the pack's `timeline`), and real people only as background.
 
 ## Making a world
 

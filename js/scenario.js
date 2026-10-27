@@ -17,7 +17,7 @@
   // World fields a start may override (merge rules below).
   const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'tagThresholds', 'portraitSet', 'factions', 'world',
     'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'regionLabels', 'routeKinds', 'presence', 'mapFocus', 'tactical', 'standees', 'site', 'localMap', 'map', 'entrances', 'lore', 'loreTopics', 'timeline', 'projectTimeline'];
-  const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'date', 'characters', 'starts', 'generatedStarts', 'generatedSites', 'generatedRegions', 'sites', ...OVERRIDABLE];
+  const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'date', 'characters', 'starts', 'generatedStarts', 'generatedSites', 'generatedRegions', 'sites', 'lorePacks', ...OVERRIDABLE];
   const WORLD_RESERVED = [];
   const START_RESERVED = [];
   const CAST_FIELDS = ['id', 'status', 'needs', 'relations', 'knows', 'want', 'secret', 'guard', 'tags', 'tier', 'pinned', 'agenda'];
@@ -1084,6 +1084,8 @@
     }, []));
     problems.push(...projectProblems(sc.projectTimeline));
     problems.push(...E.Lore.topicProblems(sc.loreTopics, ''));
+    // Lore packs (task 5-7): whether a pack may replace the world's entries.
+    req(sc.lorePacks == null || (isObj(sc.lorePacks) && Object.keys(sc.lorePacks).every((k) => k === 'replace') && (sc.lorePacks.replace == null || typeof sc.lorePacks.replace === 'boolean')), '"lorePacks" must be {"replace": true or false}');
     // Lore (task 5-1): its shape here; rooms and people are checked across
     // the whole world in validateWorld.
     if (sc.lore != null) {

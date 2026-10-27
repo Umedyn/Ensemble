@@ -1,0 +1,33 @@
+{
+  "format": 1,
+  "id": "harmon-county",
+  "title": "Harmon County life",
+  "world": "zombie-holdout",
+  "version": "1.0",
+  "summary": "The town as it was before: the sheriff's office, Friday football, the church and the feed store co-op.",
+  "credit": "Ensemble (an example pack to copy)",
+  "license": "PolyForm Noncommercial 1.0.0",
+  "loreTopics": { "farming": ["farmer", "farmers", "harvest", "cattle", "grain", "tractor", "co-op"] },
+  "lore": [
+    "town-life",
+    {
+      "id": "sheriffs-office",
+      "title": "The sheriff's office",
+      "level": "region",
+      "ref": "main-street",
+      "topics": ["law", "crime"],
+      "keywords": ["sheriff", "deputy", "deputies", "jail", "holding cell"],
+      "text": "The county sheriff worked out of the courthouse basement with three deputies, two holding cells and one cruiser that started reliably. Most calls were stray cattle, bar fights and teenagers on the grain elevator. The gun locker sits behind a steel door at the foot of the basement stairs, and the key ring hung on a nail in the sheriff's office."
+    }
+  ],
+  "timeline": [
+    {
+      "id": "game-called-off",
+      "when": { "day": 2, "hour": 19 },
+      "scope": "regional",
+      "region": "town",
+      "text": "The Friday game against Ridge was called off; the stadium lights stayed dark for the first time anyone could remember.",
+      "visibility": "heard"
+    }
+  ]
+}

@@ -213,6 +213,7 @@ Task 5-1, `js/lore.js`. Lore entries (format: `docs/WORLDS.md` › Lore) let a b
 - **Cache**: the selection never touches the header, so the header stays identical for every call in a turn whatever the player types (tested).
 - **Lore is public.** The narrator sees it, so `validateWorld` refuses an entry that shares 4+ content words with someone's secret (pool or start cast). Future events belong in the canon timeline.
 - **Debug**: each turn report lists the entries each call included and why (`Lore.collector`, filled by the `lore` block while a report is open), and "Copy turn report" includes them.
+- **Lore packs** (task 5-7, `js/packs.js`): `Packs.read` turns a pack folder's files into a pack, `Packs.check` checks it against the world it names (the same checks as the world's lore and timeline, plus the world's id and the replace rule), and `Packs.apply` layers chosen packs onto a composed scenario at New game (ids `<pack>:<id>`, entries marked `pack`, topics merged, `scenario.packs`). Selection sees one lorebook; `Lore.select` adds `(from the pack "…")` to a pack entry's why. Nothing per turn changes: a pack is data in the scenario, and the header only holds its always-on entries like the world's.
 - **Creator**: renaming a region moves its lore entries' `ref` (inline or in `lore/` files); deleting it turns them into topics, keeping the text.
 
 ## Secrets

@@ -32,6 +32,7 @@ try { window.EnsembleAppearance((JSON.parse(localStorage.getItem('ensemble.setti
       <select id="startSelect" class="hidden" title="Where you start" aria-label="Start"></select>
       <select id="whoSelect" class="hidden" title="Who you play" aria-label="Who you play"></select>
     </div>
+    <button id="btnPacks" class="hidden" title="Add-on lore for this world, from the packs/ folder">Lore packs</button>
     <button id="btnNew">New game</button>
     <label class="btn desktop-only" title="Load worlds from disk (pick one world folder or the whole scenarios folder)">Open folder<input type="file" id="folderInput" webkitdirectory directory multiple hidden></label>
   </div>
@@ -106,6 +107,15 @@ try { window.EnsembleAppearance((JSON.parse(localStorage.getItem('ensemble.setti
     <button value="local" class="choice"><b>KoboldCpp on this computer</b><span>Free and private, but needs a capable graphics card.</span><span id="setupLocal" class="small"></span></button>
     <button value="hybrid" class="choice"><b>Both</b><span>The hosted model plays the characters and narrates; KoboldCpp keeps the records.</span></button>
     <div class="row end"><button value="skip" class="ghost">Decide later</button></div>
+  </form>
+</dialog>
+
+<dialog id="packDialog" aria-labelledby="packTitle">
+  <form method="dialog" class="settings packs">
+    <h3 id="packTitle">Lore packs</h3>
+    <div class="muted small">Add-on lore made for this world. The ones you tick are added at New game, in the order you ticked them; a game keeps the packs it started with.</div>
+    <ul id="packList" class="pack-list"></ul>
+    <div class="row end"><button value="close">Done</button></div>
   </form>
 </dialog>
 
@@ -233,6 +243,7 @@ try { window.EnsembleAppearance((JSON.parse(localStorage.getItem('ensemble.setti
 <script src="js/prompts.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/scenario.js"></script>
+<script src="js/packs.js"></script>
 <script src="js/charmaker.js"></script>
 <script src="js/startgen.js"></script>
 <script src="js/sites.js"></script>

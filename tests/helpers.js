@@ -5,7 +5,7 @@ const path = require('path');
 const vm = require('vm');
 
 const ROOT = path.join(__dirname, '..');
-const ENGINE_FILES = ['util', 'llm', 'recorder', 'memory', 'lore', 'timeline', 'genres', 'prompts', 'engine', 'scenario', 'charmaker', 'startgen', 'sites', 'geo', 'layouts', 'sitedraw', 'mapdraw', 'zip', 'cards', 'mapedit', 'loreedit', 'worldedit', 'siteedit', 'research'];
+const ENGINE_FILES = ['util', 'llm', 'recorder', 'memory', 'lore', 'timeline', 'genres', 'prompts', 'engine', 'scenario', 'packs', 'charmaker', 'startgen', 'sites', 'geo', 'layouts', 'sitedraw', 'mapdraw', 'zip', 'cards', 'mapedit', 'loreedit', 'worldedit', 'siteedit', 'research'];
 
 // extraGlobals lets a test provide browser objects such as localStorage.
 function loadEngine(extraGlobals = {}) {
@@ -49,6 +49,21 @@ function loadLibrary(E, dir = path.join(ROOT, 'library')) {
   (index.sites || []).forEach((e) => { try { maps[e.id] = read(`sites/${e.id}.json`); } catch (err) { /* reported as missing */ } });
   E.Scenario.library = Object.assign(E.Scenario.buildLibrary(index, maps), { assets: {} });
   return E.Scenario.library;
+}
+
+// A lore pack folder's files (task 5-7): pack.json and the lore/ files it
+// lists, as { relative path: parsed JSON }. A name is under packs/.
+function packFiles(folder) {
+  const dir = path.isAbsolute(folder) ? folder : path.join(ROOT, 'packs', folder);
+  const read = (rel) => JSON.parse(fs.readFileSync(path.join(dir, rel), 'utf8'));
+  const files = { 'pack.json': read('pack.json') };
+  (files['pack.json'].lore || []).filter((x) => typeof x === 'string').forEach((id) => { const rel = `lore/${id}.json`; if (fs.existsSync(path.join(dir, rel))) files[rel] = read(rel); });
+  return files;
+}
+// The packs listed in packs/index.json, read (Packs.read).
+function readPacks(E) {
+  const index = JSON.parse(fs.readFileSync(path.join(ROOT, 'packs', 'index.json'), 'utf8'));
+  return (index.packs || []).map((f) => (typeof f === 'string' ? f : f.folder)).map((f) => E.Packs.read(f, packFiles(f)));
 }
 
 // The flat scenario, not yet validated: a legacy folder's scenario.json as it
@@ -102,4 +117,4 @@ function fixedRng(E, values) {
   E.rng = () => values[Math.min(i++, values.length - 1)];
 }
 
-module.exports = { ROOT, loadEngine, loadLibrary, worldFiles, readWorld, readScenario, scenarioFolders, newGame, mockLLM, fixedRng };
+module.exports = { ROOT, loadEngine, loadLibrary, packFiles, readPacks, worldFiles, readWorld, readScenario, scenarioFolders, newGame, mockLLM, fixedRng };

@@ -111,6 +111,63 @@
       ? `<br><span class="fail">This start can't be played: ${esc(st.error)}</span>`
       : summary ? `<br>${w.starts.length > 1 ? `<b>${esc(st.title)}:</b> ` : ''}${esc(summary)}` : '';
     $('pickInfo').innerHTML = `<b>${esc(w.title)}</b>${w.summary ? ' · ' + esc(w.summary) : ''}${tags}${start}`;
+    renderPackButton();
+  }
+
+  // ---------- lore packs (task 5-7) ----------
+  // Every pack found (packs/ on the server, or a picked folder), and the ones
+  // ticked per world, in the order ticked (kept in the browser).
+  let allPacks = [];
+  const PACKS_KEY = 'ensemble.packs';
+  const tickedPacks = (worldId) => { try { return (JSON.parse(store.get(PACKS_KEY)) || {})[worldId] || []; } catch (e) { return []; } };
+  function setTicked(worldId, ids) {
+    let all = {};
+    try { all = JSON.parse(store.get(PACKS_KEY)) || {}; } catch (e) { /* start over */ }
+    all[worldId] = ids;
+    store.set(PACKS_KEY, JSON.stringify(all));
+  }
+  // The packs for a loaded world, checked: [{ pack, problems, warnings }].
+  const packsFor = (w) => (w && !w.error ? E.Packs.forWorld(allPacks, w) : []);
+  // The ticked packs that pass their checks, in the order ticked.
+  function chosenPacks(w) {
+    const ok = packsFor(w).filter((x) => !x.problems.length);
+    return tickedPacks(w.id).map((id) => ok.find((x) => x.pack.id === id)).filter(Boolean).map((x) => x.pack);
+  }
+  function renderPackButton() {
+    const w = loaded.get($('scenarioSelect').value);
+    const list = packsFor(w);
+    const on = w ? chosenPacks(w).length : 0;
+    $('btnPacks').classList.toggle('hidden', !list.length);
+    $('btnPacks').textContent = on ? `Lore packs (${on})` : 'Lore packs';
+  }
+  function renderPackList() {
+    const w = loaded.get($('scenarioSelect').value);
+    const ticked = w ? tickedPacks(w.id) : [];
+    $('packList').innerHTML = packsFor(w).map(({ pack, problems }) => {
+      const order = ticked.indexOf(pack.id);
+      return `<li><label class="web-toggle"><input type="checkbox" data-pack="${esc(pack.id)}"${order >= 0 && !problems.length ? ' checked' : ''}${problems.length ? ' disabled' : ''}> <b>${esc(pack.title)}</b>${pack.version ? ` <span class="muted small">v${esc(pack.version)}</span>` : ''}${order >= 0 && !problems.length ? ` <span class="tag">${order + 1}</span>` : ''}</label>` +
+        (pack.summary ? `<div class="small">${esc(pack.summary)}</div>` : '') +
+        `<div class="muted small">${pack.entries.length} entr${pack.entries.length === 1 ? 'y' : 'ies'}${pack.timeline.length ? `, ${pack.timeline.length} event${pack.timeline.length === 1 ? '' : 's'}` : ''} · by ${esc(pack.credit)} · ${esc(pack.license)}</div>` +
+        (problems.length ? `<div class="fail small">Can't be used: ${esc(problems.join('; '))}</div>` : '') + '</li>';
+    }).join('') || '<li class="muted">No packs for this world.</li>';
+  }
+  $('btnPacks').addEventListener('click', () => { renderPackList(); $('packDialog').showModal(); });
+  $('packList').addEventListener('change', (ev) => {
+    const w = loaded.get($('scenarioSelect').value);
+    const id = ev.target.dataset.pack;
+    if (!w || !id) return;
+    const now = tickedPacks(w.id).filter((x) => x !== id);
+    setTicked(w.id, ev.target.checked ? now.concat(id) : now);
+    renderPackList();
+    renderPackButton();
+  });
+  // A new game's scenario with the ticked packs layered on (checked again
+  // with the scenario), or as it was if that fails (the reason in an alert).
+  function withPacks(world, scenario) {
+    const packs = chosenPacks(world);
+    if (!packs.length) return scenario;
+    try { return E.Scenario.validate(E.Packs.apply(scenario, packs)); }
+    catch (e) { alert(`The lore packs couldn't be added, so this game starts without them:\n\n${e.message}`); return scenario; }
   }
 
   // The summary line shows while picking and folds away once a game is running.
@@ -130,6 +187,7 @@
     catch (e) { addScenarioOption('', '— no scenarios/index.json —', true); return; }
     const worlds = await Promise.all(list.map((s) => E.Scenario.loadWorldServer(s.folder)
       .catch((e) => ({ folder: s.folder, title: s.title, error: e.message }))));
+    allPacks = await E.Packs.listServer();
     // Options appear once every world is loaded, in index.json order.
     worlds.forEach((w, i) => { loaded.set('server:' + list[i].folder, w); addScenarioOption('server:' + list[i].folder, worldLabel(w)); });
     const pick = rememberedPick();
@@ -159,6 +217,18 @@
       alert(`Added ${Object.keys(lib.maps).length} site map${Object.keys(lib.maps).length === 1 ? '' : 's'} to the library.${lib.errors.length ? `\n\nSkipped:\n${lib.errors.join('\n')}` : ''}`);
       ev.target.value = '';
       return;
+    }
+    // Lore packs in the folder (task 5-7) join the ones found; a folder of
+    // packs alone is fine.
+    const found = await E.Packs.readFolderFiles(ev.target.files);
+    if (found.length) {
+      allPacks = allPacks.filter((p) => !found.some((f) => f.id === p.id)).concat(found);
+      renderPackButton();
+      if (!Array.from(ev.target.files).some((f) => /(^|\/)(world|scenario)\.json$/.test(f.webkitRelativePath || f.name))) {
+        alert(`Found ${found.length} lore pack${found.length === 1 ? '' : 's'}: ${found.map((p) => p.title).join(', ')}. Pick their world, then Lore packs to turn them on.`);
+        ev.target.value = '';
+        return;
+      }
     }
     try {
       const { worlds, errors } = await E.Scenario.loadFromFiles(ev.target.files);
@@ -198,6 +268,8 @@
 
   // A fresh game from a scenario, with the page reset for it.
   function beginGame(world, scenario) {
+    // Lore packs (task 5-7): every new game goes through here.
+    scenario = withPacks(world, scenario);
     state = E.Engine.newGame(scenario);
     restoreView();
     rememberPick();
@@ -210,6 +282,7 @@
     stopRecording();
     notes.length = 0;
     if (world.warnings.length) notes.push({ kind: 'world', summary: `${world.warnings.length} unknown field${world.warnings.length === 1 ? '' : 's'} ignored in "${world.title}"`, detail: world.warnings.join('\n') });
+    if ((scenario.packs || []).length) notes.push({ kind: 'packs', summary: `lore packs: ${scenario.packs.map((p) => p.title).join(', ')}`, detail: scenario.packs.map((p) => `${p.title}${p.version ? ` v${p.version}` : ''} (${p.id})${p.credit ? `, by ${p.credit}` : ''}`).join('\n') });
     if (scenario.madePlayer) notes.push({ kind: 'character', summary: `you made ${state.characters[state.player].name}`, detail: JSON.stringify(E.CharMaker.toFile(state.characters[state.player]), null, 1) });
     autosave();
   }

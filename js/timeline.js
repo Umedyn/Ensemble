@@ -286,7 +286,7 @@
       if (!isObj(ev)) return problems.push(`${where}: each timeline event must be {id, when, scope, text}`);
       const at = `${where}: timeline "${ev.id || '?'}"`;
       const req = (cond, msg) => { if (!cond) problems.push(`${at}: ${msg}`); };
-      req(typeof ev.id === 'string' && /^[a-z0-9][a-z0-9_-]*$/.test(ev.id), '"id" must be lowercase letters, digits, - or _');
+      req(typeof ev.id === 'string' && /^([a-z0-9][a-z0-9_-]*:)?[a-z0-9][a-z0-9_-]*$/.test(ev.id), '"id" must be lowercase letters, digits, - or _');
       if (seen.has(ev.id)) problems.push(`${at} is listed twice`);
       seen.add(ev.id);
       const w = ev.when;

@@ -48,7 +48,72 @@
     startFiles(files).forEach(([path, s]) => (Array.isArray(s.lore) ? s.lore : []).forEach((e, i) => { if (isObj(e)) out.push({ entry: e, file: path, index: i }); }));
     return out;
   };
-  LE.findLore = (files, id) => LE.loreItems(files).find((x) => x.entry.id === id) || null;
+  // A pack's entry is found by "<pack>:<id>", as the game names it (task 5-7).
+  LE.findLore = (files, id) => {
+    const i = String(id || '').indexOf(':');
+    if (i > 0) return LE.packItems(files, id.slice(0, i)).find((x) => x.entry.id === id.slice(i + 1)) || null;
+    return LE.loreItems(files).find((x) => x.entry.id === id) || null;
+  };
+
+  // ---------- lore packs (task 5-7) ----------
+  // A pack being edited sits in the working copy as packs/<id>/pack.json and
+  // packs/<id>/lore/<file>.json; the world's checks and its export leave
+  // packs/ out, and the pack exports on its own.
+  LE.packIds = (files) => Object.keys(files).map((p) => /^packs\/([^/]+)\/pack\.json$/.exec(p)).filter(Boolean).map((m) => m[1]);
+  LE.worldFiles = (files) => Object.fromEntries(Object.entries(files).filter(([p]) => !p.startsWith('packs/')));
+  // A pack's own files, by their path inside the pack folder.
+  LE.packFiles = (files, pid) => Object.fromEntries(Object.entries(files).filter(([p]) => p.startsWith(`packs/${pid}/`)).map(([p, j]) => [p.slice(`packs/${pid}/`.length), j]));
+  // Its entries with where they are stored, like loreItems, plus the key the
+  // editor selects them by.
+  LE.packItems = function (files, pid) {
+    const p = files[`packs/${pid}/pack.json`];
+    const out = [];
+    if (!isObj(p)) return out;
+    const push = (entry, file, index) => out.push({ entry, file, index, pack: pid, key: `${pid}:${entry.id}` });
+    (Array.isArray(p.lore) ? p.lore : []).forEach((item, i) => {
+      if (isObj(item)) return push(item, `packs/${pid}/pack.json`, i);
+      const path = `packs/${pid}/lore/${item}.json`;
+      const f = files[path];
+      if (Array.isArray(f)) f.forEach((e, j) => { if (isObj(e)) push(e, path, j); });
+      else if (isObj(f)) { if (f.id == null) f.id = item; push(f, path, null); }
+    });
+    return out;
+  };
+  // A new pack for this world, or an imported one ({ folder, files } from
+  // Packs.fromZip), put in the working copy. Returns its id.
+  LE.addPack = function (files, title, worldId) {
+    const id = E.MapEdit.slug(title || 'new pack', LE.packIds(files));
+    files[`packs/${id}/pack.json`] = { format: 1, id, title: title || 'New pack', world: worldId || world(files).id || '', version: '1.0', summary: '', credit: '', license: '', lore: [] };
+    return id;
+  };
+  LE.importPack = function (files, z) {
+    const id = (isObj(z.files['pack.json']) && z.files['pack.json'].id) || z.folder;
+    LE.removePack(files, id);
+    Object.entries(z.files).forEach(([rel, j]) => { files[`packs/${id}/${rel}`] = j; });
+    return id;
+  };
+  LE.removePack = function (files, pid) {
+    Object.keys(files).filter((p) => p.startsWith(`packs/${pid}/`)).forEach((p) => { delete files[p]; });
+  };
+  // A new entry, inline in the pack's pack.json. Returns its key.
+  LE.addPackLore = function (files, pid, level, ref) {
+    const p = files[`packs/${pid}/pack.json`];
+    const id = E.MapEdit.slug('new entry', LE.packItems(files, pid).map((x) => x.entry.id));
+    const e = { id, title: 'New entry', level: level || 'topic', keywords: [], text: 'What everyone here knows about it.' };
+    if (E.Lore.REF_LEVELS.includes(e.level)) e.ref = ref;
+    p.lore = (Array.isArray(p.lore) ? p.lore : []).concat([e]);
+    return `${pid}:${id}`;
+  };
+  // The pack as the game would read it, checked against the world being
+  // edited → { pack, problems, warnings }.
+  LE.packCheck = function (files, folder, pid) {
+    const pack = E.Packs.read(pid, LE.packFiles(files, pid));
+    try {
+      return Object.assign({ pack }, E.Packs.check(pack, E.Scenario.prepareWorld(folder, JSON.parse(JSON.stringify(LE.worldFiles(files))))));
+    } catch (err) {
+      return { pack, problems: pack.problems.concat(`pack "${pid}" can't be checked until the world loads`), warnings: [] };
+    }
+  };
 
   // Entries grouped for the list: the world, each region, room and person
   // (refs the world doesn't have are grouped as unknown), then topics.
@@ -83,6 +148,17 @@
   LE.removeLore = function (files, id) {
     const it = LE.findLore(files, id);
     if (!it) return false;
+    if (it.pack) {
+      const p = files[`packs/${it.pack}/pack.json`];
+      if (it.file.endsWith('/pack.json')) p.lore.splice(it.index, 1);
+      else if (it.index != null) files[it.file].splice(it.index, 1);
+      else {
+        delete files[it.file];
+        const fid = it.file.replace(/^.*\/lore\/|\.json$/g, '');
+        p.lore = p.lore.filter((x) => x !== fid);
+      }
+      return true;
+    }
     if (it.file === 'world.json') world(files).lore.splice(it.index, 1);
     else if (it.file.startsWith('starts/')) files[it.file].lore.splice(it.index, 1);
     else if (it.index != null) files[it.file].splice(it.index, 1);
@@ -113,9 +189,12 @@
   };
   // Topic tags (task 5-5): the built-in ones and the world's own (and any a
   // start adds), for the tag picker.
-  LE.topics = function (files) {
+  // pid: a pack being edited (task 5-7), whose own topics count too.
+  LE.topics = function (files, pid) {
     const out = E.Lore.topicIds(world(files));
     startFiles(files).forEach(([, s]) => E.Lore.topicIds(s).forEach((t) => { if (!out.includes(t)) out.push(t); }));
+    const p = pid && files[`packs/${pid}/pack.json`];
+    if (p) Object.keys(isObj(p.loreTopics) ? p.loreTopics : {}).forEach((t) => { if (!out.includes(t)) out.push(t); });
     return out;
   };
   // On or off; a fifth tag is refused (→ false) so the entry stays valid.
@@ -131,11 +210,12 @@
   // A new topic of the world's own: a short lowercase tag and the words that
   // bring it up ("mining: miner, ore"), added to world.json's loreTopics. →
   // the tag, or null when the text has none.
-  LE.addTopic = function (files, text) {
+  // pid: added to that pack's loreTopics instead (task 5-7).
+  LE.addTopic = function (files, text, pid) {
     const [name, rest] = String(text || '').split(':');
     const id = String(name || '').trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^[^a-z]+|-+$/g, '').slice(0, 24);
     if (!id) return null;
-    const w = world(files);
+    const w = (pid && files[`packs/${pid}/pack.json`]) || world(files);
     w.loreTopics = isObj(w.loreTopics) ? w.loreTopics : {};
     const words = (rest || '').split(',').map((k) => k.trim().slice(0, E.Lore.LIMITS.keyword)).filter(Boolean);
     w.loreTopics[id] = [...new Set((w.loreTopics[id] || []).concat(words))].slice(0, E.Lore.LIMITS.topicWords);
@@ -147,11 +227,14 @@
   LE.testSelection = function (files, folder, opts) {
     const o = opts || {};
     try {
-      const loaded = E.Scenario.prepareWorld(folder, JSON.parse(JSON.stringify(files)));
+      const loaded = E.Scenario.prepareWorld(folder, JSON.parse(JSON.stringify(LE.worldFiles(files))));
       const st = loaded.starts.find((s) => s.id === o.startId) || loaded.starts[0];
       if (!st) return { error: 'The world has no start to test with.' };
       if (st.error) return { error: `That start has problems: ${st.error.split('\n- ').slice(1).join('; ') || st.error}` };
-      let sc = JSON.parse(JSON.stringify(st.scenario));
+      // The packs being edited are in, when they pass their checks (task 5-7).
+      const packs = LE.packIds(files).map((pid) => E.Packs.read(pid, JSON.parse(JSON.stringify(LE.packFiles(files, pid)))))
+        .filter((p) => !E.Packs.check(p, loaded).problems.length);
+      let sc = E.Packs.apply(st.scenario, packs);
       if (sc.player == null) sc = E.CharMaker.withPlayer(sc, E.CharMaker.sample(sc));
       const state = E.Engine.newGame(sc);
       if (o.room && state.locations[o.room]) state.characters[state.player].status.location = o.room;

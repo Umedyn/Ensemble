@@ -20,7 +20,7 @@ for (const page of ['index.html', 'creator.html']) {
     if (!fs.existsSync(path.join(root, m[1]))) { failed++; console.error(`✕ ${page} loads ${m[1]}, which doesn't exist`); }
   }
 }
-const { readWorld, scenarioFolders, loadEngine, loadLibrary } = require(path.join(root, 'tests', 'helpers.js'));
+const { readWorld, scenarioFolders, loadEngine, loadLibrary, readPacks } = require(path.join(root, 'tests', 'helpers.js'));
 // The shared site map library (task 6-3): every map valid, its image there,
 // and its index entry in step with it.
 const E = loadEngine();
@@ -60,5 +60,19 @@ for (const folder of scenarioFolders()) {
   } catch (e) { failed++; console.error(`✕ ${folder}: ${e.message}`); }
   if (!listed.has(folder)) { failed++; console.error(`✕ ${folder} is not listed in scenarios/index.json`); }
 }
+// Lore packs (task 5-7): every listed pack checked against the world it names.
+try {
+  const listedPacks = readPacks(E);
+  const folders = fs.existsSync(path.join(root, 'packs')) ? fs.readdirSync(path.join(root, 'packs'), { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name) : [];
+  folders.filter((f) => !listedPacks.some((p) => p.folder === f)).forEach((f) => { failed++; console.error(`✕ packs/${f} is not listed in packs/index.json`); });
+  for (const pack of listedPacks) {
+    let loaded = null;
+    try { loaded = scenarioFolders().map((f) => readWorld(f, E)).find((w) => w.id === pack.world); } catch (e) { /* worlds are reported above */ }
+    const r = loaded ? E.Packs.check(pack, loaded) : { problems: pack.problems.concat(`pack "${pack.id}" is for "${pack.world}", which isn't a bundled world`), warnings: [] };
+    r.warnings.forEach((msg) => console.warn(`! ${msg}`));
+    r.problems.forEach((msg) => { failed++; console.error(`✕ ${msg}`); });
+    if (!r.problems.length) console.log(`✓ pack ${pack.id} (${pack.entries.length} entries, for ${pack.world})`);
+  }
+} catch (e) { failed++; console.error(`✕ packs: ${e.message}`); }
 if (failed) { console.error(`${failed} problem(s)`); process.exit(1); }
 console.log('✓ all scripts parse');

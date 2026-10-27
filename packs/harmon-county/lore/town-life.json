@@ -1,0 +1,29 @@
+[
+  {
+    "id": "friday-football",
+    "title": "Friday football",
+    "level": "region",
+    "ref": "town",
+    "topics": ["sport", "school"],
+    "keywords": ["football", "Harmon Consolidated", "the Hornets", "stadium", "high school"],
+    "text": "Harmon Consolidated High drew from three towns, and on Friday nights in the fall half the county sat in the bleachers to watch the Hornets. The rivalry with Ridge went back generations: fights in the parking lot, a stolen mascot, a trophy the two schools passed back and forth. The stadium sits at the edge of town past the houses, its lights visible for miles."
+  },
+  {
+    "id": "first-baptist",
+    "title": "First Baptist",
+    "level": "region",
+    "ref": "main-street",
+    "topics": ["religion", "family"],
+    "keywords": ["First Baptist", "Baptist", "pastor", "potluck", "congregation"],
+    "text": "First Baptist faces the courthouse lawn, white clapboard with a squat steeple. Its pastor knew every family by name and kept a pantry in the fellowship hall for anyone short at the end of the month. Wednesday potlucks were where the town traded news, casseroles and grudges; the folding tables are still stacked against the hall's back wall."
+  },
+  {
+    "id": "feed-store-coop",
+    "title": "The feed store co-op",
+    "level": "region",
+    "ref": "highway-strip",
+    "topics": ["farming", "business"],
+    "keywords": ["feed store", "co-op", "seed", "fencing"],
+    "text": "The feed store on the strip was a farmers' co-op: members bought seed, fencing, veterinary supplies and diesel on account and settled up after harvest. The back warehouse held pallets of feed and fertilizer, and the yard kept a fuel tank for members' tractors. Everyone in the county knew the combination to the side gate, because it hadn't changed in twenty years."
+  }
+]

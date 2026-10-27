@@ -457,6 +457,35 @@ Task 5-1. A lore entry is public world knowledge, chosen per turn so a big world
 
 `mars-station` keeps its entries inline in `world.json`; `zombie-holdout` keeps them in `lore/town.json` and `lore/store.json` (packets) and lists `"lore": ["town", "store"]`, with a topic of its own (`scavenging`) and a world entry on the roads that its driver gets by topic.
 
+## Lore packs
+
+Task 5-7. A lore pack adds lore (and optionally timeline events and topics) to one world without changing it: "Tokyo school life", "Silicon Valley startups", or `packs/harmon-county` for the holdout. Packs live in the shared `packs/` folder, each in `packs/<id>/`, listed in `packs/index.json` (`{"packs": ["harmon-county"]}`), like `library/`. Open folder in the game also finds packs in a picked folder.
+
+```json
+{ "format": 1, "id": "harmon-county", "title": "Harmon County life", "world": "zombie-holdout", "version": "1.0",
+  "summary": "The town as it was before.", "credit": "Who made it", "license": "CC BY 4.0",
+  "loreTopics": { "farming": ["farmer", "harvest", "co-op"] },
+  "lore": ["town-life", { "id": "sheriffs-office", "title": "The sheriff's office", "level": "region", "ref": "main-street", "text": "..." }],
+  "timeline": [{ "id": "game-called-off", "when": { "day": 2, "hour": 19 }, "scope": "regional", "region": "town", "text": "..." }] }
+```
+
+| field | notes |
+|---|---|
+| `id` | lowercase letters, digits, `-` or `_`; the pack's folder name |
+| `title`, `summary` | shown in the picker (80 and 300 characters) |
+| `world` | the id of the world it adds to; a pack for another world is refused |
+| `version` | optional short text |
+| `credit`, `license` | required: who made it and the license it is shared under |
+| `lore` | entries in the world format ([Lore](#lore)), inline or the ids of files in the pack's own `lore/` (one entry or a list) |
+| `timeline` | optional events in the world format ([Canon timeline](#canon-timeline)) |
+| `loreTopics` | optional topics of its own, merged with the world's |
+
+- **Checked against its world**, like the world's own lore: shapes, topics, regions, rooms and people the world has (a room no start has is a warning), no one's secret, and its timeline events.
+- **Ids are namespaced**: the game names a pack's entries and events `<pack>:<id>`, so they never clash with the world's or another pack's (a pack's own `known` preconditions follow).
+- **A pack only adds.** An entry with `"replaces": "<world entry id>"` takes that entry's place only when the world says `"lorePacks": {"replace": true}` in `world.json`; otherwise it is refused.
+- **Turned on in the game**: **Lore packs** next to the pickers (shown when the world has packs) ticks them, remembered per world in the browser. At New game they are layered over the world's lore in the order ticked, and the game's scenario (and so its saves) keeps them, with `scenario.packs` naming them. Debug's "why" names the pack an entry came from.
+- **In the creator**: the Lore tab's Lore packs section makes a pack or imports a pack zip, edits its details and entries in the same form as the world's, includes it in the test box, and exports only the pack's folder as a zip. The world's export never includes packs.
+
 ## Canon timeline
 
 Task 5-2. Events that happen at a set time whatever the player does, unless the story has broken them (how they play: `docs/DESIGN.md` › Canon timeline).

@@ -144,7 +144,7 @@
   // Runs the game's own checks on the working copy: the world, then every
   // start composed. Returns { problems: [text], warnings: [text] }.
   function check() {
-    const files = JSON.parse(JSON.stringify(cw.files));
+    const files = JSON.parse(JSON.stringify(LE.worldFiles(cw.files)));
     const out = { problems: [], warnings: [] };
     const split = (msg) => String(msg).split('\n- ').slice(1).map((s) => s.trim()).filter(Boolean);
     try {
@@ -157,6 +157,12 @@
     } catch (err) {
       out.problems = split(err.message).length ? split(err.message) : [err.message];
     }
+    // Lore packs being edited (task 5-7), against this world.
+    LE.packIds(cw.files).forEach((pid) => {
+      const r = LE.packCheck(cw.files, cw.folder, pid);
+      out.problems.push(...r.problems);
+      out.warnings.push(...r.warnings);
+    });
     return out;
   }
   function renderValidation() {
@@ -180,6 +186,7 @@
         r.warnings.filter((p) => p.includes(key)).map((p) => `<div class="muted small">${esc(p)}</div>`).join('');
     };
     if (lui.sel) own($('cLoreProblems'), `lore "${lui.sel}"`);
+    if (ui.tab === 'lore') refreshPackStatus();
     if (tui.sel) own($('cEventProblems'), `timeline "${tui.sel}"`);
     if (sui.sel) own($('cStartProblems'), `start "${sui.sel}"`);
     if (cui.sel) own($('cCharProblems'), `character "${cui.sel}"`);
@@ -849,6 +856,10 @@
         <p class="muted small">Lore is public knowledge: the narrator may use any of it. Secrets go in a character's secret, and things that haven't happened yet go in the timeline. Each turn the game includes the entries for the player's room, region and the people there, plus any whose keywords the player or the last scene uses, best first within about a tenth of the context.</p>
         <div id="cLoreDrafts"></div>
         <div id="cLoreList" class="c-groups"></div>
+        <section class="c-packs"><h3>Lore packs</h3>
+          <p class="muted small">Add-on lore for this world that anyone can make and share without changing the world (players turn packs on in the game's start picker). A pack only adds entries; it's exported on its own, never with the world.</p>
+          <div id="cPackList" class="c-groups"></div>
+          <p class="small"><button type="button" id="cNewPack" class="small">+ New pack</button> <label class="btn small">Import pack zip<input type="file" id="cPackZip" accept=".zip,application/zip" hidden></label></p></section>
         <section class="c-test"><h3>Test the selection</h3>${loreTestForm()}<div id="cLoreTest" aria-live="polite"></div></section>
       </div>
       <aside class="c-panel" id="cLoreForm">${loreForm()}</aside>
@@ -859,7 +870,39 @@
     const d = $(id);
     if (d) d.innerHTML = n ? `<div class="c-draft-note"><b>${n} draft ${what}</b> from the research helper or an imported packet. The game uses none of them until you accept them: read each one first. <button type="button" id="${button}" class="small">Accept all</button></div>` : '';
   }
+  // Lore packs being edited (task 5-7): their details, entries and problems.
+  function renderPackList() {
+    const el = $('cPackList');
+    if (!el) return;
+    el.innerHTML = LE.packIds(cw.files).map((pid) => {
+      const p = cw.files[`packs/${pid}/pack.json`];
+      const r = LE.packCheck(cw.files, cw.folder, pid);
+      const field = (k, label, max) => `<label>${label}<input data-pf="${esc(pid)}|${k}" value="${esc(p[k] || '')}" maxlength="${max}"></label>`;
+      return `<section class="c-group" data-pack="${esc(pid)}">
+        <h4><span data-packtitle="${esc(pid)}">${esc(p.title || pid)}</span> <span class="muted small">pack ${esc(pid)} · for ${esc(p.world || '?')}</span>
+          <button type="button" class="small" data-packadd="${esc(pid)}" aria-label="Add an entry to ${esc(p.title || pid)}">+ entry</button>
+          <button type="button" class="small" data-packexport="${esc(pid)}">Export pack</button>
+          <button type="button" class="small danger" data-packdrop="${esc(pid)}">${lui.dropPack === pid ? 'Click again to remove' : 'Remove'}</button></h4>
+        <div class="c-pack-fields">${field('title', 'Title', 80)}${field('version', 'Version', 20)}${field('credit', 'Made by', 200)}${field('license', 'License', 80)}${field('summary', 'Summary', 300)}</div>
+        ${LE.packItems(cw.files, pid).map((it) => `<button type="button" class="c-item" data-loresel="${esc(it.key)}" aria-pressed="${it.key === lui.sel}">${esc(it.entry.title || it.entry.id)}${it.entry.replaces ? ` <span class="muted small">replaces ${esc(it.entry.replaces)}</span>` : ''}</button>`).join('') || '<div class="muted small">No entries.</div>'}
+        <div data-packstatus="${esc(pid)}">${packStatus(r)}</div>
+      </section>`;
+    }).join('') || '<div class="muted small">No packs open. Make one, or import a pack zip.</div>';
+  }
+  const packStatus = (r) => (r.problems.length ? `<div class="bad small">${r.problems.length} problem${r.problems.length === 1 ? '' : 's'}: the game won't offer this pack until they're fixed (see below).</div>` : '<div class="good small">Ready to share.</div>');
+  // After an edit to a pack's details: its title and status, in place, so the
+  // field being typed in isn't rebuilt.
+  function refreshPackStatus() {
+    document.querySelectorAll('[data-packstatus]').forEach((el) => {
+      const pid = el.dataset.packstatus;
+      if (!cw.files[`packs/${pid}/pack.json`]) return;
+      el.innerHTML = packStatus(LE.packCheck(cw.files, cw.folder, pid));
+      const t = document.querySelector(`[data-packtitle="${pid}"]`);
+      if (t) t.textContent = cw.files[`packs/${pid}/pack.json`].title || pid;
+    });
+  }
   function renderLoreList() {
+    renderPackList();
     const el = $('cLoreList');
     if (!el) return;
     const nd = LE.drafts(cw.files).lore.length;
@@ -897,7 +940,7 @@
         <div class="c-chips">${(e.keywords || []).map((k, i) => `<button type="button" class="chip" data-kwdel="${i}" aria-label="Remove keyword ${esc(k)}">${esc(k)} ✕</button>`).join('')}</div>
         <input id="cKwAdd" placeholder="Add keywords, then Enter (commas for several)" aria-label="Add keywords"></div>
       <div class="c-field"><span>Topics <span class="muted small">(up to ${E.Lore.LIMITS.topics}: the kinds of life it matters to; the game prefers entries that fit the player character and the scene)</span></span>
-        <div class="c-chips" role="group" aria-label="Topics">${LE.topics(cw.files).map((t) => { const on = (e.topics || []).includes(t); const full = !on && (e.topics || []).length >= E.Lore.LIMITS.topics; return `<button type="button" class="chip c-topic" data-topic="${esc(t)}" aria-pressed="${on}"${full ? ' disabled' : ''}>${esc(t)}</button>`; }).join('')}</div>
+        <div class="c-chips" role="group" aria-label="Topics">${LE.topics(cw.files, it.pack).map((t) => { const on = (e.topics || []).includes(t); const full = !on && (e.topics || []).length >= E.Lore.LIMITS.topics; return `<button type="button" class="chip c-topic" data-topic="${esc(t)}" aria-pressed="${on}"${full ? ' disabled' : ''}>${esc(t)}</button>`; }).join('')}</div>
         <input id="cTopicAdd" placeholder="Your own topic, then Enter (mining: miner, ore)" aria-label="Add a topic of this world's own"></div>
       <label>Text <span class="muted small" id="cLoreTextCount">${String(e.text || '').length}/${E.Lore.LIMITS.text} · ${words} words (40–80 works best)</span><textarea data-lf="text" rows="6" maxlength="${E.Lore.LIMITS.text}">${esc(e.text || '')}</textarea></label>
       <fieldset class="c-neigh"><legend>Sources <span class="muted small">(for you; never sent to the model)</span></legend>
@@ -941,6 +984,21 @@
     const sel = t.closest('[data-loresel]');
     if (sel) { lui.sel = sel.dataset.loresel; lui.confirm = false; return render(); }
     if (t.id === 'cAcceptAllLore') { LE.acceptAll(cw.files, 'lore'); return changed(); }
+    // Lore packs (task 5-7).
+    if (t.id === 'cNewPack') { const pid = LE.addPack(cw.files, 'New pack', world().id || cw.folder); lui.sel = LE.addPackLore(cw.files, pid, 'topic'); return changed(); }
+    const pa = t.closest('[data-packadd]');
+    if (pa) { lui.sel = LE.addPackLore(cw.files, pa.dataset.packadd, 'topic'); lui.confirm = false; return changed(); }
+    const pe = t.closest('[data-packexport]');
+    if (pe) return exportPack(pe.dataset.packexport);
+    const pd = t.closest('[data-packdrop]');
+    if (pd) {
+      const pid = pd.dataset.packdrop;
+      if (lui.dropPack !== pid) { lui.dropPack = pid; return renderPackList(); }
+      LE.removePack(cw.files, pid);
+      lui.dropPack = null;
+      if (String(lui.sel || '').startsWith(pid + ':')) lui.sel = null;
+      return changed();
+    }
     const it = lui.sel && LE.findLore(cw.files, lui.sel);
     if (!it) return;
     const e = it.entry;
@@ -969,6 +1027,12 @@
       testTimer = setTimeout(renderLoreTest, 250);
       return;
     }
+    if (t.dataset.pf) {
+      const [pid, k] = t.dataset.pf.split('|');
+      const p = cw.files[`packs/${pid}/pack.json`];
+      if (t.value.trim()) p[k] = t.value; else if (k === 'version' || k === 'summary') delete p[k]; else p[k] = '';
+      return changed([]);
+    }
     const it = lui.sel && LE.findLore(cw.files, lui.sel);
     if (!it) return;
     const e = it.entry;
@@ -988,6 +1052,7 @@
     if (!cw || ui.tab !== 'lore') return;
     const t = ev.target;
     if (t.dataset.lt) { lui.test[t.dataset.lt] = t.value; return renderLoreTest(); }
+    if (t.id === 'cPackZip') return importPack(t);
     const it = lui.sel && LE.findLore(cw.files, lui.sel);
     if (!it) return;
     const e = it.entry;
@@ -998,10 +1063,33 @@
     if (t.id === 'cKwAdd' && t.value.trim()) { LE.addKeywords(e, t.value); return changed(); }
     if (t.id === 'cTopicAdd' && t.value.trim()) { addTopic(e, t.value); return changed(); }
   });
-  // A topic of the world's own goes on the entry too (when there is room).
+  // A topic of the world's own (or the pack's, for a pack entry) goes on the
+  // entry too (when there is room).
   function addTopic(e, text) {
-    const id = LE.addTopic(cw.files, text);
+    const it = LE.findLore(cw.files, lui.sel);
+    const id = LE.addTopic(cw.files, text, it && it.pack);
     if (id && !(e.topics || []).includes(id)) LE.toggleTopic(e, id);
+  }
+  // A pack zip into the working copy (task 5-7), shown under Lore packs.
+  async function importPack(input) {
+    const f = input.files && input.files[0];
+    input.value = '';
+    if (!f) return;
+    try {
+      const z = E.Packs.fromZip(E.Zip.read(new Uint8Array(await f.arrayBuffer())), f.name.replace(/\.zip$/i, ''));
+      const pid = LE.importPack(cw.files, z);
+      const r = LE.packCheck(cw.files, cw.folder, pid);
+      banner(`Imported the pack "${esc(r.pack.title)}".${r.problems.length ? ' It has problems for this world; see below.' : ''}`, r.problems.length ? 'bad' : '');
+      changed();
+    } catch (err) { banner(`Couldn't open that pack: ${esc(err.message)}`, 'bad'); }
+  }
+  // Only the pack's folder, as a zip to share (unzip it into packs/ and list it in packs/index.json).
+  function exportPack(pid) {
+    const files = LE.packFiles(cw.files, pid);
+    const entries = Object.entries(files).sort(([a], [b]) => (a < b ? -1 : 1)).map(([path, j]) => ({ name: `${pid}/${path}`, data: E.Zip.utf8(JSON.stringify(j, null, 2) + '\n') }));
+    download(`${pid}.zip`, new Blob([E.Zip.build(entries)], { type: 'application/zip' }));
+    const r = LE.packCheck(cw.files, cw.folder, pid);
+    banner(`Exported ${esc(pid)}.zip: unzip it into packs/ and add "${esc(pid)}" to packs/index.json.${r.problems.length ? ' It still has problems the game will refuse; see below.' : ''}`, r.problems.length ? 'bad' : '');
   }
   $('cMain').addEventListener('keydown', (ev) => {
     const which = ev.target.id;
@@ -2338,7 +2426,8 @@
   }
   $('cExport').addEventListener('click', async () => {
     if (!cw) return;
-    const entries = Object.entries(cw.files).sort(([a], [b]) => (a < b ? -1 : 1)).map(([path, j]) => ({ name: `${cw.folder}/${path}`, data: E.Zip.utf8(JSON.stringify(j, null, 2) + '\n') }));
+    // Lore packs are shared on their own (Export pack), never inside the world.
+    const entries = Object.entries(LE.worldFiles(cw.files)).sort(([a], [b]) => (a < b ? -1 : 1)).map(([path, j]) => ({ name: `${cw.folder}/${path}`, data: E.Zip.utf8(JSON.stringify(j, null, 2) + '\n') }));
     const missing = [];
     for (const path of imagePaths()) {
       try {
