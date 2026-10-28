@@ -157,3 +157,37 @@ test('older saves get every room seen and everyone where they are now', () => {
   assert.deepEqual([...up.seenRooms].sort(), Object.keys(up.locations).sort());
   assert.equal(up.known.ferris.loc, 'roof');
 });
+
+// ---------- irregular rooms (task 7-2) ----------
+
+test('irregular rooms: a big room, open ground or a corridor may grow into a gap beside it, never over anything, the same every time', () => {
+  const { E, state } = newGame('seiryo-high');
+  const plan = () => plain(E.Engine.sitePlan(state, 'gate'));
+  const p = plan();
+  const grown = Object.entries(p.rooms).filter(([, r]) => r.extra);
+  assert.ok(grown.length >= 3, 'some of the school grows');
+  grown.forEach(([id]) => {
+    const l = state.locations[id];
+    assert.ok(l.size === 'large' || l.outside || E.Layouts.GROWS.test(l.name), `${id} may grow`);
+  });
+  const parts = Object.entries(p.rooms).flatMap(([id, r]) => E.Layouts.parts(r).map((x) => Object.assign({ id, level: r.level }, x)));
+  parts.forEach((a, i) => parts.slice(i + 1).forEach((b) => {
+    const hit = a.level === b.level && a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+    assert.ok(!hit, `${a.id} and ${b.id} overlap`);
+  }));
+  assert.deepEqual(plan(), p, 'seeded: the same every time');
+  // A wall shared through a room's growth is a wall: a door can sit on it.
+  const a = { x: 0, y: 0, w: 4, h: 3 }, b = { x: 6, y: 0, w: 3, h: 3 };
+  assert.ok(!E.Layouts.sharesWall(a, b));
+  assert.ok(E.Layouts.sharesWall(Object.assign({}, a, { extra: [{ x: 4, y: 0, w: 2, h: 2 }] }), b));
+});
+
+test('a room that grew is drawn as one outline, with no seam where its parts meet', () => {
+  const { E, state } = newGame('seiryo-high');
+  const plan = E.Engine.sitePlan(state, 'gate');
+  const id = Object.keys(plan.rooms).find((k) => plan.rooms[k].extra && !state.locations[k].outside);
+  const rooms = { [id]: { name: state.locations[id].name, outside: false, features: [] } };
+  const svg = E.SiteDraw.render(plan, rooms, { inView: [id], remembered: [], here: id, seed: 't' });
+  assert.match(svg, /<path class="sd-wall-inner" d="M/);
+  assert.equal((svg.match(/class="sd-floor"/g) || []).length, 1 + plan.rooms[id].extra.length, 'a floor for each part');
+});

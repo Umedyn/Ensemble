@@ -1,0 +1,1077 @@
+{
+  "id": "seiryo",
+  "name": "Seiryo High",
+  "type": "school",
+  "place": "seiryo",
+  "tags": [],
+  "setting": [
+    "modern"
+  ],
+  "credit": "Drawn for Ensemble (Seiryo High)",
+  "license": "PolyForm Noncommercial 1.0.0, with the game",
+  "image": "sites/seiryo.svg",
+  "width": 1800,
+  "height": 2140,
+  "entry": "gate",
+  "rooms": [
+    {
+      "id": "gate",
+      "name": "School gate and the cherry slope",
+      "desc": "The main gate at the top of a slope lined with cherry trees, where Vice Principal Ozaki checks uniforms every morning.",
+      "outside": true,
+      "features": [
+        "cherry trees",
+        "gate pillars",
+        "notice board"
+      ],
+      "shape": [
+        [
+          460,
+          720
+        ],
+        [
+          1360,
+          720
+        ],
+        [
+          1360,
+          900
+        ],
+        [
+          620,
+          900
+        ],
+        [
+          620,
+          960
+        ],
+        [
+          460,
+          960
+        ]
+      ],
+      "links": [
+        {
+          "to": "entrance",
+          "kind": "open"
+        },
+        {
+          "to": "field",
+          "kind": "open"
+        },
+        {
+          "to": "courtyard",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "entrance",
+      "name": "Entrance hall and shoe lockers",
+      "desc": "Rows of shoe lockers where everyone changes into indoor shoes; love letters are said to turn up in them.",
+      "features": [
+        "shoe lockers",
+        "umbrella stand",
+        "lost-and-found box"
+      ],
+      "shape": [
+        [
+          560,
+          620
+        ],
+        [
+          780,
+          620
+        ],
+        [
+          780,
+          720
+        ],
+        [
+          560,
+          720
+        ]
+      ],
+      "links": [
+        {
+          "to": "ground-hall",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "ground-hall",
+      "name": "Ground-floor corridor",
+      "desc": "The main corridor downstairs: the staff room, the principal's office, the nurse, the cafeteria, the stairs up and the walkway to the old wing.",
+      "size": "large",
+      "features": [
+        "trophy case",
+        "vending machine",
+        "notice boards"
+      ],
+      "shape": [
+        [
+          380,
+          540
+        ],
+        [
+          1000,
+          540
+        ],
+        [
+          1000,
+          620
+        ],
+        [
+          460,
+          620
+        ],
+        [
+          460,
+          700
+        ],
+        [
+          380,
+          700
+        ]
+      ],
+      "links": [
+        {
+          "to": "staff-room",
+          "kind": "door"
+        },
+        {
+          "to": "principal",
+          "kind": "door"
+        },
+        {
+          "to": "nurse",
+          "kind": "door"
+        },
+        {
+          "to": "cafeteria",
+          "kind": "open"
+        },
+        {
+          "to": "courtyard",
+          "kind": "door"
+        },
+        {
+          "to": "walkway",
+          "kind": "door"
+        },
+        {
+          "to": "hallway",
+          "kind": "stairs"
+        }
+      ]
+    },
+    {
+      "id": "staff-room",
+      "name": "Staff room",
+      "desc": "Rows of teachers' desks under piles of paper, a kettle, the smell of instant coffee.",
+      "features": [
+        "teachers' desks",
+        "kettle",
+        "key cabinet"
+      ],
+      "shape": [
+        [
+          380,
+          420
+        ],
+        [
+          600,
+          420
+        ],
+        [
+          600,
+          540
+        ],
+        [
+          380,
+          540
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "principal",
+      "name": "Principal's office",
+      "desc": "Leather sofas, portraits of past principals, a bonsai the principal talks to.",
+      "size": "small",
+      "features": [
+        "leather sofas",
+        "bonsai",
+        "portraits"
+      ],
+      "shape": [
+        [
+          600,
+          420
+        ],
+        [
+          720,
+          420
+        ],
+        [
+          720,
+          540
+        ],
+        [
+          600,
+          540
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "nurse",
+      "name": "Nurse's office",
+      "desc": "Two beds behind curtains, a desk with an old cassette player, a tin of sweets for brave patients.",
+      "size": "small",
+      "features": [
+        "curtained beds",
+        "cassette player"
+      ],
+      "shape": [
+        [
+          720,
+          420
+        ],
+        [
+          820,
+          420
+        ],
+        [
+          820,
+          540
+        ],
+        [
+          720,
+          540
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "cafeteria",
+      "name": "Cafeteria and bread stand",
+      "desc": "Long tables, a noodle counter and the bread stand where the yakisoba buns sell out in four minutes.",
+      "size": "large",
+      "features": [
+        "bread stand",
+        "noodle counter",
+        "long tables"
+      ],
+      "shape": [
+        [
+          820,
+          420
+        ],
+        [
+          900,
+          420
+        ],
+        [
+          900,
+          320
+        ],
+        [
+          1000,
+          320
+        ],
+        [
+          1000,
+          540
+        ],
+        [
+          820,
+          540
+        ]
+      ],
+      "links": [
+        {
+          "to": "courtyard",
+          "kind": "door"
+        }
+      ]
+    },
+    {
+      "id": "courtyard",
+      "name": "Courtyard",
+      "desc": "Between the main building and the gym: benches under a big zelkova tree, the flower beds the gardening club guards, lunch in good weather.",
+      "outside": true,
+      "features": [
+        "zelkova tree",
+        "benches",
+        "flower beds"
+      ],
+      "shape": [
+        [
+          1000,
+          440
+        ],
+        [
+          1360,
+          440
+        ],
+        [
+          1360,
+          720
+        ],
+        [
+          1000,
+          720
+        ]
+      ],
+      "links": [
+        {
+          "to": "gym",
+          "kind": "door"
+        },
+        {
+          "to": "behind-gym",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "hallway",
+      "name": "First-year corridor (first floor)",
+      "desc": "The long corridor of the first-year classrooms, windows over the courtyard, the stairs up and down at either end.",
+      "size": "large",
+      "level": 1,
+      "features": [
+        "club board",
+        "windows over the courtyard",
+        "water fountain"
+      ],
+      "shape": [
+        [
+          380,
+          1160
+        ],
+        [
+          1000,
+          1160
+        ],
+        [
+          1000,
+          1240
+        ],
+        [
+          460,
+          1240
+        ],
+        [
+          460,
+          1320
+        ],
+        [
+          380,
+          1320
+        ]
+      ],
+      "links": [
+        {
+          "to": "classroom-1a",
+          "kind": "door"
+        },
+        {
+          "to": "classroom-1b",
+          "kind": "door"
+        },
+        {
+          "to": "classroom-1c",
+          "kind": "door"
+        },
+        {
+          "to": "library",
+          "kind": "door"
+        },
+        {
+          "to": "council-room",
+          "kind": "door"
+        },
+        {
+          "to": "upper-hall",
+          "kind": "stairs"
+        }
+      ]
+    },
+    {
+      "id": "classroom-1a",
+      "name": "Class 1-A",
+      "desc": "The classroom next door to 1-B, the same but tidier.",
+      "level": 1,
+      "features": [
+        "blackboard",
+        "teacher's desk"
+      ],
+      "shape": [
+        [
+          380,
+          1060
+        ],
+        [
+          580,
+          1060
+        ],
+        [
+          580,
+          1160
+        ],
+        [
+          380,
+          1160
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "classroom-1b",
+      "name": "Class 1-B",
+      "desc": "Thirty-two desks, a blackboard, windows over the lake. The player's desk is by the window, second from the back.",
+      "level": 1,
+      "features": [
+        "blackboard",
+        "window seats",
+        "teacher's desk",
+        "cleaning cupboard"
+      ],
+      "shape": [
+        [
+          580,
+          1060
+        ],
+        [
+          780,
+          1060
+        ],
+        [
+          780,
+          1160
+        ],
+        [
+          580,
+          1160
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "classroom-1c",
+      "name": "Class 1-C",
+      "desc": "The loudest classroom on the floor; half the track team is in it.",
+      "level": 1,
+      "features": [
+        "blackboard",
+        "sports bags"
+      ],
+      "shape": [
+        [
+          780,
+          1060
+        ],
+        [
+          1000,
+          1060
+        ],
+        [
+          1000,
+          1160
+        ],
+        [
+          780,
+          1160
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "library",
+      "name": "Library",
+      "desc": "Quiet tables between tall shelves; the study desks fill up in exam weeks.",
+      "size": "large",
+      "level": 1,
+      "features": [
+        "study desks",
+        "shelves",
+        "return counter"
+      ],
+      "shape": [
+        [
+          560,
+          1240
+        ],
+        [
+          860,
+          1240
+        ],
+        [
+          860,
+          1380
+        ],
+        [
+          700,
+          1380
+        ],
+        [
+          700,
+          1340
+        ],
+        [
+          560,
+          1340
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "council-room",
+      "name": "Student council room",
+      "desc": "A long table, filing cabinets, the council's tea set and a view over the whole school.",
+      "level": 1,
+      "features": [
+        "long table",
+        "filing cabinets",
+        "tea set"
+      ],
+      "shape": [
+        [
+          860,
+          1240
+        ],
+        [
+          1000,
+          1240
+        ],
+        [
+          1000,
+          1340
+        ],
+        [
+          860,
+          1340
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "upper-hall",
+      "name": "Second- and third-year corridor (second floor)",
+      "desc": "The older years' floor: quieter, more serious, and the door to the roof stairs at the end, kept locked.",
+      "size": "large",
+      "level": 2,
+      "features": [
+        "exam notices",
+        "roof door"
+      ],
+      "shape": [
+        [
+          380,
+          1600
+        ],
+        [
+          1000,
+          1600
+        ],
+        [
+          1000,
+          1680
+        ],
+        [
+          460,
+          1680
+        ],
+        [
+          460,
+          1760
+        ],
+        [
+          380,
+          1760
+        ]
+      ],
+      "links": [
+        {
+          "to": "classrooms-2",
+          "kind": "door"
+        },
+        {
+          "to": "classrooms-3",
+          "kind": "door"
+        },
+        {
+          "to": "music-room",
+          "kind": "door"
+        },
+        {
+          "to": "rooftop",
+          "kind": "locked door",
+          "at": [
+            975,
+            1640
+          ]
+        }
+      ]
+    },
+    {
+      "id": "classrooms-2",
+      "name": "Second-year classrooms",
+      "desc": "Four classrooms in a row, the second-years' home for their middle year.",
+      "size": "large",
+      "level": 2,
+      "features": [
+        "blackboards",
+        "school trip posters"
+      ],
+      "shape": [
+        [
+          380,
+          1500
+        ],
+        [
+          700,
+          1500
+        ],
+        [
+          700,
+          1600
+        ],
+        [
+          380,
+          1600
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "classrooms-3",
+      "name": "Third-year classrooms",
+      "desc": "Four classrooms where the third-years study with entrance exams pinned to the walls.",
+      "size": "large",
+      "level": 2,
+      "features": [
+        "blackboards",
+        "exam countdown"
+      ],
+      "shape": [
+        [
+          700,
+          1500
+        ],
+        [
+          1000,
+          1500
+        ],
+        [
+          1000,
+          1600
+        ],
+        [
+          700,
+          1600
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "music-room",
+      "name": "Music room",
+      "desc": "A grand piano, tiered seats, portraits of composers whose eyes follow you; the light music club practises here after school.",
+      "level": 2,
+      "features": [
+        "grand piano",
+        "drum kit",
+        "composer portraits"
+      ],
+      "shape": [
+        [
+          560,
+          1680
+        ],
+        [
+          860,
+          1680
+        ],
+        [
+          860,
+          1800
+        ],
+        [
+          620,
+          1800
+        ],
+        [
+          620,
+          1760
+        ],
+        [
+          560,
+          1760
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "rooftop",
+      "name": "The rooftop",
+      "desc": "Officially off limits. A fence, a water tank, the whole sky, and Mito laid out below.",
+      "level": 3,
+      "outside": true,
+      "features": [
+        "fence",
+        "water tank"
+      ],
+      "shape": [
+        [
+          380,
+          1900
+        ],
+        [
+          1000,
+          1900
+        ],
+        [
+          1000,
+          2100
+        ],
+        [
+          460,
+          2100
+        ],
+        [
+          460,
+          2040
+        ],
+        [
+          380,
+          2040
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "walkway",
+      "name": "Covered walkway to the old wing",
+      "desc": "A roofed walkway across the back of the courtyard to the old wooden wing.",
+      "size": "small",
+      "features": [
+        "bike racks"
+      ],
+      "shape": [
+        [
+          300,
+          560
+        ],
+        [
+          380,
+          560
+        ],
+        [
+          380,
+          620
+        ],
+        [
+          300,
+          620
+        ]
+      ],
+      "links": [
+        {
+          "to": "old-wing",
+          "kind": "door"
+        }
+      ]
+    },
+    {
+      "id": "old-wing",
+      "name": "Old wing corridor",
+      "desc": "The old wooden building where the culture clubs live: creaking floors, club posters, a staircase up to the top floor.",
+      "features": [
+        "club posters",
+        "creaking floorboards"
+      ],
+      "shape": [
+        [
+          40,
+          300
+        ],
+        [
+          300,
+          300
+        ],
+        [
+          300,
+          640
+        ],
+        [
+          200,
+          640
+        ],
+        [
+          200,
+          380
+        ],
+        [
+          40,
+          380
+        ]
+      ],
+      "links": [
+        {
+          "to": "art-room",
+          "kind": "door"
+        },
+        {
+          "to": "club-room",
+          "kind": "stairs"
+        }
+      ]
+    },
+    {
+      "id": "art-room",
+      "name": "Art room",
+      "desc": "Easels, plaster busts and a sink stained every colour.",
+      "features": [
+        "easels",
+        "plaster busts"
+      ],
+      "shape": [
+        [
+          40,
+          380
+        ],
+        [
+          200,
+          380
+        ],
+        [
+          200,
+          640
+        ],
+        [
+          40,
+          640
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "club-room",
+      "name": "Astronomy club room (old wing)",
+      "desc": "A cramped room on the top floor of the old wing: a battered telescope, star charts, and a kotatsu someone smuggled in.",
+      "size": "small",
+      "level": 1,
+      "features": [
+        "telescope",
+        "star charts",
+        "kotatsu"
+      ],
+      "shape": [
+        [
+          200,
+          1100
+        ],
+        [
+          300,
+          1100
+        ],
+        [
+          300,
+          1220
+        ],
+        [
+          200,
+          1220
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "gym",
+      "name": "Gymnasium",
+      "desc": "The gym and its stage, where ceremonies and assemblies happen.",
+      "size": "large",
+      "features": [
+        "stage",
+        "basketball hoops"
+      ],
+      "shape": [
+        [
+          1020,
+          100
+        ],
+        [
+          1360,
+          100
+        ],
+        [
+          1360,
+          200
+        ],
+        [
+          1300,
+          200
+        ],
+        [
+          1300,
+          440
+        ],
+        [
+          1020,
+          440
+        ]
+      ],
+      "links": [
+        {
+          "to": "judo-dojo",
+          "kind": "stairs"
+        },
+        {
+          "to": "field",
+          "kind": "door"
+        }
+      ]
+    },
+    {
+      "id": "judo-dojo",
+      "name": "Judo dojo (above the gym)",
+      "desc": "Tatami mats, a wall of names, the smell of sweat and effort.",
+      "level": 1,
+      "features": [
+        "tatami mats",
+        "name boards"
+      ],
+      "shape": [
+        [
+          1020,
+          1060
+        ],
+        [
+          1300,
+          1060
+        ],
+        [
+          1300,
+          1340
+        ],
+        [
+          1020,
+          1340
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "behind-gym",
+      "name": "Behind the gym",
+      "desc": "A narrow strip between the gym and the fence where nobody can see you: confessions, fights, and the stray cats Takumi feeds.",
+      "size": "small",
+      "outside": true,
+      "features": [
+        "stray cats",
+        "old bench"
+      ],
+      "shape": [
+        [
+          1300,
+          200
+        ],
+        [
+          1360,
+          200
+        ],
+        [
+          1360,
+          440
+        ],
+        [
+          1300,
+          440
+        ]
+      ],
+      "links": [
+        {
+          "to": "field",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "field",
+      "name": "Sports ground",
+      "desc": "The running track and the baseball diamond, with the pool behind its fence.",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "baseball diamond",
+        "running track",
+        "bleachers"
+      ],
+      "shape": [
+        [
+          1360,
+          60
+        ],
+        [
+          1760,
+          60
+        ],
+        [
+          1760,
+          560
+        ],
+        [
+          1520,
+          560
+        ],
+        [
+          1520,
+          900
+        ],
+        [
+          1360,
+          900
+        ]
+      ],
+      "links": [
+        {
+          "to": "pool",
+          "kind": "door"
+        }
+      ]
+    },
+    {
+      "id": "pool",
+      "name": "Swimming pool",
+      "desc": "The outdoor pool behind a green fence: open from July, drained and full of leaves the rest of the year.",
+      "outside": true,
+      "features": [
+        "diving blocks",
+        "fence"
+      ],
+      "shape": [
+        [
+          1520,
+          560
+        ],
+        [
+          1760,
+          560
+        ],
+        [
+          1760,
+          900
+        ],
+        [
+          1520,
+          900
+        ]
+      ],
+      "links": []
+    }
+  ]
+}

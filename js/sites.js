@@ -100,6 +100,24 @@
       if (info.layout) s.layout = info.layout;
       s.rooms.push(l.id);
     });
+    // A place drawn on a picture (siteInfo map): its rooms take their
+    // shapes, and their doors the points, from the map; the rooms themselves
+    // stay as authored.
+    Object.values(state.sites).filter((s) => s.authored).forEach((s) => {
+      const id = ((sc.siteInfo || {})[s.id] || {}).map;
+      const m = id && (sc.siteMaps || {})[id];
+      if (!m || !m.image) return;
+      s.map = id;
+      (m.rooms || []).forEach((mr) => {
+        const l = state.locations[mr.id];
+        if (!l || l.site !== s.id || !mr.shape) return;
+        l.shape = mr.shape.map((p) => p.slice());
+        (mr.links || []).filter((k) => Array.isArray(k.at)).forEach((k) => {
+          const own = (l.links || []).find((x) => x.to === k.to) || ((state.locations[k.to] || {}).links || []).find((x) => x.to === mr.id);
+          if (own) own.at = k.at.slice();
+        });
+      });
+    });
   };
   ST.generatedCount = (state) => Object.values(state.sites || {}).filter((s) => !s.authored).length;
   ST.byName = (state, name) => Object.values(state.sites || {}).find((s) => norm(s.name) === norm(name)) || null;
@@ -258,7 +276,10 @@
   // (task 6-3). The pick is seeded by the site id, so a reload picks the same.
   ST.libraryFits = function (sc, kind) {
     const words = norm(kind).split(' ').filter((w) => w.length > 2).map((w) => w.replace(/s$/, ''));
+    // A map drawn for one of the world's own places (task 7-2) is that place's.
+    const placeMaps = new Set(Object.values(sc.siteInfo || {}).map((i) => i && i.map).filter(Boolean));
     const fits = Object.values(sc.siteMaps || {}).filter((m) => {
+      if (placeMaps.has(m.id)) return false;
       const keys = [m.type].concat(m.tags || []).map((t) => norm(t).replace(/s$/, ''));
       return words.some((w) => keys.some((k) => k === w || k.split(' ').includes(w)));
     }).sort((a, b) => (a.id < b.id ? -1 : 1));

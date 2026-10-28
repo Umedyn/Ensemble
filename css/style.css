@@ -313,7 +313,9 @@ button:disabled { opacity: .5; cursor: default; }
 .scene-card .map-routes { margin: 0 0 0.5rem; }
 .map-route[disabled] { opacity: 0.55; cursor: not-allowed; }
 .world-svg { width: 100%; height: auto; display: block; touch-action: none; cursor: grab; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
-.world-svg.panning { cursor: grabbing; }
+.world-svg.panning, #siteSvg.panning { cursor: grabbing; }
+/* A place's floor plan pans and zooms like the world map (task 7-2). */
+#siteSvg { touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
 .region-shape { stroke: var(--line-strong); stroke-width: 2; fill-opacity: 0.45; cursor: pointer; vector-effect: non-scaling-stroke; }
 .region-shape.none { fill: var(--panel-2); fill-opacity: 0.35; stroke-dasharray: 6 4; }
 /* Contested ground (R-5): a second, dashed outline */

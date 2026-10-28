@@ -295,6 +295,14 @@
       if (!m) problems.push(`missing sites/${id}.json`);
       else { problems.push(...E.Sites.mapProblems(m, id)); warnings.push(...E.Sites.mapWarnings(m, id)); }
     });
+    // A map drawn for one of the world's places (task 7-2) draws only rooms
+    // the place has, in the world or some start.
+    [world].concat(startIds.map((sid) => starts[sid])).forEach((src) => Object.entries((src && isObj(src.siteInfo)) ? src.siteInfo : {}).forEach(([place, info]) => {
+      const m = info && info.map && (bundle.siteMaps || {})[info.map];
+      if (!m) return;
+      const rooms = new Set([].concat(world.locations || [], ...startIds.map((sid) => (starts[sid] && starts[sid].locations) || [])).filter((l) => l && l.site === place).map((l) => l.id));
+      (m.rooms || []).filter((r) => r && Array.isArray(r.shape) && !rooms.has(r.id)).forEach((r) => problems.push(`siteInfo "${place}": the map "${info.map}" draws "${r.id}", which isn't a room of this place`));
+    }));
     problems.push(...loreWorldProblems(bundle, startIds, warnings));
     problems.push(...timelineWorldProblems(bundle, startIds, warnings));
     problems.push(...projectProblems(world.projectTimeline));
@@ -1025,7 +1033,18 @@
       else Object.entries(sc.siteInfo).forEach(([id, v]) => {
         req(placeIds.has(id), `siteInfo: no room is in the place "${id}"`);
         req(isObj(v) && typeof v.name === 'string' && v.name.trim() && v.name.length <= 60 && (v.kind == null || (typeof v.kind === 'string' && v.kind.length <= 30))
-          && (v.layout == null || S.SITE_TYPES.includes(v.layout)), `siteInfo "${id}": needs a "name" (up to 60 characters), and optionally a "kind" and a "layout" (${S.SITE_TYPES.join(', ')})`);
+          && (v.layout == null || S.SITE_TYPES.includes(v.layout)), `siteInfo "${id}": needs a "name" (up to 60 characters), and optionally a "kind", a "layout" (${S.SITE_TYPES.join(', ')}) and a "map"`);
+        // A place drawn on a picture: one of the world's site maps, with a
+        // shape for each of the place's rooms and for nothing else.
+        if (!isObj(v) || v.map == null) return;
+        const m = (sc.siteMaps || {})[v.map];
+        if (!m || !m.image) return problems.push(`siteInfo "${id}": "map" must be one of the world's site maps ("sites"), drawn on an image`);
+        const mine = locs.filter((l) => l.site === id).map((l) => l.id);
+        const shaped = new Map((m.rooms || []).filter((r) => r && Array.isArray(r.shape)).map((r) => [r.id, r]));
+        mine.filter((r) => !shaped.has(r)).forEach((r) => problems.push(`siteInfo "${id}": the map "${v.map}" has no shape for the room "${r}"`));
+        // A room of the place that only another start has is fine here (the
+        // dorm start's own room); the world's check covers rooms nowhere.
+        [...shaped.keys()].filter((r) => !mine.includes(r) && locIds.has(r)).forEach((r) => problems.push(`siteInfo "${id}": the map "${v.map}" draws "${r}", which isn't a room of this place`));
       });
     }
     locs.forEach((l) => {

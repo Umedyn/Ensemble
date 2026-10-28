@@ -299,11 +299,35 @@
     return pieces;
   };
 
+  // The outline of a room in several rectangles on the grid (task 7-2): the
+  // cell edges with no cell of the room on the other side, joined into runs.
+  function outlinePath(parts) {
+    const cells = new Set();
+    parts.forEach((p) => { for (let i = 0; i < p.w; i++) for (let j = 0; j < p.h; j++) cells.add(`${p.x + i},${p.y + j}`); });
+    const has = (x, y) => cells.has(`${x},${y}`);
+    const hz = {}, vt = {};
+    cells.forEach((c) => {
+      const [x, y] = c.split(',').map(Number);
+      if (!has(x, y - 1)) (hz[y] = hz[y] || []).push(x);
+      if (!has(x, y + 1)) (hz[y + 1] = hz[y + 1] || []).push(x);
+      if (!has(x - 1, y)) (vt[x] = vt[x] || []).push(y);
+      if (!has(x + 1, y)) (vt[x + 1] = vt[x + 1] || []).push(y);
+    });
+    const runs = (list) => {
+      const out = [];
+      [...new Set(list)].sort((a, b) => a - b).forEach((v) => { const last = out[out.length - 1]; if (last && last[1] === v) last[1] = v + 1; else out.push([v, v + 1]); });
+      return out;
+    };
+    const d = [];
+    Object.entries(hz).forEach(([y, xs]) => runs(xs).forEach(([a, b]) => d.push(`M${px(a)} ${px(+y)}H${px(b)}`)));
+    Object.entries(vt).forEach(([x, ys]) => runs(ys).forEach(([a, b]) => d.push(`M${px(+x)} ${px(a)}V${px(b)}`)));
+    return d.join('');
+  }
   // Free (outside) runs of cells along each side of an indoor room, longest
-  // first. Outdoor ground doesn't cover a wall.
+  // first. Outdoor ground doesn't cover a wall; the room's own growth does.
   SD.exteriorRuns = function (plan, id, indoor) {
     const r = plan.rooms[id];
-    const others = indoor.filter((o) => o !== id && plan.rooms[o].level === r.level).map((o) => plan.rooms[o]);
+    const others = indoor.filter((o) => o !== id && plan.rooms[o].level === r.level).flatMap((o) => E.Layouts.parts(plan.rooms[o])).concat(r.extra || []);
     const covered = (x, y) => others.some((o) => x >= o.x && x < o.x + o.w && y >= o.y && y < o.y + o.h);
     const sides = {
       top: Array.from({ length: r.w }, (_, i) => [r.x + i, r.y - 1]),
@@ -382,15 +406,19 @@
       const kind = SD.kindOf(Object.assign({ id }, l));
       const pat = inView.has(id) ? SD.FLOOR[kind] : null;
       if (pat) used.add('p-' + pat);
-      const patRect = pat ? `<rect class="sd-pat" x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#sd-p-${pat})"/>` : '';
+      // A room that grew (task 7-2) is all its parts, with one outline.
+      const parts = E.Layouts.parts(r);
+      const rects = (cls, extra) => parts.map((p) => `<rect class="${cls}" x="${px(p.x)}" y="${px(p.y)}" width="${px(p.w)}" height="${px(p.h)}"${extra || ''}/>`).join('');
+      const edge = (cls) => (r.extra ? `<path class="${cls}" d="${outlinePath(parts)}"/>` : `<rect class="${cls}" x="${x}" y="${y}" width="${w}" height="${h}"/>`);
+      const patRect = pat ? rects('sd-pat', ` fill="url(#sd-p-${pat})"`) : '';
       const cls = `map-room${l.outside ? ' outside' : ''}${id === view.here ? ' here' : ''}${inView.has(id) ? ' sd-view' : ' sd-past'}`;
-      const g = `<g class="${cls}" tabindex="0" role="button" data-room="${esc(id)}" aria-label="${esc(l.name)}"><rect class="${l.outside ? 'sd-ground' : 'sd-floor'}" x="${x}" y="${y}" width="${w}" height="${h}"/>${patRect}`;
+      const g = `<g class="${cls}" tabindex="0" role="button" data-room="${esc(id)}" aria-label="${esc(l.name)}">${rects(l.outside ? 'sd-ground' : 'sd-floor')}${patRect}`;
       if (l.outside) {
-        L.ground.push(`${g}<rect class="sd-ground-edge" x="${x}" y="${y}" width="${w}" height="${h}"/></g>`);
+        L.ground.push(`${g}${edge('sd-ground-edge')}</g>`);
       } else {
-        L.wallsOuter.push(`<rect class="sd-wall-outer" x="${x}" y="${y}" width="${w}" height="${h}"/>`);
+        L.wallsOuter.push(rects('sd-wall-outer'));
         L.floors.push(g + '</g>');
-        L.wallsInner.push(`<rect class="sd-wall-inner" x="${x}" y="${y}" width="${w}" height="${h}"/>`);
+        L.wallsInner.push(edge('sd-wall-inner'));
       }
       if (id === view.here) L.here.push(`<rect class="sd-here" x="${x + 2}" y="${y + 2}" width="${w - 4}" height="${h - 4}"/>`);
     });
@@ -496,13 +524,16 @@
     // Crop to what's drawn, plus a cell of margin.
     let box = [0, 0, 0, 0];
     if (ids.length) {
-      const x0 = Math.min(...ids.map((id) => plan.rooms[id].x)) - 1, y0 = Math.min(...ids.map((id) => plan.rooms[id].y)) - 1;
-      const x1 = Math.max(...ids.map((id) => plan.rooms[id].x + plan.rooms[id].w)) + 1, y1 = Math.max(...ids.map((id) => plan.rooms[id].y + plan.rooms[id].h)) + 1;
+      const all = ids.flatMap((id) => E.Layouts.parts(plan.rooms[id]));
+      const x0 = Math.min(...all.map((p) => p.x)) - 1, y0 = Math.min(...all.map((p) => p.y)) - 1;
+      const x1 = Math.max(...all.map((p) => p.x + p.w)) + 1, y1 = Math.max(...all.map((p) => p.y + p.h)) + 1;
       box = [px(x0), px(y0), px(x1 - x0), px(y1 - y0)];
     }
     // Never smaller than about three quarters of full size (the pane
     // scrolls), nor blown up past one and a half (a place of one room).
-    return `<svg class="map-svg sd" viewBox="${box.join(' ')}" style="min-width:${Math.round(box[2] * 0.75)}px;max-width:${Math.round(box[2] * 1.5)}px" role="img" aria-label="Map">` +
+    // view.fit (task 7-2): the pane's width, zoomed and panned in the game.
+    const size = view.fit ? `width:100%;max-width:${Math.round(box[2] * 1.5)}px` : `min-width:${Math.round(box[2] * 0.75)}px;max-width:${Math.round(box[2] * 1.5)}px`;
+    return `<svg class="map-svg sd" viewBox="${box.join(' ')}" style="${size}" role="img" aria-label="Map">` +
       `<defs>${SD.defs(used)}</defs>` +
       `<g>${L.ground.join('')}</g><g class="sd-scatter">${L.back.join('')}</g><g>${L.wallsOuter.join('')}</g><g>${L.floors.join('')}</g><g>${L.wallsInner.join('')}</g>` +
       `<g>${L.furniture.join('')}</g><g>${L.openings.join('')}</g><g>${L.here.join('')}</g><g class="sd-labels">${L.labels.join('')}</g><g>${L.stubs.join('')}</g><g class="map-tokens">${L.tokens.join('')}</g></svg>`;
@@ -666,8 +697,13 @@
       const r = rooms[id];
       const c = Geo.centroid(r.shape);
       const cls = `map-room${id === view.here ? ' here' : ''}${remembered.has(id) ? ' sd-remembered' : ''}${r.outside ? ' outside' : ''}`;
+      // The label fits its room (task 7-2: a school sheet of small rooms):
+      // smaller for a narrow room, and cut short if it still doesn't fit.
+      const bw = Geo.bbox(r.shape).w;
+      const fs = Math.max(unit * 0.9, Math.min(unit * 2.4, (bw * 0.9) / (r.name.length * 0.56)));
+      const name = E.shorten(r.name, Math.max(4, Math.floor((bw * 0.9) / (fs * 0.56))));
       out.push(`<g class="${cls}" tabindex="0" role="button" data-room="${esc(id)}" aria-label="${esc(r.name)}"><polygon class="sd-img-room" points="${pts(r.shape)}"/>` +
-        `<text class="sd-img-label" x="${n1(c[0])}" y="${n1(Geo.bbox(r.shape).y + unit * 3)}" text-anchor="middle" style="font-size:${n1(unit * 2.4)}px">${esc(r.name)}</text></g>`);
+        `<text class="sd-img-label" x="${n1(c[0])}" y="${n1(Geo.bbox(r.shape).y + fs * 1.3)}" text-anchor="middle" style="font-size:${n1(fs)}px">${esc(name)}</text></g>`);
     });
     // Doors: at the link's point, else the middle of the shared edge.
     (view.links || []).forEach((k) => {

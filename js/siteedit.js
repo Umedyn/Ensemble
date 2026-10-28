@@ -36,17 +36,61 @@
     files[SE.path(id)] = m;
     return id;
   };
+  // The world's own places (task 7-2: rooms with a "site"), in the world and
+  // its starts: [{ id, name, file (where its rooms are), rooms, map }].
+  SE.places = function (files) {
+    const w = files['world.json'];
+    const out = new Map();
+    const add = (file, src) => ((src && src.locations) || []).filter((l) => l && l.site).forEach((l) => {
+      const info = (w.siteInfo || {})[l.site] || ((src.siteInfo || {})[l.site]) || {};
+      if (!out.has(l.site)) out.set(l.site, { id: l.site, name: info.name || l.name, kind: info.kind || '', file, rooms: [], map: info.map || null });
+      out.get(l.site).rooms.push(l);
+    });
+    add('world.json', w);
+    (w.starts || []).forEach((sid) => add(`starts/${sid}.json`, files[`starts/${sid}.json`]));
+    return [...out.values()].sort((a, b) => (a.name < b.name ? -1 : 1));
+  };
+  // A draft map of one of those places, its rooms as authored (with the
+  // ways between them), ready for an image and their shapes. "place" ties it
+  // to the place: saved to the world, the place is drawn on it.
+  SE.fromPlace = function (files, placeId) {
+    const p = SE.places(files).find((x) => x.id === placeId);
+    if (!p) return null;
+    const ids = new Set(p.rooms.map((l) => l.id));
+    const id = slug(placeId, taken(files), 'site');
+    files[SE.path(id)] = {
+      id, name: p.name, type: p.kind || 'place', tags: [], setting: [], credit: '', license: '', place: placeId, entry: p.rooms[0].id,
+      rooms: p.rooms.map((l) => Object.assign({ id: l.id, name: l.name, desc: l.desc || l.name },
+        ['size', 'level', 'outside', 'features'].reduce((o, k) => (l[k] != null ? Object.assign(o, { [k]: E.clone(l[k]) }) : o), {}),
+        { links: (l.links || []).filter((k) => ids.has(k.to) && k.kind !== 'trip').map((k) => ({ to: k.to, kind: k.kind })) })),
+    };
+    return id;
+  };
   // Problems that stop it joining the world, and warnings that don't.
   SE.check = (map, id) => ({ problems: ST().mapProblems(map, id), warnings: ST().mapWarnings(map, id) });
   SE.saveToWorld = function (files, id) {
     const p = ST().mapProblems(files[SE.path(id)], id);
     if (p.length) return { error: `Fix these first: ${p.map((x) => x.replace(/^sites\/[^:]+: /, '')).join('; ')}` };
     const w = files['world.json'];
+    const m = files[SE.path(id)];
+    // A map of one of the world's places draws that place (task 7-2).
+    if (m.place) {
+      if (!m.image) return { error: 'Load the floor plan image and draw its rooms on it first.' };
+      const p = SE.places(files).find((x) => x.id === m.place);
+      if (!p) return { error: `There is no place "${m.place}" in this world any more.` };
+      const missing = p.rooms.filter((l) => !(m.rooms || []).some((r) => r.id === l.id && Array.isArray(r.shape)));
+      if (missing.length) return { error: `Draw these rooms first: ${missing.map((l) => l.name).join(', ')}` };
+      const src = files[p.file];
+      src.siteInfo = src.siteInfo || {};
+      src.siteInfo[m.place] = Object.assign({ name: p.name }, src.siteInfo[m.place] || {}, { map: id });
+    }
     w.sites = [...new Set((w.sites || []).concat(id))];
     return {};
   };
   SE.takeOut = function (files, id) {
     const w = files['world.json'];
+    // A place drawn on it goes back to its laid-out floor plan.
+    [w].concat((w.starts || []).map((sid) => files[`starts/${sid}.json`])).forEach((src) => Object.values((src && src.siteInfo) || {}).forEach((i) => { if (i && i.map === id) delete i.map; }));
     w.sites = (w.sites || []).filter((x) => x !== id);
     if (!w.sites.length) delete w.sites;
   };

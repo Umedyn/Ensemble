@@ -1985,12 +1985,14 @@
     if (xui.sel && !cw.files[SE.path(xui.sel)]) xui.sel = null;
     const m = curSite();
     const shared = Object.values(S.library.maps || {});
+    const places = SE.places(cw.files);
     return `<div class="c-map">
       <div class="c-canvas-col">${m ? `${siteToolbar(m)}<div id="cSiteCanvas" class="c-canvas"></div><div class="c-hint">${esc(m.image ? (xui.preview ? 'The map as the game draws it, everything in view, with sample people.' : SITE_HINTS[xui.mode]) : 'No image: the game lays the rooms out from their links (shown here). Load a battlemap or floor plan to draw the rooms on it.')}</div>`
         : '<p class="muted c-intro">Site maps are places a story can go: a battlemap or floor plan with its rooms drawn on it, its doors and ways in, and tags. When the story heads somewhere new, the game uses a map whose type or tags fit before making one up. Make one, copy a shared one, or keep a place the game made during play.</p>'}</div>
       <aside class="c-panel">
         <section><h3>Site maps</h3><div class="c-list" id="cSiteList">${siteListHtml(list)}</div>
           <button type="button" id="cNewSite" class="small">+ Site map</button>
+          ${places.length ? `<select id="cSitePlace" aria-label="Draw one of the world's places"><option value="">Draw one of the world's places…</option>${places.map((p) => `<option value="${esc(p.id)}">${esc(p.name)} (${p.rooms.length} rooms${p.map ? ', drawn' : ''})</option>`).join('')}</select>` : ''}
           ${shared.length ? `<select id="cSiteCopy" aria-label="Copy a shared map"><option value="">Copy a shared map…</option>${shared.map((x) => `<option value="${esc(x.id)}">${esc(x.name || x.id)} (${esc(x.type)}${(x.setting || []).length ? `, ${esc(x.setting.join(', '))}` : ''})</option>`).join('')}</select>` : ''}
           <label class="btn small" title="Keep a place the game made during play">From a save…<input type="file" id="cSiteSave" accept=".json,application/json" hidden></label>
           ${xui.save ? `<div class="c-kvrow"><select id="cSiteKeepSel" aria-label="A place from the save">${xui.save.sites.map((x) => `<option value="${esc(x.id)}">${esc(x.name)} (${x.rooms} rooms)</option>`).join('')}</select><button type="button" id="cSiteKeep" class="small">Keep as a site map</button></div>` : ''}</section>
@@ -2293,7 +2295,7 @@
     if (t.id === 'cSiteAddRoom') { xui.room = SE.addRoom(m); if (m.image) xui.mode = 'draw'; return changed(); }
     if (t.id === 'cSiteSaveWorld') {
       const r = SE.saveToWorld(cw.files, xui.sel);
-      banner(r.error ? esc(r.error) : `${esc(m.name || xui.sel)} is in the world: stories heading to a ${esc(m.type)} can use it.`, r.error ? 'bad' : '');
+      banner(r.error ? esc(r.error) : m.place ? `${esc(m.name || xui.sel)} is in the world: the place is drawn on it in play.` : `${esc(m.name || xui.sel)} is in the world: stories heading to a ${esc(m.type)} can use it.`, r.error ? 'bad' : '');
       return changed();
     }
     if (t.id === 'cSiteOut') { SE.takeOut(cw.files, xui.sel); return changed(); }
@@ -2333,6 +2335,14 @@
     if (!cw || ui.tab !== 'sites') return;
     const t = ev.target;
     const m = curSite();
+    // One of the world's places (task 7-2): a draft map of its rooms to draw on a floor plan.
+    if (t.id === 'cSitePlace' && t.value) {
+      const drawn = SE.places(cw.files).find((p) => p.id === t.value && p.map && cw.files[SE.path(p.map)]);
+      const id = drawn ? drawn.map : SE.fromPlace(cw.files, t.value);
+      Object.assign(xui, { sel: id, room: null, vb: null, mode: 'select', preview: false });
+      if (!drawn) banner(`A draft map of ${esc(cw.files[SE.path(id)].name)} with its rooms. Load its floor plan with Change image, draw each room, add a credit and a license, then save it to the world: the place is then drawn on it.`);
+      return changed();
+    }
     if (t.id === 'cSiteCopy' && t.value) {
       const src = S.library.maps[t.value];
       const id = SE.addCopy(cw.files, src);

@@ -1604,6 +1604,35 @@ await check('correct your feelings from a card', async (page) => {
   assert.match(await page.textContent('#debugBody'), /you corrected your feelings toward Teo Bauer: now 25/);
 });
 
+// Task 7-2: a place's floor plan zooms and pans (the school is 28 rooms on a drawn
+// sheet; the dorm is laid out by the game, with rooms that grew), and a pan is
+// never a click on a room.
+await check('the floor plan zooms and pans: the drawn school and the laid-out dorm', async (page) => {
+  for (const [start, room, kind] of [['hayakawa', 'classroom-1b', 'svg.sd-image'], ['dorm', 'kaede-room', 'svg.sd']]) {
+    const { state } = helpers.newGame('seiryo-high', start);
+    state.characters[state.player].status.location = room;
+    await page.setInputFiles('#loadInput', { name: `${start}.json`, mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(state)) });
+    await page.waitForFunction(() => /turn 0$/.test(document.getElementById('sceneBar').textContent.trim()));
+    await page.click('.view-switch button[data-view="map"]');
+    await page.click('[data-maplevel="local"]');
+    await page.waitForSelector(`#siteSvg${kind.replace('svg', '')}`);
+    const vb = () => page.getAttribute('#siteSvg', 'viewBox');
+    const full = await vb();
+    await page.click('[data-zoom="in"]');
+    const zoomed = await vb();
+    assert.ok(Number(zoomed.split(' ')[2]) < Number(full.split(' ')[2]), `${start}: zoomed in (${full} → ${zoomed})`);
+    const box = await page.locator('#siteSvg').boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 3);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 - 120, box.y + box.height / 3 + 40, { steps: 6 });
+    await page.mouse.up();
+    assert.notEqual(await vb(), zoomed, `${start}: panned`);
+    assert.equal(await page.inputValue('#actionInput'), '', `${start}: a pan fills in nothing`);
+    await page.click('[data-zoom="reset"]');
+    assert.equal(await vb(), full, `${start}: reset`);
+  }
+});
+
 // Screen readers hear each new beat from a polite live region.
 await check('screen readers hear each new beat', async (page) => {
   assert.equal(await page.getAttribute('#srAnnounce', 'aria-live'), 'polite');
@@ -1680,7 +1709,7 @@ for (const phone of [false, true]) {
     await page.locator('#mapPane .map-feature[data-feature="generator"]').click();
     assert.equal(await page.inputValue('#actionInput'), 'Look at the generator.');
     await setAppearance(page, { mapDetail: 'simple' });
-    assert.ok(!(await page.locator('#mapPane svg.sd').count()) && (await page.locator('#mapPane .map-room .floor').count()) === 6, 'simple: the boxes');
+    assert.ok(!(await page.locator('#mapPane svg.sd').count()) && (await page.locator('#mapPane g.map-room').count()) === 6, 'simple: the boxes (a room that grew has a box for each part)');
   });
 }
 

@@ -1364,7 +1364,8 @@
   "siteInfo": {
     "seiryo": {
       "name": "Seiryo High",
-      "kind": "school"
+      "kind": "school",
+      "map": "seiryo"
     },
     "dorm": {
       "name": "The Seiryo dorm",
@@ -50112,5 +50113,8 @@
         "region": "kagoshima"
       }
     ]
-  }
+  },
+  "sites": [
+    "seiryo"
+  ]
 }

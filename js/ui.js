@@ -1339,7 +1339,7 @@
     });
     const sc = state.scenario;
     const site = E.Sites.playerSite(state);
-    return E.SiteDraw.render(plan, rooms, { inView, remembered, here, seed: `${sc.worldId}:${site === E.Sites.HOME ? sc.startId : site}`, links, tokens, tokenSvg });
+    return E.SiteDraw.render(plan, rooms, { inView, remembered, here, seed: `${sc.worldId}:${site === E.Sites.HOME ? sc.startId : site}`, links, tokens, tokenSvg, fit: true });
   }
   // A place built from a site map drawn on an image (task 6-3): what the
   // player knows is decided here, as for the detailed map; doors out of
@@ -1478,7 +1478,7 @@
           .map((k) => { const o = k.a === id ? k.b : k.a; return `${KIND_WORD[k.kind]} to ${roomName(o)}`; });
         const upText = up.length ? `<text class="map-feat" x="${x + 5}" y="${y + h - (feats ? 16 : 5)}">↕ ${esc(E.shorten(up.join(', '), Math.floor((w - 8) / 5)))}</text>` : '';
         const toks = roomTokens(tokens[id] || [], x, y + 18, w, h - (up.length ? 42 : 30), id);
-        return `<g class="${cls}" tabindex="0" role="button" data-room="${esc(id)}" aria-label="${esc(roomName(id))}"><rect class="floor" x="${x}" y="${y}" width="${w}" height="${h}" rx="2"/>${label}${upText}${feats}</g><g class="map-tokens">${toks}</g>`;
+        return `<g class="${cls}" tabindex="0" role="button" data-room="${esc(id)}" aria-label="${esc(roomName(id))}">${(r.extra || []).map((e) => `<rect class="floor" x="${e.x * CELL}" y="${e.y * CELL}" width="${e.w * CELL}" height="${e.h * CELL}" rx="2"/>`).join('')}<rect class="floor" x="${x}" y="${y}" width="${w}" height="${h}" rx="2"/>${label}${upText}${feats}</g><g class="map-tokens">${toks}</g>`;
       }).join('');
       const remote = plan.links.filter((k) => k.remote && plan.rooms[k.a].level === plan.rooms[k.b].level).map((k) => {
         const a = plan.rooms[k.a], b = plan.rooms[k.b];
@@ -1489,6 +1489,12 @@
       // Never smaller than about three quarters of full size (the pane scrolls).
       svg = `<svg class="map-svg" viewBox="-4 -4 ${W + 8} ${H + 8}" style="min-width:${Math.round(W * 0.75)}px" role="img" aria-label="Map">${remote}${rooms}${marks}${levels}</svg>`;
     }
+    // Zoom and pan on the floor plan (task 7-2: the school is 28 rooms): it
+    // fits the pane, and its view is kept per place until reset.
+    const key = `site:${site}`;
+    const full = (/viewBox="([^"]*)"/.exec(svg) || [])[1] || '';
+    svg = svg.replace('<svg ', `<svg id="siteSvg" data-view="${esc(key)}" data-full="${esc(full)}" `);
+    if (viewBoxes[key]) svg = svg.replace(/viewBox="[^"]*"/, `viewBox="${viewBoxes[key].map((n) => Math.round(n)).join(' ')}"`);
     if (floorPlans.has(site) && !im && !lm && !E.Sites.tactical(state, site)) svg += `<button type="button" class="small" data-scenecard="${esc(site)}">Show the scene card</button>`;
     svg += waysHtml(site);
     // The same in words, for screen readers.
@@ -1630,7 +1636,7 @@
     const path = E.MapDraw.levelPath(sc, levelId).map((id) => ({ key: id == null ? 'root' : id, name: id == null ? (sc.worldTitle || sc.title) : regionName(id) }));
     if (view === 'local') path.push({ key: 'local', name: state.locations[here] ? state.locations[here].name : 'Here' });
     const crumbs = path.map((c, i) => `${i ? '<span class="sep" aria-hidden="true">›</span>' : ''}<button type="button" data-maplevel="${esc(c.key)}"${i === path.length - 1 ? ' aria-current="true"' : ''}>${esc(c.name)}</button>`).join('');
-    const zoom = view === 'local' ? '' : `<span class="zoom"><button type="button" data-zoom="in" aria-label="Zoom in" title="Zoom in">+</button><button type="button" data-zoom="out" aria-label="Zoom out" title="Zoom out">−</button><button type="button" data-zoom="reset" aria-label="Reset the view" title="Reset the view">⟲</button></span>`;
+    const zoom = `<span class="zoom"><button type="button" data-zoom="in" aria-label="Zoom in" title="Zoom in">+</button><button type="button" data-zoom="out" aria-label="Zoom out" title="Zoom out">−</button><button type="button" data-zoom="reset" aria-label="Reset the view" title="Reset the view">⟲</button></span>`;
     return `<div class="map-bar"><nav class="map-crumbs" aria-label="Map levels">${crumbs}</nav>${zoom}<span class="jumps"><button type="button" data-maplevel="local" title="Where I am">📍 Where I am</button><button type="button" data-maplevel="root" title="The whole world">🌍 Whole world</button></span></div>`;
   }
   function renderMap() {
@@ -1640,17 +1646,21 @@
     pane.innerHTML = (hasRegions() ? mapBarHtml(view) : '') + (view === 'local' ? localMapHtml() : levelHtml(view === 'root' ? null : view));
     sizeDetailedMap();
   }
-  // Zoom the world map's viewBox around a point (in map units), within limits.
+  // Zoom the map's viewBox around a point (in map units), within limits: the
+  // world map, or a place's floor plan (task 7-2).
+  const mapSvg = () => $('worldSvg') || $('siteSvg');
   function zoomWorld(factor, cx, cy) {
-    const svg = $('worldSvg');
+    const svg = mapSvg();
     if (!svg) return;
     const view = svg.dataset.view;
+    const site = svg.id === 'siteSvg';
     const [x, y, w, h] = svg.getAttribute('viewBox').split(/\s+/).map(Number);
-    const full = curLevel ? curLevel.g.full : [0, 0, 800, 560];
-    const nw = Math.min(full[2] * 2, Math.max(full[2] / 8, w * factor)), nh = h * (nw / w);
+    const full = site ? svg.dataset.full.split(/\s+/).map(Number) : curLevel ? curLevel.g.full : [0, 0, 800, 560];
+    const nw = Math.min(full[2] * (site ? 1 : 2), Math.max(full[2] / 8, w * factor)), nh = h * (nw / w);
     const px = cx == null ? x + w / 2 : cx, py = cy == null ? y + h / 2 : cy;
     viewBoxes[view] = [px - (px - x) * (nw / w), py - (py - y) * (nh / h), nw, nh];
     svg.setAttribute('viewBox', viewBoxes[view].map((n) => Math.round(n)).join(' '));
+    if (site) return sizeDetailedMap();
     clearTimeout(zoomTimer);
     zoomTimer = setTimeout(redrawZoomed, 150);
   }
@@ -1679,15 +1689,16 @@
   };
   const pointers = new Map();
   let drag = null;
+  let draggedAt = 0; // a pan never counts as a click on a room
   $('mapPane').addEventListener('pointerdown', (ev) => {
-    const svg = ev.target.closest && ev.target.closest('#worldSvg');
+    const svg = ev.target.closest && ev.target.closest('#worldSvg, #siteSvg');
     if (!svg) return;
     pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
-    drag = { moved: false, start: { x: ev.clientX, y: ev.clientY }, vb: svg.getAttribute('viewBox').split(/\s+/).map(Number), dist: null };
+    drag = { svg, moved: false, start: { x: ev.clientX, y: ev.clientY }, vb: svg.getAttribute('viewBox').split(/\s+/).map(Number), dist: null };
     if (pointers.size === 2) { const [a, b] = [...pointers.values()]; drag.dist = Math.hypot(a.x - b.x, a.y - b.y); }
   });
   $('mapPane').addEventListener('pointermove', (ev) => {
-    const svg = $('worldSvg');
+    const svg = drag && drag.svg;
     if (!svg || !drag || !pointers.has(ev.pointerId)) return;
     pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
     const rect = svg.getBoundingClientRect();
@@ -1707,9 +1718,10 @@
   });
   const endDrag = (ev) => {
     pointers.delete(ev.pointerId);
-    const svg = $('worldSvg');
+    const svg = drag && drag.svg;
     if (svg) svg.classList.remove('panning');
     const wasDrag = drag && drag.moved;
+    if (wasDrag) draggedAt = Date.now();
     if (!pointers.size) drag = null;
     if (ev.type === 'pointerup' && !wasDrag && ev.target.closest) {
       const g = ev.target.closest('.region-g');
@@ -1727,7 +1739,7 @@
   $('mapPane').addEventListener('pointerup', endDrag);
   $('mapPane').addEventListener('pointercancel', endDrag);
   $('mapPane').addEventListener('wheel', (ev) => {
-    const svg = ev.target.closest && ev.target.closest('#worldSvg');
+    const svg = ev.target.closest && ev.target.closest('#worldSvg, #siteSvg');
     if (!svg) return;
     ev.preventDefault();
     const p = toMap(svg, ev);
@@ -1738,7 +1750,7 @@
     if (lvl && state) return setMapView(lvl.dataset.maplevel);
     const z = ev.target.closest('[data-zoom]');
     if (z) {
-      if (z.dataset.zoom === 'reset') { delete viewBoxes[mapView()]; return renderMap(); }
+      if (z.dataset.zoom === 'reset') { const s = mapSvg(); delete viewBoxes[s && s.id === 'siteSvg' ? s.dataset.view : mapView()]; return renderMap(); }
       zoomWorld(z.dataset.zoom === 'in' ? 1 / 1.4 : 1.4);
     }
   });
@@ -1774,7 +1786,7 @@
     if (id === state.characters[state.player].status.location) return;
     fillAction(state.seenRooms.includes(id) ? `Go to the ${state.locations[id].name}.` : 'Find out what is through there.');
   }
-  $('mapPane').addEventListener('click', (ev) => mapActivate(ev.target));
+  $('mapPane').addEventListener('click', (ev) => { if (Date.now() - draggedAt > 300) mapActivate(ev.target); });
   $('mapPane').addEventListener('keydown', (ev) => {
     if (ev.key !== 'Enter' && ev.key !== ' ') return;
     const reg = ev.target.closest && ev.target.closest('.region-g');

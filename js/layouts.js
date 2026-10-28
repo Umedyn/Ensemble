@@ -118,10 +118,54 @@
     return { placed, w: Math.max(...rects.map((o) => o.x + o.w)), h: Math.max(...rects.map((o) => o.y + o.h)) };
   }
 
+  // Irregular rooms (task 7-2): after placing, a big room, open ground or a
+  // corridor may grow into a free gap beside it, inside its level's block,
+  // so it is an L or a T rather than a box. Its own rectangle never moves;
+  // the growth is "extra" rectangles. Seeded, like everything here: most
+  // rooms that could grow do, the rest stay boxes.
+  L.GROWS = /corridor|hall|hallway|walkway|landing|wing|lobby|foyer|concourse|passage|gallery/i;
+  function grow(placed, here, w, h, seed) {
+    const rects = Object.values(placed);
+    const taken = (r) => r.x < 0 || r.y < 0 || r.x + r.w > w || r.y + r.h > h || rects.some((o) => overlaps(o, r) || (o.extra || []).some((e) => overlaps(e, r)));
+    here.slice().sort((a, b) => (a.id < b.id ? -1 : 1)).forEach((l) => {
+      const r = placed[l.id];
+      if (!r || !(l.size === 'large' || l.outside || L.GROWS.test(l.name || '')) || hash(`${seed}:grow:${l.id}`) % 4 === 0) return;
+      let best = null;
+      const consider = (c) => { if (!taken(c) && (!best || c.w * c.h > best.w * best.h)) best = c; };
+      [2, 1].forEach((d) => {
+        for (let len = Math.max(r.w, r.h); len >= 2; len--) {
+          for (let off = 0; off + len <= r.w; off++) {
+            consider({ x: r.x + off, y: r.y - d, w: len, h: d });
+            consider({ x: r.x + off, y: r.y + r.h, w: len, h: d });
+          }
+          for (let off = 0; off + len <= r.h; off++) {
+            consider({ x: r.x - d, y: r.y + off, w: d, h: len });
+            consider({ x: r.x + r.w, y: r.y + off, w: d, h: len });
+          }
+        }
+      });
+      // A sliver isn't a wing: at least four cells, and never a whole new box.
+      if (best && best.w * best.h >= 4 && best.w * best.h < r.w * r.h) r.extra = [best];
+    });
+  }
+  // A room's rectangles: its own and any it grew (task 7-2).
+  L.parts = (r) => [r].concat(r.extra || []);
+
   // Where a link between two rooms sits: the middle of their shared wall, or
-  // remote (no shared wall, or on different levels).
+  // remote (no shared wall, or on different levels). A room that grew shares
+  // a wall through any of its parts, its own rectangle first.
   function door(a, b) {
     if (a.level !== b.level) return { remote: true };
+    if (a.extra || b.extra) {
+      for (const pa of L.parts(a)) for (const pb of L.parts(b)) {
+        const d = doorRect(Object.assign({}, pa, { level: a.level }), Object.assign({}, pb, { level: b.level }));
+        if (!d.remote) return d;
+      }
+      return { remote: true };
+    }
+    return doorRect(a, b);
+  }
+  function doorRect(a, b) {
     const vx = a.x + a.w === b.x ? b.x : b.x + b.w === a.x ? a.x : null;
     if (vx != null) {
       const lo = Math.max(a.y, b.y), hi = Math.min(a.y + a.h, b.y + b.h);
@@ -235,7 +279,8 @@
   L.hasOutsideWall = function (plan, id) {
     const r = plan.rooms[id];
     if (!r) return false;
-    const others = Object.entries(plan.rooms).filter(([o, x]) => o !== id && x.level === r.level).map(([, x]) => x);
+    // Other rooms on the level, every part of them, and the room's own growth (task 7-2).
+    const others = Object.entries(plan.rooms).filter(([o, x]) => o !== id && x.level === r.level).flatMap(([, x]) => L.parts(x)).concat(r.extra || []);
     const covered = (cells) => cells.every(([x, y]) => others.some((o) => x >= o.x && x < o.x + o.w && y >= o.y && y < o.y + o.h));
     const sides = [
       Array.from({ length: r.w }, (_, i) => [r.x + i, r.y - 1]), Array.from({ length: r.w }, (_, i) => [r.x + i, r.y + r.h]),
@@ -269,7 +314,11 @@
         (adj[k.b] = adj[k.b] || []).push(k.a);
       });
       const out = placeLevel(here, adj, lv === levels[0] ? style : 'generic', seed + ':' + lv);
-      Object.entries(out.placed).forEach(([id, r]) => { rooms[id] = { x: r.x, y: r.y + y0, w: r.w, h: r.h, level: lv }; });
+      grow(out.placed, here, out.w, out.h, seed + ':' + lv);
+      Object.entries(out.placed).forEach(([id, r]) => {
+        rooms[id] = { x: r.x, y: r.y + y0, w: r.w, h: r.h, level: lv };
+        if (r.extra) rooms[id].extra = r.extra.map((e) => ({ x: e.x, y: e.y + y0, w: e.w, h: e.h }));
+      });
       blocks.push({ level: lv, x: 0, y: y0, w: out.w, h: out.h });
       y0 += out.h + LEVEL_GAP;
     });

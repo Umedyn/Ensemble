@@ -94,6 +94,53 @@ test('places are checked in plain words: a way to another place is a trip, and o
   assert.match(err, /siteInfo: no room is in the place "nowhere"/);
 });
 
+test('the school is drawn on its own floor plan: shapes and the roof door from the map, the rooms as authored, and never a map for a new place', () => {
+  const { E, state } = game();
+  assert.equal(state.sites.seiryo.map, 'seiryo');
+  assert.ok(E.Sites.imageMap(state, 'seiryo'));
+  assert.ok(state.sites.seiryo.rooms.every((id) => state.locations[id].shape.length >= 3));
+  assert.deepEqual([...state.locations['upper-hall'].links.find((k) => k.to === 'rooftop').at], [975, 1640]);
+  assert.equal(state.locations.gate.name, state.scenario.locations.find((l) => l.id === 'gate').name);
+  assert.equal(E.Sites.imageMap(state, 'dorm'), null, 'the dorm is laid out by the game');
+  assert.deepEqual([...E.Sites.libraryFits(state.scenario, 'a school across town')].map((m) => m.id), [], 'the school\'s map is the school\'s');
+  // Checked in plain words.
+  const E2 = loadEngine();
+  const f = worldFiles(require('path').join(__dirname, '..', 'scenarios', 'seiryo-high'));
+  f['sites/seiryo.json'].rooms.find((r) => r.id === 'pool').shape = null;
+  assert.match(E2.Scenario.prepareWorld('seiryo-high', f).starts[0].error, /the map "seiryo" has no shape for the room "pool"/);
+  // A room the place has in no start at all, and one that is another place's.
+  f['sites/seiryo.json'].rooms.find((r) => r.id === 'pool').shape = [[1520, 560], [1760, 560], [1760, 900]];
+  f['sites/seiryo.json'].rooms.push({ id: 'boiler-room', name: 'Boiler room', desc: 'Hot.', shape: [[0, 0], [10, 0], [10, 10]] });
+  assert.throws(() => E2.Scenario.prepareWorld('seiryo-high', f), /the map "seiryo" draws "boiler-room", which isn't a room of this place/);
+  f['sites/seiryo.json'].rooms.pop();
+  f['sites/seiryo.json'].rooms.push({ id: 'cafe', name: 'Lantern', desc: 'Coffee.', shape: [[0, 0], [10, 0], [10, 10]] });
+  assert.throws(() => E2.Scenario.prepareWorld('seiryo-high', f), /the map "seiryo" draws "cafe", which isn't a room of this place/);
+});
+
+test('the creator draws one of the world\'s places: a draft map of its rooms, saved to the world once every room is drawn', () => {
+  const E = loadEngine();
+  const SE = E.SiteEdit;
+  const f = worldFiles(require('path').join(__dirname, '..', 'scenarios', 'seiryo-high'));
+  const places = SE.places(f);
+  assert.deepEqual(plain(places.map((p) => [p.id, p.map]).filter(([id]) => ['seiryo', 'dorm', 'hayakawa-house'].includes(id)).sort()), [['dorm', null], ['hayakawa-house', null], ['seiryo', 'seiryo']]);
+  const id = SE.fromPlace(f, 'dorm');
+  const m = f[SE.path(id)];
+  assert.equal(m.place, 'dorm');
+  assert.deepEqual(plain(m.rooms.map((r) => r.id).sort()), plain(places.find((p) => p.id === 'dorm').rooms.map((l) => l.id).sort()));
+  assert.ok(m.rooms.every((r) => (r.links || []).every((k) => k.kind !== 'trip')), 'the ways out to other places stay with the rooms');
+  Object.assign(m, { credit: 'Me', license: 'CC0-1.0' });
+  assert.match(SE.saveToWorld(f, id).error, /Load the floor plan image/);
+  SE.setImage(m, `sites/${id}.png`, 1000, 1000);
+  assert.match(SE.saveToWorld(f, id).error, /Draw these rooms first: Dorm entrance hall/);
+  m.rooms.forEach((r, i) => { r.shape = [[i * 30, 0], [i * 30 + 30, 0], [i * 30 + 30, 30], [i * 30, 30]]; });
+  assert.deepEqual(plain(SE.saveToWorld(f, id)), {});
+  assert.equal(f['world.json'].siteInfo.dorm.map, id);
+  const w = E.Scenario.prepareWorld('seiryo-high', f);
+  assert.ok(w.starts.every((s) => !s.error), w.starts.map((s) => s.error).join('; '));
+  SE.takeOut(f, id);
+  assert.equal(f['world.json'].siteInfo.dorm.map, undefined, 'taken out, the dorm is laid out again');
+});
+
 // ---------- people who join later ----------
 
 test('someone who joins later is out of the story until their event: no cast line, no prompt, no feelings toward them yet', () => {
