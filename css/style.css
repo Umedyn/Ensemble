@@ -324,9 +324,11 @@ button:disabled { opacity: .5; cursor: default; }
 .region-edge { stroke: var(--line-strong); stroke-width: 2; }
 .region-g:focus { outline: none; }
 .region-g:focus .region-shape { stroke: var(--focus); stroke-width: 4; }
-.region-label { fill: var(--text); font-family: var(--sans); font-size: 15px; font-weight: 700; paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round; pointer-events: none; }
+.region-label { fill: var(--text); font-family: var(--sans); font-size: 12px; font-weight: 700; paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; pointer-events: none; }
 .region-tag { fill: var(--tag-bg); stroke: var(--line); }
-.region-tag-text { fill: var(--text); font-family: var(--sans); font-size: 11px; pointer-events: none; }
+.region-tag-text { fill: var(--text); font-family: var(--sans); font-size: 9.5px; pointer-events: none; }
+.region-hit { fill-opacity: 0; stroke: none; pointer-events: all; cursor: pointer; }
+.region-shape.point { fill-opacity: 0.9; }
 .region-pin { fill: var(--accent); stroke: var(--bg); stroke-width: 2; pointer-events: none; }
 .region-loc { fill: var(--text); stroke: var(--bg); stroke-width: 1.5; }
 .region-place { fill: var(--muted); stroke: var(--bg); stroke-width: 1; vector-effect: non-scaling-stroke; pointer-events: none; }

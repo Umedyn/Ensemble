@@ -34,7 +34,7 @@
       regions.forEach((r) => {
         const sh = map.regions && map.regions[r.id];
         // A region in several pieces (islands; task 4-5) is one shape.
-        shapes[r.id] = sh && (sh.polygon || sh.polygons) ? { polygons: E.Geo.pieces(sh) } : { circle: anchors[r.id], r: 26 };
+        shapes[r.id] = sh && (sh.polygon || sh.polygons) ? { polygons: E.Geo.pieces(sh) } : { circle: anchors[r.id], r: 4 };
       });
       return { image: map, anchors, shapes, edges: [], full: [0, 0, map.width, map.height] };
     }
@@ -186,7 +186,8 @@
       if (sh.polygons && sh.polygons.length === 1) return `<polygon class="${cls}" points="${sh.polygons[0].map((p) => p.join(',')).join(' ')}"/>`;
       if (sh.polygons) return `<path class="${cls}" d="${sh.polygons.map((ring) => 'M' + ring.map((p) => p.join(',')).join('L') + 'Z').join('')}"/>`;
       if (sh.box) return `<rect class="${cls}" x="${sh.box.x - sh.box.w / 2}" y="${sh.box.y - sh.box.h / 2}" width="${sh.box.w}" height="${sh.box.h}" rx="10" style="fill-opacity:0.8"/>`;
-      return `<circle class="${cls}" cx="${sh.circle[0]}" cy="${sh.circle[1]}" r="${n1(sh.r * k)}"/>`;
+      // A point is a dot, with a bigger invisible target around it to click.
+      return `<circle class="region-hit" cx="${sh.circle[0]}" cy="${sh.circle[1]}" r="${n1(14 * k)}"/><circle class="${cls} point" cx="${sh.circle[0]}" cy="${sh.circle[1]}" r="${n1(sh.r * k)}"/>`;
     };
     // A label shows where it fits: always for points and the node map, for
     // an outline when it is wide enough in this view, and for yours and the
@@ -195,7 +196,7 @@
       const sh = g.shapes[r.id];
       if (!sh.polygons || r.id === o.mine || r.id === o.selected) return true;
       const b = E.Geo.bbox(sh.polygons);
-      return b[2] - b[0] >= String(r.name).length * 15 * k * 0.55;
+      return b[2] - b[0] >= String(r.name).length * 12 * k * 0.55;
     };
     // Routes on the node map (R-3): a line style per kind, closed ones marked.
     const closed = o.closed || new Set();
@@ -216,17 +217,19 @@
       const [ax, ay] = g.anchors[r.id];
       const show = fits(r);
       const tags = show ? (now.tags || []).slice(0, 2).concat((now.tags || []).length > 2 ? [`+${now.tags.length - 2}`] : []) : [];
-      let tx = ax - tags.reduce((t, x) => t + (x.length * 6.2 + 14) * k, 0) / 2;
-      const ts = k > 1 ? ` style="font-size:${n1(11 * k)}px"` : '';
+      // A point's name sits just above its dot.
+      const ly = g.shapes[r.id].circle ? ay - 7 * k : ay;
+      let tx = ax - tags.reduce((t, x) => t + (x.length * 5.3 + 12) * k, 0) / 2;
+      const ts = k > 1 ? ` style="font-size:${n1(9.5 * k)}px"` : '';
       const badges = tags.map((t) => {
-        const w = (t.length * 6.2 + 10) * k;
-        const out = `<rect class="region-tag" x="${n1(tx)}" y="${n1(ay + 8 * k)}" width="${n1(w)}" height="${n1(16 * k)}" rx="${n1(8 * k)}"/><text class="region-tag-text" x="${n1(tx + 5 * k)}" y="${n1(ay + 20 * k)}"${ts}>${esc(t)}</text>`;
+        const w = (t.length * 5.3 + 8) * k;
+        const out = `<rect class="region-tag" x="${n1(tx)}" y="${n1(ay + 7 * k)}" width="${n1(w)}" height="${n1(14 * k)}" rx="${n1(7 * k)}"/><text class="region-tag-text" x="${n1(tx + 4 * k)}" y="${n1(ay + 17.5 * k)}"${ts}>${esc(t)}</text>`;
         tx += w + 4 * k;
         return out;
       }).join('');
       const pin = r.id === o.mine ? `<circle class="region-pin" cx="${ax}" cy="${n1(ay - 24 * k)}" r="${n1(6 * k)}"/>` : '';
       const label = `${r.name}, held by ${D.factionName(o.factions, now.controller)}${(o.contested || []).includes(r.id) ? ', contested' : ''}${r.id === o.mine ? ', you are here' : ''}`;
-      const text = show ? `<text class="region-label" x="${ax}" y="${ay}" text-anchor="middle"${k > 1 ? ` style="font-size:${n1(15 * k)}px;stroke-width:${n1(4 * k)}px"` : ''}>${esc(r.name)}</text>` : '';
+      const text = show ? `<text class="region-label" x="${ax}" y="${n1(ly)}" text-anchor="middle"${k > 1 ? ` style="font-size:${n1(12 * k)}px;stroke-width:${n1(3 * k)}px"` : ''}>${esc(r.name)}</text>` : '';
       return `<g class="region-g${pulse.has(r.id) ? ' changed' : ''}${dim.has(r.id) ? ' dim' : ''}" tabindex="0" role="button" data-region="${esc(r.id)}"${zoomable.has(r.id) ? ' data-zoomable="1"' : ''} aria-label="${esc(label)}${zoomable.has(r.id) ? ', zoom in' : ''}">${shapeSvg(r.id, cls)}${text}${badges}${pin}</g>`;
     }).join('');
     const small = k > 1 ? ` style="font-size:${n1(11 * k)}px;stroke-width:${n1(3 * k)}px"` : '';
