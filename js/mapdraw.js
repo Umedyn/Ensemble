@@ -49,17 +49,14 @@
   // Its picture is the nearest map up the chain: its own, an ancestor's, or
   // the world's. With a picture, everything outlined on it is drawn as
   // before (the picture is decoration underneath, never data: rule 11), and
-  // the view zooms to the level; regions outside it are dimmed. A crowded
-  // picture (over D.CROWDED regions) leaves out what's inside another shaped
-  // region off the way to the level: a world of countries shows the
-  // countries, and a country its own cities once zoomed into. Without one,
-  // a node map of its children and their routes. A leaf shows its parent's
+  // the view zooms to the level; regions outside it are dimmed (how much
+  // detail shows depends on the zoom: worldSvg). Without one, a node map of
+  // its children and their routes. A leaf shows its parent's
   // view, zoomed to it.
   // → { id, picture (map or null), owner (whose map), regions (definitions
   // to draw), g, viewBox, children (ids a click zooms into), dim (ids outside
   // the level), rooms ([{id, x, y}] placed on the picture, in the level) }
   // opts.hidden: regions the player doesn't know of (R-5), left out entirely.
-  D.CROWDED = 60;
   D.level = function (sc, levelId, opts) {
     const S = E.Scenario;
     const hidden = (opts && opts.hidden) || new Set();
@@ -76,13 +73,7 @@
     const picture = owner ? def(owner).map : sc.map || null;
     const seed = `${sc.worldId || ''}${base ? ':' + base : ''}`;
     if (picture) {
-      // On a crowded picture, a region inside another that has a shape of its
-      // own waits until that one is zoomed into, unless it's on the way here.
-      const shaped = (x) => isObj(picture.regions) && picture.regions[x];
-      const way = base != null ? chainOf(base) : [];
-      const deep = (x) => chainOf(x).slice(1).some((a) => a !== owner && !way.includes(a) && shaped(a));
-      const all = list.filter((r) => inside(r.id, owner));
-      const regions = all.length > D.CROWDED ? all.filter((r) => !deep(r.id)) : all;
+      const regions = list.filter((r) => inside(r.id, owner));
       const g = D.geometry(regions, picture, seed);
       const focus = id == null || id === owner ? null : (leaf ? [id] : list.filter((r) => inside(r.id, id)).map((r) => r.id).filter((x) => g.shapes[x]));
       // A leaf: as the regional view was, twice its size within what's near it.
@@ -147,9 +138,45 @@
   // view, label, rooms ([{x, y, name}]), places ([{x, y, name, kind,
   // notable}]: named points such as capitals, task 4-5), overlay (extra SVG
   // on top) }
+  // Detail by zoom: a region inside one outlined on the picture (a city in
+  // its country) shows once that outline's biggest piece is at least
+  // 1/DETAIL of the view's width (inside a point, only the cap below); on a crowded picture (over CROWDED
+  // regions: a world of countries), never in a view wider than DETAIL_MAX of
+  // the whole picture, so zoomed out it shows only the top level. Yours, the
+  // ones you're inside and the selected one always show.
+  D.DETAIL = 5;
+  D.DETAIL_MAX = 0.6;
+  D.CROWDED = 60;
+  D.detailShown = function (g, regions, vbox, always) {
+    const byId = new Map((regions || []).map((r) => [r.id, r]));
+    const sizes = new Map();
+    const size = (id) => {
+      if (!sizes.has(id)) {
+        const sh = g.shapes[id];
+        const big = sh && sh.polygons && sh.polygons.slice().sort((a, b) => E.Geo.area(b) - E.Geo.area(a))[0];
+        const b = big && E.Geo.bbox([big]);
+        sizes.set(id, b ? Math.max(b[2] - b[0], b[3] - b[1]) : sh ? Infinity : null);
+      }
+      return sizes.get(id);
+    };
+    const keep = new Set((always || []).filter((x) => x != null));
+    const crowded = (regions || []).filter((r) => g.shapes[r.id]).length > D.CROWDED;
+    const widest = crowded ? g.full[2] * D.DETAIL_MAX : Infinity;
+    return (r) => {
+      if (keep.has(r.id)) return true;
+      const seen = new Set();
+      for (let p = r.parent; p != null && byId.has(p) && !seen.has(p); p = byId.get(p).parent) {
+        seen.add(p);
+        const s = size(p);
+        if (s != null) return vbox[2] <= Math.min(s * D.DETAIL, widest);
+      }
+      return true;
+    };
+  };
   D.worldSvg = function (o) {
     const g = o.g;
     const vbox = o.viewBox || g.full;
+    const shown = D.detailShown(g, o.regions, vbox, [o.mine, o.selected].concat(o.branch || []));
     // Text, badges and pins keep their size on screen whatever the map's
     // size: a whole-world image is thousands of pixels wide (task 4-5).
     const k = Math.max(1, vbox[2] / 900);
@@ -182,7 +209,7 @@
     const zoomable = new Set(o.zoomable || []);
     const pulse = new Set(o.pulse || []);
     const parents = new Set((o.regions || []).map((r) => r.parent).filter((p) => p != null));
-    const body = (o.regions || []).filter((r) => g.shapes[r.id]).sort((a, b) => parents.has(b.id) - parents.has(a.id)).map((r) => {
+    const body = (o.regions || []).filter((r) => g.shapes[r.id] && shown(r)).sort((a, b) => parents.has(b.id) - parents.has(a.id)).map((r) => {
       const now = (o.now || {})[r.id] || { controller: r.controller || null, tags: r.tags || [] };
       const fc = D.factionClass(o.factions, now.controller);
       const cls = `region-shape ${fc}${fc === 'none' ? ' none' : ''}${(o.contested || []).includes(r.id) ? ' contested' : ''}${r.id === o.mine ? ' here' : ''}${(o.branch || []).includes(r.id) && r.id !== o.mine ? ' branch' : ''}${r.id === o.selected ? ' selected' : ''}`;

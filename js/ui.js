@@ -1603,6 +1603,25 @@
     const px = cx == null ? x + w / 2 : cx, py = cy == null ? y + h / 2 : cy;
     viewBoxes[view] = [px - (px - x) * (nw / w), py - (py - y) * (nh / h), nw, nh];
     svg.setAttribute('viewBox', viewBoxes[view].map((n) => Math.round(n)).join(' '));
+    clearTimeout(zoomTimer);
+    zoomTimer = setTimeout(redrawZoomed, 150);
+  }
+  // Once a zoom settles, the map is drawn again for the new view: the detail
+  // that fits it (MapDraw.detailShown) and labels sized for it. The picture
+  // stays as it is, so it doesn't flicker.
+  let zoomTimer = null;
+  function redrawZoomed() {
+    const svg = $('worldSvg');
+    if (!svg || !state) return;
+    if (drag) { zoomTimer = setTimeout(redrawZoomed, 150); return; }
+    const view = svg.dataset.view;
+    const t = document.createElement('template');
+    t.innerHTML = levelHtml(view === 'root' ? null : view);
+    const fresh = t.content.querySelector('#worldSvg');
+    if (!fresh) return;
+    const keep = (c) => c.tagName.toLowerCase() === 'image';
+    [...svg.children].forEach((c) => { if (!keep(c)) c.remove(); });
+    [...fresh.children].forEach((c) => { if (!keep(c)) svg.appendChild(c); });
   }
   const toMap = (svg, ev) => {
     const pt = svg.createSVGPoint();

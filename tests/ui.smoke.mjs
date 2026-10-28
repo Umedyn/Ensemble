@@ -886,6 +886,13 @@ await check('world and regional views: regions by who holds them, the info strip
   await page.click('[data-zoom="in"]');
   const zoomed = (await page.getAttribute('#worldSvg', 'viewBox')).split(' ').map(Number);
   assert.ok(zoomed[2] < full[2], 'zoomed in');
+  // Once the zoom settles the map is drawn again for the new view (the
+  // detail that fits it), keeping the picture so it doesn't flicker.
+  await page.evaluate(() => { document.querySelector('#worldSvg image').dataset.kept = '1'; document.querySelector('#worldSvg .region-g').dataset.old = '1'; });
+  await page.waitForFunction(() => !document.querySelector('#worldSvg [data-old]'));
+  assert.equal(await page.locator('#worldSvg image[data-kept]').count(), 1, 'the same picture');
+  assert.equal(await page.locator('#worldSvg .region-g').count(), 5);
+  assert.deepEqual((await page.getAttribute('#worldSvg', 'viewBox')).split(' ').map(Number), zoomed, 'the view stays');
   await page.click('[data-zoom="reset"]');
   assert.deepEqual((await page.getAttribute('#worldSvg', 'viewBox')).split(' ').map(Number), full);
   await page.screenshot({ path: path.join(shots, 'map-world.png') });

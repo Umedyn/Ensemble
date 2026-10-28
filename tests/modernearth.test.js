@@ -37,19 +37,25 @@ test('the world today has every country and its major cities as regions, each wi
   assert.ok(E.Prompts.genHeader(E.StartGen.contextScenario(loaded, 'lyon'), []).length < 4000);
 });
 
-test('one picture for a deep tree: the world map shows the countries, and a country its own cities', () => {
+test('the farther out the map is zoomed, the fewer regions inside others it shows', () => {
   const E = loadEngine();
   const w = readWorld('modern-earth').bundle.world;
   const sc = { regions: w.regions, map: w.map, worldId: 'modern-earth' };
-  const ids = (lv) => lv.regions.map((r) => r.id);
+  const drawn = (lv, viewBox, extra) => [...E.MapDraw.worldSvg(Object.assign({ g: lv.g, regions: lv.regions, factions: [], viewBox }, extra)).matchAll(/data-region="([^"]+)"/g)].map((m) => m[1]);
   const world = E.MapDraw.level(sc, null);
-  assert.ok(ids(world).includes('france') && !ids(world).includes('paris'), 'cities wait for their country');
-  assert.equal(world.children.length, w.regions.filter((r) => !r.parent).length);
+  const out = drawn(world, world.viewBox);
+  assert.ok(out.includes('france') && out.includes('russia'), 'every country');
+  assert.ok(!out.includes('paris') && !out.includes('moscow'), 'no cities, even in the biggest country, zoomed all the way out');
+  assert.ok(!drawn(world, [0, 0, world.g.full[2] * 2, world.g.full[2]]).includes('paris'), 'or past the edges');
+  // Zoomed in on western Europe: France's cities, and the bigger neighbours'.
+  const europe = drawn(world, [3950, 750, 600, 450]);
+  assert.ok(['paris', 'lyon', 'berlin', 'madrid'].every((id) => europe.includes(id)), europe.join(' '));
+  // A country's own level shows its cities; zoomed out from it, they go.
   const france = E.MapDraw.level(sc, 'france');
-  assert.ok(['paris', 'lyon', 'germany'].every((id) => ids(france).includes(id)) && !ids(france).includes('berlin'), "France's cities, not Germany's");
-  assert.deepEqual(plain(france.children).sort(), ['lille', 'lyon', 'marseille', 'paris']);
-  const lyon = E.MapDraw.level(sc, 'lyon');
-  assert.ok(lyon.leaf && ids(lyon).includes('paris'), "a city shows its country's level");
+  assert.ok(drawn(france, france.viewBox).includes('paris'));
+  assert.ok(!drawn(france, world.g.full).includes('paris'));
+  assert.ok(drawn(france, world.g.full, { mine: 'paris' }).includes('paris'), 'yours always shows');
+  assert.ok(drawn(france, world.g.full, { selected: 'lyon' }).includes('lyon'), 'and the selected one');
 });
 
 // A square ring, west/south corner and size in degrees.
