@@ -204,10 +204,10 @@ Everything a creator needs to build a world without touching JSON.
 
 ## Phase 7: Genre proof
 
-- [ ] Two new original scenarios in very different genres, such as a resistance cell in an occupied city and a high-school slice-of-life. At least one uses a map image with regions, and one uses generated starts.
+- [ ] Two new original worlds in very different genres, each worth playing for its own sake, whose stories naturally lean on different parts of the engine: a resistance cell in an occupied country (regions changing hands, large groups moving and acting, a player who can change what they do) and a high-school slice-of-life (a large cast of characters and relationships, with groups mattering little). At least one uses a map image with regions, and one uses generated starts.
   - Resistance cell: **Occupied France, 1942–1944** (task 7-1, built 2026-10-27; waiting for the real-model playtest): France on its own map with the zones and the départements of 1942, the demarcation line as a border with risky crossings, a canon timeline from April 1942 to the liberation of Strasbourg, Paris, Lyon and Marseille as region maps, two starts.
 - [ ] **Dates in the creator** (from 7-1): in a world with a `calendar`, the Timeline and Starts tabs show and take real dates beside the day numbers (Occupied France's events were written as dates and converted by script).
-- [ ] Fix whatever turns out to be survival-specific. Add a test named after each fix.
+- [ ] Fix what playing them shows up in the engine, each fix with a test named after the behaviour (as for every world).
 - [ ] More layout styles (`office floor`, `club`, `compound`, `sewer`, …) for `js/layouts.js`, added when a new world's generated sites need them (from phase 3).
 - [ ] **Official real-world worlds** (decided 2026-10-22): "pick a place and live in it" worlds, such as the modern world and WWII, sharing the topographic base map (task 4-5).
   - **Sharper close-ups**: the shared picture is about 23 pixels a degree and the 1:50m source about 30, so a country's own map is soft and a province's or city's blurry. Add `npm run basemap -- fetch --hires` for Natural Earth's 1:10m relief raster (about 60 pixels a degree; a much bigger download, so optional), with `crop` using it when it's there; the shared map in the repo stays as it is. Check the file's name on Natural Earth's server when building it.
