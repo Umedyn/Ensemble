@@ -42,5 +42,8 @@
         "contact": true
       }
     ]
-  }
+  },
+  "groups": [
+    "resistance"
+  ]
 }

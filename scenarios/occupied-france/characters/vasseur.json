@@ -27,5 +27,8 @@
     "leroy": 35,
     "marchal": 5,
     "brossard": 0
-  }
+  },
+  "groups": [
+    "resistance"
+  ]
 }

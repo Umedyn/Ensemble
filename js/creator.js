@@ -1491,6 +1491,9 @@
       ${fld(F, `factions.${i}.name`, 'text', 'Name', { live: 'grouplist', max: 60 })}
       ${fld(F, `factions.${i}.desc`, 'text', 'Who they are', { rows: 3 })}
       ${fld(F, `factions.${i}.stance`, 'text', 'Stance at the start', { live: 'grouplist', hint: 'toward the player\'s people; starts may change it', max: 140 })}
+      ${fld(F, `factions.${i}.allies`, 'csv', 'Allies', { hint: 'group ids: the player\'s standing with this group spreads to them a little, the same way' })}
+      ${fld(F, `factions.${i}.enemies`, 'csv', 'Enemies', { hint: 'group ids: standing spreads to them the other way' })}
+      ${fld(F, `reputation.${f.id}`, 'int', 'The player\'s standing at the start', { hint: '-100 (hostile) to 100 (trusted); 0 when blank. Starts and player slots may change it' })}
       ${fld(F, `factions.${i}.color`, 'int', 'Colour on the map', { blank: 'auto (from the id)', options: [1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({ id: String(n), name: `colour ${n}` })) })}
       <div class="small">${held.length ? `Holds ${held.map((r) => regionChip(r.id)).join(', ')}` : '<span class="muted">Holds no region.</span>'}</div>
       <button type="button" id="cDelGroup" class="small danger">${gui.confirm ? 'Click again to delete' : 'Delete group'}</button>`;

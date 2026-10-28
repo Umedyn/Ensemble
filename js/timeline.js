@@ -14,7 +14,7 @@
   TL.SCOPES = ['regional', 'world'];
   TL.VISIBILITY = ['seen', 'heard', 'hidden'];
   TL.ON_BROKEN = ['drop', 'diverge'];
-  TL.PRE_KEYS = ['alive', 'controls', 'clock', 'world', 'known', 'not'];
+  TL.PRE_KEYS = ['alive', 'controls', 'clock', 'world', 'known', 'reputation', 'role', 'not'];
   TL.PROJECT = { days: 3, max: 3 };
   TL.TEXT_MAX = 240;
   // Hours between projection attempts, so an empty or failed one isn't
@@ -72,6 +72,16 @@
         return facts.some((f) => p.known.words.every((w) => E.Lore.matches(w, f.text)));
       },
       say: (s, p) => `${p.by ? nm(s, p.by) : 'the player'} knows ${typeof p.known === 'string' ? `about "${p.known}"` : `something about ${p.known.words.join(' + ')}`}`,
+    },
+    // Standing (task G-6): {"reputation": {group, atLeast}} or {group, below};
+    // {"role": {group, is}} (member, favored, leader, or none).
+    reputation: {
+      holds: (s, p) => { const v = E.Standing.value(s, p.reputation.group); return p.reputation.atLeast != null ? v >= p.reputation.atLeast : v < p.reputation.below; },
+      say: (s, p) => `standing with ${E.Standing.groupName(s, p.reputation.group)} is ${p.reputation.atLeast != null ? `${p.reputation.atLeast} or more` : `below ${p.reputation.below}`}`,
+    },
+    role: {
+      holds: (s, p) => (E.Standing.roleOf(s, p.role.group) || 'none') === p.role.is,
+      say: (s, p) => (p.role.is === 'none' ? `the player isn't in ${E.Standing.groupName(s, p.role.group)}` : `the player is ${p.role.is === 'member' ? 'a member' : p.role.is === 'leader' ? 'the leader' : 'favored'} in ${E.Standing.groupName(s, p.role.group)}`),
     },
     not: {
       holds: (s, p) => !TL.holds(s, p.not),
@@ -343,6 +353,16 @@
       const ok = typeof p.known === 'string' || (isObj(p.known) && Array.isArray(p.known.words) && p.known.words.length && p.known.words.every((x) => typeof x === 'string' && x.trim()));
       if (!ok) no('"known" must be an event id or {words: [...]}');
       if (p.by != null && !(typeof p.by === 'string' && (!refs.characters || refs.characters.has(p.by)))) no(`"known": unknown character "${p.by}" in "by"`);
+    }
+    if (k === 'reputation') {
+      const r = p.reputation;
+      if (!isObj(r) || typeof r.group !== 'string' || (typeof r.atLeast !== 'number' && typeof r.below !== 'number')) return no('"reputation" must be {group, atLeast} or {group, below}');
+      if (refs.groups && !refs.groups.has(r.group)) no(`"reputation": unknown group "${r.group}"`);
+    }
+    if (k === 'role') {
+      const r = p.role;
+      if (!isObj(r) || typeof r.group !== 'string' || !E.Standing.ROLES.concat('none').includes(r.is)) return no(`"role" must be {group, is: ${E.Standing.ROLES.join('|')}|none}`);
+      if (refs.groups && !refs.groups.has(r.group)) no(`"role": unknown group "${r.group}"`);
     }
     if (k === 'not') preProblems(p.not, at, refs, problems, warnings);
   }

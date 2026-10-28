@@ -72252,42 +72252,77 @@
       "name": "The German occupation",
       "desc": "The military command in France, the army, and the security police and SD (everyone says \"the Gestapo\") who hunt the Resistance.",
       "stance": "in control of the occupied zone; shoots hostages after attacks",
-      "color": 1
+      "color": 1,
+      "allies": [
+        "vichy",
+        "italy"
+      ],
+      "enemies": [
+        "resistance",
+        "free-french",
+        "allies"
+      ]
     },
     {
       "id": "vichy",
       "name": "The French State (Vichy)",
       "desc": "Marshal Pétain's government at Vichy, its prefects, police and gendarmes, governing the free zone and administering the occupied one under German orders.",
       "stance": "collaborating, and proud of its \"National Revolution\"",
-      "color": 2
+      "color": 2,
+      "allies": [
+        "germany"
+      ],
+      "enemies": [
+        "resistance",
+        "free-french"
+      ]
     },
     {
       "id": "italy",
       "name": "Kingdom of Italy",
       "desc": "Germany's ally; holds Menton and a strip of the Alpine frontier since 1940.",
       "stance": "an ally of Germany with claims on Nice, Savoy and Corsica",
-      "color": 3
+      "color": 3,
+      "allies": [
+        "germany"
+      ]
     },
     {
       "id": "resistance",
       "name": "The Resistance",
       "desc": "Scattered movements, networks and communist groups: underground papers, escape lines, intelligence, a few armed attacks. Divided, and hunted.",
       "stance": "small, divided and growing",
-      "color": 4
+      "color": 4,
+      "allies": [
+        "free-french",
+        "allies"
+      ],
+      "enemies": [
+        "germany",
+        "vichy"
+      ]
     },
     {
       "id": "free-french",
       "name": "Free France",
       "desc": "General de Gaulle's movement in London and the French territories that joined it, with its own forces and agents.",
       "stance": "speaks to France on the BBC and sends agents in by night",
-      "color": 5
+      "color": 5,
+      "allies": [
+        "resistance",
+        "allies"
+      ]
     },
     {
       "id": "allies",
       "name": "The Allies",
       "desc": "Britain and its empire, the United States since December 1941, and the Soviet Union in the east.",
       "stance": "bombing factories and ports; no landing yet",
-      "color": 6
+      "color": 6,
+      "allies": [
+        "free-french",
+        "resistance"
+      ]
     }
   ],
   "presence": {
@@ -74301,5 +74336,13 @@
       },
       "epilogue": "What happens next is the story of the camps and the prisons. Somewhere, someone else picks up the work."
     }
-  ]
+  ],
+  "reputation": {
+    "resistance": 20,
+    "free-french": 5,
+    "vichy": 0,
+    "germany": 0,
+    "italy": 0,
+    "allies": 0
+  }
 }

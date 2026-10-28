@@ -1193,7 +1193,14 @@
         `<div class="bar ${pct >= 75 || c.fired ? 'danger' : ''}"><i style="width:${c.fired ? 100 : pct}%"></i></div></div>`;
     }).join('');
     const world = Object.entries(state.world).map(([k, v]) => `<div><b>${esc(k)}</b>: ${esc(v)}</div>`).join('');
-    const groups = (state.factions || []).map((f) => `<div title="${esc(f.desc)}"><b>${esc(f.name)}</b>: ${esc(f.stance)}</div>`).join('');
+    // Each group's stance, and (task G-6) where the player stands with it: the
+    // number and the word, their role, and the latest reason.
+    const groups = (state.factions || []).map((f) => {
+      const r = (state.reputation || {})[f.id];
+      const role = E.Standing.roleOf(state, f.id);
+      const standing = r ? ` <span class="standing">· you: <span class="rel-${E.Standing.word(r.value)}">${E.Standing.word(r.value)} ${r.value > 0 ? '+' : ''}${r.value}</span>${role ? ` (${role === 'leader' ? 'you lead it' : role})` : ''}${r.why ? ` <span class="muted">${esc(r.why)}</span>` : ''}</span>` : '';
+      return `<div title="${esc(f.desc)}" data-group="${esc(f.id)}"><b>${esc(f.name)}</b>: ${esc(f.stance)}${standing}</div>`;
+    }).join('');
     $('situation').innerHTML = clocks + `<div class="world">${world}</div>` + regionHtml() + (groups ? `<div class="world groups">${groups}</div>` : '');
   }
 
@@ -2060,7 +2067,7 @@
   const openCards = new Set();
   const KNOWN_SHOWN = 6;
   function cardDetails(id, c, dead) {
-    const who = [c.pronouns, c.role, c.age].filter(Boolean).map(esc).join(' · ');
+    const who = [c.pronouns, c.role, c.age, E.Standing.membership(state, c)].filter(Boolean).map(esc).join(' · ');
     const known = E.Engine.knownAbout(state, id);
     const knownHtml = known.length
       ? `<ul class="known">${known.slice(0, KNOWN_SHOWN).map((f) => `<li>${esc(f.text)}</li>`).join('')}</ul>` +

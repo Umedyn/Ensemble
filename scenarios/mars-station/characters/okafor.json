@@ -38,5 +38,11 @@
       "drafts a confident summary of the ice findings for Mission Control",
       "quietly checks who has opened the raw sample files on the shared drive"
     ]
-  }
+  },
+  "groups": [
+    {
+      "id": "mission",
+      "role": "favored"
+    }
+  ]
 }

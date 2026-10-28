@@ -42,5 +42,9 @@
         "contact": true
       }
     ]
-  }
+  },
+  "groups": [
+    "vichy",
+    "resistance"
+  ]
 }

@@ -247,12 +247,14 @@ test('converted bundled worlds start the same game as their legacy versions', ()
     Object.values(now.state.characters).forEach((c) => { delete c.description; delete c.appearance; });
     // Cast tiers (task 2-1) and agendas (task 2-2) were added after the conversion too: zombie-holdout's Ortiz starts local.
     [now, before].forEach((g) => Object.values(g.state.characters).forEach((c) => { delete c.tier; delete c.agenda; }));
+    // Memberships of the groups (task G-6) too: Ares Deep's crew belong to Mission Control.
+    Object.values(now.state.characters).forEach((c) => { delete c.groups; });
     // Regions (task 3-1) too: every location got a region, and the header a REGIONS block.
     Object.values(now.state.locations).forEach((l) => { delete l.region; });
     // And site layout data (task 3-3).
     Object.values(now.state.locations).forEach((l) => ['size', 'level', 'outside', 'features', 'links'].forEach((k) => delete l[k]));
     // And faction colours for the world map (task 3-4).
-    now.state.factions.forEach((f) => delete f.color);
+    now.state.factions.forEach((f) => { delete f.color; delete f.allies; delete f.enemies; });
     // And the canon past (task 5-2): its facts and chapter zero.
     now.state.facts = now.state.facts.filter((f) => !f.canon);
     // And harmful, repeating pressures (playtest-coffee-skips): Ares Deep's thirst, Holdout's hunger.

@@ -16,16 +16,16 @@
   const START_OWN = ['id', 'title', 'summary', 'start', 'player', 'cast', 'opening', 'castLabel', 'region', 'playerSlot', 'generated'];
   // World fields a start may override (merge rules below).
   const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'tagThresholds', 'portraitSet', 'factions', 'world',
-    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'regionLabels', 'routeKinds', 'presence', 'mapFocus', 'tactical', 'standees', 'site', 'localMap', 'map', 'entrances', 'lore', 'loreTopics', 'timeline', 'projectTimeline', 'endings'];
+    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'regionLabels', 'routeKinds', 'presence', 'reputation', 'mapFocus', 'tactical', 'standees', 'site', 'localMap', 'map', 'entrances', 'lore', 'loreTopics', 'timeline', 'projectTimeline', 'endings'];
   const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'date', 'calendar', 'characters', 'starts', 'generatedStarts', 'generatedSites', 'generatedRegions', 'sites', 'lorePacks', ...OVERRIDABLE];
   const WORLD_RESERVED = [];
   const START_RESERVED = [];
-  const CAST_FIELDS = ['id', 'status', 'needs', 'needsOff', 'relations', 'knows', 'want', 'secret', 'guard', 'tags', 'tier', 'pinned', 'agenda'];
+  const CAST_FIELDS = ['id', 'status', 'needs', 'needsOff', 'groups', 'relations', 'knows', 'want', 'secret', 'guard', 'tags', 'tier', 'pinned', 'agenda'];
   // Merge rules: lists of {id} objects merge by id, lists of strings are
   // unioned, plain objects merge shallowly; anything else is replaced.
   const ID_LISTS = ['locations', 'clocks', 'factions', 'extras', 'regions', 'standees', 'lore', 'timeline', 'endings'];
   const STRING_LISTS = ['rules', 'facts', 'tags'];
-  const OBJECTS = ['world', 'eventRates', 'eventSeeds', 'tiers', 'routeKinds', 'presence', 'loreTopics'];
+  const OBJECTS = ['world', 'eventRates', 'eventSeeds', 'tiers', 'routeKinds', 'presence', 'loreTopics', 'reputation'];
 
   const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
   const castId = (entry) => (typeof entry === 'string' ? entry : entry && entry.id);
@@ -596,6 +596,8 @@
     req(c.tier == null || ['local', 'secondary'].includes(c.tier), `character "${c.id}" tier must be local or secondary`);
     req(c.pinned == null || typeof c.pinned === 'boolean', `character "${c.id}" pinned must be true or false`);
     problems.push(...S.needsOffProblems(c.needsOff, sc, `character "${c.id}"`));
+    // Factions they belong to, and their role in each (task G-6).
+    problems.push(...E.Standing.groupsProblems(c.groups, new Set((sc.factions || []).map((f) => f && f.id)), `character "${c.id}"`));
     if (c.agenda != null) {
       const a = E.Engine.cleanAgenda(c.agenda);
       req(!a.error, `character "${c.id}": ${a.error}`);
@@ -1167,6 +1169,10 @@
     req(sc.tactical == null || typeof sc.tactical === 'boolean', '"tactical" must be true or false');
     Object.entries(sc.eventRates || {}).forEach(([k, v]) => req(['regional', 'world'].includes(k) && typeof v === 'number' && v >= 0, `eventRates.${k} must be regional/world with hours >= 0 (0 turns it off)`));
     (sc.factions || []).forEach((f) => req(f.id && f.name && f.desc && f.stance, `group "${f.id || '?'}" needs id, name, desc and stance`));
+    // Standing (task G-6): where the player starts with each group, and who is whose ally.
+    const groupSet = new Set((sc.factions || []).map((f) => f && f.id));
+    problems.push(...E.Standing.reputationProblems(sc.reputation, groupSet, 'scenario'));
+    (sc.factions || []).forEach((f) => problems.push(...E.Standing.factionProblems(f, groupSet)));
     (sc.factions || []).forEach((f) => req(f.color == null || (Number.isInteger(f.color) && f.color >= 1 && f.color <= S.FACTION_COLORS), `group "${f.id}": "color" must be a whole number from 1 to ${S.FACTION_COLORS} (a theme colour)`));
     if (sc.playerSlot != null && Array.isArray(sc.characters)) problems.push(...E.CharMaker.slotProblems(sc));
     problems.push(...mapProblems(sc, locIds));

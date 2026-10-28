@@ -8,7 +8,7 @@
   const E = root.Ensemble;
   const CM = (E.CharMaker = {});
 
-  CM.SLOT_FIELDS = ['location', 'summary', 'knows', 'needs', 'roles', 'peoples', 'freeform', 'skillPoints', 'maxSkill', 'relationsDefault', 'castFeelings', 'keepDefault'];
+  CM.SLOT_FIELDS = ['location', 'summary', 'knows', 'needs', 'roles', 'peoples', 'freeform', 'skillPoints', 'maxSkill', 'relationsDefault', 'castFeelings', 'keepDefault', 'groups', 'reputation'];
   CM.MAX_SKILL = 4; // the cap for every character
   CM.LIMITS = { name: 40, pronouns: 20, role: 60, people: 60, description: 600, appearance: 400, trait: 30, traits: 6, voice: 160, want: 160, secret: 300 };
   CM.SUGGEST_FIELDS = ['traits', 'voice', 'description'];
@@ -39,6 +39,10 @@
     req(slot.needs == null || (isObj(slot.needs) && Object.entries(slot.needs).every(([k, v]) => (sc.needs || []).some((n) => n.id === k) && typeof v === 'number' && v >= 0 && v <= 1)),
       '"needs" must map the world\'s needs to numbers from 0 to 1');
     req(slot.freeform == null || typeof slot.freeform === 'boolean', '"freeform" must be true or false');
+    // The made character's factions and standing (task G-6).
+    const groupSet = new Set((sc.factions || []).map((f) => f && f.id));
+    E.Standing.groupsProblems(slot.groups, groupSet, 'groups').forEach((p) => req(false, p));
+    E.Standing.reputationProblems(slot.reputation, groupSet, 'reputation').forEach((p) => req(false, p));
     req(slot.keepDefault == null || typeof slot.keepDefault === 'boolean', '"keepDefault" must be true or false');
     req(Number.isInteger(slot.maxSkill) && slot.maxSkill >= 1 && slot.maxSkill <= CM.MAX_SKILL, `"maxSkill" must be a whole number from 1 to ${CM.MAX_SKILL}`);
     req(Number.isInteger(slot.skillPoints) && slot.skillPoints >= 0, '"skillPoints" must be a whole number (0 or more)');
@@ -223,6 +227,7 @@
       if (c.needs) (sc.needs || []).forEach((n) => { if (!E.Scenario.hasNeed(c, n.id)) delete c.needs[n.id]; });
     }
     if (slot.knows && slot.knows.length) c.knows = slot.knows.slice();
+    if (Array.isArray(slot.groups) && slot.groups.length) c.groups = E.clone(slot.groups);
     const cast = CM.castFor(sc);
     cast.forEach((other) => {
       const v = f.feelings && f.feelings[other] != null ? f.feelings[other] : feelingFor(slot.relationsDefault, other);
@@ -257,6 +262,8 @@
     if (gone) (sc.locations || []).forEach((l) => (l.links || []).forEach((k) => { if (Array.isArray(k.key)) k.key = [...new Set(k.key.map((id) => (id === gone ? c.id : id)))]; }));
     sc.player = c.id;
     sc.madePlayer = c.id;
+    // The slot's standing is the made character's (task G-6).
+    if (slot.reputation) sc.reputation = Object.assign({}, sc.reputation, slot.reputation);
     return E.Scenario.validate(sc);
   };
 
@@ -345,6 +352,7 @@
     f.topics = Array.isArray(d.topics) ? d.topics.filter((x) => typeof x === 'string') : [];
     f.needs = isObj(d.needs) ? Object.assign({}, d.needs) : {};
     f.needsOff = d.needsOff === true ? (sc.needs || []).map((n) => n.id) : Array.isArray(d.needsOff) ? d.needsOff.slice() : [];
+    f.groups = E.WorldEdit ? E.WorldEdit.show('groups', d.groups) : '';
     return f;
   };
   // The form → { character } (a pool file) or { errors }. original: the file
@@ -400,6 +408,8 @@
     });
     set('needs', needs);
     set('needsOff', CM.needsOffField(sc, f.needsOff));
+    // Memberships (task G-6), as "resistance, vichy=favored".
+    if (E.WorldEdit) { const g = E.WorldEdit.parse('groups', f.groups || ''); set('groups', g.value); }
     const locIds = new Set((sc.locations || []).map((l) => l.id));
     const check = Object.assign({}, c, { status: Object.assign({}, c.status, { location: sc.playerSlot.location }) });
     errors.push(...E.Scenario.characterProblems(check, sc, locIds, sc.characters.concat(c.id)));

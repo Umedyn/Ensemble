@@ -456,14 +456,20 @@
       "name": "Mission Control",
       "desc": "The Ares program's ground team on Earth, 14 light-minutes away. Reviews everything the crew sends and decides on the second rotation.",
       "stance": "supportive but anxious; reviewing this rotation's data for the renewal decision",
-      "color": 2
+      "color": 2,
+      "allies": [
+        "sponsor"
+      ]
     },
     {
       "id": "sponsor",
       "name": "Halvorsen Aerospace",
       "desc": "The corporate sponsor funding most of Ares Deep. Wants headlines and results it can sell.",
       "stance": "publicly upbeat; privately watching costs and crew performance",
-      "color": 4
+      "color": 4,
+      "allies": [
+        "mission"
+      ]
     }
   ],
   "eventRates": {
@@ -678,7 +684,9 @@
       "id": "the-report",
       "title": "The report",
       "kind": "neutral",
-      "when": { "judged": "the crew agrees on what the renewal report to Earth will say, and it is sent" },
+      "when": {
+        "judged": "the crew agrees on what the renewal report to Earth will say, and it is sent"
+      },
       "epilogue": "Whatever Earth decides, it will decide from what this crew chose to tell it."
     }
   ],
@@ -768,7 +776,11 @@
       "region": "crater-rim",
       "visibility": "heard",
       "text": "The cargo lander touches down on its pad on the rim, carrying spare parts, seeds and food.",
-      "ending": { "title": "End of rotation", "kind": "bittersweet", "epilogue": "The lander brings the next crew's advance team, and the station starts to become someone else's." },
+      "ending": {
+        "title": "End of rotation",
+        "kind": "bittersweet",
+        "epilogue": "The lander brings the next crew's advance team, and the station starts to become someone else's."
+      },
       "effects": {
         "world": [
           {
@@ -798,5 +810,9 @@
   "starts": [
     "recycler",
     "garage"
-  ]
+  ],
+  "reputation": {
+    "mission": 15,
+    "sponsor": 0
+  }
 }

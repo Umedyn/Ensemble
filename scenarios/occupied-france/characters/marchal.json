@@ -42,5 +42,8 @@
       },
       "warns Nadine not to come to the shop on Saturday, without saying why"
     ]
-  }
+  },
+  "groups": [
+    "resistance"
+  ]
 }

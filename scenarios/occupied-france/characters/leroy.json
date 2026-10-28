@@ -29,5 +29,8 @@
     "ferrand": 25,
     "marchal": 35,
     "brossard": -20
-  }
+  },
+  "groups": [
+    "resistance"
+  ]
 }

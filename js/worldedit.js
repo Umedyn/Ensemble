@@ -46,6 +46,14 @@
       }
       case 'lines': { const l = s.split('\n').map((x) => x.trim()).filter(Boolean); return l.length ? { value: l } : { del: true }; }
       case 'csv': { const l = s.split(',').map((x) => x.trim()).filter(Boolean); return l.length ? { value: [...new Set(l)] } : { del: true }; }
+      // Memberships (task G-6): "resistance, vichy=favored" → ['resistance', {id: 'vichy', role: 'favored'}].
+      case 'groups': {
+        const l = s.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
+          const m = x.match(/^(.+?)\s*=\s*(.+)$/);
+          return m && m[2] !== 'member' ? { id: m[1], role: m[2] } : m ? m[1] : x;
+        });
+        return l.length ? { value: l } : { del: true };
+      }
       case 'features': {
         const l = s.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
           const m = x.match(/^(.+?)\s*=\s*(.+)$/);
@@ -67,6 +75,7 @@
   WE.show = function (kind, v) {
     if (kind === 'lines') return Array.isArray(v) ? v.join('\n') : '';
     if (kind === 'csv') return Array.isArray(v) ? v.join(', ') : '';
+    if (kind === 'groups') return Array.isArray(v) ? v.map((g) => (isObj(g) ? (g.role && g.role !== 'member' ? `${g.id}=${g.role}` : g.id) : g)).join(', ') : '';
     if (kind === 'features') return Array.isArray(v) ? v.map((f) => (isObj(f) ? (f.state != null ? `${f.name}=${f.state}` : f.name) : f)).join(', ') : '';
     if (kind === 'json') return v === undefined ? '' : JSON.stringify(v, null, 2);
     return v == null ? '' : String(v);
@@ -592,6 +601,44 @@
     w.factions = (w.factions || []).concat([{ id, name: name || 'New group', desc: 'Who they are and what they want.', stance: 'neutral' }]);
     return id;
   };
+  // Standing (task G-6): every place a group id is kept besides regions and
+  // events: standing (world, starts, player slots), allies and enemies,
+  // memberships (characters, cast entries, player slots), and the
+  // reputation and role preconditions and effects. fn(id) → new id or null (gone).
+  function eachStandingRef(files, fn) {
+    const w = WE.world(files);
+    const groupsIn = (holder) => {
+      if (!holder || !Array.isArray(holder.groups)) return;
+      holder.groups = holder.groups.map((g) => { const id = typeof g === 'string' ? g : g && g.id; const to = fn(id); return to == null ? null : typeof g === 'string' ? to : Object.assign({}, g, { id: to }); }).filter(Boolean);
+      if (!holder.groups.length) delete holder.groups;
+    };
+    const repIn = (holder) => {
+      if (!holder || !isObj(holder.reputation)) return;
+      const out = {};
+      Object.entries(holder.reputation).forEach(([k, v]) => { const to = fn(k); if (to != null) out[to] = v; });
+      holder.reputation = out;
+      if (!Object.keys(out).length) delete holder.reputation;
+    };
+    eachStartAndWorld(files).forEach((s) => {
+      repIn(s);
+      repIn(s.playerSlot);
+      groupsIn(s.playerSlot);
+      (s.cast || []).forEach((c) => { if (isObj(c)) groupsIn(c); });
+      (s.factions || []).forEach((f) => ['allies', 'enemies'].forEach((k) => { if (Array.isArray(f[k])) { f[k] = f[k].map(fn).filter((x) => x != null); if (!f[k].length) delete f[k]; } }));
+    });
+    (w.characters || []).forEach((id) => groupsIn(WE.character(files, id)));
+    const pre = (p) => { if (!isObj(p)) return true; if (p.not) return pre(p.not); const g = p.reputation || p.role; if (!isObj(g)) return true; const to = fn(g.group); if (to == null) return false; g.group = to; return true; };
+    events(files).forEach((ev) => {
+      if (ev.preconditions) { ev.preconditions = ev.preconditions.filter(pre); if (!ev.preconditions.length) delete ev.preconditions; }
+      const fx = ev.effects || {};
+      ['reputation', 'group_role'].forEach((k) => {
+        if (!Array.isArray(fx[k])) return;
+        fx[k] = fx[k].map((x) => { const to = x && fn(x.group); return to == null ? null : Object.assign({}, x, { group: to }); }).filter(Boolean);
+        if (!fx[k].length) delete fx[k];
+      });
+      if (ev.effects && !Object.keys(ev.effects).length) delete ev.effects;
+    });
+  }
   WE.renameGroup = function (files, from, to) {
     to = String(to || '').trim();
     const w = WE.world(files);
@@ -613,6 +660,7 @@
       (fx.control || []).forEach((c) => { if (c && c.to === from) c.to = to; });
       (fx.presence || []).forEach((p) => { if (p && p.group === from) p.group = to; });
     });
+    eachStandingRef(files, map);
     return '';
   };
   WE.removeGroup = function (files, id) {
@@ -638,6 +686,7 @@
         if (!Object.keys(fx).length) delete ev.effects;
       }
     });
+    eachStandingRef(files, (x) => (x === id ? null : x));
     return notes;
   };
 

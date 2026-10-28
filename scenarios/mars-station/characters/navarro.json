@@ -27,5 +27,8 @@
     "sorensen": 15,
     "raman": 25,
     "bauer": 20
-  }
+  },
+  "groups": [
+    "mission"
+  ]
 }

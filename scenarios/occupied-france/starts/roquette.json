@@ -86,7 +86,10 @@
     "skillPoints": 10,
     "maxSkill": 3,
     "relationsDefault": 20,
-    "castFeelings": 20
+    "castFeelings": 20,
+    "groups": [
+      "resistance"
+    ]
   },
   "cast": [
     {

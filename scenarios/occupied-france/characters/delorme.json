@@ -29,5 +29,8 @@
     "rey": 20,
     "keller": 25,
     "vidal": 10
-  }
+  },
+  "groups": [
+    "resistance"
+  ]
 }

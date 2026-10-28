@@ -80,7 +80,8 @@ With no `starts` the picker offers only **✦ Make my own start** (as if the wor
 | `skills`, `needs` | | as today; no `needs` (or `[]`) means none: no bars, no need penalties (task 1-5) |
 | `tagThresholds` | object | optional; need id → `{at, tag}` for the derived card tags (task 1-6). Starts may override |
 | `skillPenalties`, `revealPressure` | object, string[] | optional; roll penalties from health and needs, and which needs count as pressure on secrets. Defaults are today's values. Starts may override |
-| `factions` | | as today; starts may override `stance`. Optional `color` (1–8) picks one of eight theme colours for the regions a group holds on the world map; without it, one is picked from the id |
+| `factions` | | as today; starts may override `stance`. Optional `color` (1–8) picks one of eight theme colours for the regions a group holds on the world map; without it, one is picked from the id. Optional `allies` and `enemies` (group ids, task G-6): the player's standing with this group spreads to them, a quarter of each change, the same way and the other way |
+| `reputation` | object | optional (task G-6): the player's standing with each group at the start, `{group id: −100..100}` (default 0). Starts and `playerSlot` may override it by group. See [Standing with the groups](#standing-with-the-groups) |
 | `world` | object | world-status defaults; starts may add or override keys |
 | `eventRates`, `eventSeeds`, `majorEventDays`, `majorHorizonDays`, `majorSeeds`, `revealSkills` | | as today; starts may override. An `eventSeeds` idea is text or `{text, region}` (a known region id); regional ideas for regions away from the player are left out of prompts |
 | `tiers` | object | optional `{demoteAfter, maxLocal}` (whole numbers ≥ 1; defaults 4 and 6) for cast tiers (task 2-1). Starts may override field by field |
@@ -265,6 +266,19 @@ A character file is the person's **identity**: name, pronouns, role, age, traits
 ]
 ```
 
+### Standing with the groups
+
+Task G-6. Every group regards the player somewhere from −100 to 100, in the same words as feelings (hostile, wary, neutral, friendly, trusts), shown to the player with the number and the latest reason. It starts from `reputation` (world, start, `playerSlot`) and changes with what the player does:
+
+- **The update step** proposes `reputation: [{group, delta, reason}]`. The engine keeps a change only with a reason, when the group could know (one of its members or its groups on the map saw it, or it is public), and at most ±10 a group a turn. Events change it too (the `reputation` effect, two a time, ±15).
+- **Word gets around**: each member of the group feels half of each change toward the player (at most 5 a change), so a friend can be reluctant out of loyalty. Allies feel a quarter of it, enemies a quarter the other way. At −50 or worse, the group's people on the map are on alert around the player; at 50 or more they let the player by (no harder rolls, no turning wary).
+- **Membership**: a character's `groups` (a character file, a cast entry, a `playerSlot`), ids or `{id, role}` with role `member`, `favored` or `leader`. The cast line and cards say who belongs where.
+- **The player's role** decides what they can do with a group: a member's orders are only words; a favored player can ask and a leader can order. The intent call then returns `player.orders` and one event with `"faction"` for what the group does about it, outside the random-event caps and rationed like any event's effects; its people still act on their own wills. The prompt offers it only to a favored or leading player.
+- **Roles change in play**, both ways: the update step's `group_role` (the scene must contain a 4+ word quote showing it, and standing must reach 40 for favored, 60 for leader), or an event's `group_role` (authored: outright). Falling standing takes them away (favored below 10, leader below 0), and a leader below 20 is questioned (it counts toward the reckoning, when someone comes to confront the player).
+- **Conditions**: routes and timeline events can test `reputation` and `role` (preconditions, below).
+
+The bundled worlds use it: Ares Deep's crew belong to Mission Control (Okafor favored); the holdout starts neutral with the convoy and the Ridge; in Occupied France the cells are the Resistance's, the police inspector and the prefecture secretary are Vichy's, with allies and enemies between the groups.
+
 ### playerSlot (the character creator)
 
 ```json
@@ -293,6 +307,7 @@ A character file is the person's **identity**: name, pronouns, role, age, traits
 | `skillPoints`, `maxSkill` | required; the point-buy budget across the world's skills, and the highest any one skill can be (1–4) |
 | `relationsDefault` | the player's starting feelings toward the cast: a number, or `{id: n}` (−100..100; default 0). The form starts from these and the player can change them |
 | `castFeelings` | how the cast feels about the newcomer, same shape (default 0) |
+| `groups`, `reputation` | optional (task G-6): the made character's groups (as on a character) and the player's standing with each group, over the start's |
 | `keepDefault` | false (default): the authored `player` leaves the cast when someone makes their own, and the made character takes their keys to locked doors (task 7-1); true keeps them on as a non-player character |
 
 The made character is a character file like any other (`id` from the name, made unique; `people` when a people was picked; `portrait` a path from the world's `portraitSet`, left out for the stand-in, or `false` for initials only), checked by `Scenario.characterProblems`. `CharMaker.withPlayer` adds it to the composed scenario as the player, at the front of the cast, sets `madePlayer`, applies `castFeelings`, drops the authored player (and feelings about them) unless `keepDefault`, and validates the result. When a world loads, each start with a slot is checked with a sample made character, so a slot that can't produce a playable game shows "(has errors)" in the picker. Saves embed the scenario, so the character travels with the game.
@@ -518,8 +533,8 @@ Task 5-2. Events that happen at a set time whatever the player does, unless the 
 | `text` | up to 240 characters, as the news will say it |
 | `visibility` | `heard` (default), `seen` or `hidden` (only the people in `who` learn of it, as a private fact; it changes nothing public) |
 | `who` | optional character ids involved |
-| `effects` | as for events: `world`, `groups`, `clocks`, `new_clock`, `control`, `add_tag`, `remove_tag`, `region_status`; checked when it happens |
-| `preconditions` | all must hold when it comes due: `{"alive": id}`, `{"controls": {"group": id or null, "region": id}}`, `{"clock": id, "atLeast": n}` (or fired), `{"world": key, "is": "value"}`, `{"known": "event id"}` or `{"known": {"words": [...]}}` with optional `"by": id` (default the player), `{"not": {...}}` |
+| `effects` | as for events: `world`, `groups`, `clocks`, `new_clock`, `control`, `add_tag`, `remove_tag`, `region_status`, `reputation` (`[{group, delta, reason}]`), `group_role` (`[{group, role, reason}]`: as written, an authored event sets the player's role outright, an election or a coup); checked when it happens |
+| `preconditions` | all must hold when it comes due: `{"alive": id}`, `{"controls": {"group": id or null, "region": id}}`, `{"clock": id, "atLeast": n}` (or fired), `{"world": key, "is": "value"}`, `{"known": "event id"}` or `{"known": {"words": [...]}}` with optional `"by": id` (default the player), `{"reputation": {"group": id, "atLeast": n}}` (or `"below": n`), `{"role": {"group": id, "is": "member|favored|leader|none"}}` (task G-6), `{"not": {...}}` |
 | `onBroken` | `drop` (default: it doesn't happen) or `diverge` (the model writes what happens instead) |
 | `ending` | optional: `true` or `{title, kind, epilogue, if}`; the story ends when this event happens. See [Endings](#endings) |
 | `draft` | `true` while the event waits for review (from the research helper): validated, but it never happens until accepted in the creator |

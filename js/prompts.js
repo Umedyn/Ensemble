@@ -53,7 +53,9 @@
   };
   B.rules = ({ state, sc, pc }) => {
     const rules = [
-      'The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. The player commands no faction.',
+      'The story is told at a personal scale, through individual people. Groups and factions (organizations, crews, gangs, governments) still exist and act collectively: show how individual choices ripple out to them, and how their moves land on individuals. '
+        // Standing (task G-6): a role in a group is in the turn's message (it changes in play; rule 7).
+        + ((sc.factions || []).length ? 'The player commands no faction unless "Standing with the groups" says they lead one (their orders carry weight) or are favored in one (their requests do); even then its people keep their own wills.' : 'The player commands no faction.'),
       `The player controls only ${pc.name} (id: ${state.player}). Never decide ${pc.name}'s choices, words or feelings beyond what the player's action states.`,
       E.Genres.consequences(sc),
       'Characters act from their own personality, wants, needs, secrets and feelings, not to serve the player.',
@@ -193,6 +195,10 @@
     if (c.traits && c.traits.length) bits.push(`Traits: ${c.traits.join(', ')}.`);
     if (c.want && id !== state.player) bits.push(`Wants: ${c.want}.`);
     if (c.voice) bits.push(`Voice: ${c.voice}`);
+    // The groups they belong to (task G-6), as authored: a role the player
+    // gains in play is in the turn's message, so the header stays the same.
+    const member = E.Standing.membership(state, c);
+    if (member && id !== state.player) bits.push(`Belongs to: ${member}.`);
     // Needs this person doesn't have (task G-5), so the story never gives them any.
     const off = (state.scenario.needs || []).filter((n) => !E.Scenario.hasNeed(c, n.id)).map((n) => (n.label || n.id).toLowerCase());
     if (off.length) bits.push(`Never feels: ${off.join(', ')}.`);
@@ -240,7 +246,7 @@
       .map((c) => `${c.name} ${c.fired ? '(HAPPENED)' : Math.floor(c.value) + '/' + c.max}`)
       .join('; ');
     const groups = liveGroups(state).map((f) => `${f.name}: ${f.stance}`).join('; ');
-    return `World: ${w || 'nothing notable'}\nPressures: ${clocks || 'none'}` + (groups ? `\nGroups: ${groups}` : '') + regionLines(state);
+    return `World: ${w || 'nothing notable'}\nPressures: ${clocks || 'none'}` + (groups ? `\nGroups: ${groups}` : '') + E.Standing.line(state) + regionLines(state);
   }
   // Site rules (task 3-6): the ways out of a room as they are now, and the
   // things in it (with their state). Only for worlds with site data.
@@ -339,7 +345,9 @@
         + (Eng().hiddenRegions(state).size ? ',"reveal":[{"region":"hidden_region_id"}]' : '')
       : '';
     const site = E.Sites.enabled(state.scenario) ? ',"new_site":null' : '';
-    return `{"world":[{"key":"world_key","value":"new status"}],"groups":[{"id":"group_id","stance":"new stance"}],"clocks":[{"id":"clock_id","delta":2}],"new_clock":null${region}${site}}`;
+    // Standing (task G-6): how a group's view of the player changes.
+    const standing = Object.keys(state.reputation || {}).length ? ',"reputation":[{"group":"group_id","delta":-5,"reason":"why"}]' : '';
+    return `{"world":[{"key":"world_key","value":"new status"}],"groups":[{"id":"group_id","stance":"new stance"}],"clocks":[{"id":"clock_id","delta":2}],"new_clock":null${region}${standing}${site}}`;
   }
   // Valid ids for effects. In a small world every region, not just nearby
   // ones: the world can shift far from the player (their current state stays
@@ -591,11 +599,21 @@
    - "visibility": "seen" (happens in the player's room), "heard" (the player gets a sound, call or message about it) or "hidden" (the player has no idea).
    - "moves": [{"id":"character_id","to":"location_id"}] for offstage characters who go somewhere because of it, else [].
    - "scope": "local" for these.
-${groupTask(state, action)}${siteTask(state)}${inventLine(sc)}${tierTask(state, due)}${canonTask(state, due)}
+${groupTask(state, action)}${siteTask(state)}${inventLine(sc)}${ordersTask(state)}${tierTask(state, due)}${canonTask(state, due)}
 Reply with JSON only, exactly in this shape:
 ${intentExample(state, present, action, due)}`;
   };
 
+  // Groups the player leads or is favored in (task G-6): what they may be told
+  // to do. Only then is it in the prompt.
+  const commandable = (state) => Object.keys(state.reputation || {}).filter((g) => ['leader', 'favored'].includes(E.Standing.roleOf(state, g)));
+  function ordersTask(state) {
+    const gs = commandable(state);
+    if (!gs.length) return '';
+    const pc = state.characters[state.player].name;
+    const list = gs.map((g) => `${g} (${E.Standing.roleOf(state, g) === 'leader' ? `${pc} leads it: an order` : `${pc} is favored: a request`})`).join(', ');
+    return `   If ${pc}'s action orders or asks one of their groups to do something (${list}), set "player"."orders" to {"group":"group_id","order":"what they asked"} and add one event with "faction":"group_id" for what the group does about it during this span: it may obey, drag its feet, or refuse a request; its people keep their own wills. Give it "effects" like a regional event if it changes something. Otherwise "orders" is null.\n`;
+  }
   // Timeline events due now whose preconditions broke (task 5-2): the model
   // writes what happens instead. Only when one is due, so prompts are
   // otherwise unchanged.
@@ -631,7 +649,7 @@ ${intentExample(state, present, action, due)}`;
     const groups = groupsHere(state, action).map((g) => `  {"id":"${g.id}","action":"one sentence","visible":true,"move_to":null}`);
     const anyGroups = Eng().engagedStandees(state, action).length;
     const site = hasSite(state) ? `${lockedHere(state).length ? ',"unlock":null' : ''},"new_feature":null` : '';
-    return `{"player":{"summary":"the player's action restated as a concrete attempt","needs_roll":false,"skill":null,"difficulty":"normal","move_to":null${anyGroups ? ',"against":null,"single_out":null' : ''}${site}${due && due.crisis ? ',"crisis_answered":false' : ''}},
+    return `{"player":{"summary":"the player's action restated as a concrete attempt","needs_roll":false,"skill":null,"difficulty":"normal","move_to":null${anyGroups ? ',"against":null,"single_out":null' : ''}${site}${due && due.crisis ? ',"crisis_answered":false' : ''}${commandable(state).length ? ',"orders":null' : ''}},
  "intents":[${intents.length ? '\n' + intents.join(',\n') + '\n ' : ''}],${groups.length ? `\n "group_intents":[\n${groups.join(',\n')}\n ],` : ''}
  "events":[{"text":"one sentence","scope":"local","who":["character_id"],"where":"location_id","visibility":"heard","moves":[]}]${state.scenario.inventExtras ? ',\n "new_extras":[]' : ''}${canon}}`.replace('"move_to":null', E.Sites.enabled(state.scenario) ? `"move_to":null,"new_place":null${E.Sites.regionsEnabled(state.scenario) ? ',"new_region":null' : ''}` : '"move_to":null');
   }
@@ -1004,6 +1022,14 @@ ${updateSiteIds(state)}${Object.keys(state.standees || {}).length ? `unnamed gro
     const labels = sc.needs.map((n) => (n.label || n.id).toLowerCase());
     return labels.length > 1 ? `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]} are` : `${labels[0]} is`;
   };
+  // Standing (task G-6): how a group's view of the player changed, and a role
+  // the scene gives them. Only in worlds with groups.
+  const standingShape = (state) => (Object.keys(state.reputation || {}).length ? `,
+ "reputation":[{"group":"group_id","delta":5,"reason":"what they heard or saw"}],
+ "group_role":null` : '');
+  const standingGuide = (state) => (Object.keys(state.reputation || {}).length ? `- reputation: how a group's view of ${name(state, state.player)} changed this turn, from what its people saw or what became public (delta between -10 and 10, with a reason). Leave empty if nothing reached them.
+- group_role: only if the scene clearly gives ${name(state, state.player)} a new place in a group (elected, made leader, trusted with its affairs, thrown out): {"group":"group_id","role":"member|favored|leader|none","quote":"4+ words from the scene that show it"}. Else null.
+` : '');
   B.updateTask = ({ state, sc }) => `
 === TASK ===
 Record what changed this turn. Reply with JSON only, exactly in this shape:
@@ -1020,7 +1046,7 @@ ${Object.keys(state.standees || {}).length ? `          {"target":"standee:group
           {"target":"faction:group_id","value":"new short stance"},
           {"target":"clock:clock_id","delta":-2}],
  "relations":[{"from":"character_id","to":"character_id","delta":5,"reason":"short reason"}],
- "player_attitude":[{"to":"character_id","delta":-5,"reason":"short reason in past tense"}]${sc.inventExtras ? `,
+ "player_attitude":[{"to":"character_id","delta":-5,"reason":"short reason in past tense"}]${standingShape(state)}${sc.inventExtras ? `,
  "new_extras":[]` : ''}}
 Guidelines:
 - 1 to 5 facts. Only things that actually happened or were revealed. Skip trivia.
@@ -1034,7 +1060,7 @@ Guidelines:
 - tags: short visible states or situations (e.g. "sprained ankle", "covered in dust", "on night shift"), at most 5 words, with "turns" for how long they last (default 6). Remove tags that no longer fit. Not feelings${sc.needs.length ? `; ${needsList(sc)} tracked as needs` : ''}.
 - mood: for each non-player character present, at most one short line on how they come across right now, as others could read it (e.g. "short with everyone, avoiding Okafor"). Only when it changed. Never for ${name(state, state.player)}, and never hint at anyone's secret.
 - relations: how this turn changed how non-player characters feel about others (never ${name(state, state.player)}'s own feelings), delta between -15 and 15. Leave empty if nothing changed.
-- player_attitude: how ${name(state, state.player)}'s own feelings toward someone shifted, judged ONLY from the player action as quoted above (their words and tone), never from how the narrator embellished it. Snapping, mocking or threatening lowers it; thanking, helping, joking warmly or confiding raises it. Delta between -10 and 10. Leave empty if the action was neutral.${Object.keys(state.extras || {}).length ? `
+${standingGuide(state)}- player_attitude: how ${name(state, state.player)}'s own feelings toward someone shifted, judged ONLY from the player action as quoted above (their words and tone), never from how the narrator embellished it. Snapping, mocking or threatening lowers it; thanking, helping, joking warmly or confiding raises it. Delta between -10 and 10. Leave empty if the action was neutral.${Object.keys(state.extras || {}).length ? `
 - minor people: may be in facts (about, known_by) and may change location; no relations, moods, tags or needs.` : ''}${Object.keys(state.standees || {}).length ? `
 - unnamed groups: count goes down for members killed, captured or gone (it only goes up if an event brought more); state when the scene shows them change (fled: they leave for good); location only one linked room, when seen leaving.` : ''}${siteGuide(state)}${sc.inventExtras ? `
 - new_extras: only if the scene clearly brought in a new minor person or group not listed above: {"name","role","location","group":false}. At most 1.` : ''}

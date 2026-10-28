@@ -29,5 +29,8 @@
     "rey": 35,
     "delorme": 20,
     "vidal": 0
-  }
+  },
+  "groups": [
+    "resistance"
+  ]
 }

@@ -29,5 +29,8 @@
     "ferrand": 15,
     "leroy": 0,
     "marchal": -5
-  }
+  },
+  "groups": [
+    "vichy"
+  ]
 }

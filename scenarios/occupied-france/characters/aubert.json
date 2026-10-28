@@ -27,5 +27,8 @@
     "keller": 25,
     "delorme": 30,
     "vidal": 20
-  }
+  },
+  "groups": [
+    "resistance"
+  ]
 }

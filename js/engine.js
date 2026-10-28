@@ -61,6 +61,8 @@
       state.characters[c.id] = c;
     });
     Eng.initTiers(state);
+    // Standing with each faction, and who belongs to which (task G-6).
+    E.Standing.init(state, sc);
     state.extras = {};
     (sc.extras || []).forEach((x) => { state.extras[x.id] = Eng.newExtra(x, 'author', 0); });
     state.standees = {};
@@ -89,7 +91,7 @@
 
   // Saves and autosaves from older versions are upgraded one step at a time
   // when loaded. Each step takes a state at version n and returns n + 1.
-  Eng.STATE_VERSION = 15;
+  Eng.STATE_VERSION = 16;
   Eng.migrations = {
     // Worlds and starts (docs/WORLDS.md): the scenario records where it came from.
     1: (state) => {
@@ -217,6 +219,15 @@
     14: (state) => {
       [state, state.pending && state.pending.pre].filter(Boolean).forEach((s) => { if (!s.presence) s.presence = {}; });
       state.version = 15;
+      return state;
+    },
+    // Standing (task G-6): older games start neutral with every group, and
+    // nobody belongs to one.
+    15: (state) => {
+      [state, state.pending && state.pending.pre].filter(Boolean).forEach((s) => {
+        if (!s.reputation) { s.reputation = {}; (s.factions || []).forEach((f) => { s.reputation[f.id] = { value: 0, why: '', turn: 0 }; }); }
+      });
+      state.version = 16;
       return state;
     },
   };
@@ -589,7 +600,10 @@
     let mod = 0;
     const why = [];
     const target = it.against && state.standees[it.against];
-    if (target) {
+    // A group whose faction trusts the player (task G-6) lets them by.
+    const trusts = (g) => g.faction && E.Standing.value(state, g.faction) >= E.Standing.TRUSTED;
+    if (target && trusts(target)) why.push(`${target.label} trust you (${E.Standing.groupName(state, target.faction)})`);
+    else if (target) {
       const m = (STATE_DC[target.state] || 0) + sizeDC(target.count);
       if (m) { mod += m; why.push(`${target.count} ${target.state} ${target.label} +${m}`); }
     }
@@ -604,7 +618,7 @@
       Object.keys(state.locations).some((r) => Eng.features(state, r).some((f) => /camera/i.test(f.name)));
     if (Eng.STEALTH_SKILLS.includes(it.skill) && watchful) {
       const rooms = new Set(onRoute.flatMap((r) => [r].concat(Eng.linkedRooms(state, r))));
-      const watchers = Object.values(state.standees || {}).filter((g) => rooms.has(g.location) && Eng.standeeActive(g));
+      const watchers = Object.values(state.standees || {}).filter((g) => rooms.has(g.location) && Eng.standeeActive(g) && !trusts(g));
       const sharp = watchers.filter((g) => g.state !== 'calm' && g !== target);
       const seenBy = sharp.map((g) => g.label).concat(eyes);
       if (seenBy.length) { const m = Math.min(4, 2 * seenBy.length); mod += m; why.push(`watched by ${seenBy.join(', ')} +${m}`); }
@@ -619,7 +633,8 @@
     const here = state.characters[state.player].status.location;
     const near = new Set(Eng.linkedRooms(state, here).concat(it.moveTo ? [it.moveTo] : []));
     const order = (g) => (g.location === here ? 0 : g.location === it.moveTo ? 1 : 2);
-    const g = Object.values(state.standees || {}).filter((x) => Eng.standeeActive(x) && x.state !== 'hostile' && (x.location === here || near.has(x.location)))
+    const g = Object.values(state.standees || {}).filter((x) => Eng.standeeActive(x) && x.state !== 'hostile' && (x.location === here || near.has(x.location))
+      && !(x.faction && E.Standing.value(state, x.faction) >= E.Standing.TRUSTED))
       .sort((a, b) => order(a) - order(b))[0];
     if (!g) return [];
     const was = g.state;
@@ -1453,6 +1468,29 @@
         return `${r.def.name}: ${f.name} ${word}${Eng.presenceIn(state, p.region).contested ? ' (contested)' : ''}`;
       },
     },
+    // Standing (task G-6): how a group regards the player, from what it hears
+    // (an event is public, so its group needs no witness). Rationed: two a
+    // time, ±15 each.
+    reputation: {
+      list: true, max: 2,
+      apply(state, x, scope, opts) {
+        if (!x || !(state.reputation || {})[x.group]) return reject(`unknown group "${x && x.group}" for standing`);
+        if (!String(x.reason || '').trim()) return reject(`a change in standing with ${x.group} needs a reason`);
+        const lines = E.Standing.change(state, x.group, x.delta, x.reason, { max: E.Standing.EVENT_MAX });
+        return lines.length ? lines.join('; ') : null;
+      },
+    },
+    // The player's role in a group: an authored event sets it outright (an
+    // election, a coup); the model's events only where standing allows it.
+    group_role: {
+      list: true, max: 1,
+      apply(state, x, scope, opts) {
+        if (!x) return reject('no group_role');
+        const out = E.Standing.setRole(state, x.group, x.role, x.reason, { force: !!(opts && opts.authored) });
+        if (out.error) return reject(out.error);
+        return out.length ? out.join('; ') : null;
+      },
+    },
     // Unknown regions (R-5): the story reveals one (and what it is inside).
     reveal: {
       list: true, max: 1,
@@ -1531,11 +1569,17 @@
     const used = { local: 0, regional: 0, world: 0 };
     state.news = state.news || [];
     state.tierLast = state.tierLast || {};
+    let answered = false;
     raw.forEach((ev) => {
       if (!ev || typeof ev.text !== 'string' || !ev.text.trim() || /^one sentence$/i.test(ev.text.trim())) return;
       const scope = ['regional', 'world'].includes(ev.scope) ? ev.scope : 'local';
-      if (used[scope] >= caps[scope]) return guard(res, 'resolve', 'event dropped', `${scope} event not due or over the cap: ${ev.text}`);
-      used[scope]++;
+      // A group answering the player's orders (task G-6): one event, outside the
+      // caps (the player made it happen), its effects rationed as for any event.
+      const answer = ev.faction && res.orders && ev.faction === res.orders.group && !answered;
+      if (ev.faction && !answer) return guard(res, 'resolve', 'event dropped', `no orders for ${ev.faction} to answer: ${ev.text}`);
+      if (answer) answered = true;
+      else if (used[scope] >= caps[scope]) return guard(res, 'resolve', 'event dropped', `${scope} event not due or over the cap: ${ev.text}`);
+      else used[scope]++;
       const text = E.clip(ev.text, 220);
       const who = (Array.isArray(ev.who) ? ev.who : []).filter((id) => (state.characters[id] || isExtra(state, id) || isStandee(state, id)) && id !== state.player);
       // Offstage people in an event may know facts about it (see applyUpdate).
@@ -1572,9 +1616,10 @@
         moved.push(`${state.characters[m.id].name} → ${state.locations[to].name}`);
       });
       // Hidden big events stay hidden: no public status changes, only private knowledge.
-      const effects = scope !== 'local' && vis !== 'hidden' ? applyEffects(state, ev.effects, scope, res) : [];
+      const effects = (scope !== 'local' || answer) && vis !== 'hidden' ? applyEffects(state, ev.effects, scope, res) : [];
       const region = eventRegion(state, ev, scope, res);
-      if (scope !== 'local') state.tierLast[scope] = absHours(state);
+      if (scope !== 'local' && !answer) state.tierLast[scope] = absHours(state);
+      if (answer) guard(res, 'resolve', 'orders answered', `${E.Standing.groupName(state, ev.faction)}: ${text}`);
       const tag = scope === 'local' ? '' : `[${scope}] `;
       if (vis === 'hidden') {
         if (who.length) E.Memory.addFact(state, { about: who, text, known_by: who, weight: 2 });
@@ -1646,6 +1691,19 @@
         guard(res, 'resolve', 'feature added', out.note + (p.newFeature ? '' : " (from the player's words)"));
         // Out through it: walk to that room, then through the new way.
         if (out.to && out.to === p.moveTo && out.room !== here0) p.viaRoom = out.room;
+      }
+    }
+    // Orders to a group (task G-6): a leader orders, a favored player asks; the
+    // group answers with one event of its own this turn (applyEvents). Anyone
+    // else's orders are only words.
+    const ord = intentObj.player && intentObj.player.orders;
+    if (ord && typeof ord === 'object' && ord.group) {
+      const role = E.Standing.roleOf(state, ord.group);
+      if (!(state.reputation || {})[ord.group]) guard(res, 'resolve', 'orders refused', `unknown group "${ord.group}"`);
+      else if (role !== 'leader' && role !== 'favored') guard(res, 'resolve', 'orders refused', `${state.characters[state.player].name} has no say in ${E.Standing.groupName(state, ord.group)} (${role || 'not a member'}): only words`);
+      else {
+        res.orders = { group: ord.group, order: E.clip(String(ord.order || actionText), 200), kind: role === 'leader' ? 'order' : 'request' };
+        guard(res, 'resolve', 'orders', `${E.Standing.groupName(state, ord.group)}: ${res.orders.kind} "${res.orders.order}"`);
       }
     }
     // Picking a lock always rolls, unless the player holds the key.
@@ -2621,6 +2679,10 @@
       report.applied.push(`your attitude: →${a.to} ${d > 0 ? '+' : ''}${d}${a.reason ? ' (' + a.reason + ')' : ''}`);
     });
 
+    // Standing with the groups, and a role the scene gives the player (task G-6).
+    report.standing = [];
+    E.Standing.applyUpdate(state, upd, present, ctx, reject, (line) => report.standing.push(line));
+
     applyNewExtras(state, upd.new_extras, ctx.turn ?? state.turn, ctx.endLoc || state.characters[state.player].status.location,
       (why) => reject('new_extras', why), (note) => report.extras.push(note));
 
@@ -2980,10 +3042,11 @@
       const before = {};
       Eng.cast(state, { includePlayer: false }).forEach((id) => (before[id] = state.characters[id].status.location));
       const factsBefore = state.facts.length;
-      report = Eng.applyUpdate(state, upd, p.present, { startLoc: p.frame.startLoc, endLoc, keptProse: cut ? prose : null, involved: p.res.involved, turn: p.turn, action: p.action, playerHarmed: (p.res.guards || []).some((g) => g.type === 'harm' && g.detail.startsWith(state.characters[state.player].name + ':')), extrasPresent: p.extrasPresent || [], engaged: p.res.engaged || [] });
+      report = Eng.applyUpdate(state, upd, p.present, { startLoc: p.frame.startLoc, endLoc, prose, keptProse: cut ? prose : null, involved: p.res.involved, turn: p.turn, action: p.action, playerHarmed: (p.res.guards || []).some((g) => g.type === 'harm' && g.detail.startsWith(state.characters[state.player].name + ':')), extrasPresent: p.extrasPresent || [], engaged: p.res.engaged || [] });
       report.rejected.forEach((r) => guard(p.res, 'memory', 'update rejected', r));
       expired.concat(report.tags).forEach((t) => guard(p.res, 'memory', 'tags & mood', t));
       report.extras.forEach((t) => guard(p.res, 'memory', 'extras', t));
+      (report.standing || []).forEach((t) => guard(p.res, 'memory', 'standing', t));
       const kept = [];
       E.Sites.noteFacts(state, factsBefore, [p.frame.startLoc, endLoc], kept);
       kept.forEach((t) => guard(p.res, 'memory', 'site kept', t));

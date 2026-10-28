@@ -29,5 +29,11 @@
     "keller": 30,
     "delorme": 15,
     "vidal": 25
-  }
+  },
+  "groups": [
+    {
+      "id": "resistance",
+      "role": "favored"
+    }
+  ]
 }
