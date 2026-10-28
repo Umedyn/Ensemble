@@ -198,6 +198,31 @@
     return taken ? `"${place}" is already on the map: pick it there` : null;
   };
 
+  // ---------- one of the world's places (task 7-4) ----------
+  // A region that holds one of the world's own places (rooms with a "site",
+  // such as a town's drawn plan) starts the player there: the rooms step
+  // takes the place as it is, with no call, and the start adds no rooms of
+  // its own. Saying where exactly still builds a new place instead.
+  GEN.worldPlace = function (loaded, region) {
+    const w = loaded.bundle.world;
+    const rooms = (w.locations || []).filter((l) => l && l.site && l.region === region);
+    if (!region || !rooms.length) return null;
+    const site = rooms[0].site;
+    const mine = rooms.filter((l) => l.site === site);
+    const ids = new Set(mine.map((l) => l.id));
+    const info = (w.siteInfo || {})[site] || {};
+    const map = info.map && (loaded.bundle.siteMaps || {})[info.map];
+    const entry = map && ids.has(map.entry) ? map.entry : mine[0].id;
+    // Links both ways, inside the place: what the later steps are told.
+    const connects = (id) => [...new Set([].concat(
+      ((mine.find((l) => l.id === id) || {}).links || []).map((k) => k.to),
+      ((mine.find((l) => l.id === id) || {}).connects || []),
+      mine.filter((l) => (l.links || []).some((k) => k.to === id) || (l.connects || []).includes(id)).map((l) => l.id),
+    ))].filter((x) => ids.has(x) && x !== id);
+    const out = mine.map((l) => Object.assign({ id: l.id, name: l.name, desc: l.desc, connects: connects(l.id) }, l.outside ? { outside: true } : {}, l.size ? { size: l.size } : {}));
+    return { site, name: info.name || site, rooms: out, playerRoom: entry };
+  };
+
   // ---------- jobs ----------
   // opts: { region, note, character (a made character, 4-1) | line (a
   // description), onePass (the whole cast in one call; default: when the
@@ -759,6 +784,10 @@
         if (err.name !== 'StepError') throw err;
         out = { entries: [], dropped: err.message.replace(/^lore: /, '') };
       }
+    } else if (stepId === 'rooms' && !job.place && GEN.worldPlace(loaded, job.region)) {
+      const place = GEN.worldPlace(loaded, job.region);
+      out = { rooms: place.rooms, playerRoom: place.playerRoom, place: place.site };
+      job.log.push({ step: 'rooms', attempt: 0, error: null, warnings: [`starts in ${place.name}, one of the world's places`] });
     } else {
       const max = stepId === 'cast' ? tokens.castAll : tokens[stepId];
       out = await attempt(ctx, kind(stepId), P.genStep(ctx, stepId), max, (raw) => C[stepId](raw, ctx));
@@ -825,6 +854,7 @@
   };
   // One field → { value } (stored) or { error } (nothing changed).
   GEN.setField = function (loaded, job, kind, id, field, value) {
+    if (kind === 'room' && job.steps.rooms && job.steps.rooms.place) return { error: "These rooms are one of the world's own places; change them in the creator." };
     const obj = GEN.target(job, kind, id);
     const spec = FIELDS[kind] && FIELDS[kind][field];
     if (!obj || !spec) return { error: `nothing to change at ${kind} ${id || ''} ${field}` };
@@ -940,6 +970,7 @@
 
   // Rerolls one room's name and description; its id and connections stay.
   GEN.rerollRoom = async function (loaded, job, roomId) {
+    if (job.steps.rooms.place) throw new Error("These rooms are one of the world's own places; change them in the creator.");
     const room = job.steps.rooms.rooms.find((r) => r.id === roomId);
     if (!room) throw new Error(`No room "${roomId}" to reroll.`);
     const ctx = GEN.context(loaded, job);
@@ -1011,7 +1042,8 @@
       ...(s.setting ? Object.assign({ setting: s.setting.setting, tags: s.setting.tags.slice() }, s.setting.toneNote ? { toneNote: s.setting.toneNote } : {}) : {}),
       player: pc.id, castLabel: g.castLabel || (def && def.castLabel) || 'People',
       cast: all.map((c) => c.id),
-      locations: s.rooms.rooms.map((r) => E.clone(r)),
+      // One of the world's places (task 7-4) comes with the world.
+      locations: s.rooms.place ? [] : s.rooms.rooms.map((r) => E.clone(r)),
       clocks: s.ties.clocks.map((c) => E.clone(c)),
       extras: s.extras.extras.map((x) => E.clone(x)),
       standees: s.extras.standees.map((x) => E.clone(x)),

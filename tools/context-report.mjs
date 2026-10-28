@@ -31,6 +31,11 @@ export function midGame(E, state) {
 // reply (the intent call's), blocks: {'header.regions': tokens, …}, tier }.
 export function measure(folder, ctx, mid) {
   const { E, state } = newGame(folder);
+  return measureState(E, state, ctx, mid);
+}
+// The same for a game already made (a world without starts measures one of
+// its generated starts: task 7-4).
+export function measureState(E, state, ctx, mid) {
   E.settings.backends.local.context = ctx;
   Object.keys(E.settings.routing).forEach((k) => { E.settings.routing[k] = 'local'; });
   if (mid) midGame(E, state);

@@ -1,0 +1,506 @@
+{
+  "id": "haddon",
+  "name": "Haddon",
+  "type": "railroad town",
+  "place": "haddon",
+  "tags": [
+    "railroad town",
+    "end of track",
+    "station"
+  ],
+  "setting": [
+    "western"
+  ],
+  "credit": "Drawn for Ensemble (The Frontier, 1866–1869)",
+  "license": "PolyForm Noncommercial 1.0.0, with the game",
+  "image": "sites/haddon.svg",
+  "width": 1600,
+  "height": 1000,
+  "entry": "haddon-front",
+  "rooms": [
+    {
+      "id": "haddon-front",
+      "name": "Front Street",
+      "desc": "A wide dirt street facing the railroad grade, with a row of plank-and-canvas businesses along its north side and town-lot stakes everywhere.",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "hitching rails",
+        "water barrels",
+        "lot stakes"
+      ],
+      "shape": [
+        [
+          160,
+          560
+        ],
+        [
+          1440,
+          560
+        ],
+        [
+          1440,
+          660
+        ],
+        [
+          160,
+          660
+        ]
+      ],
+      "links": [
+        {
+          "to": "haddon-saloon",
+          "kind": "door"
+        },
+        {
+          "to": "haddon-store",
+          "kind": "door"
+        },
+        {
+          "to": "haddon-office",
+          "kind": "door"
+        },
+        {
+          "to": "haddon-boarding",
+          "kind": "door"
+        },
+        {
+          "to": "haddon-smith",
+          "kind": "open"
+        },
+        {
+          "to": "haddon-corral",
+          "kind": "open"
+        },
+        {
+          "to": "haddon-depot",
+          "kind": "open"
+        },
+        {
+          "to": "haddon-tents",
+          "kind": "open"
+        },
+        {
+          "to": "haddon-ranch",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "haddon-saloon",
+      "name": "The Railhead saloon",
+      "desc": "A tent saloon on a plank floor: a bar of boards on barrels, a faro table, and graders spending their pay.",
+      "size": "medium",
+      "features": [
+        "plank bar",
+        "faro table",
+        "whiskey barrels"
+      ],
+      "shape": [
+        [
+          160,
+          380
+        ],
+        [
+          400,
+          380
+        ],
+        [
+          400,
+          560
+        ],
+        [
+          160,
+          560
+        ]
+      ],
+      "links": [
+        {
+          "to": "haddon-back",
+          "kind": "door"
+        }
+      ]
+    },
+    {
+      "id": "haddon-store",
+      "name": "Kittredge's mercantile",
+      "desc": "A canvas-roofed store stacked with flour sacks, coffee, tinned goods, boots, rope and cartridges, at railroad prices.",
+      "size": "medium",
+      "features": [
+        "counter",
+        "flour sacks",
+        "shelving"
+      ],
+      "shape": [
+        [
+          400,
+          380
+        ],
+        [
+          620,
+          380
+        ],
+        [
+          620,
+          560
+        ],
+        [
+          400,
+          560
+        ]
+      ],
+      "links": [
+        {
+          "to": "haddon-back",
+          "kind": "door"
+        }
+      ]
+    },
+    {
+      "id": "haddon-office",
+      "name": "The engineers' office",
+      "desc": "A board shack where the railroad's engineers keep their maps, instruments and the plat of the town to be.",
+      "size": "small",
+      "features": [
+        "drafting table",
+        "town plat",
+        "surveyor's transit"
+      ],
+      "shape": [
+        [
+          620,
+          380
+        ],
+        [
+          800,
+          380
+        ],
+        [
+          800,
+          560
+        ],
+        [
+          620,
+          560
+        ]
+      ],
+      "links": [
+        {
+          "to": "haddon-back",
+          "kind": "door"
+        }
+      ]
+    },
+    {
+      "id": "haddon-boarding",
+      "name": "The boarding house",
+      "desc": "Two storeys of green lumber where the railroad's men sleep four to a room and eat in shifts at a long table.",
+      "size": "large",
+      "features": [
+        "long table",
+        "bunks",
+        "cookstove"
+      ],
+      "shape": [
+        [
+          800,
+          380
+        ],
+        [
+          1040,
+          380
+        ],
+        [
+          1040,
+          560
+        ],
+        [
+          800,
+          560
+        ]
+      ],
+      "links": [
+        {
+          "to": "haddon-back",
+          "kind": "door"
+        }
+      ]
+    },
+    {
+      "id": "haddon-smith",
+      "name": "Blacksmith and wagon shop",
+      "desc": "An open-fronted shop that rings from dawn: grading scrapers, wagon tyres and mule shoes.",
+      "size": "medium",
+      "features": [
+        "forge",
+        "anvil",
+        "wagon wheels"
+      ],
+      "shape": [
+        [
+          1040,
+          380
+        ],
+        [
+          1240,
+          380
+        ],
+        [
+          1240,
+          560
+        ],
+        [
+          1040,
+          560
+        ]
+      ],
+      "links": [
+        {
+          "to": "haddon-back",
+          "kind": "door"
+        }
+      ]
+    },
+    {
+      "id": "haddon-corral",
+      "name": "Freight corral and mule pens",
+      "desc": "Pole corrals full of the grading contractors' mules, and freight wagons waiting to be unloaded.",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "mules",
+        "freight wagons",
+        "hay"
+      ],
+      "shape": [
+        [
+          1240,
+          380
+        ],
+        [
+          1440,
+          380
+        ],
+        [
+          1440,
+          560
+        ],
+        [
+          1240,
+          560
+        ]
+      ],
+      "links": [
+        {
+          "to": "haddon-back",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "haddon-back",
+      "name": "The back lots and soddies",
+      "desc": "Behind the business row: sod houses, dugouts, privies, a dug well and staked lots where the town will grow.",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "sod houses",
+        "dug well",
+        "lot stakes"
+      ],
+      "shape": [
+        [
+          160,
+          160
+        ],
+        [
+          1440,
+          160
+        ],
+        [
+          1440,
+          380
+        ],
+        [
+          160,
+          380
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "haddon-depot",
+      "name": "Depot ground and section house",
+      "desc": "The railroad's ground between the street and the grade: the section house half built, the frame of a water tank, stacks of ties.",
+      "size": "medium",
+      "outside": true,
+      "features": [
+        "half-built section house",
+        "water tank frame",
+        "stacked ties"
+      ],
+      "shape": [
+        [
+          600,
+          660
+        ],
+        [
+          1000,
+          660
+        ],
+        [
+          1000,
+          760
+        ],
+        [
+          600,
+          760
+        ]
+      ],
+      "links": [
+        {
+          "to": "haddon-grade",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "haddon-tents",
+      "name": "Tent row",
+      "desc": "The graders' camp: rows of canvas tents, cook fires and washing lines, louder every night.",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "tents",
+        "cook fires",
+        "washing lines"
+      ],
+      "shape": [
+        [
+          1000,
+          660
+        ],
+        [
+          1440,
+          660
+        ],
+        [
+          1440,
+          760
+        ],
+        [
+          1000,
+          760
+        ]
+      ],
+      "links": [
+        {
+          "to": "haddon-grade",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "haddon-ranch",
+      "name": "The road ranch",
+      "desc": "An older sod road ranch on the river road, where the stages change horses and emigrants buy feed and whiskey.",
+      "size": "medium",
+      "features": [
+        "sod walls",
+        "stage horses",
+        "corral"
+      ],
+      "shape": [
+        [
+          160,
+          660
+        ],
+        [
+          600,
+          660
+        ],
+        [
+          600,
+          760
+        ],
+        [
+          160,
+          760
+        ]
+      ],
+      "links": [
+        {
+          "to": "haddon-grade",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "haddon-grade",
+      "name": "The grade",
+      "desc": "The raised bed of the railroad, graded and waiting for ties and rails, running dead straight east and west out of sight.",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "graded roadbed",
+        "survey stakes",
+        "culvert"
+      ],
+      "shape": [
+        [
+          60,
+          760
+        ],
+        [
+          1540,
+          760
+        ],
+        [
+          1540,
+          840
+        ],
+        [
+          60,
+          840
+        ]
+      ],
+      "links": [
+        {
+          "to": "haddon-bottoms",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "haddon-bottoms",
+      "name": "The Platte bottoms",
+      "desc": "The river's wide sandy bottoms: braided channels, cottonwoods, and the emigrant road on the far bank.",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "braided channels",
+        "cottonwoods",
+        "ford"
+      ],
+      "shape": [
+        [
+          60,
+          840
+        ],
+        [
+          1540,
+          840
+        ],
+        [
+          1540,
+          980
+        ],
+        [
+          60,
+          980
+        ]
+      ],
+      "links": []
+    }
+  ]
+}

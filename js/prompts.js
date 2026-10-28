@@ -71,7 +71,10 @@
   // and the current room's description in the user message (inRoom).
   P.ROOMS_NAMED = 30;
   B.places = ({ state, sc }) => {
-    const rooms = sc.locations && sc.locations.length ? sc.locations : Object.values(state.locations);
+    // Rooms in a region hidden at the start (R-5) are left out with it (task
+    // 7-4: a gold camp nobody has heard of, drawn in the world's places).
+    const known = sc.regions && sc.regions.length ? new Set(P.knownAtStart(sc).map((r) => r.id)) : null;
+    const rooms = (sc.locations && sc.locations.length ? sc.locations : Object.values(state.locations)).filter((l) => !known || !l.region || known.has(l.region));
     const many = new Set(rooms.map((l) => l.region)).size > 1;
     const brief = E.Sites.mapFocus(sc) === 'region';
     const line = (l, tag) => {

@@ -1,0 +1,332 @@
+{
+  "id": "poormans-gulch",
+  "name": "Poorman's Gulch",
+  "type": "gold camp",
+  "place": "poormans-gulch",
+  "tags": [
+    "gold camp",
+    "mining camp",
+    "diggings"
+  ],
+  "setting": [
+    "western"
+  ],
+  "credit": "Drawn for Ensemble (The Frontier, 1866–1869)",
+  "license": "PolyForm Noncommercial 1.0.0, with the game",
+  "image": "sites/poormans-gulch.svg",
+  "width": 1600,
+  "height": 1000,
+  "entry": "poorman-trail",
+  "rooms": [
+    {
+      "id": "poorman-trail",
+      "name": "The trail down from the pass",
+      "desc": "A faint wagon track off the South Pass road, down through sage and rock into the gulch.",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "sage",
+        "wheel ruts",
+        "cairn"
+      ],
+      "shape": [
+        [
+          1200,
+          40
+        ],
+        [
+          1560,
+          40
+        ],
+        [
+          1560,
+          300
+        ],
+        [
+          1340,
+          300
+        ],
+        [
+          1200,
+          200
+        ]
+      ],
+      "links": [
+        {
+          "to": "poorman-tents",
+          "kind": "open"
+        },
+        {
+          "to": "poorman-ridge",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "poorman-tents",
+      "name": "Tent row",
+      "desc": "A dozen patched tents and brush shelters along the creek, washing hung on the willows.",
+      "size": "medium",
+      "outside": true,
+      "features": [
+        "tents",
+        "brush shelters",
+        "washing line"
+      ],
+      "shape": [
+        [
+          700,
+          260
+        ],
+        [
+          1200,
+          200
+        ],
+        [
+          1340,
+          300
+        ],
+        [
+          1400,
+          520
+        ],
+        [
+          1000,
+          560
+        ],
+        [
+          760,
+          480
+        ]
+      ],
+      "links": [
+        {
+          "to": "poorman-fire",
+          "kind": "open"
+        },
+        {
+          "to": "poorman-creek",
+          "kind": "open"
+        },
+        {
+          "to": "poorman-lots",
+          "kind": "open"
+        },
+        {
+          "to": "poorman-cabin",
+          "kind": "door"
+        }
+      ]
+    },
+    {
+      "id": "poorman-fire",
+      "name": "The cook fire",
+      "desc": "A stone fire ring under a canvas fly, the camp's one kettle and its very small store of flour and bacon.",
+      "size": "small",
+      "outside": true,
+      "features": [
+        "fire ring",
+        "kettle",
+        "supply crates"
+      ],
+      "shape": [
+        [
+          1000,
+          560
+        ],
+        [
+          1400,
+          520
+        ],
+        [
+          1420,
+          640
+        ],
+        [
+          1060,
+          660
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "poorman-cabin",
+      "name": "The cabin",
+      "desc": "The only log cabin, half roofed, where the camp keeps its gold dust and its arguments.",
+      "size": "small",
+      "features": [
+        "half roof",
+        "strongbox",
+        "bunk"
+      ],
+      "shape": [
+        [
+          760,
+          480
+        ],
+        [
+          1000,
+          560
+        ],
+        [
+          960,
+          640
+        ],
+        [
+          740,
+          600
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "poorman-creek",
+      "name": "The creek and the diggings",
+      "desc": "The creek, dammed and ditched, with rockers and a sluice; gravel heaps along both banks.",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "sluice",
+        "rockers",
+        "gravel heaps"
+      ],
+      "shape": [
+        [
+          260,
+          420
+        ],
+        [
+          700,
+          260
+        ],
+        [
+          760,
+          480
+        ],
+        [
+          740,
+          600
+        ],
+        [
+          420,
+          760
+        ],
+        [
+          260,
+          700
+        ]
+      ],
+      "links": [
+        {
+          "to": "poorman-discovery",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "poorman-discovery",
+      "name": "The discovery claim",
+      "desc": "Upstream, the claim where the first colour was panned, marked with a notice on a post.",
+      "size": "medium",
+      "outside": true,
+      "features": [
+        "claim notice",
+        "prospect hole",
+        "windlass"
+      ],
+      "shape": [
+        [
+          40,
+          520
+        ],
+        [
+          260,
+          420
+        ],
+        [
+          260,
+          700
+        ],
+        [
+          420,
+          760
+        ],
+        [
+          300,
+          920
+        ],
+        [
+          40,
+          920
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "poorman-lots",
+      "name": "The staked town",
+      "desc": "A flat above the creek laid out with stakes and string: a main street, lots and a square, for a town that doesn't exist yet.",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "stakes and string",
+        "a painted sign board",
+        "a flagpole"
+      ],
+      "shape": [
+        [
+          600,
+          40
+        ],
+        [
+          1200,
+          40
+        ],
+        [
+          1200,
+          200
+        ],
+        [
+          700,
+          260
+        ],
+        [
+          600,
+          200
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "poorman-ridge",
+      "name": "Lookout ridge",
+      "desc": "A rocky rise with a view east along the trail toward the pass, where someone always watches for wagons.",
+      "size": "small",
+      "outside": true,
+      "features": [
+        "rock cairn",
+        "spyglass",
+        "signal fire"
+      ],
+      "shape": [
+        [
+          1340,
+          300
+        ],
+        [
+          1560,
+          300
+        ],
+        [
+          1560,
+          520
+        ],
+        [
+          1400,
+          520
+        ]
+      ],
+      "links": []
+    }
+  ]
+}

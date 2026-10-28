@@ -536,6 +536,26 @@ const genOpen = async (page) => {
 };
 const genDone = (page) => page.waitForSelector('#genPlay', { timeout: 20000 });
 
+// Task 7-4: a start in a region with one of the world's drawn places begins there.
+await check('the frontier: make my own start in Salt Lick, and play on its drawn town plan', async (page) => {
+  await page.selectOption('#scenarioSelect', 'server:frontier');
+  await page.click('#btnNew');
+  await page.waitForSelector('#genDialog[open]');
+  await page.fill('#genSearch', 'salt lick');
+  await page.click('#genResults [data-genpick="salt-lick"]');
+  await page.fill('#genLine', 'a drover from Texas, owed three months of wages');
+  await page.click('#genGo');
+  await genDone(page);
+  assert.match(await page.textContent('#genBody'), /You start in Front Street, in one of the world's own places/);
+  await page.click('#genPlay');
+  await gameStarted(page);
+  assert.match(await page.textContent('#sceneBar'), /Front Street/);
+  assert.match(await page.textContent('#mapPane'), /The Drovers' Rest/);
+  await page.locator('#mapPane').screenshot({ path: path.join(shots, 'frontier-salt-lick.png') });
+  await act(page, 'I walk over to the Drovers\' Rest.');
+  assert.equal(await page.locator('.entry.action').count(), 1);
+});
+
 await check('make my own start: generate a place and people, retry a failed step, and play', async (page) => {
   // The first three replies for the rooms step are unusable: the step fails, then Retry works.
   let bad = 3;

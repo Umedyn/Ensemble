@@ -1,0 +1,133 @@
+[
+  {
+    "id": "nations-and-treaties",
+    "title": "Nations, treaties and agents",
+    "level": "world",
+    "alwaysOn": true,
+    "priority": 5,
+    "keywords": ["treaty", "agent", "agency", "annuities", "reservation", "council", "chief", "tribe", "Indian"],
+    "topics": ["politics"],
+    "text": "Each Native nation is its own people, with its own language, government, alliances and enemies, and its bands and leaders disagree among themselves as other peoples' do. Washington deals with them by treaty: land given up for promises of goods, money and reservations, promises often broken. Agents of the Indian Office hand out annuities, honestly or not.",
+    "sources": [{ "title": "American frontier (Wikipedia)", "url": "https://en.wikipedia.org/wiki/American_frontier" }]
+  },
+  {
+    "id": "lakota",
+    "title": "The Lakota",
+    "level": "region",
+    "ref": "powder-river",
+    "priority": 4,
+    "keywords": ["Lakota", "Sioux", "Oglala", "Brulé", "Miniconjou", "Hunkpapa", "Red Cloud", "Spotted Tail", "Man Afraid of His Horses"],
+    "text": "The Lakota, the western Sioux, are seven peoples (Oglala, Brulé, Miniconjou, Hunkpapa, Two Kettles, Sans Arc and Sihasapa) who hunt the northern plains from the Missouri to the Bighorns. They are the strongest power on the northern plains. Among the Oglala, Red Cloud leads those who refuse the soldiers' road through their hunting grounds; the Brulé leader Spotted Tail favours peace and talks.",
+    "sources": [{ "title": "Red Cloud's War (Wikipedia)", "url": "https://en.wikipedia.org/wiki/Red_Cloud%27s_War" }]
+  },
+  {
+    "id": "cheyenne-arapaho",
+    "title": "The Cheyenne and Arapaho",
+    "level": "region",
+    "ref": "smoky-hill",
+    "priority": 4,
+    "keywords": ["Cheyenne", "Arapaho", "Dog Soldiers", "Black Kettle", "Roman Nose", "Tall Bull", "Little Raven"],
+    "text": "The Cheyenne and their old allies the Arapaho hunt the central plains in northern and southern bands. Since Sand Creek they are split: peace chiefs like Black Kettle keep talking with Washington, while the Dog Soldiers, a warrior society that has become a band of its own under leaders like Tall Bull, fight to keep the Smoky Hill and Republican country, and the warrior Roman Nose is famous on both sides.",
+    "sources": [{ "title": "Sand Creek massacre (Wikipedia)", "url": "https://en.wikipedia.org/wiki/Sand_Creek_massacre" }]
+  },
+  {
+    "id": "comanche-kiowa",
+    "title": "The Comanche and Kiowa",
+    "level": "region",
+    "ref": "comancheria",
+    "priority": 4,
+    "keywords": ["Comanche", "Kiowa", "Ten Bears", "Satanta", "Kicking Bird", "Quahadi", "Comanchero"],
+    "text": "The Comanche are the great horse people of the southern plains, divided into independent divisions; the Quahadi of the Llano Estacado have never signed anything. Their Kiowa allies are led by men such as the orator Satanta and the peace-minded Kicking Bird. They raid Texas and Mexico for horses and captives, and trade with the New Mexican Comancheros.",
+    "sources": [{ "title": "Comanche (Wikipedia)", "url": "https://en.wikipedia.org/wiki/Comanche" }]
+  },
+  {
+    "id": "apache",
+    "title": "The Apache",
+    "level": "region",
+    "ref": "apacheria",
+    "priority": 3,
+    "keywords": ["Apache", "Chiricahua", "Mescalero", "Western Apache", "Jicarilla", "Cochise", "Mangas"],
+    "text": "The Apache are several peoples, Chiricahua, Western Apache, Mescalero, Jicarilla and others, in bands under their own leaders. Cochise's Chiricahua have fought the Americans since soldiers tried to arrest him under a flag of truce in 1861, and since the killing of the chief Mangas Coloradas while a prisoner. Apache bands know every spring and canyon of their country.",
+    "sources": [{ "title": "Apache Wars (Wikipedia)", "url": "https://en.wikipedia.org/wiki/Apache_Wars" }]
+  },
+  {
+    "id": "dine",
+    "title": "The Diné",
+    "level": "region",
+    "ref": "bosque-redondo",
+    "priority": 4,
+    "keywords": ["Navajo", "Navaho", "Diné", "Manuelito", "Barboncito", "Long Walk", "Hwéeldi"],
+    "text": "The Diné, whom others call Navajo, were herders and farmers between their four sacred mountains until the army burned their fields and orchards and marched them to Bosque Redondo, which they call Hwéeldi. Thousands are held there with bad water and failing crops. Leaders such as Barboncito argue for a return home; Manuelito still holds out in the canyons with a few hundred people.",
+    "sources": [{ "title": "Long Walk of the Navajo (Wikipedia)", "url": "https://en.wikipedia.org/wiki/Long_Walk_of_the_Navajo" }]
+  },
+  {
+    "id": "shoshone",
+    "title": "The Shoshone",
+    "level": "region",
+    "ref": "wind-river",
+    "priority": 3,
+    "keywords": ["Shoshone", "Shoshoni", "Washakie", "Bannock", "Snake"],
+    "text": "The Shoshone peoples range from the Wind River to the Great Basin. The Eastern Shoshone under Washakie have kept peace with the Americans for years, helping emigrants at the river crossings, and want the Wind River valley as their own. Other Shoshone and the Bannock, along the Snake and in Idaho and Oregon, have been fighting settlers and soldiers.",
+    "sources": [{ "title": "Washakie (Wikipedia)", "url": "https://en.wikipedia.org/wiki/Washakie" }]
+  },
+  {
+    "id": "ute",
+    "title": "The Ute",
+    "level": "region",
+    "ref": "ute-country",
+    "priority": 3,
+    "keywords": ["Ute", "Utes", "Ouray"],
+    "text": "The Ute bands live in the high parks and valleys of the Rockies in Colorado and Utah. Ouray, a chief who speaks Spanish and English, negotiates with Washington to keep as much of their mountains as he can, while miners push in every summer and the Utes in Utah fight settlers over stolen cattle and starvation.",
+    "sources": [{ "title": "Ute people (Wikipedia)", "url": "https://en.wikipedia.org/wiki/Ute_people" }]
+  },
+  {
+    "id": "crow",
+    "title": "The Crow",
+    "level": "region",
+    "ref": "crow-country",
+    "priority": 3,
+    "keywords": ["Crow", "Apsáalooke", "Absaroka"],
+    "text": "The Apsáalooke, the Crow, hold the Yellowstone and Bighorn country against the Lakota and Cheyenne, who have already taken the Powder River from them. Outnumbered, they treat the soldiers as useful allies against their enemies, and Crow men scout for the army.",
+    "sources": [{ "title": "Crow people (Wikipedia)", "url": "https://en.wikipedia.org/wiki/Crow_people" }]
+  },
+  {
+    "id": "blackfeet",
+    "title": "The Blackfoot Confederacy",
+    "level": "region",
+    "ref": "blackfeet-country",
+    "priority": 2,
+    "keywords": ["Blackfeet", "Blackfoot", "Piegan", "Pikuni", "Blood", "Kainai", "Siksika"],
+    "text": "The Piegan, Blood and Siksika peoples of the Blackfoot Confederacy hold the plains and mountain front on both sides of the British line. They trade at Fort Benton, but the Montana miners, cattle thieves on both sides and the whiskey traders make every season more dangerous.",
+    "sources": [{ "title": "Blackfoot Confederacy (Wikipedia)", "url": "https://en.wikipedia.org/wiki/Blackfoot_Confederacy" }]
+  },
+  {
+    "id": "nez-perce",
+    "title": "The Nez Perce",
+    "level": "region",
+    "ref": "nez-perce-country",
+    "priority": 3,
+    "keywords": ["Nez Perce", "Nimíipuu", "Lawyer", "Joseph", "Wallowa", "Clearwater", "Lapwai"],
+    "text": "The Nimíipuu, the Nez Perce, breed fine horses in the Clearwater and Snake river country. After gold was found on their land, the treaty of 1863 cut it to a tenth; Lawyer's bands signed, while Old Joseph's band in the Wallowa and others did not, and they now call it the thief treaty.",
+    "sources": [{ "title": "Nez Perce people (Wikipedia)", "url": "https://en.wikipedia.org/wiki/Nez_Perce_people" }]
+  },
+  {
+    "id": "five-tribes",
+    "title": "The Five Tribes",
+    "level": "region",
+    "ref": "indian-territory",
+    "priority": 3,
+    "keywords": ["Cherokee", "Creek", "Muscogee", "Choctaw", "Chickasaw", "Seminole", "Stand Watie", "John Ross", "Tahlequah"],
+    "text": "Removed from the Southeast a generation ago, the Cherokee, Creek, Choctaw, Chickasaw and Seminole govern themselves in Indian Territory with constitutions, courts and schools. The war tore them apart: many fought for the Confederacy under leaders like Stand Watie, others for the Union. Washington is making them pay with new treaties, land cessions and freedom for those they enslaved.",
+    "sources": [{ "title": "Five Civilized Tribes (Wikipedia)", "url": "https://en.wikipedia.org/wiki/Five_Civilized_Tribes" }]
+  },
+  {
+    "id": "pawnee",
+    "title": "The Pawnee",
+    "level": "region",
+    "ref": "pawnee-reservation",
+    "priority": 2,
+    "keywords": ["Pawnee", "Pawnee scouts", "Loup"],
+    "text": "The Pawnee farm in earth-lodge villages on the Loup and hunt buffalo twice a year. Their enemies the Lakota and Cheyenne raid them constantly; Pawnee men enlist as army scouts against those same enemies, and now patrol the Union Pacific line.",
+    "sources": [{ "title": "Pawnee people (Wikipedia)", "url": "https://en.wikipedia.org/wiki/Pawnee_people" }]
+  }
+]

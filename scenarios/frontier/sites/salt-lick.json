@@ -1,0 +1,576 @@
+{
+  "id": "salt-lick",
+  "name": "Salt Lick",
+  "type": "cattle town",
+  "place": "salt-lick",
+  "tags": [
+    "cattle town",
+    "cow town",
+    "stockyards"
+  ],
+  "setting": [
+    "western"
+  ],
+  "credit": "Drawn for Ensemble (The Frontier, 1866–1869)",
+  "license": "PolyForm Noncommercial 1.0.0, with the game",
+  "image": "sites/salt-lick.svg",
+  "width": 1600,
+  "height": 1000,
+  "entry": "saltlick-front",
+  "rooms": [
+    {
+      "id": "saltlick-front",
+      "name": "Front Street",
+      "desc": "The town's one real street, rutted by cattle and wagons, false fronts on both sides and a plank sidewalk on the north.",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "plank sidewalk",
+        "hitching rails",
+        "water trough"
+      ],
+      "shape": [
+        [
+          200,
+          440
+        ],
+        [
+          1400,
+          440
+        ],
+        [
+          1400,
+          540
+        ],
+        [
+          200,
+          540
+        ]
+      ],
+      "links": [
+        {
+          "to": "saltlick-saloon",
+          "kind": "door"
+        },
+        {
+          "to": "saltlick-hotel",
+          "kind": "door"
+        },
+        {
+          "to": "saltlick-office",
+          "kind": "door"
+        },
+        {
+          "to": "saltlick-store",
+          "kind": "door"
+        },
+        {
+          "to": "saltlick-livery",
+          "kind": "open"
+        },
+        {
+          "to": "saltlick-jail",
+          "kind": "door"
+        },
+        {
+          "to": "saltlick-smith",
+          "kind": "open"
+        },
+        {
+          "to": "saltlick-dancehall",
+          "kind": "door"
+        },
+        {
+          "to": "saltlick-chapel",
+          "kind": "door"
+        },
+        {
+          "to": "saltlick-stage",
+          "kind": "door"
+        },
+        {
+          "to": "saltlick-pens",
+          "kind": "open"
+        },
+        {
+          "to": "saltlick-herd",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "saltlick-saloon",
+      "name": "The Drovers' Rest",
+      "desc": "The biggest saloon in town: a long bar, mirrors freighted from St. Louis, card tables, and Texans who haven't been paid yet.",
+      "size": "large",
+      "features": [
+        "long bar",
+        "mirror",
+        "card tables"
+      ],
+      "shape": [
+        [
+          200,
+          240
+        ],
+        [
+          460,
+          240
+        ],
+        [
+          460,
+          440
+        ],
+        [
+          200,
+          440
+        ]
+      ],
+      "links": [
+        {
+          "to": "saltlick-alley",
+          "kind": "door"
+        }
+      ]
+    },
+    {
+      "id": "saltlick-hotel",
+      "name": "The Cattleman's Hotel",
+      "desc": "Two storeys with a porch, the only beds with sheets for fifty miles; cattle buyers and speculators talk business in its dining room.",
+      "size": "large",
+      "features": [
+        "porch",
+        "dining room",
+        "register"
+      ],
+      "shape": [
+        [
+          460,
+          240
+        ],
+        [
+          720,
+          240
+        ],
+        [
+          720,
+          440
+        ],
+        [
+          460,
+          440
+        ]
+      ],
+      "links": [
+        {
+          "to": "saltlick-alley",
+          "kind": "door"
+        }
+      ]
+    },
+    {
+      "id": "saltlick-office",
+      "name": "Land and stock office",
+      "desc": "A narrow office where the town company sells lots and a stock buyer offers Texans a fraction of what their cattle would bring at a railhead.",
+      "size": "small",
+      "features": [
+        "desk",
+        "town plat",
+        "safe"
+      ],
+      "shape": [
+        [
+          720,
+          240
+        ],
+        [
+          900,
+          240
+        ],
+        [
+          900,
+          440
+        ],
+        [
+          720,
+          440
+        ]
+      ],
+      "links": [
+        {
+          "to": "saltlick-alley",
+          "kind": "door"
+        }
+      ]
+    },
+    {
+      "id": "saltlick-store",
+      "name": "General store",
+      "desc": "Everything from saddles to calico to coffee, sold on credit to people the storekeeper trusts.",
+      "size": "medium",
+      "features": [
+        "counter",
+        "shelving",
+        "cracker barrel"
+      ],
+      "shape": [
+        [
+          900,
+          240
+        ],
+        [
+          1140,
+          240
+        ],
+        [
+          1140,
+          440
+        ],
+        [
+          900,
+          440
+        ]
+      ],
+      "links": [
+        {
+          "to": "saltlick-alley",
+          "kind": "door"
+        }
+      ]
+    },
+    {
+      "id": "saltlick-livery",
+      "name": "Livery stable and corral",
+      "desc": "A big barn and a corral at the east end, horses for hire and sale, and a loft where drifters sleep for a dime.",
+      "size": "large",
+      "features": [
+        "stalls",
+        "hayloft",
+        "corral"
+      ],
+      "shape": [
+        [
+          1140,
+          240
+        ],
+        [
+          1400,
+          240
+        ],
+        [
+          1400,
+          440
+        ],
+        [
+          1140,
+          440
+        ]
+      ],
+      "links": [
+        {
+          "to": "saltlick-alley",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "saltlick-alley",
+      "name": "Back alley",
+      "desc": "A muddy lane behind the north side: privies, woodpiles, back doors and the town's quieter business.",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "privies",
+        "woodpiles",
+        "rain barrels"
+      ],
+      "shape": [
+        [
+          200,
+          160
+        ],
+        [
+          1400,
+          160
+        ],
+        [
+          1400,
+          240
+        ],
+        [
+          200,
+          240
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "saltlick-jail",
+      "name": "Marshal's office and jail",
+      "desc": "A stone-walled office with two iron cells, a rack of rifles and a list of town ordinances nobody reads.",
+      "size": "small",
+      "features": [
+        "iron cells",
+        "gun rack",
+        "ordinance board"
+      ],
+      "shape": [
+        [
+          200,
+          540
+        ],
+        [
+          400,
+          540
+        ],
+        [
+          400,
+          740
+        ],
+        [
+          200,
+          740
+        ]
+      ],
+      "links": [
+        {
+          "to": "saltlick-ford",
+          "kind": "door"
+        }
+      ]
+    },
+    {
+      "id": "saltlick-smith",
+      "name": "Blacksmith",
+      "desc": "A smithy shoeing the drovers' horses and mending branding irons.",
+      "size": "small",
+      "features": [
+        "forge",
+        "anvil",
+        "branding irons"
+      ],
+      "shape": [
+        [
+          400,
+          540
+        ],
+        [
+          580,
+          540
+        ],
+        [
+          580,
+          740
+        ],
+        [
+          400,
+          740
+        ]
+      ],
+      "links": [
+        {
+          "to": "saltlick-ford",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "saltlick-dancehall",
+      "name": "The dance hall",
+      "desc": "A barn of a building with a fiddler, a piano with half its keys, and dances sold by the ticket.",
+      "size": "large",
+      "features": [
+        "piano",
+        "dance floor",
+        "bar"
+      ],
+      "shape": [
+        [
+          580,
+          540
+        ],
+        [
+          860,
+          540
+        ],
+        [
+          860,
+          740
+        ],
+        [
+          580,
+          740
+        ]
+      ],
+      "links": [
+        {
+          "to": "saltlick-ford",
+          "kind": "door"
+        }
+      ]
+    },
+    {
+      "id": "saltlick-chapel",
+      "name": "Schoolhouse and chapel",
+      "desc": "One whitewashed room: school on weekdays, preaching on Sundays, town meetings when there's trouble.",
+      "size": "medium",
+      "features": [
+        "benches",
+        "pulpit",
+        "blackboard"
+      ],
+      "shape": [
+        [
+          860,
+          540
+        ],
+        [
+          1040,
+          540
+        ],
+        [
+          1040,
+          740
+        ],
+        [
+          860,
+          740
+        ]
+      ],
+      "links": [
+        {
+          "to": "saltlick-ford",
+          "kind": "door"
+        }
+      ]
+    },
+    {
+      "id": "saltlick-stage",
+      "name": "Stage station",
+      "desc": "The Smoky Hill stage stop: a sod-and-plank office, a corral of fresh horses and the mail.",
+      "size": "medium",
+      "features": [
+        "mail sacks",
+        "corral",
+        "schedule board"
+      ],
+      "shape": [
+        [
+          1040,
+          540
+        ],
+        [
+          1400,
+          540
+        ],
+        [
+          1400,
+          740
+        ],
+        [
+          1040,
+          740
+        ]
+      ],
+      "links": [
+        {
+          "to": "saltlick-ford",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "saltlick-pens",
+      "name": "The shipping pens",
+      "desc": "Big plank pens and loading chutes at the west end, built by a speculator for a railroad that hasn't come yet.",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "loading chutes",
+        "plank pens",
+        "scales"
+      ],
+      "shape": [
+        [
+          20,
+          240
+        ],
+        [
+          200,
+          240
+        ],
+        [
+          200,
+          740
+        ],
+        [
+          20,
+          740
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "saltlick-herd",
+      "name": "The herd grounds",
+      "desc": "Open prairie east of town where the Texas herds graze and wait, watched by night riders.",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "longhorns",
+        "chuck wagon",
+        "night riders' fire"
+      ],
+      "shape": [
+        [
+          1400,
+          160
+        ],
+        [
+          1580,
+          160
+        ],
+        [
+          1580,
+          740
+        ],
+        [
+          1400,
+          740
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "saltlick-ford",
+      "name": "The Saline ford",
+      "desc": "The shallow crossing below town, cottonwoods along the bank and the stage road climbing out the far side.",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "ford",
+        "cottonwoods",
+        "stage road"
+      ],
+      "shape": [
+        [
+          20,
+          740
+        ],
+        [
+          1580,
+          740
+        ],
+        [
+          1580,
+          960
+        ],
+        [
+          20,
+          960
+        ]
+      ],
+      "links": []
+    }
+  ]
+}

@@ -652,9 +652,10 @@
       field('opening', '', 'facts', (o.facts || []).join('\n'), { label: 'Facts everyone knows (one per line)', rows: 3 }) + '</section>';
     html += '<section class="rv-section"><div class="rv-head"><h4>Places</h4></div>' +
       `<div id="rvMap" class="rv-map">${previewMapHtml()}</div>` +
-      s.rooms.rooms.map((r) => `<div class="rv-card"><div class="rv-head"><b>${esc(r.name)}</b>${r.id === s.rooms.playerRoom ? ' <span class="tag">you start here</span>' : ''}${reroll(`data-rv-room="${esc(r.id)}"`, 'Reroll', 'A new name and description; it stays where it is')}</div>` +
+      // One of the world's own places (task 7-4): shown, not edited here.
+      (s.rooms.place ? `<div class="muted small">You start in ${esc(roomName(s.rooms.playerRoom))}, in one of the world's own places: ${esc(s.rooms.rooms.map((r) => r.name).join(', '))}.</div>` : s.rooms.rooms.map((r) => `<div class="rv-card"><div class="rv-head"><b>${esc(r.name)}</b>${r.id === s.rooms.playerRoom ? ' <span class="tag">you start here</span>' : ''}${reroll(`data-rv-room="${esc(r.id)}"`, 'Reroll', 'A new name and description; it stays where it is')}</div>` +
         field('room', r.id, 'name', r.name, { label: 'Name' }) + field('room', r.id, 'desc', r.desc, { label: 'Description', rows: 2 }) +
-        `<div class="muted small">Connects to ${esc(r.connects.map(roomName).join(', ') || 'nothing')}</div></div>`).join('') + '</section>';
+        `<div class="muted small">Connects to ${esc(r.connects.map(roomName).join(', ') || 'nothing')}</div></div>`).join('')) + '</section>';
     const withYou = new Set(o.withYou || []);
     const person = (c, you) => {
       const where = you || withYou.has(c.id) ? s.rooms.playerRoom : c.status.location;
@@ -1529,8 +1530,11 @@
     if (v === 'world') return 'root';
     if (v === 'region') return E.Engine.playerRegion(state) || 'root';
     if (v === 'root' || v === 'local' || (v && E.Engine.regionDef(state, v) && E.Engine.regionKnown(state, v))) return v;
-    // Nothing picked yet: a region-focused world (R-8) opens at the player's region.
-    return E.Sites.mapFocus(state.scenario) === 'region' && E.Engine.playerRegion(state) ? E.Engine.playerRegion(state) : 'local';
+    // Nothing picked yet: a region-focused world (R-8) opens at the player's
+    // region, unless they are in a tactical place (task 7-4: a town's drawn
+    // plan), which opens on its floor plan.
+    const region = E.Sites.mapFocus(state.scenario) === 'region' && E.Engine.playerRegion(state);
+    return region && !E.Sites.tactical(state, E.Sites.playerSite(state)) ? region : 'local';
   }
   function setMapView(v) {
     const all = mapViewAll();
