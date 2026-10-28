@@ -155,8 +155,10 @@
   // name, alt: [other names], wikidata, title (a Wikipedia title), rings:
   // [[[lon, lat], …], …] (outer rings) }]. opts: { pick: [names] (any of
   // name, alt or key, any case), within: true (anything on the map), taken:
-  // [ids in use], tol, minArea }. → { regions: [{ id, key, name, wiki }],
-  // shapes: {id: {polygon} | {polygons}}, neighbours: [[a, b]], skipped:
+  // [ids in use], tol, minArea, points: true (one too small to outline is a
+  // point at the middle of its biggest piece instead of being left out) }.
+  // → { regions: [{ id, key, name, wiki }], shapes: {id: {polygon} |
+  // {polygons} | {point}}, neighbours: [[a, b]], skipped: [names], points:
   // [names], missing: [picked names not found], lonlat: {id: source rings} }.
   const slug = (t) => String(t || '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30) || 'region';
   G.slug = slug;
@@ -175,16 +177,24 @@
     const o = Object.assign({ tol: 1.5, minArea: 6, taken: [] }, opts || {});
     const { chosen, missing } = G.pickFeatures(map, features, o);
     const used = new Set(o.taken);
-    const out = { regions: [], shapes: {}, neighbours: [], skipped: [], missing };
+    const out = { regions: [], shapes: {}, neighbours: [], skipped: [], points: [], missing };
     const lonlat = {};
+    const inImage = (p) => p[0] >= 0 && p[1] >= 0 && p[0] <= map.width && p[1] <= map.height;
+    const pointOf = (f) => {
+      const big = f.rings.slice().sort((a, b) => G.area(b) - G.area(a))[0];
+      const at = big && G.toPixel(map, [big.reduce((t, p) => t + p[0], 0) / big.length, big.reduce((t, p) => t + p[1], 0) / big.length]).map(Math.round);
+      return at && inImage(at) ? at : null;
+    };
     chosen.forEach((f) => {
       const rings = G.fitRings(map, f.rings, o);
-      if (!rings.length) return out.skipped.push(f.name);
+      const point = !rings.length && o.points ? pointOf(f) : null;
+      if (!rings.length && !point) return out.skipped.push(f.name);
+      if (point) out.points.push(f.name);
       let id = slug(f.name);
       for (let n = 2; used.has(id); n++) id = `${slug(f.name)}-${n}`;
       used.add(id);
       out.regions.push(Object.assign({ id, key: f.key, name: f.name }, f.title || f.wikidata ? { wiki: Object.assign({}, f.title ? { title: f.title } : {}, f.wikidata ? { wikidata: f.wikidata } : {}) } : {}));
-      out.shapes[id] = rings.length === 1 ? { polygon: rings[0] } : { polygons: rings };
+      out.shapes[id] = point ? { point } : rings.length === 1 ? { polygon: rings[0] } : { polygons: rings };
       lonlat[id] = f.rings;
     });
     // Neighbours from the source outlines (shared borders are exact there).

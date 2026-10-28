@@ -49,13 +49,17 @@
   // Its picture is the nearest map up the chain: its own, an ancestor's, or
   // the world's. With a picture, everything outlined on it is drawn as
   // before (the picture is decoration underneath, never data: rule 11), and
-  // the view zooms to the level; regions outside it are dimmed. Without one,
+  // the view zooms to the level; regions outside it are dimmed. A crowded
+  // picture (over D.CROWDED regions) leaves out what's inside another shaped
+  // region off the way to the level: a world of countries shows the
+  // countries, and a country its own cities once zoomed into. Without one,
   // a node map of its children and their routes. A leaf shows its parent's
   // view, zoomed to it.
   // → { id, picture (map or null), owner (whose map), regions (definitions
   // to draw), g, viewBox, children (ids a click zooms into), dim (ids outside
   // the level), rooms ([{id, x, y}] placed on the picture, in the level) }
   // opts.hidden: regions the player doesn't know of (R-5), left out entirely.
+  D.CROWDED = 60;
   D.level = function (sc, levelId, opts) {
     const S = E.Scenario;
     const hidden = (opts && opts.hidden) || new Set();
@@ -72,7 +76,13 @@
     const picture = owner ? def(owner).map : sc.map || null;
     const seed = `${sc.worldId || ''}${base ? ':' + base : ''}`;
     if (picture) {
-      const regions = list.filter((r) => inside(r.id, owner));
+      // On a crowded picture, a region inside another that has a shape of its
+      // own waits until that one is zoomed into, unless it's on the way here.
+      const shaped = (x) => isObj(picture.regions) && picture.regions[x];
+      const way = base != null ? chainOf(base) : [];
+      const deep = (x) => chainOf(x).slice(1).some((a) => a !== owner && !way.includes(a) && shaped(a));
+      const all = list.filter((r) => inside(r.id, owner));
+      const regions = all.length > D.CROWDED ? all.filter((r) => !deep(r.id)) : all;
       const g = D.geometry(regions, picture, seed);
       const focus = id == null || id === owner ? null : (leaf ? [id] : list.filter((r) => inside(r.id, id)).map((r) => r.id).filter((x) => g.shapes[x]));
       // A leaf: as the regional view was, twice its size within what's near it.

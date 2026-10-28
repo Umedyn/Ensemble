@@ -7,8 +7,8 @@
 //   npm run basemap -- crop <world> --bounds W,S,E,N [--width 2400] [--file maps/base.jpg]
 //   npm run basemap -- crop <world> --region <id> [--bounds W,S,E,N] [--width 2400]
 //   npm run basemap -- regions <world> [--from countries|states] [--pick "France, Italy"] [--within]
-//                      [--parent <id>] [--places capitals|cities] [--as pins|regions]
-//                      [--labels "country, state, city"] [--tol 1.5] [--min-area 6] [--wiki]
+//                      [--parent <id>] [--places capitals|cities] [--min-pop N] [--as pins|regions]
+//                      [--labels "country, state, city"] [--tol 1.5] [--min-area 6] [--points] [--wiki]
 //
 // Sources (Natural Earth, public domain; "Made with Natural Earth"): the
 // 1:50m cross-blended hypsometric tints with shaded relief and water
@@ -43,7 +43,8 @@ const GEOJSON = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/
 export const SOURCES = {
   raster: { url: `${NE}/50m/raster/HYP_50M_SR_W.zip`, file: 'HYP_50M_SR_W.zip', tif: 'HYP_50M_SR_W.tif' },
   countries: { url: `${GEOJSON}/ne_50m_admin_0_countries.geojson`, file: 'ne_50m_admin_0_countries.geojson' },
-  places: { url: `${GEOJSON}/ne_50m_populated_places_simple.geojson`, file: 'ne_50m_populated_places_simple.geojson' },
+  // The full places file: the simple one has no Wikidata ids for the pages.
+  places: { url: `${GEOJSON}/ne_50m_populated_places.geojson`, file: 'ne_50m_populated_places.geojson', older: 'ne_50m_populated_places_simple.geojson' },
   states: { url: `${GEOJSON}/ne_10m_admin_1_states_provinces.geojson`, file: 'ne_10m_admin_1_states_provinces.geojson' },
 };
 export const CREDIT = 'Made with Natural Earth (naturalearthdata.com): 1:50m cross-blended hypsometric tints with shaded relief and water';
@@ -55,7 +56,7 @@ const USAGE = `Usage:
   npm run basemap -- crop <world> --bounds W,S,E,N [--width 2400] [--file maps/base.jpg]
   npm run basemap -- crop <world> --region <id> [--bounds W,S,E,N] [--width 2400]
   npm run basemap -- regions <world> [--from countries|states] [--pick "France, Italy"] [--within] [--parent <id>]
-                     [--places capitals|cities] [--as pins|regions] [--labels "country, state, city"] [--tol 1.5] [--min-area 6] [--wiki]`;
+                     [--places capitals|cities] [--min-pop N] [--as pins|regions] [--labels "country, state, city"] [--tol 1.5] [--min-area 6] [--points] [--wiki]`;
 
 export function parseArgs(argv) {
   const out = { cmd: argv[0], world: argv[1] && !argv[1].startsWith('--') ? argv[1] : null, flags: {} };
@@ -63,7 +64,7 @@ export function parseArgs(argv) {
     const a = argv[i];
     if (!a.startsWith('--')) continue;
     const k = a.slice(2);
-    if (['within', 'wiki', 'states'].includes(k)) out.flags[k] = true;
+    if (['within', 'wiki', 'states', 'points'].includes(k)) out.flags[k] = true;
     else out.flags[k] = argv[++i];
   }
   return out;
@@ -201,10 +202,13 @@ export function cut(src, bounds, width) {
 
 // GeoJSON features → outlines for Geo.importRegions: outer rings only.
 const ringsOf = (geom) => (!geom ? [] : geom.type === 'Polygon' ? [geom.coordinates[0]] : geom.type === 'MultiPolygon' ? geom.coordinates.map((p) => p[0]) : []);
+// Natural Earth's short names abbreviate ("Dem. Rep. Congo"): the first of
+// its names without a full stop; the short one stays an alternative for --pick.
 export function countryFeatures(gj) {
   return gj.features.map((f) => {
     const p = f.properties;
-    return { key: p.ADM0_A3, name: p.NAME || p.ADMIN, alt: [p.ADMIN, p.NAME_LONG, p.NAME_EN, p.ISO_A3_EH, p.ADM0_A3].filter((x) => x && x !== '-99'), wikidata: p.WIKIDATAID || null, title: p.NAME_EN || p.ADMIN, rings: ringsOf(f.geometry) };
+    const name = [p.NAME, p.NAME_LONG, p.ADMIN, p.NAME_EN].find((x) => x && !x.includes('.')) || p.NAME || p.ADMIN;
+    return { key: p.ADM0_A3, name, alt: [p.NAME].concat( [p.ADMIN, p.NAME_LONG, p.NAME_EN, p.ISO_A3_EH, p.ADM0_A3]).filter((x) => x && x !== '-99' && x !== name), wikidata: p.WIKIDATAID || null, title: p.NAME_EN || p.ADMIN, rings: ringsOf(f.geometry) };
   });
 }
 export function stateFeatures(gj) {
@@ -213,19 +217,37 @@ export function stateFeatures(gj) {
     return { key: p.adm1_code, name: p.name || p.name_en, alt: [p.name_en, p.gn_name, `${p.name}, ${p.admin}`].filter(Boolean), country: p.admin, countryKey: p.adm0_a3 || null, wikidata: p.wikidataid || null, title: p.name_en || p.name, rings: ringsOf(f.geometry) };
   });
 }
-// Populated places → points: capitals only, or every city on the map.
-export function placePoints(gj, which) {
-  return gj.features.map((f) => f.properties).filter((p) => (which === 'cities' ? true : p.adm0cap === 1))
-    .map((p) => ({ name: p.nameascii || p.name, lon: p.longitude, lat: p.latitude, kind: p.adm0cap === 1 ? 'capital' : 'city', key: p.adm0_a3 }));
+// Populated places → points: capitals only, or every city on the map (with
+// minPop, the cities of at least that many people, and every capital). The
+// full file names its fields in capitals, the simple one in lower case.
+export function placePoints(gj, which, minPop) {
+  const v = (p, k) => (p[k.toUpperCase()] !== undefined ? p[k.toUpperCase()] : p[k]);
+  return gj.features.map((f) => f.properties)
+    .filter((p) => v(p, 'adm0cap') === 1 || (which === 'cities' && !(v(p, 'pop_max') < (minPop || 0))))
+    .map((p) => Object.assign({ name: v(p, 'name_en') || v(p, 'nameascii') || v(p, 'name'), lon: v(p, 'longitude'), lat: v(p, 'latitude'), kind: v(p, 'adm0cap') === 1 ? 'capital' : 'city', key: v(p, 'adm0_a3') },
+      v(p, 'wikidataid') ? { wikidata: v(p, 'wikidataid') } : {}));
 }
-// Wikipedia titles for Wikidata ids (English sitelinks), 50 at a time.
-export async function wikiTitles(ids, fetchFn) {
+// Wikipedia titles for Wikidata ids (English sitelinks), 50 at a time. Wikidata
+// turns away quick runs of requests ("You are making too many requests"), so
+// batches are spaced and a refusal waits and tries again. opts: { wait (ms) }.
+export async function wikiTitles(ids, fetchFn, opts = {}) {
   const out = {};
   const list = [...new Set(ids.filter(Boolean))];
+  const wait = opts.wait ?? 1000;
+  const pause = (ms) => new Promise((ok) => setTimeout(ok, ms));
   for (let i = 0; i < list.length; i += 50) {
-    const q = new URLSearchParams({ action: 'wbgetentities', ids: list.slice(i, i + 50).join('|'), props: 'sitelinks', sitefilter: 'enwiki', format: 'json' });
-    const res = await fetchFn(`https://www.wikidata.org/w/api.php?${q}`, { headers: { 'User-Agent': 'Ensemble-basemap/1 (build-time tool)' } });
-    const j = await res.json();
+    if (i) await pause(wait);
+    const q = new URLSearchParams({ action: 'wbgetentities', ids: list.slice(i, i + 50).join('|'), props: 'sitelinks', sitefilter: 'enwiki', format: 'json', maxlag: '5' });
+    let j = null;
+    for (let tries = 0; !j; tries++) {
+      const res = await fetchFn(`https://www.wikidata.org/w/api.php?${q}`, { headers: { 'User-Agent': 'Ensemble-basemap/1 (build-time tool)' } });
+      const text = await res.text();
+      try { j = JSON.parse(text); } catch (e) { /* a refusal page, not JSON */ }
+      if (j && j.error && j.error.code === 'maxlag') j = null;
+      if (j) break;
+      if (tries >= 5) throw new Error(`Wikidata keeps refusing (${res.status}): try --wiki again later, or leave it off`);
+      await pause(wait * 5 * (tries + 1));
+    }
     Object.entries(j.entities || {}).forEach(([id, e]) => { const t = e.sitelinks && e.sitelinks.enwiki && e.sitelinks.enwiki.title; if (t) out[id] = t; });
   }
   return out;
@@ -279,7 +301,7 @@ export function mergeIntoWorld(E, world, imp, places, opts = {}) {
     touched.add(on);
   });
   touched.forEach((m) => { m.credit = m.credit || CREDIT; m.license = m.license || LICENSE; });
-  return `${imp.regions.length} regions, ${imp.neighbours.length} borders, ${(places || []).length} places${imp.skipped.length ? `; too small or off the map: ${imp.skipped.join(', ')}` : ''}${imp.missing.length ? `; not found: ${imp.missing.join(', ')}` : ''}`;
+  return `${imp.regions.length} regions, ${imp.neighbours.length} borders, ${(places || []).length} places${(imp.points || []).length ? `; as points: ${imp.points.join(', ')}` : ''}${imp.skipped.length ? `; too small or off the map: ${imp.skipped.join(', ')}` : ''}${imp.missing.length ? `; not found: ${imp.missing.join(', ')}` : ''}`;
 }
 // Moving outlines between crops and giving a region its own map are
 // shared with the creator: E.MapEdit.reproject, regionBounds, cropRegion.
@@ -294,7 +316,14 @@ function treePlaces(E, world, points, imp, known, taken, asRegions) {
   const used = new Set(taken);
   const pins = [], regions = [];
   points.forEach((p) => {
-    const holder = imp.regions.find((r) => imp.lonlat[r.id] && G.insideAny([p.lon, p.lat], imp.lonlat[r.id])) || (p.key && known.find((r) => r.key === p.key));
+    // A city-state's city (Singapore in Singapore) is the region itself.
+    if (asRegions && p.wikidata && imp.regions.concat(known).some((r) => r.wiki && r.wiki.wikidata === p.wikidata)) return;
+    // Its country, when this import is of countries (the source says which, as
+    // the outlines don't always: Jerusalem, Nicosia); else the smallest outline
+    // that holds it, as outer rings take in enclaves (Italy's holds San Marino).
+    const size = (id) => imp.lonlat[id].reduce((t, r) => t + G.area(r), 0);
+    const holders = imp.regions.filter((r) => imp.lonlat[r.id] && G.insideAny([p.lon, p.lat], imp.lonlat[r.id])).sort((a, b) => size(a.id) - size(b.id));
+    const holder = (p.key && imp.regions.find((r) => r.key === p.key)) || holders[0] || (p.key && known.find((r) => r.key === p.key));
     if (!holder) return;
     const map = levelMap(E, world, holder.id);
     const at = G.toPixel(map, [p.lon, p.lat]).map(Math.round);
@@ -303,7 +332,7 @@ function treePlaces(E, world, points, imp, known, taken, asRegions) {
     const again = asRegions && (world.regions || []).find((r) => r.key === key);
     let id = again ? again.id : G.slug(p.name);
     if (!again) { for (let n = 2; used.has(id); n++) id = `${G.slug(p.name)}-${n}`; used.add(id); }
-    if (asRegions) regions.push({ id, key, name: p.name, parent: holder.id, map, at, capital: p.kind === 'capital' });
+    if (asRegions) regions.push(Object.assign({ id, key, name: p.name, parent: holder.id, map, at, capital: p.kind === 'capital' }, p.wikidata ? { wiki: { title: p.name, wikidata: p.wikidata } } : {}));
     else pins.push({ id, name: p.name, kind: p.kind || 'city', at, region: holder.id, map });
   });
   return { pins, regions };
@@ -396,11 +425,11 @@ export async function main(argv, io = {}) {
     const byKey = new Map(w.regions.filter((r) => r.key).map((r) => [r.key, r.id]));
     const groups = new Map();
     chosen.forEach((f) => { const m = levelMap(E, w, parentOf(f)); if (!groups.has(m)) groups.set(m, []); groups.get(m).push(f); });
-    const imp = { regions: [], shapes: {}, neighbours: [], skipped: [], missing: sel.missing, lonlat: {} };
+    const imp = { regions: [], shapes: {}, neighbours: [], skipped: [], points: [], missing: sel.missing, lonlat: {} };
     const used = taken.filter((id) => ![...byKey.values()].includes(id));
     groups.forEach((list, m) => {
-      const g = E.Geo.importRegions(m, list, { within: true, taken: used.concat(imp.regions.map((r) => r.id)), tol: Number(flags.tol) || 1.5, minArea: Number(flags['min-area']) || 6 });
-      imp.regions.push(...g.regions); Object.assign(imp.shapes, g.shapes); Object.assign(imp.lonlat, g.lonlat); imp.skipped.push(...g.skipped);
+      const g = E.Geo.importRegions(m, list, { within: true, taken: used.concat(imp.regions.map((r) => r.id)), tol: Number(flags.tol) || 1.5, minArea: Number(flags['min-area']) || 6, points: !!flags.points });
+      imp.regions.push(...g.regions); Object.assign(imp.shapes, g.shapes); Object.assign(imp.lonlat, g.lonlat); imp.skipped.push(...g.skipped); imp.points.push(...g.points);
     });
     // Regions already imported keep their ids (the same key replaces the outline).
     imp.regions.forEach((r) => {
@@ -424,16 +453,23 @@ export async function main(argv, io = {}) {
     // regions) regions under it, a point on its level's map.
     let placed = '';
     if (flags.places) {
-      const pg = io.geojson ? io.geojson.places : readJSON(path.join(dir, SOURCES.places.file));
+      const pf = [SOURCES.places.file, SOURCES.places.older].map((f) => path.join(dir, f)).find((f) => fs.existsSync(f));
+      if (!io.geojson && !pf) throw new Error('No places yet: run "npm run basemap -- fetch" first.');
+      if (!io.geojson && pf.endsWith(SOURCES.places.older)) log('! the older places file has no Wikipedia pages: run "npm run basemap -- fetch" again for the full one');
+      const pg = io.geojson ? io.geojson.places : readJSON(pf);
       const known = imp.regions.concat(w.regions.filter((r) => r.key && !imp.regions.some((x) => x.id === r.id)));
-      const pts = placePoints(pg, flags.places);
+      const pts = placePoints(pg, flags.places, Number(flags['min-pop']) || 0);
       const asRegions = flags.as === 'regions';
       const t = treePlaces(E, w, pts, imp, known, taken.concat(imp.regions.map((r) => r.id), ...mapsOf(w).map((m) => (m.places || []).map((p) => p.id))), asRegions);
+      if (asRegions && flags.wiki) {
+        const titles = await wikiTitles(t.regions.map((c) => c.wiki && c.wiki.wikidata), io.fetch || fetch);
+        t.regions.forEach((c) => { if (c.wiki && titles[c.wiki.wikidata]) c.wiki.title = titles[c.wiki.wikidata]; });
+      }
       if (asRegions) {
         t.regions.forEach((c) => {
           let def = w.regions.find((r) => r.id === c.id);
           if (!def) { def = { id: c.id, name: c.name, controller: null, tags: [], status: '', neighbours: [], lore: '' }; w.regions.push(def); }
-          Object.assign(def, { key: c.key, parent: c.parent });
+          Object.assign(def, { key: c.key, parent: c.parent }, c.wiki ? { wiki: c.wiki } : {});
           if (!def.label) def.label = 'city';
           if (c.capital && !def.tags.includes('capital')) def.tags = def.tags.concat('capital');
           mapsOf(w).forEach((m) => { if (m.regions) delete m.regions[c.id]; if (Array.isArray(m.places)) m.places = m.places.filter((p) => p.id !== c.id); });
