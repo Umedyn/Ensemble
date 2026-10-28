@@ -749,8 +749,37 @@
       "url": null,
       "text": null,
       "skip": false,
-      "status": "failed",
-      "error": "en.wikipedia.org: HTTP 429"
+      "status": "done",
+      "error": "en.wikipedia.org: HTTP 429",
+      "source": {
+        "title": "St. John's, Antigua and Barbuda",
+        "url": "https://en.wikipedia.org/wiki/St._John%27s,_Antigua_and_Barbuda"
+      },
+      "chunks": [
+        "St. John's (Antiguan and Barbudan Creole: Sen Jaan) is the largest city in Antigua and Barbuda. It is located in the western part of Antigua, surrounding St. John's Harbour. It is the main city of the Central Plain region. The city is Antigua and Barbuda's primate city, having a population of 22,219. St. John's also dominates the parish of Saint John, which makes up much of the city's metropolitan area. From its establishment after the French invasion in 1666, the city has rapidly grown, eventually replacing Falmouth as the island's dominant city.\nAfter its establishment, St. John's became an official trading point in 1675. By 1689, St. John's had overtaken Falmouth in population. St. John's continued to grow throughout the 1700s, occasionally being impacted by a fire or hurricane. St. John's has largely been spared from armed conflict, although a large-scale slave revolt was planned in the city in 1736.\nSt. John's is not necessarily a premier tourist destination, as it primarily functions as the country's economic centre. St. John's is home to Antigua State College, the country's largest higher education institution, and an open campus of the University of the West Indies. St. John's is attempting to modernise its economy, being home to many convention centres and contemporary office buildings. St. John's is also home to the national library and most government agencies. St. John's is the origin of the All Saints Road corridor, in which most of the country's population lives. While St. John's completely dominates its metropolitan area, the city's economy has stimulated that of surrounding areas like Piggotts and Cedar Valley. While St. John's houses all three branches of government, no law has declared St. John's the official capital city. Most diplomatic missions are located in the nearby village of Marble Hill."
+      ],
+      "done": 1,
+      "entries": [
+        {
+          "title": "Saint John's",
+          "level": "region",
+          "text": "Saint John's is Antigua and Barbuda's largest city and de facto capital, wrapping around the harbour on the island's west coast with roughly 22,000 residents. It is the nation's working heart rather than a tourist hub: government offices, banks, the national library, Antigua State College and a University of the West Indies campus all sit here. Expect cruise-ship crowds near the docks, Creole-accented English, heat, trade winds, and daily life flowing out along the All Saints Road corridor.",
+          "keywords": [
+            "Saint John's",
+            "St. John's",
+            "Sen Jaan",
+            "St John's"
+          ],
+          "ref": "saint-john-s",
+          "sources": [
+            {
+              "title": "St. John's, Antigua and Barbuda",
+              "url": "https://en.wikipedia.org/wiki/St._John%27s,_Antigua_and_Barbuda"
+            }
+          ]
+        }
+      ],
+      "events": []
     },
     {
       "id": "region:argentina",
@@ -13030,6 +13059,12 @@
     },
     {
       "step": "worldbuild (research: Zimbabwe",
+      "attempt": 1,
+      "error": null,
+      "warnings": []
+    },
+    {
+      "step": "worldbuild (research: Saint John's",
       "attempt": 1,
       "error": null,
       "warnings": []
