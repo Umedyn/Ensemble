@@ -108,6 +108,14 @@ function genPrompts(E, folder) {
   out.genHeader = ctx.header;
   out.genPlayer = P.genStep(ctx, 'player');
   job.steps.player = GEN.check.player(r.player, ctx);
+  // The mock sheet spends the holdout's skills; another world's own, as far as its points go.
+  if (job.steps.player.error) {
+    const gs = w.bundle.world.generatedStarts || {};
+    let left = gs.skillPoints || 10;
+    const skills = {};
+    (w.bundle.world.skills || E.DEFAULT_SKILLS).forEach((k) => { skills[k] = Math.min(gs.maxSkill || 3, left); left -= skills[k]; });
+    job.steps.player = GEN.check.player(Object.assign({}, r.player, { skills }), ctx);
+  }
   out.genRooms = P.genStep(ctx, 'rooms');
   job.steps.rooms = GEN.check.rooms(r.rooms, ctx);
   out.genPlan = P.genStep(ctx, 'plan');

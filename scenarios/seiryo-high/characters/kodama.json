@@ -1,0 +1,38 @@
+{
+  "id": "kodama",
+  "name": "Ganryu Kodama",
+  "pronouns": "he/him",
+  "role": "PE teacher, baseball coach",
+  "age": 38,
+  "traits": [
+    "hot-blooded",
+    "loud",
+    "big-hearted"
+  ],
+  "want": "take the Seiryo baseball team to Koshien before he turns forty",
+  "secret": "He proposed to Dr. Kirihara two years ago, was turned down, and still writes her poems he never sends.",
+  "guard": "medium",
+  "voice": "\"YOUTH!\", speaks in shouts, quotes old sports manga, cries at games.",
+  "description": "Runs every PE class like a training camp. Adored by the baseball team, feared by everyone else.",
+  "appearance": "Red tracksuit, whistle, towel round his neck, arms like logs.",
+  "skills": {
+    "athletics": 4,
+    "studies": 1,
+    "charm": 2,
+    "arts": 0,
+    "insight": 1,
+    "stealth": 0
+  },
+  "relations": {
+    "daichi": 20,
+    "kirihara": 40,
+    "yumiko": 10
+  },
+  "groups": [
+    {
+      "id": "faculty",
+      "role": "member"
+    }
+  ],
+  "agenda": null
+}

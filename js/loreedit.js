@@ -283,13 +283,17 @@
     (it.file === 'world.json' ? world(files) : files[it.file]).timeline.splice(it.index, 1);
     return true;
   };
-  // Renames an event and every "known" precondition that points at it.
+  // Renames an event and every "known" precondition that points at it, and
+  // the people who join the story with it (task 7-2: "joins" on a character
+  // file or a cast entry).
   LE.renameEvent = function (files, from, to) {
     const it = LE.findEvent(files, from);
     if (!it || from === to) return;
     it.ev.id = to;
     const fix = (p) => { if (!isObj(p)) return; if (p.known === from) p.known = to; if (p.not) fix(p.not); };
     LE.events(files).forEach((x) => (x.ev.preconditions || []).forEach(fix));
+    Object.keys(files).filter((p) => /^characters\/[^/]+\.json$/.test(p)).forEach((p) => { if (isObj(files[p]) && files[p].joins === from) files[p].joins = to; });
+    Object.keys(files).filter((p) => /^starts\/[^/]+\.json$/.test(p)).forEach((p) => ((isObj(files[p]) && files[p].cast) || []).forEach((c) => { if (isObj(c) && c.joins === from) c.joins = to; }));
   };
 
   // ---------- preconditions as editor rows ----------

@@ -149,6 +149,17 @@
       "knows": [
         "He saw Dex flinch and hide his arm when Marlene offered to change the bandage."
       ]
+    },
+    {
+      "id": "webb",
+      "status": {
+        "location": "lot"
+      },
+      "needs": {
+        "hunger": 0.3,
+        "fatigue": 0.6,
+        "fear": 0.3
+      }
     }
   ],
   "locations": [

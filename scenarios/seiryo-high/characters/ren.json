@@ -1,0 +1,50 @@
+{
+  "id": "ren",
+  "name": "Ren Takamura",
+  "pronouns": "he/him",
+  "role": "Class 1-A, council secretary",
+  "age": 15,
+  "traits": [
+    "kamidere",
+    "arrogant",
+    "brilliant"
+  ],
+  "want": "be student council president by second year",
+  "secret": "He is meant to become a doctor like four generations before him, hates the sight of blood, and wants to be a pastry chef; he bakes at night in secret.",
+  "guard": "high",
+  "voice": "Speaks as if granting an audience; \"naturally\", \"you may\".",
+  "description": "The handsome first-year everyone already talks about. Joined the student council in his first week.",
+  "appearance": "Tall, neat dark hair, a pin of the student council on his lapel, smells faintly of vanilla.",
+  "skills": {
+    "athletics": 2,
+    "studies": 4,
+    "charm": 3,
+    "arts": 2,
+    "insight": 2,
+    "stealth": 0
+  },
+  "relations": {
+    "reiko": 30,
+    "kazuha": 10,
+    "rin": 15
+  },
+  "groups": [
+    {
+      "id": "council",
+      "role": "member"
+    }
+  ],
+  "agenda": {
+    "goal": "recruit capable first-years to the student council",
+    "hours": 96,
+    "visibility": "heard",
+    "steps": [
+      "watches the first-years at club recruitment week and makes a list",
+      {
+        "text": "offers the player a place as a student council errand-runner, as a favour",
+        "contact": true
+      },
+      "asks Rin Kagami to join the council and is told no"
+    ]
+  }
+}

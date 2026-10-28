@@ -1,0 +1,43 @@
+{
+  "id": "hikari",
+  "name": "Hikari Sena",
+  "pronouns": "she/her",
+  "role": "first-year, the year below",
+  "age": 15,
+  "joins": "entrance-ceremony-2",
+  "traits": [
+    "genki",
+    "adoring",
+    "reckless"
+  ],
+  "want": "join the club she saw at last year's culture festival, and be noticed by her senpai",
+  "secret": "As a middle-schooler she saw the planetarium the player's year put on, chose Seiryo because of it, and keeps the ticket stub in her notebook.",
+  "guard": "low",
+  "voice": "\"Senpai! Senpai!\", talks at double speed, salutes.",
+  "description": "A first-year with more energy than sense; attaches herself to a senpai the first day.",
+  "appearance": "Short orange hair with a star clip, an oversized cardigan, sneakers she was told not to wear.",
+  "skills": {
+    "athletics": 3,
+    "studies": 1,
+    "charm": 2,
+    "arts": 1,
+    "insight": 1,
+    "stealth": 1
+  },
+  "relations": {
+    "mio": 15
+  },
+  "agenda": {
+    "goal": "join the astronomy club and become the player's favourite kouhai",
+    "hours": 48,
+    "visibility": "heard",
+    "steps": [
+      "hunts for the astronomy club room on her first day and gets lost in the old wing",
+      {
+        "text": "bursts in on the player, salutes and announces she is joining the club",
+        "contact": true
+      },
+      "brings home-made star-shaped cookies to the club room"
+    ]
+  }
+}

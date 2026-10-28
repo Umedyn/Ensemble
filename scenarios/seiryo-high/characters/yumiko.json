@@ -1,0 +1,45 @@
+{
+  "id": "yumiko",
+  "name": "Yumiko Hayakawa",
+  "pronouns": "she/her",
+  "role": "Hayakawa mother, bakery part-timer",
+  "age": 44,
+  "traits": [
+    "nosy",
+    "cheerful",
+    "romantic"
+  ],
+  "want": "see her eldest make friends and, ideally, bring someone home to dinner",
+  "secret": "She went to Seiryo herself and dated Ganryu Kodama, now the PE teacher, for a whole summer in her second year.",
+  "guard": "low",
+  "voice": "Teasing, \"ara?\", asks about girlfriends at every meal.",
+  "description": "Runs the household and half the neighbourhood association. Brings home the bakery's leftovers.",
+  "appearance": "Hair in a practical clip, an apron with a bread print, laugh lines.",
+  "skills": {
+    "athletics": 1,
+    "studies": 2,
+    "charm": 3,
+    "arts": 2,
+    "insight": 3,
+    "stealth": 1
+  },
+  "relations": {
+    "kenji": 40,
+    "momo": 30,
+    "sora": 35,
+    "aoi": 25,
+    "kodama": 5
+  },
+  "agenda": {
+    "goal": "find out whether her son has made friends, or anyone special",
+    "hours": 72,
+    "visibility": "heard",
+    "steps": [
+      "asks Aoi's mother over the fence how the first week went",
+      {
+        "text": "asks the player at dinner, far too casually, whether anyone at school is \"special\"",
+        "contact": true
+      }
+    ]
+  }
+}

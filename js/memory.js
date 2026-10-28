@@ -33,12 +33,16 @@
   // FLOOR. Lore is a share of the context by tier (task 5-1). Without a game
   // (the creator's lore test), the shares alone.
   Mem.FLOOR = { facts: 500, story: 400 };
+  Mem.BRIEF_CAST_USER = 500;
   Mem.budgets = function (state) {
     const t = E.contextTier();
     const ctx = t.tokens;
     const out = { facts: Math.floor(ctx * 0.2), story: Math.floor(ctx * 0.12), lore: Math.floor(ctx * t.lore), tier: t.id };
     if (!state || !state.scenario || !E.Prompts) return out;
-    const room = ctx - t.reply - t.user - Mem.fixedHeader(state);
+    // A brief cast (task 7-2) carries each present person's wants and voice,
+    // and the background's whereabouts, in the user message instead.
+    const user = t.user + (E.Prompts.castBrief(state) ? Mem.BRIEF_CAST_USER : 0);
+    const room = ctx - t.reply - user - Mem.fixedHeader(state);
     out.facts = Math.min(out.facts, Math.max(Mem.FLOOR.facts, Math.floor(room * 0.55)));
     out.story = Math.min(out.story, Math.max(Mem.FLOOR.story, Math.floor(room * 0.45)));
     return out;

@@ -1,0 +1,118 @@
+[
+  {
+    "id": "mito",
+    "title": "Mito",
+    "level": "region",
+    "ref": "mito",
+    "priority": 4,
+    "keywords": [
+      "Mito",
+      "Ibaraki",
+      "natto",
+      "Mito Komon"
+    ],
+    "topics": [
+      "travel"
+    ],
+    "text": "Mito is the capital of Ibaraki, a city of about 270,000 an hour and twenty minutes from Tokyo by limited express. Famous for natto, for the plum trees of Kairakuen and for the old Mito domain, whose lord Mito Komon is the hero of a long-running TV drama; his statue stands at the station. Big enough for department stores and a game centre, small enough that someone always sees you."
+  },
+  {
+    "id": "kairakuen",
+    "title": "Kairakuen and Lake Senba",
+    "level": "region",
+    "ref": "mito-senba",
+    "priority": 3,
+    "keywords": [
+      "Kairakuen",
+      "Senba",
+      "plum",
+      "swans",
+      "fireworks",
+      "Tokiwa"
+    ],
+    "text": "Kairakuen is one of the three great gardens of Japan: three thousand plum trees that bloom in February and March, a bamboo grove and the Kobuntei pavilion. Below it lies Lake Senba, with swans, swan boats and a path where Seiryo students walk home and couples are seen. The lake holds a big fireworks festival in summer, and Tokiwa Shrine beside the garden draws crowds at New Year."
+  },
+  {
+    "id": "minamimachi",
+    "title": "Downtown Mito",
+    "level": "region",
+    "ref": "mito-downtown",
+    "priority": 3,
+    "keywords": [
+      "Minamimachi",
+      "arcade",
+      "karaoke",
+      "game centre",
+      "castle",
+      "Kodokan"
+    ],
+    "text": "Between the station and the castle hill, Minamimachi's old covered arcade has seen better days but still has karaoke boxes, a game centre, used bookshops and old coffee shops. The castle hill keeps the Kodokan, the domain's great old school, and the gate of Mito Castle. Teachers patrol here after school looking for uniforms."
+  },
+  {
+    "id": "station-south",
+    "title": "Station South",
+    "level": "region",
+    "ref": "mito-station-south",
+    "priority": 2,
+    "keywords": [
+      "south exit",
+      "Sakuragawa",
+      "Station South"
+    ],
+    "text": "The newer side of Mito Station: offices, apartment blocks and quiet streets of family houses along the Sakura River. A ramen stall sets up by the south exit every night."
+  },
+  {
+    "id": "tokyo-from-mito",
+    "title": "Going to Tokyo",
+    "level": "region",
+    "ref": "tokyo",
+    "priority": 3,
+    "keywords": [
+      "Tokyo",
+      "Akihabara",
+      "Shibuya",
+      "Harajuku",
+      "Ueno",
+      "limited express"
+    ],
+    "topics": [
+      "travel"
+    ],
+    "text": "From Mito the limited express reaches Ueno and Tokyo Station in about an hour and twenty minutes; highway buses are cheaper and slower. Students go for the day: Akihabara for games and anime, Harajuku and Shibuya for clothes and crowds, Ueno for museums. Most of Seiryo's graduates who go to university go to Tokyo."
+  },
+  {
+    "id": "fukuroda",
+    "title": "Fukuroda Onsen",
+    "level": "region",
+    "ref": "fukuroda",
+    "priority": 4,
+    "keywords": [
+      "Fukuroda",
+      "falls",
+      "onsen",
+      "hot spring",
+      "Daigo",
+      "Tsukimura-ya"
+    ],
+    "topics": [
+      "travel"
+    ],
+    "text": "A hot-spring village by Fukuroda Falls in Daigo, northern Ibaraki: a four-tiered waterfall that freezes in hard winters, a row of old inns along the river, souvenir shops selling apples, konnyaku and grilled river fish. Busy in autumn for the maples and in winter for the ice; quiet, and quieter every year, the rest of the time."
+  },
+  {
+    "id": "daigo",
+    "title": "Daigo",
+    "level": "region",
+    "ref": "daigo",
+    "priority": 3,
+    "keywords": [
+      "Daigo",
+      "Okukuji",
+      "Suigun",
+      "apple",
+      "shamo",
+      "Kuji"
+    ],
+    "text": "Daigo is a mountain town at the northern tip of Ibaraki, on the Kuji River: apple orchards, tea fields, shamo chickens and some of the darkest night skies in the Kanto. The JR Suigun Line runs from Mito up the valley in about an hour and twenty minutes; trains are few, and young people leave for the cities."
+  }
+]

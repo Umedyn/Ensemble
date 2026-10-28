@@ -1,0 +1,30 @@
+{
+  "id": "kaede",
+  "name": "Kaede Tsukimura",
+  "pronouns": "she/her",
+  "role": "first-year, Class 1-B, dorm student",
+  "age": 15,
+  "traits": [
+    "cheerful",
+    "stubborn",
+    "homesick"
+  ],
+  "want": "prove she can make it in the city, and find a way to help the family inn",
+  "voice": "Polite with a country lilt that slips out when she is excited.",
+  "description": "The daughter of Tsukimura-ya, a small family inn in Fukuroda Onsen, two hours north in Daigo. First of her family to go to high school away from home; lives in the Seiryo dorm.",
+  "appearance": "Long dark hair in a low ponytail, sensible shoes, a charm from the Fukuroda shrine on her school bag.",
+  "skills": {
+    "athletics": 2,
+    "studies": 2,
+    "charm": 2,
+    "arts": 1,
+    "insight": 1,
+    "stealth": 1
+  },
+  "relations": {
+    "chiyo": 40,
+    "haruna": 35,
+    "riku": 40
+  },
+  "groups": []
+}

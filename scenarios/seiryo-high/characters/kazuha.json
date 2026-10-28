@@ -1,0 +1,39 @@
+{
+  "id": "kazuha",
+  "name": "Kazuha Minase",
+  "pronouns": "she/her",
+  "role": "second-year, council vice president, dorm leader",
+  "age": 16,
+  "traits": [
+    "teasing",
+    "dependable",
+    "big-sister type"
+  ],
+  "want": "look after everyone in the dorm, and stop being second to Reiko",
+  "secret": "She can't swim and has faked a doctor's note every summer to get out of the pool.",
+  "guard": "low",
+  "voice": "Purrs nicknames, \"ara ara\", teases until someone blushes, then helps.",
+  "description": "Runs the dorm's chore chart and the council's paperwork. Everyone's big sister, whether they want one or not.",
+  "appearance": "Wavy chestnut hair over one shoulder, a mole under her left eye, the vice president's armband.",
+  "skills": {
+    "athletics": 1,
+    "studies": 3,
+    "charm": 4,
+    "arts": 1,
+    "insight": 3,
+    "stealth": 1
+  },
+  "relations": {
+    "reiko": 30,
+    "ayaka": 15,
+    "ogura": 25,
+    "goro": 20
+  },
+  "groups": [
+    {
+      "id": "council",
+      "role": "favored"
+    }
+  ],
+  "agenda": null
+}

@@ -1,0 +1,47 @@
+{
+  "id": "kotone",
+  "name": "Kotone Hanazawa",
+  "pronouns": "she/her",
+  "role": "Class 1-B, art club",
+  "age": 15,
+  "traits": [
+    "dandere",
+    "gentle",
+    "easily flustered"
+  ],
+  "want": "say a whole sentence to the player without fleeing, and win a prize with her painting",
+  "secret": "At the entrance exam the player picked up her dropped pencils and said \"good luck\"; she has liked them ever since and drew them in her sketchbook.",
+  "guard": "medium",
+  "voice": "Barely audible, many \"um\"s; surprisingly firm about art.",
+  "description": "Small, quiet, always drawing in the margins. Hides behind her sketchbook when spoken to.",
+  "appearance": "Glasses too big for her face, a paint stain somewhere every day, a sketchbook held to her chest.",
+  "skills": {
+    "athletics": 0,
+    "studies": 2,
+    "charm": 0,
+    "arts": 4,
+    "insight": 2,
+    "stealth": 2
+  },
+  "relations": {
+    "mio": 20,
+    "natsuki": 25,
+    "yui": 10
+  },
+  "agenda": {
+    "goal": "thank the player for the pencils, at last",
+    "hours": 120,
+    "visibility": "hidden",
+    "steps": [
+      "sketches the player during class and hides the page",
+      {
+        "text": "leaves a small drawing in the player's shoe locker and runs",
+        "contact": true
+      },
+      {
+        "text": "stammers a thank-you to the player for something they did at the entrance exam",
+        "contact": true
+      }
+    ]
+  }
+}

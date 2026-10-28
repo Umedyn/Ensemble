@@ -73,10 +73,19 @@
     const rooms = sc.locations && sc.locations.length ? sc.locations : Object.values(state.locations);
     const many = new Set(rooms.map((l) => l.region)).size > 1;
     const brief = E.Sites.mapFocus(sc) === 'region';
-    return ['\n=== LOCATIONS ==='].concat(rooms.map((l) => {
+    const line = (l, tag) => {
       const c = l.connects && l.connects.length ? ` (connects: ${l.connects.join(', ')})` : '';
-      return `- ${l.id}: ${l.name}${brief ? '' : ` — ${l.desc}`}${c}${many && l.region ? ` [region: ${l.region}]` : ''}`;
-    }));
+      return `- ${l.id}: ${l.name}${brief ? '' : ` — ${l.desc}`}${c}${tag && l.region ? ` [region: ${l.region}]` : ''}`;
+    };
+    // Region-focused, the rooms come under their regions rather than each
+    // tagged with one (task 7-2: thirty rooms, a fifth of the block).
+    if (!(brief && many)) return ['\n=== LOCATIONS ==='].concat(rooms.map((l) => line(l, many)));
+    const by = new Map();
+    rooms.forEach((l) => by.set(l.region || '', (by.get(l.region || '') || []).concat(l)));
+    // A compact context: one line a region, names only; the user message has
+    // the ways from the player's room, and moves find their own way.
+    if (E.contextTier().id === 'compact') return ['\n=== LOCATIONS ==='].concat([...by].map(([region, ls]) => `- In ${region || 'no region'}: ${ls.map((l) => `${l.id} (${l.name})`).join(', ')}`));
+    return ['\n=== LOCATIONS ==='].concat([...by].flatMap(([region, ls]) => [`In ${region || 'no region'}:`].concat(ls.map((l) => line(l, false)))));
   };
   // "Corner Café — six tables and a chalkboard menu" in a region-focused
   // world (the header leaves descriptions out), else the name.
@@ -188,11 +197,17 @@
     E.Lore.note(layout, picks);
     return picks.length ? ['\n=== LORE (public knowledge; use it when it fits) ==='].concat(picks.map(E.Lore.line)) : null;
   };
-  const castLine = (state, id) => {
+  // A big cast on a small context (task 7-2: Seiryo High's thirty people
+  // were 4,200 tokens of header): beyond the tier's castFull, cast lines are
+  // short (who they are and their traits), and the rest of a person's line
+  // comes per call while they are in the scene (castHere). It goes by the
+  // scenario's cast, so it is the same for the whole game (rule 7).
+  P.castBrief = (state) => (state.scenario.characters || []).length > E.contextTier().castFull;
+  // Wants, voice, groups and needs they go without: the part of a cast line
+  // a brief header leaves out.
+  const castMore = (state, id) => {
     const c = state.characters[id];
-    const tag = id === state.player ? ' (PLAYER)' : '';
-    const bits = [`${c.name}${c.pronouns ? ` (${c.pronouns})` : ''}, ${c.role}${c.people ? ` (${c.people})` : ''}${c.age ? ', ' + c.age : ''}.`];
-    if (c.traits && c.traits.length) bits.push(`Traits: ${c.traits.join(', ')}.`);
+    const bits = [];
     if (c.want && id !== state.player) bits.push(`Wants: ${c.want}.`);
     if (c.voice) bits.push(`Voice: ${c.voice}`);
     // The groups they belong to (task G-6), as authored: a role the player
@@ -202,7 +217,24 @@
     // Needs this person doesn't have (task G-5), so the story never gives them any.
     const off = (state.scenario.needs || []).filter((n) => !E.Scenario.hasNeed(c, n.id)).map((n) => (n.label || n.id).toLowerCase());
     if (off.length) bits.push(`Never feels: ${off.join(', ')}.`);
+    return bits;
+  };
+  const castLine = (state, id) => {
+    const c = state.characters[id];
+    const tag = id === state.player ? ' (PLAYER)' : '';
+    const bits = [`${c.name}${c.pronouns ? ` (${c.pronouns})` : ''}, ${c.role}${c.people ? ` (${c.people})` : ''}${c.age ? ', ' + c.age : ''}.`];
+    if (c.traits && c.traits.length) bits.push(`Traits: ${c.traits.join(', ')}.`);
+    if (id === state.player || !P.castBrief(state)) bits.push(...castMore(state, id));
     return `- ${id}${tag}: ${bits.join(' ')}`;
+  };
+  // Per call, with a brief cast: the rest of each present person's line.
+  // The narrator gets names, never ids (playtest-id-tags-in-prose).
+  B.castHere = ({ state, present, statusIds, forNarrator }) => {
+    const ids = (present || statusIds || []).filter((id) => id !== state.player && state.characters[id]);
+    if (!P.castBrief(state) || !ids.length) return null;
+    const lines = ids.map((id) => [id, castMore(state, id)]).filter(([, bits]) => bits.length)
+      .map(([id, bits]) => `- ${forNarrator || statusIds ? state.characters[id].name : id}: ${bits.join(' ')}`);
+    return lines.length ? ['\n=== THE PEOPLE HERE ==='].concat(lines) : null;
   };
   // Static: the starting cast. People promoted from extras (task 2-3) are
   // listed in "newcomers" instead, so the cast block never changes.
@@ -277,18 +309,22 @@
     const near = Eng().nearbyRegions(state);
     if (!near.length) return '';
     const t = E.contextTier();
+    // Where no group holds any region (a school story, task 7-2), "held by no
+    // one" on every line says nothing.
+    const held = Object.values(state.regions).some((r) => r.controller != null);
     const desc = (id, withLabel, brief) => {
       const def = Eng().regionDef(state, id);
       const r = state.regions[id];
-      const bits = [`held by ${Eng().regionHolder(state, id).text}`];
+      const bits = held ? [`held by ${Eng().regionHolder(state, id).text}`] : [];
+      const named = `${def.name}${withLabel ? P.regionWhat(state.scenario, id) : ''} (${id})`;
       // A compact context (task G-4): the regions above yours by who holds them only.
-      if (brief) return `${def.name}${withLabel ? P.regionWhat(state.scenario, id) : ''} (${id}): ${bits[0]}`;
+      if (brief) return held ? `${named}: ${bits[0]}` : named;
       // Who else is there (R-5), in words.
       const present = Eng().presenceText(state, id);
       if (present) bits.push(`present: ${present}`);
       if (r.tags.length) bits.push(`tags: ${r.tags.join(', ')}`);
       if (r.status) bits.push(r.status);
-      return `${def.name}${withLabel ? P.regionWhat(state.scenario, id) : ''} (${id}): ${bits.join('; ')}`;
+      return bits.length ? `${named}: ${bits.join('; ')}` : named;
     };
 
     const up = Eng().regionChain(state, near[0]).slice(1);
@@ -411,10 +447,12 @@
 
   // ---------- user-message blocks shared by several prompts ----------
   // Where the player is, the world, who is present and their status.
-  B.now = ({ state, present, forNarrator }) => {
+  B.now = ({ state, present, everyone, forNarrator }) => {
     const pc = state.characters[state.player];
     const loc = state.locations[pc.status.location];
-    const elsewhere = Eng().offstage(state, present)
+    const all = everyone || present;
+    const back = all.filter((id) => !present.includes(id));
+    const elsewhere = Eng().offstage(state, all)
       .map((id) => `${name(state, id)} (${state.locations[state.characters[id].status.location]?.name || '?'})`);
     const lines = [
       `=== NOW: ${E.fmtTime(state)} ===`,
@@ -422,13 +460,16 @@
       worldLines(state),
       `Present with ${pc.name}: ${present.length ? present.map((id) => name(state, id)).join(', ') : 'no one'}`,
     ];
+    if (back.length) lines.push(`Also present, in the background this turn (no intents; they only watch and listen): ${back.map((id) => name(state, id)).join(', ')}`);
     const minor = Eng().extrasAt(state, pc.status.location);
     if (minor.length) lines.push(`Also here (minor people): ${minor.map((x) => Eng().extraLabel(x)).join('; ')}`);
     const groups = Eng().standeesAt(state, pc.status.location);
     if (groups.length) lines.push(`Unnamed groups here: ${groups.map((g) => Eng().standeeLabel(state, g)).join('; ')}`);
     const site = siteLines(state, pc.status.location);
     if (site) lines.push(site);
-    if (elsewhere.length) lines.push(`Elsewhere: ${elsewhere.join(', ')}`);
+    // With a brief cast (task 7-2) the intent call's OFFSTAGE and BACKGROUND
+    // blocks say where everyone else is.
+    if (elsewhere.length && !(everyone && P.castBrief(state))) lines.push(`Elsewhere: ${elsewhere.join(', ')}`);
     lines.push('\n=== STATUS ===');
     lines.push(statusLine(state, state.player, forNarrator, present));
     present.forEach((id) => lines.push(statusLine(state, id, forNarrator)));
@@ -450,7 +491,7 @@
   };
 
   // ---------- intent ----------
-  P.layouts.intent = ['now', 'lore', 'knownPlaces', 'private', 'hiddenPlaces', 'extrasHere', 'standees', 'offstage', 'background', 'agendaDue', 'lastScene', 'crisisNow', 'reckoningNow', 'intentAction', 'intentTask'];
+  P.layouts.intent = ['now', 'castHere', 'lore', 'knownPlaces', 'private', 'hiddenPlaces', 'extrasHere', 'standees', 'offstage', 'background', 'agendaDue', 'lastScene', 'crisisNow', 'reckoningNow', 'intentAction', 'intentTask'];
   // Places beyond the start's rooms (task 4-4): the rooms of the place the
   // player is in (made during the story, so not in the header) and the
   // places the story knows of. Only in worlds that build new places.
@@ -467,8 +508,11 @@
     if (ST.regionsEnabled(state.scenario)) lines.push('If it heads somewhere bigger that isn\'t one of the regions (another town, a district, a planet), set "new_region" to {"name":"in the player\'s own words","label":"what kind of region (town, district, planet)","parent":"the region id it is inside, or null"} instead. The engine decides whether to add it.');
     return lines;
   };
-  P.intent = (state, present, action, stepLabel, stepId, due) =>
-    P.build('intent', { state, sc: state.scenario, present, forNarrator: false, action, stepLabel, stepId, due: due || {} });
+  // front (task 7-2): who takes part this turn in a crowded room
+  // (Eng.sceneFront); the per-person blocks are for them, and "everyone" is
+  // the whole room, for who is offstage.
+  P.intent = (state, present, action, stepLabel, stepId, due, front) =>
+    P.build('intent', { state, sc: state.scenario, present: front || present, everyone: present, forNarrator: false, action, stepLabel, stepId, due: due || {} });
 
   // The step someone's agenda is on (task 2-2); intent-side only.
   const working = (c) => { const st = Eng().agendaStep(c); return st ? st.text : null; };
@@ -536,8 +580,8 @@
     : '');
 
   // Local characters away from the player: what they want and hide, for events.
-  B.offstage = ({ state, present }) => {
-    const offstage = Eng().offstage(state, present).filter((id) => Eng().tier(state, id) === 'local');
+  B.offstage = ({ state, present, everyone }) => {
+    const offstage = Eng().offstage(state, everyone || present).filter((id) => Eng().tier(state, id) === 'local');
     if (!offstage.length) return null;
     return '\n=== OFFSTAGE (not with the player; for events only) ===\n' + offstage.map((id) => {
       const c = state.characters[id];
@@ -547,9 +591,21 @@
   };
   // Secondary characters (task 2-1): one short line each, no secrets, so a big
   // cast keeps this prompt small.
-  B.background = ({ state, present }) => {
-    const ids = Eng().offstage(state, present).filter((id) => Eng().tier(state, id) === 'secondary');
+  B.background = ({ state, present, everyone }) => {
+    const ids = Eng().offstage(state, everyone || present).filter((id) => Eng().tier(state, id) === 'secondary');
     if (!ids.length) return null;
+    // A brief cast (task 7-2): who is where, and what they are busy with; the
+    // header has who they are.
+    if (P.castBrief(state)) {
+      const by = new Map();
+      ids.forEach((id) => {
+        const c = state.characters[id];
+        const loc = state.locations[c.status.location];
+        const k = loc ? loc.name : c.status.location;
+        by.set(k, (by.get(k) || []).concat(working(c) ? `${id} (now: ${E.shorten(working(c), 50)})` : id));
+      });
+      return ['\n=== BACKGROUND (not with the player; for events only) ==='].concat([...by].map(([loc, list]) => `- in ${loc}: ${list.join(', ')}`));
+    }
     return ['\n=== BACKGROUND (not with the player; one line each; for events only) ==='].concat(ids.map((id) => {
       const c = state.characters[id];
       const loc = state.locations[c.status.location];
@@ -657,6 +713,8 @@ ${intentExample(state, present, action, due)}`;
   function outcomeLines(state, res, forNarrator) {
     const lines = [];
     res.outcomes.forEach((o) => {
+      // The scene frame names the people in the background (task 7-2).
+      if (forNarrator && o.background) return;
       const who = o.id === state.player ? `You (${name(state, o.id)})` : name(state, o.id);
       if (forNarrator && !o.visible && o.id !== state.player) {
         lines.push(`- ${name(state, o.id)} does something out of your sight. At most hint at it.`);
@@ -705,7 +763,7 @@ ${intentExample(state, present, action, due)}`;
   // ---------- scene and its continuation ----------
   // Frame, status, last scene, player action and resolved outcomes are shared
   // by the scene and its continuation.
-  const SCENE_CONTEXT = ['sceneFrame', 'status', 'lore', 'lastScene', 'sceneAction', 'resolved'];
+  const SCENE_CONTEXT = ['sceneFrame', 'status', 'castHere', 'lore', 'lastScene', 'sceneAction', 'resolved'];
   P.layouts.narrate = SCENE_CONTEXT.concat(['worn', 'narrateTask', 'endingClose']);
   P.layouts.narrateMore = SCENE_CONTEXT.concat(['sceneSoFar', 'worn', 'narrateMoreTask', 'endingClose']);
   // An ending the engine reached this turn: the scene closes the story, after
@@ -735,7 +793,9 @@ ${intentExample(state, present, action, due)}`;
     const nowHere = Eng().present(state, endLocId);
     const left = presentStart.filter((id) => !nowHere.includes(id));
     const arrived = nowHere.filter((id) => !presentStart.includes(id));
-    return { state, presentStart, action, frame, res, pc, startLoc, endLoc, moved, left, arrived, statusIds: presentStart.concat(arrived), span: frame.spanMinutes || 60 };
+    // A crowded room (task 7-2): status and voices for the people who take part.
+    const back = res && res.front ? presentStart.filter((id) => !res.front.includes(id) && !left.includes(id)) : [];
+    return { state, presentStart, action, frame, res, pc, startLoc, endLoc, moved, left, arrived, back, statusIds: presentStart.filter((id) => !back.includes(id)).concat(arrived), span: frame.spanMinutes || 60 };
   }
 
   // Minor people in the scene's rooms (task 2-3): name and role, never the note.
@@ -746,7 +806,7 @@ ${intentExample(state, present, action, due)}`;
     return (minor.length ? `\nAlso around (minor people, they may appear): ${minor.map((x) => Eng().extraLabel(x)).join('; ')}.` : '') +
       (groups.length ? `\nUnnamed groups around (exactly these, no more): ${groups.map((g) => `${Eng().standeeLabel(state, g)} in ${state.locations[g.location].name}`).join('; ')}.` : '');
   }
-  B.sceneFrame = ({ state, presentStart, frame, pc, startLoc, endLoc, moved, left, arrived, res }) => `=== SCENE FRAME ===
+  B.sceneFrame = ({ state, presentStart, frame, pc, startLoc, endLoc, moved, left, arrived, back, res }) => `=== SCENE FRAME ===
 Starts: ${frame.startTime}, in ${startLoc ? inRoom(state, startLoc, frame.startLoc) : frame.startLoc}, with ${presentStart.length ? presentStart.map((id) => name(state, id)).join(', ') : 'no one'}.
 Ends: ${E.fmtTime(state)}, ${pc.name} ${moved ? `now in ${endLoc.name}` : `still in ${startLoc ? startLoc.name : frame.startLoc}`}.` +
       // When the player moves, people who stay put are left behind, not leaving.
@@ -754,6 +814,7 @@ Ends: ${E.fmtTime(state)}, ${pc.name} ${moved ? `now in ${endLoc.name}` : `still
         ? `${name(state, id)} stays behind in ${startLoc ? startLoc.name : frame.startLoc}`
         : `${name(state, id)} leaves for ${state.locations[state.characters[id].status.location].name}`).join('; ')}.` : '') +
       (arrived.length ? `\n${arrived.map((id) => name(state, id)).join(', ')} ${arrived.length > 1 ? 'are' : 'is'} there at the end.` : '') +
+      ((back || []).length ? `\nIn the background (there, but with no part of their own this scene: at most a glance or a murmur): ${back.map((id) => name(state, id)).join(', ')}.` : '') +
       minorLine(state, [frame.startLoc, state.characters[state.player].status.location], res && res.engaged) +
       `\n${worldLines(state)}`;
   // Narrator-side status (no secrets, notable needs only) for the player and statusIds.
@@ -808,8 +869,14 @@ Hard rules:
 Reply with the new beats only.`;
 
   // ---------- downtime skip ----------
+  // A brief cast (task 7-2): a skip simulates the people in the foreground
+  // (local tier) in full; the rest keep to their usual places, on one line.
+  const skipFull = (state) => Eng().cast(state, { alive: true, includePlayer: false, tier: P.castBrief(state) ? 'local' : null });
   function crewBrief(state, withSecrets) {
-    return Eng().cast(state, { alive: true, includePlayer: false }).map((id) => {
+    const full = skipFull(state);
+    const rest = Eng().cast(state, { alive: true, includePlayer: false }).filter((id) => !full.includes(id));
+    const more = rest.length ? `\n- In the background, keeping to their usual places: ${rest.map((id) => `${id} (${state.characters[id].name}, ${(state.locations[state.characters[id].status.location] || {}).name || '?'})`).join(', ')}` : '';
+    return full.map((id) => {
       const c = state.characters[id];
       const loc = state.locations[c.status.location];
       const rel = c.relations[state.player] || 0;
@@ -817,7 +884,7 @@ Reply with the new beats only.`;
       return `- ${id} (${c.name}${c.pronouns ? ', ' + c.pronouns : ''}), in ${loc ? loc.name : c.status.location}; wants ${c.want || '?'}; feels toward the player: ${E.relWord(rel)}; the player feels: ${E.relWord(mine)}` +
         (withSecrets && c.secret ? `; secret (guard ${c.guard || 'medium'}): ${c.secret}` : '') +
         (withSecrets && working(c) ? `; aim: ${c.agenda.goal}` : '');
-    }).join('\n');
+    }).join('\n') + more;
   }
 
   // What a major event looks like: the leading genre tag's meaning, else the
@@ -904,7 +971,7 @@ Guidelines:${plan.crisis ? `
 - montage: 2 to 4 moments in order, spread across the downtime ("after" = time since it began, like "3d" or "10h"), all after the last scene (never retell it). How people pass the time, relationships shifting, small incidents, secrets being worked on. ${pc.name} does only what their plan says ("${action || 'keep to routine'}"): no repairs, decisions or leading anyone that the plan doesn't name. Others deal with what comes up, or fail to.${climb.length ? ` The plan leaves out ${climb.map((id) => Eng().needLimit(state, id).missing).filter((w, i, a) => a.indexOf(w) === i).join(' and ')}: show it wearing on ${pc.name}.` : ''}${writesMajor ? `
 - major_event.harm: anyone it hurts (only people it names or who are where it happens), or []. Danger here is real.` : ''}
 - events: 0 to 2 newsworthy things during the downtime, with concrete effects for regional/world ones (use only existing ids/keys: ${effectIds(state)}).
-- positions: one entry for EVERY other character: ${Eng().cast(state, { alive: true, includePlayer: false }).join(', ')}. Locations: ${Object.keys(state.locations).join(', ')}.
+- positions: one entry for EVERY other character: ${skipFull(state).join(', ') || '(none)'}${P.castBrief(state) ? ' (the people in the background stay where they are)' : ''}. Locations: ${Object.keys(state.locations).join(', ')}.
 - player_where: where ${pc.name} is when it hits, consistent with their plan.`;
   };
 

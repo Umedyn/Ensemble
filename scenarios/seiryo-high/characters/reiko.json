@@ -1,0 +1,50 @@
+{
+  "id": "reiko",
+  "name": "Reiko Kujo",
+  "pronouns": "she/her",
+  "role": "third-year, council president",
+  "age": 17,
+  "traits": [
+    "ice queen",
+    "perfectionist",
+    "fair"
+  ],
+  "want": "leave the school better than she found it, and choose a worthy successor",
+  "secret": "She has secretly applied to an art college in Tokyo to become a manga artist instead of the law faculty her parents chose, and draws a shoujo manga at night.",
+  "guard": "high",
+  "voice": "Cool, precise, never raises her voice; a rare small smile is an event.",
+  "description": "Runs the student council like a ministry. Feared and admired; first-years bow when she passes.",
+  "appearance": "Long straight hair, a black hairband, the council armband, ink on the side of her right hand.",
+  "skills": {
+    "athletics": 1,
+    "studies": 4,
+    "charm": 3,
+    "arts": 3,
+    "insight": 3,
+    "stealth": 1
+  },
+  "relations": {
+    "kazuha": 30,
+    "ren": 20,
+    "ozaki": 15
+  },
+  "groups": [
+    {
+      "id": "council",
+      "role": "leader"
+    }
+  ],
+  "agenda": {
+    "goal": "choose a worthy successor before the November election",
+    "hours": 168,
+    "visibility": "hidden",
+    "steps": [
+      "watches Kazuha Minase and Ren Takamura run the club budget meeting",
+      {
+        "text": "asks the player, of all people, what they think the school needs",
+        "contact": true
+      },
+      "tells Kazuha she should run for president"
+    ]
+  }
+}

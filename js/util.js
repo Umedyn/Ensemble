@@ -96,11 +96,15 @@
   // chain and nearby; chainTags 'first': tags and status only for the
   // player's own region on the Inside line; reply and user: what memory
   // leaves room for (the largest reply, and a turn's user message); lore: the
-  // lore budget's share of the context.
+  // lore budget's share of the context. castFull: the most people whose cast
+  // lines are in full in the header; a bigger cast (task 7-2) gets short
+  // lines there, and each one's wants and voice come per call when present.
+  // sceneFull: the most people present who take part in a turn (an intent
+  // each); the rest of a crowded room is in the background (Eng.sceneFront).
   E.CONTEXT_TIERS = {
-    compact: { upTo: 10240, regionsFull: 12, regionNames: 20, near: 6, nearRegion: 6, outlineLore: 'first', groups: 'near', chainTags: 'first', reply: 800, user: 3600, lore: 0.06 },
-    standard: { upTo: 24576, regionsFull: 24, regionNames: 60, near: 8, nearRegion: 12, outlineLore: 'full', groups: 'all', chainTags: 'all', reply: 1000, user: 4500, lore: 0.1 },
-    roomy: { upTo: Infinity, regionsFull: 40, regionNames: 100, near: 8, nearRegion: 12, outlineLore: 'full', groups: 'all', chainTags: 'all', reply: 1200, user: 6000, lore: 0.12 },
+    compact: { upTo: 10240, castFull: 12, sceneFull: 3, regionsFull: 12, regionNames: 20, near: 6, nearRegion: 6, outlineLore: 'first', groups: 'near', chainTags: 'first', reply: 800, user: 3600, lore: 0.06 },
+    standard: { upTo: 24576, castFull: Infinity, sceneFull: 8, regionsFull: 24, regionNames: 60, near: 8, nearRegion: 12, outlineLore: 'full', groups: 'all', chainTags: 'all', reply: 1000, user: 4500, lore: 0.1 },
+    roomy: { upTo: Infinity, castFull: Infinity, sceneFull: Infinity, regionsFull: 40, regionNames: 100, near: 8, nearRegion: 12, outlineLore: 'full', groups: 'all', chainTags: 'all', reply: 1200, user: 6000, lore: 0.12 },
   };
   E.contextTier = function () {
     const tokens = E.memoryContext().tokens;

@@ -1,0 +1,44 @@
+{
+  "id": "rin",
+  "name": "Rin Kagami",
+  "pronouns": "she/her",
+  "role": "Class 1-B, top entrance score",
+  "age": 15,
+  "traits": [
+    "tsundere",
+    "competitive",
+    "proud"
+  ],
+  "want": "be first in every ranking, and have nobody see how much it costs her",
+  "secret": "She failed the entrance exam for a famous Tokyo high school; Seiryo was her backup, and she tells everyone she chose it.",
+  "guard": "high",
+  "voice": "Sharp, fast, \"it's not like I did it for you\"; goes quiet and red when thanked.",
+  "description": "Gave the first-years' speech at the ceremony. Already the class rep in all but name.",
+  "appearance": "Twin tails tied with red ribbons, a perfectly pressed uniform, a glare she practises.",
+  "skills": {
+    "athletics": 1,
+    "studies": 4,
+    "charm": 1,
+    "arts": 2,
+    "insight": 2,
+    "stealth": 0
+  },
+  "relations": {
+    "mio": 10,
+    "natsuki": 15,
+    "ayaka": -10
+  },
+  "agenda": {
+    "goal": "beat the player and everyone else in the first midterm ranking",
+    "hours": 96,
+    "visibility": "hidden",
+    "steps": [
+      "buys a study planner and colour-codes the whole term",
+      {
+        "text": "asks the player, offhand, how much they have studied, and scoffs at the answer",
+        "contact": true
+      },
+      "studies alone in the library until it closes, every day of exam week"
+    ]
+  }
+}

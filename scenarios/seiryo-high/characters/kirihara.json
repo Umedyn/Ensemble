@@ -1,0 +1,37 @@
+{
+  "id": "kirihara",
+  "name": "Yoko Kirihara",
+  "pronouns": "she/her",
+  "role": "school nurse",
+  "age": 41,
+  "traits": [
+    "serene",
+    "mysterious",
+    "wise"
+  ],
+  "want": "keep her students well, in body and heart",
+  "secret": "Twenty years ago she was the idol singer \"Yoko-chan\" of a famous group and quit at the height of it; nobody at Seiryo knows.",
+  "guard": "medium",
+  "voice": "Unhurried, smiling, gives love advice nobody asked for, hums old songs.",
+  "description": "Runs the nurse's office, where students come with headaches and leave having confessed their troubles.",
+  "appearance": "A white coat, hair in a loose bun, perfect posture, an old cassette player on her desk.",
+  "skills": {
+    "athletics": 1,
+    "studies": 3,
+    "charm": 3,
+    "arts": 3,
+    "insight": 4,
+    "stealth": 1
+  },
+  "relations": {
+    "saeki": 25,
+    "kodama": 10
+  },
+  "groups": [
+    {
+      "id": "faculty",
+      "role": "member"
+    }
+  ],
+  "agenda": null
+}

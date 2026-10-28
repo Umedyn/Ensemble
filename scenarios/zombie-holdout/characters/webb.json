@@ -1,0 +1,32 @@
+{
+  "id": "webb",
+  "name": "Dana Webb",
+  "pronouns": "she/her",
+  "role": "convoy scout, National Guard",
+  "age": 29,
+  "joins": "convoy-checkpoint",
+  "traits": [
+    "disciplined",
+    "tired",
+    "fair"
+  ],
+  "want": "find the survivors worth the convoy's fuel and get them out before the herd arrives",
+  "secret": "Her orders are to bring in only the healthy and the useful: the convoy can't take everyone, and she will be the one who chooses.",
+  "guard": "medium",
+  "voice": "Clipped radio habits, \"copy that\", calls everyone by their surname; softens with kids.",
+  "description": "A National Guard scout from the rescue convoy, sent ahead from the checkpoint at the junction to see who is still alive in Harmon.",
+  "appearance": "Dusty fatigues, a rifle slung across her chest, a radio on her shoulder and a face that hasn't slept in days.",
+  "skills": {
+    "shooting": 3,
+    "mechanics": 1,
+    "persuasion": 2,
+    "scavenging": 1,
+    "fighting": 2,
+    "medicine": 1,
+    "stealth": 2
+  },
+  "groups": [
+    "convoy"
+  ],
+  "agenda": null
+}

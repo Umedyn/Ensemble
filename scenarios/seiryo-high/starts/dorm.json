@@ -1,0 +1,378 @@
+{
+  "id": "dorm",
+  "title": "The Seiryo dorm: moving in",
+  "region": "mito-senba",
+  "castLabel": "People",
+  "summary": "You are Kaede Tsukimura from Fukuroda Onsen, two hours north, moving into the Seiryo dorm three days before school starts. Your boxes are in the hall, your grandmother is on the phone, and the dorm is full of strangers.",
+  "start": {
+    "day": 95,
+    "hour": 15
+  },
+  "player": "kaede",
+  "playerSlot": {
+    "location": "kaede-room",
+    "summary": "You make your own first-year from Fukuroda Onsen, the hot-spring village in Daigo two hours north, moving into the Seiryo dorm three days before school starts. Your family runs the small inn Tsukimura-ya.",
+    "knows": [
+      "Grandma Chiyo said \"don't worry about the inn\" four times on the phone this week, which is three times more than usual."
+    ],
+    "needs": {
+      "fatigue": 0.2,
+      "stress": 0.3
+    },
+    "roles": [
+      {
+        "id": "regular",
+        "label": "Ordinary student",
+        "desc": "No club yet, average grades, a whole high school life ahead.",
+        "skills": {
+          "charm": 2,
+          "insight": 2,
+          "studies": 1
+        },
+        "suggestedTraits": [
+          "easygoing",
+          "kind",
+          "curious"
+        ]
+      },
+      {
+        "id": "athlete",
+        "label": "Sports recruit",
+        "desc": "Came to Seiryo for its teams; fast, strong and always hungry.",
+        "skills": {
+          "athletics": 3,
+          "charm": 1
+        },
+        "suggestedTraits": [
+          "energetic",
+          "competitive",
+          "blunt"
+        ]
+      },
+      {
+        "id": "honours",
+        "label": "Honour student",
+        "desc": "Top marks, high expectations, very little sleep.",
+        "skills": {
+          "studies": 3,
+          "insight": 1
+        },
+        "suggestedTraits": [
+          "diligent",
+          "serious",
+          "proud"
+        ]
+      },
+      {
+        "id": "artist",
+        "label": "Artist or musician",
+        "desc": "Draws, writes or plays; sees the school as material.",
+        "skills": {
+          "arts": 3,
+          "insight": 1
+        },
+        "suggestedTraits": [
+          "dreamy",
+          "shy",
+          "passionate"
+        ]
+      },
+      {
+        "id": "troublemaker",
+        "label": "Troublemaker with a soft side",
+        "desc": "A reputation from middle school, a heart nobody has noticed yet.",
+        "skills": {
+          "athletics": 2,
+          "stealth": 2
+        },
+        "suggestedTraits": [
+          "gruff",
+          "protective",
+          "restless"
+        ]
+      }
+    ],
+    "freeform": true,
+    "skillPoints": 9,
+    "maxSkill": 3,
+    "relationsDefault": {
+      "chiyo": 35,
+      "haruna": 35,
+      "riku": 40
+    },
+    "castFeelings": {
+      "chiyo": 40,
+      "haruna": 40,
+      "riku": 45
+    },
+    "keepDefault": false
+  },
+  "cast": [
+    {
+      "id": "kaede",
+      "status": {
+        "location": "kaede-room"
+      },
+      "needs": {
+        "fatigue": 0.4,
+        "stress": 0.4
+      },
+      "knows": [
+        "Grandma Chiyo said \"don't worry about the inn\" four times on the phone this week, which is three times more than usual.",
+        "The last bus from Fukuroda left at 6:10 this morning; Mom packed you pickled plums and a list of who to bow to."
+      ]
+    },
+    {
+      "id": "chiyo",
+      "status": {
+        "location": "inn-front"
+      },
+      "tier": "secondary"
+    },
+    {
+      "id": "haruna",
+      "status": {
+        "location": "inn-kitchen"
+      },
+      "tier": "secondary"
+    },
+    {
+      "id": "riku",
+      "status": {
+        "location": "inn-bath"
+      },
+      "tier": "secondary"
+    },
+    {
+      "id": "momo",
+      "status": {
+        "location": "gate"
+      }
+    },
+    {
+      "id": "aoi",
+      "status": {
+        "location": "field"
+      },
+      "tier": "secondary"
+    },
+    {
+      "id": "sayo",
+      "status": {
+        "location": "classroom-1b"
+      },
+      "tier": "secondary",
+      "secret": "She fell for the player at first sight on moving-in day, has already filled half a locked notebook about them, and has asked to sit behind them in class."
+    },
+    {
+      "id": "rin",
+      "status": {
+        "location": "classroom-1b"
+      },
+      "knows": [
+        "She gave the first-years' speech at the entrance ceremony rehearsal and nobody clapped at the right time."
+      ],
+      "tier": "secondary"
+    },
+    {
+      "id": "mio",
+      "status": {
+        "location": "classroom-1b"
+      },
+      "tier": "secondary"
+    },
+    {
+      "id": "kotone",
+      "status": {
+        "location": "classroom-1b"
+      },
+      "tier": "secondary"
+    },
+    {
+      "id": "daichi",
+      "status": {
+        "location": "classroom-1b"
+      },
+      "tier": "secondary"
+    },
+    {
+      "id": "kenta",
+      "status": {
+        "location": "classroom-1b"
+      },
+      "tier": "secondary"
+    },
+    {
+      "id": "natsuki",
+      "status": {
+        "location": "classroom-1b"
+      },
+      "tier": "secondary"
+    },
+    {
+      "id": "takumi",
+      "status": {
+        "location": "field"
+      },
+      "tier": "secondary"
+    },
+    {
+      "id": "haru",
+      "status": {
+        "location": "classroom-1b"
+      },
+      "tier": "secondary"
+    },
+    {
+      "id": "yui",
+      "status": {
+        "location": "classroom-1b"
+      },
+      "tier": "secondary"
+    },
+    {
+      "id": "ayaka",
+      "status": {
+        "location": "dorm-lounge"
+      }
+    },
+    {
+      "id": "ren",
+      "status": {
+        "location": "council-room"
+      },
+      "tier": "secondary"
+    },
+    {
+      "id": "lena",
+      "status": {
+        "location": "dorm-lounge"
+      }
+    },
+    {
+      "id": "reiko",
+      "status": {
+        "location": "council-room"
+      },
+      "tier": "secondary"
+    },
+    {
+      "id": "shinji",
+      "status": {
+        "location": "club-room"
+      },
+      "tier": "secondary"
+    },
+    {
+      "id": "kazuha",
+      "status": {
+        "location": "dorm-lounge"
+      }
+    },
+    {
+      "id": "goro",
+      "status": {
+        "location": "dorm-lounge"
+      },
+      "tier": "secondary"
+    },
+    {
+      "id": "hikari",
+      "status": {
+        "location": "gate"
+      }
+    },
+    {
+      "id": "itsuki",
+      "status": {
+        "location": "gate"
+      }
+    },
+    {
+      "id": "saeki",
+      "status": {
+        "location": "staff-room"
+      },
+      "tier": "secondary"
+    },
+    {
+      "id": "kodama",
+      "status": {
+        "location": "field"
+      },
+      "tier": "secondary"
+    },
+    {
+      "id": "kirihara",
+      "status": {
+        "location": "nurse"
+      },
+      "tier": "secondary"
+    },
+    {
+      "id": "ozaki",
+      "status": {
+        "location": "gate"
+      },
+      "tier": "secondary"
+    },
+    {
+      "id": "ishida",
+      "status": {
+        "location": "staff-room"
+      },
+      "tier": "secondary"
+    },
+    {
+      "id": "ogura",
+      "status": {
+        "location": "dorm-entrance"
+      }
+    }
+  ],
+  "locations": [
+    {
+      "id": "kaede-room",
+      "name": "Your dorm room",
+      "region": "mito-senba",
+      "desc": "A six-mat room in the girls' wing: a bed, a desk, a window over the cherry slope, and the boxes you haven't unpacked.",
+      "connects": [],
+      "links": [
+        {
+          "to": "dorm-lounge",
+          "kind": "door"
+        }
+      ],
+      "size": "small",
+      "level": 1,
+      "features": [
+        "bed",
+        "desk",
+        "unpacked boxes"
+      ]
+    }
+  ],
+  "clocks": [
+    {
+      "id": "inn-loan",
+      "name": "Tsukimura-ya's bank loan",
+      "value": 2,
+      "max": 10,
+      "perHour": 0.0014,
+      "fireText": "A letter from the bank reaches the inn, and Grandma Chiyo calls the dorm late at night: unless the loan is paid down by spring, Tsukimura-ya will be sold.",
+      "fireWorld": {
+        "Tsukimura-ya": "the bank wants the loan paid by spring, or the inn is sold"
+      }
+    }
+  ],
+  "world": {
+    "astronomy club": "two members; needs five by May 1 or it is dissolved",
+    "weather": "cherry blossoms at their peak",
+    "Tsukimura-ya": "open, quieter than it used to be"
+  },
+  "facts": [
+    "The Seiryo dorm takes students whose families live too far to commute; curfew is nine o'clock.",
+    "Tsukimura-ya is a small family inn in Fukuroda Onsen, by Fukuroda Falls in Daigo."
+  ],
+  "opening": "Sunday the fifth of April, three in the afternoon. The bus from Fukuroda took two hours and smelled of somebody's dried squid, and now you are standing in a six-mat room in the girls' wing of the Seiryo dorm with four boxes, a futon roll and a window full of cherry blossoms.\n\nYour phone buzzes. Grandma, again. \"Did you bow to the dorm mother? Properly? Low?\" You did. \"Eat properly. Don't worry about the inn.\" That makes five.\n\nDownstairs, someone is laughing in the lounge, the bright easy laugh of a person who has lived here a year, and a voice like a gong echoes up the stairwell: Mrs. Ogura, announcing that new residents who have not signed the sign-out book will not be fed.\n\nThere is a knock on your open door. A second-year leans in the frame with an armband on her sleeve and a clipboard against her hip, and looks you up and down with a slow, amused smile. \"Ara. So you're the girl from the hot springs. Kazuha Minase, dorm leader. Need a hand, or are you going to unpack those boxes by staring at them?\""
+}

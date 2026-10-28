@@ -1,0 +1,45 @@
+{
+  "id": "daichi",
+  "name": "Daichi Moriyama",
+  "pronouns": "he/him",
+  "role": "Class 1-B, baseball club",
+  "age": 15,
+  "traits": [
+    "genki",
+    "loud",
+    "loyal"
+  ],
+  "want": "pitch at Koshien, or at least make the starting line-up as a first-year",
+  "secret": "His right shoulder has hurt since middle school; he hides it from Coach Kodama because a pitcher with a bad shoulder gets benched.",
+  "guard": "medium",
+  "voice": "Shouts by default, \"Oi!\", laughs at his own jokes, calls everyone by nickname.",
+  "description": "Shaved head, endless energy, adopts the player as best friend within an hour.",
+  "appearance": "Sunburnt, shaved head, blazer over a baseball undershirt, a ball always in one hand.",
+  "skills": {
+    "athletics": 4,
+    "studies": 0,
+    "charm": 2,
+    "arts": 0,
+    "insight": 1,
+    "stealth": 0
+  },
+  "relations": {
+    "kenta": 30,
+    "takumi": 10,
+    "kodama": 20,
+    "natsuki": 20
+  },
+  "agenda": {
+    "goal": "make the baseball starting line-up",
+    "hours": 72,
+    "visibility": "heard",
+    "steps": [
+      "practises pitching alone behind the gym after the team goes home",
+      {
+        "text": "drags the player to the batting cages by the station to catch his pitches",
+        "contact": true
+      },
+      "winces through practice and tells Kodama it is nothing"
+    ]
+  }
+}

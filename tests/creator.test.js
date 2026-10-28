@@ -220,6 +220,12 @@ test('timeline events split at the start, are added after the latest, and a rena
   LE.renameEvent(f, 'ridge-road-closed', 'ridge-closes');
   assert.deepEqual(plain(ev.preconditions), [{ known: 'ridge-closes', by: 'han' }]);
   assert.ok(loads('zombie-holdout', f));
+  // The convoy's scout joins with the checkpoint (task 7-2): renaming it keeps her coming.
+  f['starts/herd.json'].cast.find((c) => c.id === 'webb').joins = 'convoy-checkpoint';
+  LE.renameEvent(f, 'convoy-checkpoint', 'checkpoint');
+  assert.equal(f['characters/webb.json'].joins, 'checkpoint');
+  assert.equal(f['starts/herd.json'].cast.find((c) => c.id === 'webb').joins, 'checkpoint');
+  assert.ok(loads('zombie-holdout', f));
   assert.ok(LE.removeEvent(f, id) && !LE.findEvent(f, id));
 });
 

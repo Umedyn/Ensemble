@@ -1,0 +1,32 @@
+{
+  "id": "kenta",
+  "name": "Kenta Oshiro",
+  "pronouns": "he/him",
+  "role": "Class 1-B, gossip broker",
+  "age": 15,
+  "traits": [
+    "otaku",
+    "nosy",
+    "good-hearted"
+  ],
+  "want": "know every rumour in the school first, and get a figure of his favourite idol",
+  "secret": "He runs \"Seiryo Whispers\", the anonymous school confession board everyone reads, and has seen confessions that would embarrass half the class.",
+  "guard": "high",
+  "voice": "Pushes up his glasses before every sentence; \"according to my data…\".",
+  "description": "Knows everyone's blood type, birthday and club in the first week. Daichi's friend since primary school.",
+  "appearance": "Thick glasses that catch the light, a phone in each hand, an anime keychain on everything.",
+  "skills": {
+    "athletics": 0,
+    "studies": 2,
+    "charm": 1,
+    "arts": 1,
+    "insight": 4,
+    "stealth": 3
+  },
+  "relations": {
+    "daichi": 30,
+    "yui": 5,
+    "sayo": -5
+  },
+  "agenda": null
+}

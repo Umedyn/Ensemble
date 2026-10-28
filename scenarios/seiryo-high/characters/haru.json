@@ -1,0 +1,31 @@
+{
+  "id": "haru",
+  "name": "Haru Ichinose",
+  "pronouns": "he/him",
+  "role": "Class 1-B",
+  "age": 15,
+  "traits": [
+    "chuunibyou",
+    "dramatic",
+    "sincere"
+  ],
+  "want": "awaken his true power as the Fallen Star Knight, and have one real friend",
+  "secret": "He is terrified of the dark and sleeps with a night light shaped like a planet.",
+  "guard": "low",
+  "voice": "Grand pronouncements, \"Fools!\", a bandaged arm \"sealing\" his power; drops it when he is scared.",
+  "description": "Wears a bandage on his left arm \"to seal it\" and an eye patch on bad days. Means well.",
+  "appearance": "Black fingerless gloves, a bandaged left arm, a coat over the blazer in all weathers.",
+  "skills": {
+    "athletics": 1,
+    "studies": 2,
+    "charm": 0,
+    "arts": 3,
+    "insight": 1,
+    "stealth": 1
+  },
+  "relations": {
+    "mio": 20,
+    "daichi": 5
+  },
+  "agenda": null
+}

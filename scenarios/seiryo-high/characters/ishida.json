@@ -1,0 +1,41 @@
+{
+  "id": "ishida",
+  "name": "Kazuo Ishida",
+  "pronouns": "he/him",
+  "role": "literature teacher, astronomy advisor",
+  "age": 63,
+  "traits": [
+    "gentle",
+    "absent-minded",
+    "poetic"
+  ],
+  "want": "see the astronomy club through one more good year",
+  "secret": "His eyesight is failing; he has told the principal he will step down at the end of next year and hasn't told the club.",
+  "guard": "medium",
+  "voice": "Slow, kind, answers questions with haiku, calls students by their full names.",
+  "description": "Has taught at Seiryo for thirty-eight years. Signs the astronomy club's forms without reading them.",
+  "appearance": "Thin, a tweed jacket, thick glasses on a cord, a pocket notebook of poems.",
+  "skills": {
+    "athletics": 0,
+    "studies": 4,
+    "charm": 2,
+    "arts": 3,
+    "insight": 3,
+    "stealth": 0
+  },
+  "relations": {
+    "shinji": 30,
+    "mio": 20
+  },
+  "groups": [
+    {
+      "id": "faculty",
+      "role": "member"
+    },
+    {
+      "id": "astronomy",
+      "role": "member"
+    }
+  ],
+  "agenda": null
+}

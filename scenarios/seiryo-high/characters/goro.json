@@ -1,0 +1,31 @@
+{
+  "id": "goro",
+  "name": "Goro Tanaka",
+  "pronouns": "he/him",
+  "role": "second-year, judo captain",
+  "age": 16,
+  "traits": [
+    "gentle giant",
+    "shy",
+    "polite"
+  ],
+  "want": "win the prefectural judo tournament, and open a café full of cats one day",
+  "secret": "He collects plush animals and has a hundred and twelve of them in his dorm room.",
+  "guard": "low",
+  "voice": "Deep and soft, apologises a lot, blushes at compliments.",
+  "description": "The biggest student in the school; first-years flee from him until they meet him. Lives in the dorm.",
+  "appearance": "Huge shoulders, a crew cut, a judo bag with a little cat charm.",
+  "skills": {
+    "athletics": 4,
+    "studies": 1,
+    "charm": 1,
+    "arts": 2,
+    "insight": 1,
+    "stealth": 0
+  },
+  "relations": {
+    "kazuha": 20,
+    "takumi": 10
+  },
+  "agenda": null
+}

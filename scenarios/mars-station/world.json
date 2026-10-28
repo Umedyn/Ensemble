@@ -764,7 +764,13 @@
           }
         }
       ],
-      "onBroken": "diverge"
+      "onBroken": "diverge",
+      "moves": [
+        {
+          "id": "okafor",
+          "to": "ops"
+        }
+      ]
     },
     {
       "id": "cargo-lander",

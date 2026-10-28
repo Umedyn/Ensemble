@@ -1,0 +1,44 @@
+{
+  "id": "lena",
+  "name": "Lena Kirishima",
+  "pronouns": "she/her",
+  "role": "transfer student back from England",
+  "age": 15,
+  "joins": "second-term-1",
+  "traits": [
+    "bakadere",
+    "clumsy",
+    "sunny"
+  ],
+  "want": "find the friend she made a promise to when she was seven, and fit back into Japan",
+  "secret": "Her Japanese reading is still at a primary-school level after eight years abroad, and she is terrified of failing the exams.",
+  "guard": "medium",
+  "voice": "Mixes English words in, trips over things, laughs it off, says exactly what she thinks.",
+  "description": "Left Mito at seven when her father was posted to London; comes back for the second term and lives in the dorm.",
+  "appearance": "Light brown hair in a messy bun, a London Underground keyring, plasters on both knees.",
+  "skills": {
+    "athletics": 2,
+    "studies": 1,
+    "charm": 3,
+    "arts": 2,
+    "insight": 1,
+    "stealth": 0
+  },
+  "relations": {
+    "aoi": 20,
+    "kazuha": 10
+  },
+  "agenda": {
+    "goal": "find her childhood friend and remind them of their promise",
+    "hours": 72,
+    "visibility": "heard",
+    "steps": [
+      "trips over her own feet in front of the whole class on her first day",
+      {
+        "text": "finds the player at lunch and asks if they remember the promise under the plum tree at Kairakuen",
+        "contact": true
+      },
+      "asks Kazuha Minase to help her with her kanji homework in the dorm"
+    ]
+  }
+}

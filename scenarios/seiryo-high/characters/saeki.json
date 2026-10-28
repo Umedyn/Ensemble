@@ -1,0 +1,38 @@
+{
+  "id": "saeki",
+  "name": "Natsume Saeki",
+  "pronouns": "she/her",
+  "role": "homeroom teacher of 1-B, maths",
+  "age": 26,
+  "traits": [
+    "sleepy",
+    "lazy",
+    "sharper than she looks"
+  ],
+  "want": "get her class through the year with as little paperwork as possible",
+  "secret": "She is the voice of \"Kuromame\", a fox-girl VTuber with eighty thousand subscribers who streams games until three in the morning.",
+  "guard": "high",
+  "voice": "Drawls, yawns, \"ehh, it's fine\"; suddenly precise when a student is in trouble.",
+  "description": "Second year as a teacher, always on her third coffee. Students like her because she never panics.",
+  "appearance": "Messy ponytail, a cardigan over her blouse, dark circles, a can of coffee in every pocket.",
+  "skills": {
+    "athletics": 0,
+    "studies": 4,
+    "charm": 1,
+    "arts": 2,
+    "insight": 3,
+    "stealth": 1
+  },
+  "relations": {
+    "kirihara": 25,
+    "ozaki": -5,
+    "kodama": 5
+  },
+  "groups": [
+    {
+      "id": "faculty",
+      "role": "member"
+    }
+  ],
+  "agenda": null
+}

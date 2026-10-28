@@ -1,0 +1,404 @@
+{
+  "id": "hayakawa",
+  "title": "Station South: the first day",
+  "region": "mito-station-south",
+  "castLabel": "People",
+  "summary": "You are Sora Hayakawa, about to walk to your first day at Seiryo High. Mom wants photos, your sister wants the bathroom, and your childhood friend Aoi is already shouting at the gate.",
+  "start": {
+    "day": 98,
+    "hour": 7
+  },
+  "player": "sora",
+  "playerSlot": {
+    "location": "hayakawa-living",
+    "summary": "You make your own first-year at Seiryo High, living at home in Station South with Mom, Dad and a younger sister, the Hayakawas (you take their name for the story or not). Your childhood friend Aoi is already shouting at the gate.",
+    "knows": [
+      "The entrance ceremony starts at nine in the gym, and Mom has bought a new camera for it."
+    ],
+    "needs": {
+      "fatigue": 0.2,
+      "stress": 0.3
+    },
+    "roles": [
+      {
+        "id": "regular",
+        "label": "Ordinary student",
+        "desc": "No club yet, average grades, a whole high school life ahead.",
+        "skills": {
+          "charm": 2,
+          "insight": 2,
+          "studies": 1
+        },
+        "suggestedTraits": [
+          "easygoing",
+          "kind",
+          "curious"
+        ]
+      },
+      {
+        "id": "athlete",
+        "label": "Sports recruit",
+        "desc": "Came to Seiryo for its teams; fast, strong and always hungry.",
+        "skills": {
+          "athletics": 3,
+          "charm": 1
+        },
+        "suggestedTraits": [
+          "energetic",
+          "competitive",
+          "blunt"
+        ]
+      },
+      {
+        "id": "honours",
+        "label": "Honour student",
+        "desc": "Top marks, high expectations, very little sleep.",
+        "skills": {
+          "studies": 3,
+          "insight": 1
+        },
+        "suggestedTraits": [
+          "diligent",
+          "serious",
+          "proud"
+        ]
+      },
+      {
+        "id": "artist",
+        "label": "Artist or musician",
+        "desc": "Draws, writes or plays; sees the school as material.",
+        "skills": {
+          "arts": 3,
+          "insight": 1
+        },
+        "suggestedTraits": [
+          "dreamy",
+          "shy",
+          "passionate"
+        ]
+      },
+      {
+        "id": "troublemaker",
+        "label": "Troublemaker with a soft side",
+        "desc": "A reputation from middle school, a heart nobody has noticed yet.",
+        "skills": {
+          "athletics": 2,
+          "stealth": 2
+        },
+        "suggestedTraits": [
+          "gruff",
+          "protective",
+          "restless"
+        ]
+      }
+    ],
+    "freeform": true,
+    "skillPoints": 9,
+    "maxSkill": 3,
+    "relationsDefault": {
+      "aoi": 35,
+      "momo": 25,
+      "yumiko": 30,
+      "kenji": 30
+    },
+    "castFeelings": {
+      "aoi": 40,
+      "momo": 25,
+      "yumiko": 35,
+      "kenji": 35
+    },
+    "keepDefault": false
+  },
+  "cast": [
+    {
+      "id": "sora",
+      "status": {
+        "location": "hayakawa-living"
+      },
+      "needs": {
+        "fatigue": 0.2,
+        "stress": 0.3
+      },
+      "knows": [
+        "The entrance ceremony starts at nine in the gym, and Mom has bought a new camera for it.",
+        "Aoi has been acting strange since spring break, going red and calling you \"dummy\" twice as often."
+      ]
+    },
+    {
+      "id": "yumiko",
+      "status": {
+        "location": "hayakawa-living"
+      }
+    },
+    {
+      "id": "kenji",
+      "status": {
+        "location": "hayakawa-living"
+      },
+      "knows": [
+        "His section chief said there may be \"news about postings\" before summer."
+      ]
+    },
+    {
+      "id": "momo",
+      "status": {
+        "location": "sora-room"
+      },
+      "joins": null
+    },
+    {
+      "id": "aoi",
+      "status": {
+        "location": "street-south"
+      }
+    },
+    {
+      "id": "rin",
+      "status": {
+        "location": "classroom-1b"
+      },
+      "knows": [
+        "She gave the first-years' speech at the entrance ceremony rehearsal and nobody clapped at the right time."
+      ]
+    },
+    {
+      "id": "mio",
+      "status": {
+        "location": "classroom-1b"
+      }
+    },
+    {
+      "id": "kotone",
+      "status": {
+        "location": "classroom-1b"
+      }
+    },
+    {
+      "id": "daichi",
+      "status": {
+        "location": "classroom-1b"
+      }
+    },
+    {
+      "id": "kenta",
+      "status": {
+        "location": "classroom-1b"
+      }
+    },
+    {
+      "id": "natsuki",
+      "status": {
+        "location": "classroom-1b"
+      }
+    },
+    {
+      "id": "sayo",
+      "status": {
+        "location": "classroom-1b"
+      }
+    },
+    {
+      "id": "takumi",
+      "status": {
+        "location": "field"
+      },
+      "tier": "secondary"
+    },
+    {
+      "id": "haru",
+      "status": {
+        "location": "classroom-1b"
+      }
+    },
+    {
+      "id": "yui",
+      "status": {
+        "location": "classroom-1b"
+      }
+    },
+    {
+      "id": "ayaka",
+      "status": {
+        "location": "dorm-lounge"
+      }
+    },
+    {
+      "id": "ren",
+      "status": {
+        "location": "council-room"
+      },
+      "tier": "secondary"
+    },
+    {
+      "id": "lena",
+      "status": {
+        "location": "dorm-lounge"
+      }
+    },
+    {
+      "id": "reiko",
+      "status": {
+        "location": "council-room"
+      },
+      "tier": "secondary"
+    },
+    {
+      "id": "shinji",
+      "status": {
+        "location": "club-room"
+      },
+      "tier": "secondary"
+    },
+    {
+      "id": "kazuha",
+      "status": {
+        "location": "dorm-lounge"
+      }
+    },
+    {
+      "id": "goro",
+      "status": {
+        "location": "gym"
+      },
+      "tier": "secondary"
+    },
+    {
+      "id": "hikari",
+      "status": {
+        "location": "gate"
+      }
+    },
+    {
+      "id": "itsuki",
+      "status": {
+        "location": "gate"
+      }
+    },
+    {
+      "id": "saeki",
+      "status": {
+        "location": "staff-room"
+      },
+      "tier": "secondary"
+    },
+    {
+      "id": "kodama",
+      "status": {
+        "location": "field"
+      },
+      "tier": "secondary"
+    },
+    {
+      "id": "kirihara",
+      "status": {
+        "location": "nurse"
+      },
+      "tier": "secondary"
+    },
+    {
+      "id": "ozaki",
+      "status": {
+        "location": "gate"
+      },
+      "tier": "secondary"
+    },
+    {
+      "id": "ishida",
+      "status": {
+        "location": "staff-room"
+      },
+      "tier": "secondary"
+    },
+    {
+      "id": "ogura",
+      "status": {
+        "location": "dorm-entrance"
+      },
+      "tier": "secondary"
+    }
+  ],
+  "locations": [
+    {
+      "id": "hayakawa-living",
+      "name": "Hayakawa house: living room and kitchen",
+      "region": "mito-station-south",
+      "desc": "A small two-storey house in Station South: a low table, the TV always on, the kitchen where Mom sings.",
+      "connects": [],
+      "links": [
+        {
+          "to": "sora-room",
+          "kind": "stairs"
+        },
+        {
+          "to": "street-south",
+          "kind": "door"
+        }
+      ],
+      "features": [
+        "low table",
+        "TV",
+        "family photos"
+      ]
+    },
+    {
+      "id": "sora-room",
+      "name": "Your room",
+      "region": "mito-station-south",
+      "desc": "Upstairs: a futon, a desk with a manga pile, a window that looks straight into the Mizuharas' house next door.",
+      "connects": [],
+      "links": [],
+      "size": "small",
+      "level": 1,
+      "features": [
+        "futon",
+        "desk",
+        "window to next door"
+      ]
+    },
+    {
+      "id": "street-south",
+      "name": "Your street in Station South",
+      "region": "mito-station-south",
+      "desc": "A narrow residential street: the Mizuharas' gate next door, vending machines, the walk to the station.",
+      "connects": [],
+      "links": [
+        {
+          "to": "ramen-stall",
+          "kind": "open"
+        },
+        {
+          "to": "station-plaza",
+          "kind": "open"
+        }
+      ],
+      "outside": true,
+      "features": [
+        "vending machines",
+        "Mizuhara gate"
+      ]
+    }
+  ],
+  "clocks": [
+    {
+      "id": "dad-posting",
+      "name": "Dad's possible posting to Osaka",
+      "value": 0,
+      "max": 10,
+      "perHour": 0.006,
+      "fireText": "Dad comes home quiet and sits everyone down at the low table: from July he is being posted to the Osaka branch for a year, and will live there alone.",
+      "fireWorld": {
+        "Hayakawa family": "Dad posted to Osaka for a year from July"
+      }
+    }
+  ],
+  "world": {
+    "astronomy club": "two members; needs five by May 1 or it is dissolved",
+    "weather": "cherry blossoms at their peak",
+    "Hayakawa family": "all at home"
+  },
+  "facts": [
+    "Today is the entrance ceremony for Seiryo High's new first-years.",
+    "Aoi Mizuhara has lived next door to the Hayakawas since she and Sora were four."
+  ],
+  "opening": "Wednesday the eighth of April, a few minutes past seven, and the Hayakawa house is already loud.\n\nMom stands in the kitchen doorway with a brand-new camera and the face of a woman on a mission. \"Turn around. No, the other way. Kenji, is it on? Why is it beeping?\" Dad leans over the low table, chopsticks in one hand and the instruction booklet in the other, and says that the camera, like him, is \"just warming up.\" Nobody laughs. He laughs.\n\nUpstairs, Momo bangs on the bathroom door that nobody is in and yells that some people have real school today, actually, and some people are only going to a ceremony.\n\nYour blazer is a size too big. The sleeves cover your knuckles. Outside, someone kicks the gate twice, the way only one person does, and Aoi's voice carries through the front door: \"Oi, dummy! If we're late on the first day I'm telling everyone you cried at the cherry trees!\"\n\nMom raises the camera. \"One photo. Just one. Smile like you mean it.\""
+}

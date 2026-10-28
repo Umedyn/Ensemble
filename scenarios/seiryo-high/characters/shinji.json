@@ -1,0 +1,38 @@
+{
+  "id": "shinji",
+  "name": "Shinji Gotō",
+  "pronouns": "he/him",
+  "role": "third-year, astronomy club president",
+  "age": 18,
+  "traits": [
+    "sleepy",
+    "laid-back",
+    "quietly brilliant"
+  ],
+  "want": "leave the astronomy club in good hands, and maybe graduate this time",
+  "secret": "He is nineteen this spring: he was held back a year after a long illness and doesn't want anyone to treat him differently.",
+  "guard": "medium",
+  "voice": "Yawns mid-sentence, long pauses, then a perfect explanation of a nebula.",
+  "description": "Naps in the club room, wakes for anything to do with the sky. Has the rooftop key.",
+  "appearance": "Tall and stooped, a cardigan with holes in the elbows, a telescope case on his back.",
+  "skills": {
+    "athletics": 0,
+    "studies": 3,
+    "charm": 1,
+    "arts": 1,
+    "insight": 3,
+    "stealth": 2
+  },
+  "relations": {
+    "mio": 25,
+    "ishida": 30,
+    "reiko": 10
+  },
+  "groups": [
+    {
+      "id": "astronomy",
+      "role": "leader"
+    }
+  ],
+  "agenda": null
+}

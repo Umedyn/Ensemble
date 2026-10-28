@@ -1,0 +1,33 @@
+{
+  "id": "ogura",
+  "name": "Sumiko Ogura",
+  "pronouns": "she/her",
+  "role": "dorm mother",
+  "age": 58,
+  "traits": [
+    "strict",
+    "motherly",
+    "shrewd"
+  ],
+  "want": "keep her dorm children fed, safe and in by nine",
+  "secret": "She knows Takumi Fujiwara works nights at the ramen stall and lets him in the back door when he walks his brothers home late.",
+  "guard": "medium",
+  "voice": "Brisk, calls everyone \"child\", ladles extra rice onto anyone who looks sad.",
+  "description": "Has run the dorm for twenty years. Curfew is nine, breakfast is six-thirty, and nobody argues twice.",
+  "appearance": "Apron always on, grey hair in a tight bun, reading glasses on her head, a ladle like a sceptre.",
+  "skills": {
+    "athletics": 1,
+    "studies": 2,
+    "charm": 2,
+    "arts": 2,
+    "insight": 3,
+    "stealth": 1
+  },
+  "relations": {
+    "kazuha": 25,
+    "takumi": 20,
+    "ayaka": 15,
+    "goro": 15
+  },
+  "agenda": null
+}

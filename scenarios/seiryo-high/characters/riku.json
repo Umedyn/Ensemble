@@ -1,0 +1,32 @@
+{
+  "id": "riku",
+  "name": "Riku Tsukimura",
+  "pronouns": "he/him",
+  "role": "Tsukimura youngest, primary school",
+  "age": 10,
+  "traits": [
+    "mischievous",
+    "adoring",
+    "curious"
+  ],
+  "want": "visit his big sister in the city and see a real arcade",
+  "secret": "He has been skipping his afternoon swimming lessons to fish at the falls with the old men.",
+  "guard": "low",
+  "voice": "Loud, \"nee-chan!\", asks a hundred questions.",
+  "description": "Runs errands at the inn for pocket money and tells the guests tall tales about the waterfall dragon.",
+  "appearance": "Gap-toothed, sunburnt, always wet from the river, a baseball cap on backwards.",
+  "skills": {
+    "athletics": 2,
+    "studies": 1,
+    "charm": 2,
+    "arts": 1,
+    "insight": 1,
+    "stealth": 2
+  },
+  "relations": {
+    "kaede": 40,
+    "chiyo": 30,
+    "haruna": 30
+  },
+  "agenda": null
+}

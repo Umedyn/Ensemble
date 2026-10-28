@@ -1,0 +1,41 @@
+{
+  "id": "chiyo",
+  "name": "Chiyo Tsukimura",
+  "pronouns": "she/her",
+  "role": "Tsukimura grandmother, runs the inn",
+  "age": 72,
+  "traits": [
+    "sharp-tongued",
+    "warm",
+    "unbending"
+  ],
+  "want": "keep Tsukimura-ya open for one more generation",
+  "secret": "The inn is behind on its bank loan; unless something changes by next spring, it will have to be sold.",
+  "guard": "high",
+  "voice": "Old Ibaraki dialect, short scolding sentences, a hand on the shoulder after.",
+  "description": "Has run the family inn by Fukuroda Falls for fifty years. Calls the dorm every few days to check that her grandchild is eating.",
+  "appearance": "Small and straight-backed, a dark kimono for work, reading glasses, a voice that fills a room.",
+  "skills": {
+    "athletics": 1,
+    "studies": 2,
+    "charm": 3,
+    "arts": 3,
+    "insight": 4,
+    "stealth": 1
+  },
+  "relations": {
+    "kaede": 40,
+    "haruna": 25,
+    "riku": 35
+  },
+  "agenda": {
+    "goal": "keep the inn afloat without worrying the children",
+    "hours": 200,
+    "visibility": "hidden",
+    "steps": [
+      "meets the bank man in Daigo and asks for more time",
+      "sells her best kimono in Mito and says it was going to waste",
+      "writes to an old regular in Tokyo about investing in the inn"
+    ]
+  }
+}

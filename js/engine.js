@@ -60,6 +60,7 @@
       else if ('agenda' in c) c.agenda = Eng.cleanAgenda(c.agenda).agenda || null;
       state.characters[c.id] = c;
     });
+    Eng.setAsideJoiners(state);
     Eng.initTiers(state);
     // Standing with each faction, and who belongs to which (task G-6).
     E.Standing.init(state, sc);
@@ -74,7 +75,7 @@
     Eng.knowAll(state, 0);
     Eng.noteSeen(state, null, 0);
     // Starting knowledge becomes private facts; scenario facts are public.
-    sc.characterData.forEach((c) =>
+    sc.characterData.filter((c) => !state.waiting[c.id]).forEach((c) =>
       (c.knows || []).forEach((text) =>
         E.Memory.addFact(state, { about: [c.id], text, known_by: [c.id], weight: 2 })
       )
@@ -969,6 +970,71 @@
     });
   };
 
+  // ---------- the scene's foreground (task 7-2) ----------
+  // A crowded room (Class 1-B: nine named classmates) can't give everyone an
+  // intent on a small context: the prompt and the reply grow with each one
+  // (11,000 tokens at 8K). The first sceneFull people of the tier take part
+  // this turn: those the player's action names, the one who came to the
+  // player, those the last action named, then the locals who feel most
+  // strongly about the player, then cast order. The rest are in the
+  // background: still present (they see and hear, and can be named next
+  // turn), with no intent of their own. → ids in the order of present.
+  Eng.sceneFront = function (state, present, action) {
+    const cap = E.contextTier().sceneFull;
+    if (present.length <= cap) return present.slice();
+    const last = (state.recent && state.recent.length && state.recent[state.recent.length - 1].action) || '';
+    const ask = state.ask && state.ask.who;
+    const score = (id) => {
+      const c = state.characters[id];
+      return (mentions(action, c) ? 1e6 : 0) + (id === ask ? 1e5 : 0) + (mentions(last, c) ? 1e4 : 0) + (Eng.tier(state, id) === 'local' ? 1e3 : 0)
+        + Math.abs(c.relations[state.player] || 0) + Math.abs((state.characters[state.player].relations || {})[id] || 0);
+    };
+    const keep = new Set(present.map((id, i) => [id, score(id), i]).sort((a, b) => b[1] - a[1] || a[2] - b[2]).slice(0, cap).map((x) => x[0]));
+    return present.filter((id) => keep.has(id));
+  };
+
+  // ---------- people who join later (task 7-2) ----------
+  // A character with "joins" (a timeline event id) waits outside the story:
+  // not in the cast, the prompts or anyone's feelings until the event happens.
+  // Feelings toward them wait with them.
+  Eng.setAsideJoiners = function (state) {
+    state.waiting = {};
+    Object.values(state.characters).forEach((c) => {
+      if (c.joins == null || c.id === state.player) return delete c.joins;
+      state.waiting[c.id] = c;
+      delete state.characters[c.id];
+    });
+    state.order = state.order.filter((id) => state.characters[id]);
+    Object.values(state.characters).forEach((c) => Object.keys(c.relations || {}).forEach((k) => {
+      const w = state.waiting[k];
+      if (!w) return;
+      (w.feltBy = w.feltBy || {})[c.id] = c.relations[k];
+      delete c.relations[k];
+    }));
+  };
+  // The event has happened: its people join the cast, as newcomers (the
+  // header's live block), where their file puts them. → names.
+  Eng.joinStory = function (state, eventId, res) {
+    const ids = Object.keys(state.waiting || {}).filter((id) => state.waiting[id].joins === eventId);
+    ids.forEach((id) => {
+      const c = state.waiting[id];
+      delete state.waiting[id];
+      delete c.joins;
+      Object.entries(c.feltBy || {}).forEach(([k, v]) => { if (state.characters[k]) state.characters[k].relations[id] = v; });
+      delete c.feltBy;
+      Object.keys(c.relations || {}).forEach((k) => { if (!state.characters[k]) delete c.relations[k]; });
+      if (!state.locations[c.status.location]) c.status.location = state.characters[state.player].status.location;
+      const here = state.characters[state.player].status.location;
+      Object.assign(c, { joined: state.turn, lastSeen: state.turn, tier: c.pinned || c.status.location === here ? 'local' : 'secondary' });
+      if (c.groups != null) c.groups = E.Standing.groupsOf(c);
+      state.characters[id] = c;
+      state.order.push(id);
+      (c.knows || []).forEach((text) => E.Memory.addFact(state, { about: [id], text, known_by: [id], weight: 2 }));
+      if (res) guard(res, 'resolve', 'joined', `${c.name} joins the story (${eventId})`);
+    });
+    return ids.map((id) => state.characters[id].name);
+  };
+
   function promote(state, ids, turn, why, out) {
     ids.forEach((id) => {
       const c = state.characters[id];
@@ -1670,7 +1736,12 @@
     const res = { outcomes, events: [], guards: [] };
     const list = [cleanIntent(state, intentObj.player, state.player)];
     const given = Array.isArray(intentObj.intents) ? intentObj.intents : [];
-    present.forEach((id) => list.push(cleanIntent(state, given.find((g) => g && g.id === id), id)));
+    // People in the background of a crowded room (task 7-2) were asked for no
+    // intent: they carry on quietly, and whatever the model gave them anyway is set aside.
+    const front = (opts && opts.front) || present;
+    if (front.length < present.length) res.front = front.slice();
+    present.forEach((id) => list.push(front.includes(id) ? cleanIntent(state, given.find((g) => g && g.id === id), id)
+      : Object.assign(cleanIntent(state, null, id), { missing: false, background: true, action: 'stays in the background' })));
     // If the player's action is about someone already in the room, they don't go
     // anywhere, unless the action says so ("…then head to the garage") or names
     // someone who is at the destination.
@@ -1753,6 +1824,7 @@
     list.forEach((it) => {
       const c = state.characters[it.id];
       const o = { id: it.id, action: it.action, says: it.says, reveals: it.reveals, missing: it.missing, visible: it.visible, skill: it.skill, roll: null, moved: null };
+      if (it.background) o.background = true;
       if (it.moveCancelled) o.note = it.moveCancelled;
       // A reveal attempt is either the reveals field or a secret leaking into
       // the character's own action/dialogue. Unearned attempts become deflection.
@@ -3870,6 +3942,8 @@
       state.ignored = [];
     }
     const present = Eng.present(state);
+    // Who takes part this turn in a crowded room (task 7-2); the rest are in the background.
+    const front = Eng.sceneFront(state, present, action);
     const extrasPresent = Eng.extrasAt(state, state.characters[state.player].status.location).map((x) => x.id);
     const system = E.Prompts.header(state); // same prefix for all calls this turn
 
@@ -3882,8 +3956,8 @@
     due.canon = E.Timeline.diverging(canonDue);
     phase(due.world ? 'The wider world stirs…' : due.regional ? 'Something stirs nearby…' : 'Characters deciding…');
     const intentObj = await E.LLM.chatJSON({
-      kind: 'intent', system, user: E.Prompts.intent(state, present, action, step.label, step.id, due),
-      maxTokens: 260 + 150 * present.length + 60 * Eng.standeesAt(state, state.characters[state.player].status.location).length + 80 * Eng.agendasDue(state).length + (due.regional ? 120 : 0) + (due.world ? 140 : 0) + 120 * due.canon.length, temperature: 0.7,
+      kind: 'intent', system, user: E.Prompts.intent(state, present, action, step.label, step.id, due, front),
+      maxTokens: 260 + 150 * front.length + 60 * Eng.standeesAt(state, state.characters[state.player].status.location).length + 80 * Eng.agendasDue(state).length + (due.regional ? 120 : 0) + (due.world ? 140 : 0) + 120 * due.canon.length, temperature: 0.7,
     });
 
     const frame = { startTime: E.fmtTime(state), startLoc: state.characters[state.player].status.location, stepId: step.id, stepLabel: step.label, words: step.words, spanMinutes: Math.round(step.hours * 60) };
@@ -3905,7 +3979,7 @@
       out.report = report || { applied: [], rejected: [] };
       return out;
     }
-    const res = Eng.resolve(state, intentObj, present, action, step.id, due, { crossingRoll: journey && journey.failed });
+    const res = Eng.resolve(state, intentObj, present, action, step.id, due, { crossingRoll: journey && journey.failed, front });
     res.guards.unshift(...early.guards);
     // Moving into a hidden region reveals it.
     Eng.revealAround(state, res);

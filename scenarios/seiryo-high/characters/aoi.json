@@ -1,0 +1,32 @@
+{
+  "id": "aoi",
+  "name": "Aoi Mizuhara",
+  "pronouns": "she/her",
+  "role": "Class 1-C, track team",
+  "age": 15,
+  "traits": [
+    "tomboy",
+    "straightforward",
+    "competitive"
+  ],
+  "want": "win the prefectural 400 metres, and be noticed as a girl by one person",
+  "secret": "She has had a crush on her childhood friend next door since they were ten, and is furious with herself about it.",
+  "guard": "medium",
+  "voice": "Boyish, punches shoulders, says \"dummy\" affectionately.",
+  "description": "Grew up next door to the Hayakawas. Fastest first-year on the track team.",
+  "appearance": "Short black hair, a track jacket over her uniform, scabbed knees, a red hair tie on her wrist.",
+  "skills": {
+    "athletics": 4,
+    "studies": 1,
+    "charm": 2,
+    "arts": 0,
+    "insight": 1,
+    "stealth": 1
+  },
+  "relations": {
+    "sora": 45,
+    "daichi": 15,
+    "sayo": -10
+  },
+  "agenda": null
+}

@@ -1,0 +1,31 @@
+{
+  "id": "sora",
+  "name": "Sora Hayakawa",
+  "pronouns": "he/him",
+  "role": "first-year, Class 1-B",
+  "age": 15,
+  "traits": [
+    "easygoing",
+    "kind",
+    "a little dense"
+  ],
+  "want": "have a high school life worth remembering, whatever that turns out to mean",
+  "voice": "Says \"huh?\" a lot; earnest when it counts.",
+  "description": "Grew up in Station South, two minutes from the ramen stall and ten from everything else. Average grades, good at noticing when someone is sad, bad at noticing when someone likes him.",
+  "appearance": "Medium height, hair that never stays flat, a Seiryo blazer his mother bought one size too big \"so it lasts\".",
+  "skills": {
+    "athletics": 2,
+    "studies": 1,
+    "charm": 2,
+    "arts": 1,
+    "insight": 2,
+    "stealth": 1
+  },
+  "relations": {
+    "aoi": 40,
+    "momo": 30,
+    "yumiko": 30,
+    "kenji": 30
+  },
+  "groups": []
+}

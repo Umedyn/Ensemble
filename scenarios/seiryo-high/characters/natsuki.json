@@ -1,0 +1,46 @@
+{
+  "id": "natsuki",
+  "name": "Natsuki Hoshino",
+  "pronouns": "she/her",
+  "role": "Class 1-B, everyone's friend",
+  "age": 15,
+  "traits": [
+    "deredere",
+    "bubbly",
+    "caring"
+  ],
+  "want": "make Class 1-B the closest class in the school",
+  "secret": "Her father is being transferred to Sapporo in two years and the whole family will move; she has told no one and smiles harder because of it.",
+  "guard": "medium",
+  "voice": "Bright, warm, lots of exclamation marks; remembers everyone's name.",
+  "description": "Talks to everyone, organises everything, cries at films.",
+  "appearance": "Short brown hair with a sunflower clip, a smile that reaches her eyes, cardigan sleeves over her hands.",
+  "skills": {
+    "athletics": 2,
+    "studies": 1,
+    "charm": 4,
+    "arts": 1,
+    "insight": 2,
+    "stealth": 0
+  },
+  "relations": {
+    "kotone": 25,
+    "rin": 15,
+    "yui": 30,
+    "daichi": 20,
+    "sayo": 10
+  },
+  "agenda": {
+    "goal": "throw a welcome party for Class 1-B",
+    "hours": 48,
+    "visibility": "heard",
+    "steps": [
+      "starts a class group chat and adds everyone",
+      {
+        "text": "asks the player to help plan a class karaoke party by the station",
+        "contact": true
+      },
+      "books the karaoke room and badgers the whole class into coming"
+    ]
+  }
+}

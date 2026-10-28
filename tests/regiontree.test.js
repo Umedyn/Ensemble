@@ -163,7 +163,7 @@ test('the header outline is the same across turns and moves, with the start\'s b
   assert.match(intent(E, state), /\nRegion: Southern Zone, a zone \(south-zone\): held by The Republic\nInside: Valdora/);
 });
 
-test('a flat world\'s region lines are the ones it always had', () => {
+test('a flat world\'s region lines are the ones it always had, without "held by no one" when no group holds anywhere', () => {
   const E = loadEngine();
   const f = worldFiles(FLAT);
   f['world.json'].regions = [{ id: 'flat', name: 'The Flat', neighbours: ['bakery'] }, { id: 'bakery', name: 'The Bakery' }];
@@ -171,8 +171,12 @@ test('a flat world\'s region lines are the ones it always had', () => {
   const state = E.Engine.newGame(E.Scenario.startScenario(E.Scenario.prepareWorld('flat', f)));
   assert.match(E.Prompts.header(state), /\n- flat: The Flat \(neighbours: bakery\)\n- bakery: The Bakery \(neighbours: flat\)/);
   const user = intent(E, state);
-  assert.match(user, /\nRegion: The Flat \(flat\): held by no one\nNearby: The Bakery \(bakery\): held by no one\n/);
+  // No group holds any region, so who holds each says nothing (task 7-2).
+  assert.match(user, /\nRegion: The Flat \(flat\)\nNearby: The Bakery \(bakery\)\n/);
   assert.ok(!/Inside:/.test(user));
+  // Once one does, every line says who holds it.
+  state.regions.bakery.controller = 'landlord';
+  assert.match(intent(E, state), /\nRegion: The Flat \(flat\): held by no one\nNearby: The Bakery \(bakery\): held by Mr\. Petrov\n/);
 });
 
 test('event ideas and regional events reach up the chain: an idea for Valdora counts in the Old Quarter', () => {

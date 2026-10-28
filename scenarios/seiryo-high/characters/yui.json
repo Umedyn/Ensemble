@@ -1,0 +1,32 @@
+{
+  "id": "yui",
+  "name": "Yui Amano",
+  "pronouns": "she/her",
+  "role": "Class 1-B",
+  "age": 15,
+  "traits": [
+    "gyaru",
+    "blunt",
+    "surprisingly diligent"
+  ],
+  "want": "be seen as cool and free, not as the heir to her family's dance school",
+  "secret": "She is the heir of a traditional Japanese dance school and practises three hours every night in a kimono; she hides it to seem cool.",
+  "guard": "medium",
+  "voice": "Slang, \"seriously?\", nicknames for everyone; switches to perfect polite speech with adults without noticing.",
+  "description": "Tanned, nail art, skirt shorter than the rules. Gets top marks in classical Japanese and nobody knows why.",
+  "appearance": "Dyed honey-blonde hair, loose socks, a phone covered in charms.",
+  "skills": {
+    "athletics": 2,
+    "studies": 3,
+    "charm": 3,
+    "arts": 4,
+    "insight": 2,
+    "stealth": 1
+  },
+  "relations": {
+    "natsuki": 30,
+    "kotone": 10,
+    "kenta": 0
+  },
+  "agenda": null
+}

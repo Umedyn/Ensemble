@@ -1,0 +1,49 @@
+{
+  "id": "sayo",
+  "name": "Sayo Kuronuma",
+  "pronouns": "she/her",
+  "role": "Class 1-B, sits behind the player",
+  "age": 15,
+  "traits": [
+    "yandere",
+    "sweet",
+    "possessive"
+  ],
+  "want": "be the most important person in the player's life",
+  "secret": "She has kept a diary about the player since they shared a bus seat in middle school, chose Seiryo because they did, and asked the teacher to sit behind them.",
+  "guard": "high",
+  "voice": "Soft, polite, adds the player's name to every sentence; the smile stays when her eyes go cold.",
+  "description": "Perfectly polite, perfectly groomed, always there. Gets very quiet when someone else makes the player laugh. Jealous and clingy, never violent.",
+  "appearance": "Long straight black hair, a neat hime cut, a notebook with a lock.",
+  "skills": {
+    "athletics": 1,
+    "studies": 3,
+    "charm": 2,
+    "arts": 2,
+    "insight": 3,
+    "stealth": 4
+  },
+  "relations": {
+    "kotone": -10,
+    "natsuki": 5,
+    "aoi": -15,
+    "lena": -20
+  },
+  "agenda": {
+    "goal": "become the person the player relies on most",
+    "hours": 72,
+    "visibility": "hidden",
+    "steps": [
+      "learns the player's timetable, club and favourite drink",
+      {
+        "text": "leaves a homemade bento in the player's desk with no name on it",
+        "contact": true
+      },
+      "asks around about whoever the player talks to most",
+      {
+        "text": "asks the player, smiling, who they like",
+        "contact": true
+      }
+    ]
+  }
+}

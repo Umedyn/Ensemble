@@ -1,0 +1,44 @@
+{
+  "id": "itsuki",
+  "name": "Itsuki Kanzaki",
+  "pronouns": "he/him",
+  "role": "first-year, the year below",
+  "age": 15,
+  "joins": "entrance-ceremony-2",
+  "traits": [
+    "tsundere",
+    "prodigy",
+    "prickly"
+  ],
+  "want": "be taken seriously, and never be thought of as the principal's grandson",
+  "secret": "He is Principal Matsudaira's grandson, enrolled under his mother's maiden name so nobody treats him differently.",
+  "guard": "high",
+  "voice": "Calls seniors \"old man\" and \"old lady\", corrects everyone's maths, admits nothing.",
+  "description": "A first-year who scored perfectly on the entrance exam and has an opinion about everything.",
+  "appearance": "Small, neat, a blazer buttoned to the top, a frown, headphones around his neck.",
+  "skills": {
+    "athletics": 0,
+    "studies": 4,
+    "charm": 0,
+    "arts": 2,
+    "insight": 3,
+    "stealth": 1
+  },
+  "relations": {
+    "ren": 10,
+    "rin": 5
+  },
+  "agenda": {
+    "goal": "prove he is the smartest student at Seiryo",
+    "hours": 96,
+    "visibility": "heard",
+    "steps": [
+      "tops the first-years' first quiz and pretends not to care",
+      {
+        "text": "challenges the player to a quiz, and is outraged when they don't take it seriously",
+        "contact": true
+      },
+      "asks Rin Kagami to tutor him, without ever saying please"
+    ]
+  }
+}

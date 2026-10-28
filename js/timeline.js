@@ -116,7 +116,19 @@
     const scope = TL.SCOPES.includes(ev.scope) ? ev.scope : 'world';
     const vis = TL.VISIBILITY.includes(ev.visibility) ? ev.visibility : 'heard';
     const text = cleanText(version.text);
+    // Its people who were waiting come into the story first (task 7-2).
+    Eng().joinStory(state, ev.id, res);
     const who = (ev.who || []).filter((id) => state.characters[id] && id !== state.player);
+    // As written, its "moves" send people where it says (the third-years off to
+    // Tokyo at graduation), wherever they are: the author's word, no route.
+    const moved = [];
+    if (how === 'fired') (Array.isArray(ev.moves) ? ev.moves : []).forEach((m) => {
+      const c = m && state.characters[m.id];
+      if (!c || m.id === state.player || !Eng().alive(state, m.id) || !state.locations[m.to] || c.status.location === m.to) return;
+      c.status.location = m.to;
+      moved.push(`${c.name} → ${state.locations[m.to].name}`);
+      guard(res, 'canon moved', `${c.name} → ${state.locations[m.to].name} (${ev.id})`);
+    });
     const region = ev.region || (scope === 'regional' ? Eng().playerRegion(state) : null);
     // As written, an authored event's effects aren't rationed (projected events and
     // the model's diverged versions are).
@@ -133,7 +145,7 @@
       if (scope === 'world') state.flags.chapterWorthy = true;
     }
     if (fact) fact.canon = ev.id;
-    (res.director = res.director || []).push({ scope, text, visibility: vis, who, where: null, region, moved: [], effects, canon: ev.id });
+    (res.director = res.director || []).push({ scope, text, visibility: vis, who, where: null, region, moved, effects, canon: ev.id });
     state.canon[ev.id] = { status: how, turn: state.turn, time: E.fmtTime(state), text };
     return text;
   };
@@ -312,6 +324,7 @@
       if (ev.scope === 'regional' && refs.regions && refs.regions.size) req(typeof ev.region === 'string', 'a regional event needs a "region"');
       if (ev.region != null && refs.regions) req(refs.regions.has(ev.region), `unknown region "${ev.region}"`);
       req(ev.who == null || (Array.isArray(ev.who) && ev.who.every((id) => !refs.characters || refs.characters.has(id))), '"who" must be a list of character ids');
+      req(ev.moves == null || (Array.isArray(ev.moves) && ev.moves.every((m) => isObj(m) && (!refs.characters || refs.characters.has(m.id)))), '"moves" must be a list of {id, to} with character ids');
       if (ev.effects != null) {
         if (!isObj(ev.effects)) problems.push(`${at}: "effects" must be an object`);
         else Object.keys(ev.effects).filter((k) => !refs.effectKeys.includes(k)).forEach((k) => problems.push(`${at}: unknown effect "${k}"`));
@@ -320,7 +333,7 @@
       req(ev.ending == null || ev.ending === true || isObj(ev.ending), '"ending" must be true, or {title, kind, epilogue, if}: the story ends when it happens');
       (Array.isArray(ev.preconditions) ? ev.preconditions : []).forEach((p) => preProblems(p, at, refs, problems, warnings));
       if (okWhen && refs.start != null && TL.at(w) < refs.start) {
-        ['effects', 'preconditions', 'onBroken'].filter((k) => ev[k] != null).forEach((k) =>
+        ['effects', 'moves', 'preconditions', 'onBroken'].filter((k) => ev[k] != null).forEach((k) =>
           warnings.push(`${at}: "${k}" is ignored on an event before the start (the world is written as it is at the start)`));
       }
     });

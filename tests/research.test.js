@@ -104,7 +104,7 @@ test('plan lists topics from the world: the world, its regions, groups and chara
   const q = quiet();
   assert.equal(await main(['plan', dir, ...PLAN], { fetch: fakeFetch(goodModel).fn, log: q.log }), 0);
   const job = JSON.parse(fs.readFileSync(path.join(dir, 'research.json'), 'utf8'));
-  assert.deepEqual(job.topics.map((t) => t.id), ['world', 'region:highway-strip', 'region:main-street', 'region:residential', 'region:junction', 'region:ridge-town', 'region:town', 'group:convoy', 'group:ridge', 'character:pike', 'character:ortiz', 'character:coleman', 'character:han', 'character:ferris']);
+  assert.deepEqual(job.topics.map((t) => t.id), ['world', 'region:highway-strip', 'region:main-street', 'region:residential', 'region:junction', 'region:ridge-town', 'region:town', 'group:convoy', 'group:ridge', 'character:pike', 'character:ortiz', 'character:coleman', 'character:han', 'character:ferris', 'character:webb']);
   assert.deepEqual([job.calendar, job.asOf, job.wiki], [{ date: '2026-03-14' }, 'March 2026, day 23 of the outbreak', 'https://en.wikipedia.org/w/api.php']);
   assert.match(q.lines.join('\n'), /Trim it before running/);
   assert.equal(await main(['plan', dir], { fetch: fakeFetch(goodModel).fn, log: q.log }), 1, 'never overwrites a plan');
@@ -136,7 +136,7 @@ test('run turns sources into checked drafts: lore in a packet, dated events in t
   assert.ok(world.lore.includes('research'));
   const guard = world.timeline.find((ev) => ev.draft);
   assert.deepEqual(guard, { id: 'research-a-national-guard-colu', when: { day: 26, hour: 9 }, scope: 'regional', text: 'A National Guard column passes through the junction heading west.', draft: true, region: 'junction' });
-  assert.match(out, /Topics: 2 done, 0 already known to the model, 1 without a source, 0 failed, 0 with lore of yours already, 11 skipped\./);
+  assert.match(out, /Topics: 2 done, 0 already known to the model, 1 without a source, 0 failed, 0 with lore of yours already, 12 skipped\./);
   assert.match(out, /Secrets found[^]*han: She has been listening to convoy traffic/);
   assert.match(out, /Later events without a date[^]*The weigh station is set on fire\./);
   const job = JSON.parse(fs.readFileSync(path.join(dir, 'research.json'), 'utf8'));

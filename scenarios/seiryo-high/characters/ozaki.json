@@ -1,0 +1,47 @@
+{
+  "id": "ozaki",
+  "name": "Hideo Ozaki",
+  "pronouns": "he/him",
+  "role": "vice principal, discipline",
+  "age": 54,
+  "traits": [
+    "strict",
+    "stern",
+    "secretly sentimental"
+  ],
+  "want": "keep order at Seiryo: no dyed hair, no part-time jobs, no dating on school grounds",
+  "secret": "He is a devoted fan of romance anime and sends postcards to a late-night radio show under the name \"Lonely Crane\".",
+  "guard": "high",
+  "voice": "Booms \"YOU THERE!\", quotes the school rules by number, clears his throat when moved.",
+  "description": "Stands at the gate every morning checking uniforms. The rulebook in human form.",
+  "appearance": "Grey crew cut, square glasses, a suit buttoned in all weathers, a ruler he measures skirts with.",
+  "skills": {
+    "athletics": 1,
+    "studies": 3,
+    "charm": 1,
+    "arts": 1,
+    "insight": 3,
+    "stealth": 2
+  },
+  "relations": {
+    "reiko": 15,
+    "takumi": -20,
+    "saeki": -5
+  },
+  "groups": [
+    {
+      "id": "faculty",
+      "role": "leader"
+    }
+  ],
+  "agenda": {
+    "goal": "stamp out rule-breaking among the new first-years",
+    "hours": 120,
+    "visibility": "heard",
+    "steps": [
+      "adds a morning uniform check at the gate for the first-years",
+      "puts up a notice reminding students that part-time jobs need written permission",
+      "patrols the station area after school looking for Seiryo uniforms where they shouldn't be"
+    ]
+  }
+}

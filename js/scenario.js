@@ -20,7 +20,7 @@
   const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'date', 'calendar', 'characters', 'starts', 'generatedStarts', 'generatedSites', 'generatedRegions', 'sites', 'lorePacks', ...OVERRIDABLE];
   const WORLD_RESERVED = [];
   const START_RESERVED = [];
-  const CAST_FIELDS = ['id', 'status', 'needs', 'needsOff', 'groups', 'relations', 'knows', 'want', 'secret', 'guard', 'tags', 'tier', 'pinned', 'agenda'];
+  const CAST_FIELDS = ['id', 'status', 'needs', 'needsOff', 'groups', 'relations', 'knows', 'want', 'secret', 'guard', 'tags', 'tier', 'pinned', 'agenda', 'joins'];
   // Merge rules: lists of {id} objects merge by id, lists of strings are
   // unioned, plain objects merge shallowly; anything else is replaced.
   const ID_LISTS = ['locations', 'clocks', 'factions', 'extras', 'regions', 'standees', 'lore', 'timeline', 'endings'];
@@ -86,6 +86,14 @@
     if (Array.isArray(sc.standees)) sc.standees = sc.standees.filter((g) => !g || own.has(g.id) || rooms.has(g.location));
     const cast = start.cast || [];
     sc.characters = cast.map(castId);
+    // A world-level locked door (task 7-2: the rooftop, whose key the
+    // astronomy club holds) keeps the keys of the people in this start's cast;
+    // a generated start's new people hold none (validateWorld checks the
+    // world's keys against the pool).
+    const ownRooms = new Set((start.locations || []).map((l) => l && l.id));
+    (sc.locations || []).filter((l) => l && !ownRooms.has(l.id)).forEach((l) => (l.links || []).forEach((k) => {
+      if (k && Array.isArray(k.key)) k.key = k.key.filter((id) => sc.characters.includes(id));
+    }));
     sc.characterData = cast.map((entry) => {
       const id = castId(entry);
       const over = typeof entry === 'string' ? {} : Object.assign({}, entry);
@@ -219,6 +227,32 @@
     });
     return problems;
   }
+  // People who join later (task 7-2): "joins" on a character names a timeline
+  // event after the start; they stay out of the story until it happens. A
+  // timeline event's "moves" sends people to a room when it happens.
+  function joinProblems(sc, locIds) {
+    const problems = [];
+    const events = new Map((Array.isArray(sc.timeline) ? sc.timeline : []).filter(isObj).map((ev) => [ev.id, ev]));
+    const start = E.Timeline.at({ day: (sc.start && sc.start.day) ?? 1, hour: (sc.start && sc.start.hour) ?? 8 });
+    (sc.characterData || []).filter((c) => c && c.joins != null).forEach((c) => {
+      const who = c.name || c.id;
+      const ev = events.get(c.joins);
+      if (typeof c.joins !== 'string' || !ev) return problems.push(`${who} joins at "${c.joins}", which isn't one of the timeline's events`);
+      if (c.id === sc.player) problems.push(`${who} is the player, who is in the story from the start (leave "joins" out)`);
+      else if (isObj(ev.when) && E.Timeline.at(ev.when) <= start) problems.push(`${who} joins at "${ev.id}", which has already happened when this start begins (set "joins": null in this start's cast entry)`);
+    });
+    events.forEach((ev) => {
+      if (ev.moves == null) return;
+      if (!Array.isArray(ev.moves) || !ev.moves.every((m) => isObj(m) && typeof m.id === 'string' && typeof m.to === 'string')) return problems.push(`timeline "${ev.id}": "moves" must be a list of {id, to}`);
+      // Someone not in this start's cast isn't in this story (a generated
+      // start's new people): nobody to move. validateWorld checks the pool.
+      ev.moves.filter((m) => (sc.characters || []).includes(m.id)).forEach((m) => {
+        if (m.id === sc.player) problems.push(`timeline "${ev.id}" moves the player (only the player's own actions do)`);
+        if (!locIds.has(m.to)) problems.push(`timeline "${ev.id}" moves ${m.id} to "${m.to}", which isn't one of the rooms`);
+      });
+    });
+    return problems;
+  }
   function projectProblems(v) {
     if (v == null || v === false || v === true) return [];
     const ok = isObj(v) && Object.entries(v).every(([k, n]) => (k === 'days' && Number.isInteger(n) && n >= 1 && n <= 14) || (k === 'max' && Number.isInteger(n) && n >= 1 && n <= 5));
@@ -319,6 +353,11 @@
     [].concat(Array.isArray(world.extras) ? world.extras : [], Array.isArray(world.standees) ? world.standees : []).forEach((x) => {
       if (x && x.location != null && !anyRoom.has(x.location)) problems.push(`world.json: "${x.id}" stands in "${x.location}", which is not a room of the world or of any start`);
     });
+    // Keys to a world-level locked door name people of the pool (a start keeps
+    // those in its cast).
+    (Array.isArray(world.locations) ? world.locations : []).forEach((l) => ((l && l.links) || []).forEach((k) => {
+      (k && Array.isArray(k.key) ? k.key : []).filter((id) => !(world.characters || []).includes(id)).forEach((id) => problems.push(`world.json: location "${l.id}": the key to "${k.to}" names "${id}", who isn't one of the world's characters`));
+    }));
     // Groups away from the rooms (task 3-2) are dropped when composing.
     [['world.json', world]].concat(startIds.map((sid) => [bundle.legacy ? 'scenario.json' : `starts/${sid}.json`, starts[sid]])).forEach(([where, src]) =>
       ((src && Array.isArray(src.extras)) ? src.extras : []).filter((x) => x && x.group === true && x.location == null).forEach((x) =>
@@ -1139,6 +1178,7 @@
       req(c.id === expected, `characters/${expected}.json has id "${c.id}"`);
       problems.push(...S.characterProblems(c, sc, locIds, sc.characters));
     });
+    problems.push(...joinProblems(sc, locIds));
     // Extras (task 2-3): minor people, or a group as one entity.
     const extraIds = new Set();
     (sc.extras == null ? [] : Array.isArray(sc.extras) ? sc.extras : [null]).forEach((x) => {

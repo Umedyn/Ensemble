@@ -1,0 +1,125 @@
+[
+  {
+    "id": "seiryo-high",
+    "title": "Seiryo High",
+    "level": "world",
+    "priority": 5,
+    "keywords": [
+      "Seiryo",
+      "school",
+      "high school"
+    ],
+    "text": "Seiryo High is a private high school on the hill above Lake Senba in Mito, with a dorm for students from far away. Three years, about two hundred students a year, classes of thirty-two. Strict on paper: uniforms checked at the gate, part-time jobs only with permission, no dating on school grounds. The school year starts in April and has three terms."
+  },
+  {
+    "id": "school-day",
+    "title": "A school day",
+    "level": "world",
+    "priority": 4,
+    "keywords": [
+      "homeroom",
+      "lunch",
+      "cleaning",
+      "shoe locker",
+      "indoor shoes",
+      "bento"
+    ],
+    "topics": [
+      "school"
+    ],
+    "text": "Students change into indoor shoes at the shoe lockers, homeroom is at 8:30, six lessons with lunch after the fourth, then cleaning duty and club activities until about six. Lunch is a bento from home or the bread stand. Teachers move between classrooms; students stay in theirs. Everyone stands and bows when the lesson begins."
+  },
+  {
+    "id": "senpai-kouhai",
+    "title": "Seniors and juniors",
+    "level": "world",
+    "priority": 3,
+    "keywords": [
+      "senpai",
+      "kouhai",
+      "sensei",
+      "honorific",
+      "-san",
+      "-kun",
+      "-chan"
+    ],
+    "topics": [
+      "school"
+    ],
+    "text": "Older students are senpai and younger ones kouhai; clubs run on it. People use family names with -san by default, -kun for boys and -chan for close friends or the very young, and first names only when close. Teachers are sensei. Using someone's first name without permission is a statement."
+  },
+  {
+    "id": "clubs",
+    "title": "Clubs",
+    "level": "world",
+    "priority": 3,
+    "keywords": [
+      "club",
+      "astronomy club",
+      "baseball",
+      "judo",
+      "track",
+      "art club",
+      "student council"
+    ],
+    "topics": [
+      "school"
+    ],
+    "text": "Nearly everyone joins a club in April. Sports clubs (baseball, track, judo) practise every day; culture clubs (art, light music, astronomy) are looser. A club needs five members and an advisor or the student council dissolves it. The student council, elected each November, runs club budgets, the culture festival and the sports festival."
+  },
+  {
+    "id": "school-year",
+    "title": "The school year",
+    "level": "world",
+    "priority": 3,
+    "keywords": [
+      "term",
+      "exam",
+      "midterm",
+      "finals",
+      "culture festival",
+      "sports festival",
+      "school trip",
+      "graduation"
+    ],
+    "topics": [
+      "school"
+    ],
+    "text": "Three terms: April to July, September to December, January to March, with midterms and finals in each. The sports festival is in June and the culture festival, open to the public, in late October. Second-years take a school trip in the autumn. Third-years spend the last year on university entrance exams; graduation is on the first of March."
+  },
+  {
+    "id": "dorm-rules",
+    "title": "The Seiryo dorm",
+    "level": "location",
+    "ref": "dorm-entrance",
+    "priority": 3,
+    "keywords": [
+      "dorm",
+      "curfew",
+      "sign-out book",
+      "Mrs. Ogura"
+    ],
+    "text": "About forty students live in the dorm behind the school, boys' and girls' wings on either side of the dining room. Breakfast at 6:30, dinner at 7, baths by rota, curfew at nine. Going out means signing the book at Mrs. Ogura's window; coming in late means a lecture and a week of washing up. Visitors of the other wing stop at the lounge."
+  },
+  {
+    "id": "seasons",
+    "title": "Seasons and holidays",
+    "level": "world",
+    "priority": 3,
+    "keywords": [
+      "Golden Week",
+      "Tanabata",
+      "Obon",
+      "Christmas",
+      "New Year",
+      "Valentine",
+      "White Day",
+      "hanami",
+      "yukata"
+    ],
+    "topics": [
+      "family"
+    ],
+    "text": "Cherry blossoms in early April; Golden Week at the start of May; the rainy season in June; Tanabata wishes on 7 July; summer festivals and fireworks in yukata; Obon in mid-August, when families gather. Christmas Eve is for couples, New Year for family and a shrine visit. On Valentine's Day girls give chocolate, and on White Day, 14 March, the gift is returned."
+  }
+]

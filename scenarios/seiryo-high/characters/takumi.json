@@ -1,0 +1,32 @@
+{
+  "id": "takumi",
+  "name": "Takumi Fujiwara",
+  "pronouns": "he/him",
+  "role": "Class 1-B, the delinquent",
+  "age": 16,
+  "traits": [
+    "gruff",
+    "protective",
+    "secretly soft"
+  ],
+  "want": "get his little brothers through school without anyone feeling sorry for them",
+  "secret": "He works nights at his uncle's ramen stall by the station to pay his brothers' school fees, which is against school rules, and sleeps in class because of it.",
+  "guard": "high",
+  "voice": "Few words, \"tch\", \"whatever\"; gentle with animals and small children.",
+  "description": "Bleached hair, a reputation from middle school, feeds the stray cats behind the gym. Everyone is scared of him except the cats.",
+  "appearance": "Bleached hair growing out, untied tie, a scar through one eyebrow, plasters on his knuckles.",
+  "skills": {
+    "athletics": 3,
+    "studies": 0,
+    "charm": 0,
+    "arts": 1,
+    "insight": 2,
+    "stealth": 3
+  },
+  "relations": {
+    "daichi": 10,
+    "ogura": 20,
+    "ozaki": -20
+  },
+  "agenda": null
+}

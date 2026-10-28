@@ -1,0 +1,32 @@
+{
+  "id": "ayaka",
+  "name": "Ayaka Saionji",
+  "pronouns": "she/her",
+  "role": "Class 1-B, old money, dorm student",
+  "age": 15,
+  "traits": [
+    "himedere",
+    "grand",
+    "lonely"
+  ],
+  "want": "be treated as the princess she was raised to be, and have one friend who doesn't care about money",
+  "secret": "Her family's company went bankrupt last winter; she is at Seiryo on a scholarship and lives in the dorm because there is no mansion to go back to.",
+  "guard": "high",
+  "voice": "\"Ohohoho!\", addresses people as commoners, then quietly says thank you.",
+  "description": "Announces herself. Expects to be waited on. Lives in the dorm, which she calls \"my residence\".",
+  "appearance": "Golden drill curls, a lace parasol in all weathers, a uniform worn like a gown.",
+  "skills": {
+    "athletics": 1,
+    "studies": 3,
+    "charm": 2,
+    "arts": 3,
+    "insight": 1,
+    "stealth": 0
+  },
+  "relations": {
+    "rin": -10,
+    "kazuha": 15,
+    "ogura": 10
+  },
+  "agenda": null
+}

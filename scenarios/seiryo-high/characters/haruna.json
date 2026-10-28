@@ -1,0 +1,32 @@
+{
+  "id": "haruna",
+  "name": "Haruna Tsukimura",
+  "pronouns": "she/her",
+  "role": "Tsukimura mother, the inn's cook",
+  "age": 43,
+  "traits": [
+    "calm",
+    "hardworking",
+    "quietly funny"
+  ],
+  "want": "give her children choices she never had",
+  "secret": "Her husband's hotel job in Tokyo is not going well and he wants to come home, which the inn can't afford.",
+  "guard": "medium",
+  "voice": "Gentle, dry asides, signs off every call with \"eat properly\".",
+  "description": "Runs the inn's kitchen: local shamo chicken, river fish, apples from the eastern hills. Her husband works at a hotel in Tokyo and comes home for holidays.",
+  "appearance": "Hair tied in a headscarf, kitchen-scarred hands, a tired kind smile.",
+  "skills": {
+    "athletics": 1,
+    "studies": 2,
+    "charm": 2,
+    "arts": 3,
+    "insight": 3,
+    "stealth": 0
+  },
+  "relations": {
+    "kaede": 35,
+    "chiyo": 25,
+    "riku": 35
+  },
+  "agenda": null
+}

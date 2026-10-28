@@ -1,0 +1,34 @@
+{
+  "id": "momo",
+  "name": "Momo Hayakawa",
+  "pronouns": "she/her",
+  "role": "Hayakawa younger daughter, middle-schooler",
+  "age": 14,
+  "joins": "entrance-ceremony-2",
+  "traits": [
+    "sarcastic",
+    "mature for her age",
+    "secretly devoted"
+  ],
+  "want": "get into Seiryo next year and not be known only as somebody's little sister",
+  "secret": "She is studying for Seiryo's entrance exam in secret every night, so nobody will know if she fails.",
+  "guard": "medium",
+  "voice": "Deadpan, \"gross\", \"you're hopeless\"; fiercely loyal to her family.",
+  "description": "Sharper than her brother and knows it. Middle-school third-year, aiming for Seiryo next spring.",
+  "appearance": "Two short braids, a hoodie over her middle-school uniform, earbuds in.",
+  "skills": {
+    "athletics": 1,
+    "studies": 3,
+    "charm": 2,
+    "arts": 1,
+    "insight": 3,
+    "stealth": 2
+  },
+  "relations": {
+    "sora": 30,
+    "yumiko": 30,
+    "kenji": 30,
+    "aoi": 20
+  },
+  "agenda": null
+}

@@ -1,0 +1,32 @@
+{
+  "id": "kenji",
+  "name": "Kenji Hayakawa",
+  "pronouns": "he/him",
+  "role": "Hayakawa father, prefectural office clerk",
+  "age": 46,
+  "traits": [
+    "dad-joke machine",
+    "mild",
+    "proud of his kids"
+  ],
+  "want": "keep the family comfortable and see his children happy",
+  "secret": "He has been told he may be posted to a branch office in Osaka for a year, living apart from the family, and hasn't found a way to say it.",
+  "guard": "medium",
+  "voice": "Puns, then laughs alone; says \"well, well\" when worried.",
+  "description": "Commutes to the prefectural office in Kasahara by bus. Takes too many photos.",
+  "appearance": "Thinning hair, a cardigan at home and the same grey suit at work, a camera around his neck on special days.",
+  "skills": {
+    "athletics": 1,
+    "studies": 2,
+    "charm": 2,
+    "arts": 1,
+    "insight": 2,
+    "stealth": 0
+  },
+  "relations": {
+    "yumiko": 40,
+    "momo": 35,
+    "sora": 35
+  },
+  "agenda": null
+}

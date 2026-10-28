@@ -1,0 +1,54 @@
+{
+  "id": "mio",
+  "name": "Mio Shirasagi",
+  "pronouns": "she/her",
+  "role": "Class 1-B, astronomy club",
+  "age": 15,
+  "traits": [
+    "kuudere",
+    "deadpan",
+    "secretly romantic"
+  ],
+  "want": "keep the astronomy club alive and see the Perseids from a dark sky",
+  "secret": "She is \"Hoshizora Mimi\", the anonymous author of a popular web romance serial, and takes notes on her classmates' love lives for it.",
+  "guard": "high",
+  "voice": "Flat, short sentences; the occasional devastating one-liner.",
+  "description": "Sits by the window and reads. The only first-year in the astronomy club, which has two members and needs five by May.",
+  "appearance": "Silver hairpin shaped like a star, bob cut, a face that rarely moves.",
+  "skills": {
+    "athletics": 0,
+    "studies": 3,
+    "charm": 0,
+    "arts": 3,
+    "insight": 3,
+    "stealth": 2
+  },
+  "relations": {
+    "shinji": 25,
+    "rin": 10,
+    "kotone": 15
+  },
+  "groups": [
+    {
+      "id": "astronomy",
+      "role": "member"
+    }
+  ],
+  "agenda": {
+    "goal": "find three more members for the astronomy club before May 1",
+    "hours": 30,
+    "visibility": "heard",
+    "steps": [
+      "pins a hand-drawn star chart to the club board by the stairs",
+      {
+        "text": "asks the player, without expression, whether they would like to join the astronomy club",
+        "contact": true
+      },
+      "tries to recruit Haru Ichinose, who says the stars call to him",
+      {
+        "text": "reports to the player how many names are on the club list, and how many days are left",
+        "contact": true
+      }
+    ]
+  }
+}
