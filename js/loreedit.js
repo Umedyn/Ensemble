@@ -240,7 +240,7 @@
       if (o.room && state.locations[o.room]) state.characters[state.player].status.location = o.room;
       const picks = E.Lore.select(state, { action: o.action || '', scene: o.scene || '' });
       const always = E.Lore.always(sc).map((e) => ({ id: e.id, title: e.title, tokens: E.estTokens(E.Lore.line(e)) }));
-      return { picks, always, used: picks.reduce((n, p) => n + p.tokens, 0), budget: E.Memory.budgets().lore, room: state.characters[state.player].status.location };
+      return { picks, always, used: picks.reduce((n, p) => n + p.tokens, 0), budget: E.Memory.budgets(state).lore, room: state.characters[state.player].status.location };
     } catch (err) {
       return { error: String(err.message || err).split('\n- ').slice(1).join('; ') || String(err.message || err) };
     }

@@ -86,6 +86,28 @@
     return tokens > cap ? { tokens: cap, from, capped: true } : { tokens, from, capped: false };
   };
 
+  // Context tiers (task G-4): how big the fixed parts of a prompt are, from
+  // the context memory is planned for. Fixed for a game unless the backends
+  // change, so the header is the same for every call in a turn (rule 7).
+  // regionsFull/regionNames: the header's region outline; near/nearRegion:
+  // nearby regions in the user message (in a region-focused world);
+  // outlineLore 'first': region lore off the start's chain cut to its first
+  // sentence; groups 'near': only groups that hold or are present along the
+  // chain and nearby; chainTags 'first': tags and status only for the
+  // player's own region on the Inside line; reply and user: what memory
+  // leaves room for (the largest reply, and a turn's user message); lore: the
+  // lore budget's share of the context.
+  E.CONTEXT_TIERS = {
+    compact: { upTo: 10240, regionsFull: 12, regionNames: 20, near: 6, nearRegion: 6, outlineLore: 'first', groups: 'near', chainTags: 'first', reply: 800, user: 3600, lore: 0.06 },
+    standard: { upTo: 24576, regionsFull: 24, regionNames: 60, near: 8, nearRegion: 12, outlineLore: 'full', groups: 'all', chainTags: 'all', reply: 1000, user: 4500, lore: 0.1 },
+    roomy: { upTo: Infinity, regionsFull: 40, regionNames: 100, near: 8, nearRegion: 12, outlineLore: 'full', groups: 'all', chainTags: 'all', reply: 1200, user: 6000, lore: 0.12 },
+  };
+  E.contextTier = function () {
+    const tokens = E.memoryContext().tokens;
+    const id = Object.keys(E.CONTEXT_TIERS).find((k) => tokens <= E.CONTEXT_TIERS[k].upTo);
+    return Object.assign({ id, tokens }, E.CONTEXT_TIERS[id]);
+  };
+
   E.saveSettings = function () {
     try { root.localStorage.setItem('ensemble.settings', JSON.stringify(E.settings)); } catch (e) {}
   };

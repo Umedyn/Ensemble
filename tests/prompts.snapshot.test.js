@@ -11,11 +11,14 @@ const { newGame, scenarioFolders, readWorld, loadEngine } = require('./helpers')
 const genMock = require('./genmock');
 
 const FILE = path.join(__dirname, 'fixtures', 'prompt-snapshots.json');
+// The same at a roomy context (32K, task G-4): the other end of the tiers.
+const ROOMY = path.join(__dirname, 'fixtures', 'prompt-snapshots-roomy.json');
 
 // One NPC is moved elsewhere and one is dead, so present, offstage and
 // "elsewhere" lists all have something to show.
-function promptsFor(folder) {
+function promptsFor(folder, context) {
   const { E, state } = newGame(folder);
+  if (context) E.settings.backends.local.context = context;
   const P = E.Prompts;
   const npcs = [...state.order].filter((id) => id !== state.player);
   const here = state.characters[state.player].status.location;
@@ -162,5 +165,18 @@ test('prompts are unchanged for a fixed state in every bundled scenario', () => 
     for (const kind of Object.keys(saved[folder])) {
       assert.equal(now[folder][kind], saved[folder][kind], `${folder} › ${kind} prompt changed`);
     }
+  }
+});
+
+test('prompts at a roomy context (32K) are unchanged too', () => {
+  const now = {};
+  for (const folder of ['occupied-france', 'zombie-holdout']) now[folder] = promptsFor(folder, 32768);
+  if (process.env.UPDATE_SNAPSHOTS || !fs.existsSync(ROOMY)) {
+    fs.writeFileSync(ROOMY, JSON.stringify(now, null, 1) + '\n');
+    return;
+  }
+  const saved = JSON.parse(fs.readFileSync(ROOMY, 'utf8'));
+  for (const folder of Object.keys(saved)) {
+    for (const kind of Object.keys(saved[folder])) assert.equal(now[folder][kind], saved[folder][kind], `${folder} (roomy) › ${kind} prompt changed`);
   }
 });

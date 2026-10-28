@@ -11,7 +11,8 @@
     "check": "node tools/check.mjs",
     "fixture:mock": "node tests/ui.smoke.mjs --save-fixture",
     "research": "node tools/research.mjs",
-    "basemap": "node tools/basemap.mjs"
+    "basemap": "node tools/basemap.mjs",
+    "context": "node tools/context-report.mjs"
   },
   "devDependencies": {
     "jpeg-js": "^0.4.4",

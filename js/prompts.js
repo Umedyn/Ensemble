@@ -38,6 +38,11 @@
 
   P.layouts.header = ['intro', 'setting', 'genre', 'rules', 'places', 'regions', 'groups', 'loreAlways', 'cast', 'regionsFound', 'newcomers', 'chapters', 'facts'];
   P.header = (state) => P.build('header', { state, sc: state.scenario, pc: state.characters[state.player] });
+  // The header without its live blocks: what memory budgets leave room for (task G-4).
+  P.fixedHeader = (state) => {
+    const ctx = { state, sc: state.scenario, pc: state.characters[state.player] };
+    return P.layouts.header.filter((id) => !P.LIVE_HEADER.includes(id)).map((id) => B[id](ctx, 'header')).filter((x) => x != null).flat().join('\n');
+  };
 
   B.intro = () => 'You are the simulation engine and narrator for an interactive, character-driven story.';
   B.setting = ({ sc }) => `\n=== SETTING: ${sc.worldTitle || sc.title} ===\n${sc.setting}`;
@@ -84,14 +89,15 @@
   // shown in full; the rest are a line of names, top-level ones first. It
   // all comes from the start's region, so the header is the same for the
   // whole game (rule 7). Named places on the map are listed with their region.
-  P.REGIONS_FULL = 24;
-  P.REGION_NAMES_MAX = 60;
+  // How many in full, and how many names after, go by the context tier (task
+  // G-4, E.CONTEXT_TIERS: 12 and 20 compact, 24 and 60 standard, 40 and 100 roomy).
   // Regions known at the start (R-5): none hidden, nor inside a hidden one.
   // Regions made during the story (R-6) aren't: they join the live block too.
   P.knownAtStart = (sc) => (sc.regions || []).filter((r) => r && !r.generated && !E.Scenario.regionChainIn(sc.regions, r.id).some((x) => ((sc.regions || []).find((y) => y.id === x) || {}).known === false));
   P.regionOutline = function (sc) {
     const list = P.knownAtStart(sc);
-    if (list.length <= P.REGIONS_FULL) return { full: list, far: [], chain: null };
+    const t = E.contextTier();
+    if (list.length <= t.regionsFull) return { full: list, far: [], chain: null };
     const S = E.Scenario;
     const byId = new Map(list.map((r) => [r.id, r]));
     const order = new Map(list.map((r, i) => [r.id, i]));
@@ -116,13 +122,13 @@
     const rank = (r) => (chain.includes(r.id) ? -1 : hop(r) <= 2 ? hop(r) : besideChain(r) ? 3 : 4);
     const full = list.filter((r) => chain.includes(r.id) || hop(r) <= 2 || besideChain(r) || r.notable === true)
 
-      .sort((a, b) => rank(a) - rank(b) || order.get(a.id) - order.get(b.id)).slice(0, P.REGIONS_FULL)
+      .sort((a, b) => rank(a) - rank(b) || order.get(a.id) - order.get(b.id)).slice(0, t.regionsFull)
       .sort((a, b) => order.get(a.id) - order.get(b.id));
     const shown = new Set(full.map((r) => r.id));
     const top = (r) => (r.parent == null || !byId.has(r.parent) ? 0 : 1);
     const far = list.filter((r) => !shown.has(r.id))
       .sort((a, b) => top(a) - top(b) || hop(a) - hop(b) || (a.name < b.name ? -1 : 1))
-      .slice(0, P.REGION_NAMES_MAX);
+      .slice(0, t.regionNames);
     return { full, far, chain };
   };
   // ", a part of town in Harmon", ", a town", " in Harmon" or "" (R-1): the
@@ -143,12 +149,15 @@
     // 7-1: twenty arrondissements listing each other): the routes line in
     // each turn's message has the rest.
     const borders = (r) => !chain || chain.includes(r.id);
+    // A compact context (task G-4): lore off the start's chain is its first sentence.
+    const first = E.contextTier().outlineLore === 'first';
+    const shortLore = (r) => (first && chain && !chain.includes(r.id) ? (String(r.lore).match(/^.*?[.!?](?=\s|$)/) || [r.lore])[0] : r.lore);
     const places = E.Scenario.mapPlaces(sc);
     const placesIn = (id) => places.filter((p) => p.region === id).map((p) => (p.kind === 'capital' ? `${p.name} (capital)` : p.name));
     const lines = ['\n=== REGIONS ==='].concat(full.map((r) => {
       const pl = placesIn(r.id);
       const nb = borders(r) ? (r.neighbours || []).filter((n) => shown.has(n)) : [];
-      return `- ${r.id}: ${r.name}${P.regionWhat(sc, r.id, true)}${r.lore ? ` — ${r.lore}` : ''}${nb.length ? ` (neighbours: ${nb.join(', ')})` : ''}${pl.length ? ` [places: ${pl.join(', ')}]` : ''}`;
+      return `- ${r.id}: ${r.name}${P.regionWhat(sc, r.id, true)}${r.lore ? ` — ${shortLore(r)}` : ''}${nb.length ? ` (neighbours: ${nb.join(', ')})` : ''}${pl.length ? ` [places: ${pl.join(', ')}]` : ''}`;
     }));
     if (far.length) lines.push(`Further away: ${far.map((r) => r.name).join(', ')}${known.length > full.length + far.length ? ', and others' : ''}.`);
     return lines;
@@ -204,12 +213,30 @@
     return facts ? '\n=== ESTABLISHED FACTS (known to the player) ===\n' + facts : null;
   };
 
+  // Groups whose stance goes in the user message: all of them, or (a compact
+  // context, task G-4) those that hold or are present in the player's region,
+  // the regions it is inside and what's near; all when that leaves none, or
+  // when there are only a few (P.GROUPS_KEPT).
+  P.GROUPS_KEPT = 4;
+  function liveGroups(state) {
+    const all = state.factions || [];
+    const around = Eng().regionsAround(state);
+    // A few groups cost little and matter wherever they are (Ares Deep's sponsor holds no region).
+    if (E.contextTier().groups === 'all' || !around.length || all.length <= P.GROUPS_KEPT) return all;
+    const here = new Set();
+    around.forEach((id) => {
+      if (state.regions[id] && state.regions[id].controller) here.add(state.regions[id].controller);
+      Object.entries(state.presence || {}).forEach(([g, m]) => { if ((Number((m || {})[id]) || 0) > 0) here.add(g); });
+    });
+    const some = all.filter((f) => here.has(f.id));
+    return some.length ? some : all;
+  }
   function worldLines(state) {
     const w = Object.entries(state.world).map(([k, v]) => `${k}: ${v}`).join('; ');
     const clocks = Eng().liveClocks(state)
       .map((c) => `${c.name} ${c.fired ? '(HAPPENED)' : Math.floor(c.value) + '/' + c.max}`)
       .join('; ');
-    const groups = (state.factions || []).map((f) => `${f.name}: ${f.stance}`).join('; ');
+    const groups = liveGroups(state).map((f) => `${f.name}: ${f.stance}`).join('; ');
     return `World: ${w || 'nothing notable'}\nPressures: ${clocks || 'none'}` + (groups ? `\nGroups: ${groups}` : '') + regionLines(state);
   }
   // Site rules (task 3-6): the ways out of a room as they are now, and the
@@ -240,10 +267,13 @@
   function regionLines(state) {
     const near = Eng().nearbyRegions(state);
     if (!near.length) return '';
-    const desc = (id, withLabel) => {
+    const t = E.contextTier();
+    const desc = (id, withLabel, brief) => {
       const def = Eng().regionDef(state, id);
       const r = state.regions[id];
       const bits = [`held by ${Eng().regionHolder(state, id).text}`];
+      // A compact context (task G-4): the regions above yours by who holds them only.
+      if (brief) return `${def.name}${withLabel ? P.regionWhat(state.scenario, id) : ''} (${id}): ${bits[0]}`;
       // Who else is there (R-5), in words.
       const present = Eng().presenceText(state, id);
       if (present) bits.push(`present: ${present}`);
@@ -253,8 +283,9 @@
     };
 
     const up = Eng().regionChain(state, near[0]).slice(1);
-    return `\nRegion: ${desc(near[0], true)}` + (up.length ? `\nInside: ${up.map((id) => desc(id, true)).join(' › ')}` : '')
-      + (near.length > 1 ? `\nNearby: ${near.slice(1).map((id) => desc(id)).join(' | ')}` : '') + routeLine(state, near[0]);
+    const cap = E.Sites.mapFocus(state.scenario) === 'region' ? t.nearRegion : t.near;
+    return `\nRegion: ${desc(near[0], true)}` + (up.length ? `\nInside: ${up.map((id) => desc(id, true, t.chainTags === 'first')).join(' › ')}` : '')
+      + (near.length > 1 ? `\nNearby: ${near.slice(1, 1 + cap).map((id) => desc(id)).join(' | ')}` : '') + routeLine(state, near[0]);
   }
   // Routes out of the player's region that say more than "next door" (R-2):
   // a kind, a time, a requirement or a risk. Plain borders are in Nearby.
@@ -307,12 +338,17 @@
     const site = E.Sites.enabled(state.scenario) ? ',"new_site":null' : '';
     return `{"world":[{"key":"world_key","value":"new status"}],"groups":[{"id":"group_id","stance":"new stance"}],"clocks":[{"id":"clock_id","delta":2}],"new_clock":null${region}${site}}`;
   }
-  // Valid ids for effects. Every region, not just nearby ones: the world can
-  // shift far from the player (their current state stays nearby-only).
+  // Valid ids for effects. In a small world every region, not just nearby
+  // ones: the world can shift far from the player (their current state stays
+  // nearby-only). In a big one (an outline), the regions the header shows in
+  // full and what's around the player: the whole tree cost 650 tokens in
+  // Occupied France (task G-4). The engine still takes any real region.
   function effectIds(state) {
     // Hidden regions (R-5) are listed apart, in the hidden places block.
     const hidden = Eng().hiddenRegions(state);
-    const regions = Object.keys(state.regions || {}).filter((id) => !hidden.has(id));
+    const outline = P.regionOutline(state.scenario);
+    const shown = outline.chain ? new Set(outline.full.map((r) => r.id).concat(Eng().regionsAround(state))) : null;
+    const regions = Object.keys(state.regions || {}).filter((id) => !hidden.has(id) && (!shown || shown.has(id)));
     return `world keys: ${Object.keys(state.world).join(', ')}; groups: ${(state.factions || []).map((f) => f.id).join(', ') || 'none'}; clocks: ${state.clocks.filter((c) => !c.fired).map((c) => c.id).join(', ') || 'none'}${regions.length ? `; regions: ${regions.join(', ')}` : ''}`;
   }
 

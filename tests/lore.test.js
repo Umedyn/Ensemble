@@ -59,10 +59,14 @@ test('lore stays within its budget: lower-ranked entries are dropped, and a smal
   assert.ok(picks.reduce((n, p) => n + p.tokens, 0) <= line('first') + line('small'));
 });
 
-test('the lore budget is about a tenth of the memory context', () => {
+test('the lore budget is a share of the memory context by tier: 6% compact, a tenth standard, 12% roomy', () => {
   const E = loadEngine();
   E.settings.backends.local.context = 8192;
-  assert.equal(E.Memory.budgets().lore, Math.floor(8192 * 0.1));
+  assert.equal(E.Memory.budgets().lore, Math.floor(8192 * 0.06));
+  E.settings.backends.local.context = 16384;
+  assert.equal(E.Memory.budgets().lore, Math.floor(16384 * 0.1));
+  E.settings.backends.local.context = 32768;
+  assert.equal(E.Memory.budgets().lore, Math.floor(32768 * 0.12));
 });
 
 test('an entry triggered twice is included once with both reasons; always-on entries never repeat in the user message', () => {

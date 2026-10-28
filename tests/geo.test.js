@@ -160,12 +160,19 @@ test('a world of countries keeps the prompt small: full detail near the start, n
   for (let i = 0; i < 60; i++) regions.push({ id: `r${i}`, name: `Land ${i}`, controller: null, tags: [], status: '', neighbours: [i > 0 ? `r${i - 1}` : null, i < 59 ? `r${i + 1}` : null].filter(Boolean), lore: `Lore of land ${i}.` });
   regions[40].notable = true;
   const sc = { region: 'r10', regions };
+  // Standard sizes (16K); a compact context (8K, task G-4) shows fewer.
+  E.settings.backends.local.context = 16384;
   const f = E.Prompts.regionOutline(sc);
   assert.deepEqual(plain(f.full.map((r) => r.id)), ['r8', 'r9', 'r10', 'r11', 'r12', 'r40'], 'two steps out, and the notable one');
   assert.deepEqual(plain(f.far.slice(0, 4).map((r) => r.id)), ['r13', 'r7', 'r14', 'r6'], 'nearest first, then by name');
   assert.equal(f.far.length, 54);
   const small = { region: 'r0', regions: regions.slice(0, 10) };
   assert.equal(E.Prompts.regionOutline(small).full.length, 10, 'a small world is shown whole, as before');
+  E.settings.backends.local.context = 8192;
+  const c = E.Prompts.regionOutline(sc);
+  assert.deepEqual(plain(c.full.map((r) => r.id)), ['r8', 'r9', 'r10', 'r11', 'r12', 'r40'], 'compact: the same near ones, up to 12');
+  assert.equal(c.far.length, 20, 'compact: 20 names');
+  assert.equal(E.Prompts.regionOutline(small).full.length, 10, 'still whole under 12');
 });
 
 // ---------- the tool ----------

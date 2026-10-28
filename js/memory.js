@@ -26,36 +26,70 @@
   Mem.privateFacts = (state, id) =>
     state.facts.filter((f) => !Mem.knows(f, state.player) && Mem.knows(f, id));
 
-  Mem.budgets = function () {
-    const ctx = E.memoryContext().tokens;
-    // Lore (task 5-1) gets about a tenth, in the user message.
-    return { facts: Math.floor(ctx * 0.2), story: Math.floor(ctx * 0.12), lore: Math.floor(ctx * 0.1) };
+  // Budgets (task G-4): fit first, then fill. The reply, the header's fixed
+  // part and a turn's user message come first (their sizes by context tier,
+  // E.contextTier); facts and chapter summaries share what is left, at most
+  // their old shares (a fifth and an eighth of the context) and at least
+  // FLOOR. Lore is a share of the context by tier (task 5-1). Without a game
+  // (the creator's lore test), the shares alone.
+  Mem.FLOOR = { facts: 500, story: 400 };
+  Mem.budgets = function (state) {
+    const t = E.contextTier();
+    const ctx = t.tokens;
+    const out = { facts: Math.floor(ctx * 0.2), story: Math.floor(ctx * 0.12), lore: Math.floor(ctx * t.lore), tier: t.id };
+    if (!state || !state.scenario || !E.Prompts) return out;
+    const room = ctx - t.reply - t.user - Mem.fixedHeader(state);
+    out.facts = Math.min(out.facts, Math.max(Mem.FLOOR.facts, Math.floor(room * 0.55)));
+    out.story = Math.min(out.story, Math.max(Mem.FLOOR.story, Math.floor(room * 0.45)));
+    return out;
+  };
+  // Tokens in the header's fixed part (all but its live blocks) for this
+  // scenario, player and tier, worked out once.
+  const fixedSizes = new WeakMap();
+  Mem.fixedHeader = function (state) {
+    const key = `${state.player}|${E.contextTier().id}`;
+    const seen = fixedSizes.get(state.scenario) || {};
+    if (seen[key] == null) {
+      seen[key] = E.estTokens(E.Prompts.fixedHeader(state));
+      fixedSizes.set(state.scenario, seen);
+    }
+    return seen[key];
   };
 
   const factLine = (f) => `- [T${f.turn}] ${f.text}`;
 
-  // Player-known facts for the shared prompt prefix. Always keeps weight-3
-  // facts; if over budget, drops the oldest minor ones first.
+  // Player-known facts for the shared prompt prefix, within the budget, in
+  // the order they happened. Standard and roomy: every weight-3 fact, then
+  // the newest minor ones. Compact (task G-4): facts about the player and
+  // weight-3 ones first, then the rest, newest first, all within the budget
+  // (older major facts live on in the chapter summaries).
   Mem.factsBlock = function (state) {
     const facts = Mem.headerFacts(state);
-    const budget = Mem.budgets().facts;
-    let lines = facts.map(factLine);
-    if (E.estTokens(lines.join('\n')) <= budget) return lines.join('\n');
-    const keep = new Set(facts.filter((f) => f.weight >= 3).map((f) => f.id));
-    let used = facts.filter((f) => keep.has(f.id)).reduce((n, f) => n + E.estTokens(factLine(f)), 0);
-    for (let i = facts.length - 1; i >= 0; i--) {
-      const f = facts[i];
-      if (keep.has(f.id)) continue;
+    const b = Mem.budgets(state);
+    const lines = facts.map(factLine);
+    if (E.estTokens(lines.join('\n')) <= b.facts) return lines.join('\n');
+    const keep = new Set();
+    let used = 0;
+    const take = (f) => {
       const cost = E.estTokens(factLine(f));
-      if (used + cost > budget) break;
+      if (keep.has(f.id) || used + cost > b.facts) return false;
       keep.add(f.id);
       used += cost;
+      return true;
+    };
+    const newest = facts.slice().reverse();
+    if (b.tier === 'compact') {
+      newest.filter((f) => f.weight >= 3 || (f.about || []).includes(state.player)).forEach(take);
+      newest.forEach(take);
+    } else {
+      facts.filter((f) => f.weight >= 3).forEach((f) => { keep.add(f.id); used += E.estTokens(factLine(f)); });
+      for (const f of newest) if (!keep.has(f.id) && !take(f)) break;
     }
     return facts.filter((f) => keep.has(f.id)).map(factLine).join('\n');
   };
 
   Mem.storyBlock = function (state) {
-    const budget = Mem.budgets().story;
+    const budget = Mem.budgets(state).story;
     const out = [];
     let used = 0;
     for (let i = state.chapters.length - 1; i >= 0; i--) {
@@ -83,8 +117,10 @@
   Mem.needsChapter = function (state) {
     if (state.turn < state.chapterStartTurn) return false;
     const turns = Mem.turnsInChapter(state);
-    const budget = Mem.budgets().facts;
-    if (turns >= 2 && E.estTokens(Mem.headerFacts(state).map(factLine).join('\n')) > budget) return 'size';
+    const budget = Mem.budgets(state).facts;
+    // Over budget counts only when a close would free something: major facts
+    // stay after it, so they alone would close a chapter every two turns.
+    if (turns >= 2 && E.estTokens(Mem.headerFacts(state).map(factLine).join('\n')) > budget && Mem.freeable(state) > 0) return 'size';
     if (turns >= Mem.CHAPTER.minTurns && Mem.freeable(state) >= budget * Mem.CHAPTER.share) return 'size';
     if (turns >= E.settings.chapterLength) return 'length';
     return false;

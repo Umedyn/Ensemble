@@ -174,7 +174,7 @@
       || a.i - b.i);
     // Greedy within the budget: an entry that doesn't fit is skipped, and a
     // smaller one after it can still go in.
-    const budget = E.Memory.budgets().lore;
+    const budget = E.Memory.budgets(state).lore;
     let used = 0;
     const out = [];
     ranked.forEach((p) => {

@@ -161,6 +161,7 @@ test('the header lists the static geography and does not change when a region ch
 
 test('only the player\'s region and its neighbours reach the user message', () => {
   const { E, state } = zombies();
+  E.settings.backends.local.context = 16384; // standard: the chain with its state (compact: who holds it, task G-4)
   const user = E.Prompts.intent(state, [], 'Look out.', 'about an hour', 'hour', { regional: true });
   assert.match(user, /\nRegion: The highway strip, a part of town \(highway-strip\): held by no one; tags: dead nearby; quiet except for stragglers\n/);
   assert.match(user, /\nInside: Harmon, a town \(town\): held by no one; mostly empty since the evacuation buses\n/);

@@ -124,8 +124,11 @@ test('who holds a parent: its own controller, else a summary of its children, ne
 
 test('the user message carries the chain, one line a level, and what is near', () => {
   const { E, state } = treeGame();
+  E.settings.backends.local.context = 16384;
   const user = intent(E, state);
   assert.match(user, /\nRegion: Old Quarter, a ward \(old-quarter\): held by no one; checkpoints on every bridge\n/);
+  E.settings.backends.local.context = 8192;
+  assert.match(intent(E, state), /\nInside: Kessel, a city \(kessel\): held by no one › Brennmark, a province \(brennmark\): held by no one › /, 'compact: who holds each, no tags');
   assert.match(user, /\nInside: Kessel, a city \(kessel\): held by no one; tags: curfew › Brennmark, a province \(brennmark\): held by no one › Northern Zone, a zone \(north-zone\): held by The Occupation › Valdora, a nation \(valdora\): held by no single holder/);
   assert.match(user, /\nNearby: The Docks \(docks\): held by no one \| Hill District \(hill\): held by no one\n/);
   assert.ok(!/Lunmark|Ostrava|Southern Zone/.test(user), 'far regions stay out of the user message');

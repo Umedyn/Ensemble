@@ -207,9 +207,39 @@
 
   LLM.lastFinish = ''; // finish reason of the most recent call
 
+  // A call that would overflow the backend's context (task G-4) loses parts of
+  // its user message, never the header (rule 7): the lore, then all but the
+  // end of the last scene, then the nearby regions. → { user, cut: [what went] }
+  LLM.squeeze = function (user, over) {
+    let text = user;
+    const cut = [];
+    const tokens = () => E.estTokens(user) - E.estTokens(text);
+    const steps = [
+      ['lore', (t) => t.replace(/\n=== LORE\b[^\n]*===\n[\s\S]*?(?=\n=== |$)/, '')],
+      ['the start of the last scene', (t) => t.replace(/(\n=== LAST SCENE ===\n)([\s\S]*?)(?=\n=== |$)/, (m, head, body) => {
+        const paras = body.split(/\n\n+/);
+        return paras.length > 2 ? head + '[…]\n\n' + paras.slice(-2).join('\n\n') : m;
+      })],
+      ['nearby regions', (t) => t.replace(/\nNearby: [^\n]*/, '')],
+    ];
+    for (const [name, step] of steps) {
+      if (tokens() >= over) break;
+      const next = step(text);
+      if (next !== text) { text = next; cut.push(name); }
+    }
+    return { user: text, cut };
+  };
+
   LLM.chat = async function (opts) {
-    const { kind, system, user, maxTokens, temperature } = opts;
+    const { kind, system, maxTokens, temperature } = opts;
+    let { user } = opts;
     const b = LLM.backendFor(kind);
+    const reply = (maxTokens || 400) + (!b.kobold && (maxTokens || 400) < LLM.hostedJSONTokens ? LLM.hostedTextHeadroom : 0);
+    let squeezed = null;
+    if (b.context && E.estTokens(system) + E.estTokens(user) + reply > b.context) {
+      const sq = LLM.squeeze(user, E.estTokens(system) + E.estTokens(user) + reply - b.context);
+      if (sq.cut.length) { user = sq.user; squeezed = sq.cut; }
+    }
     if (!b.url) throw new Error(`No URL is set for the ${b.id} backend (used for ${LLM.stepOf(kind)}). Check Settings.`);
     if (!b.kobold && !b.model) throw new Error(`No model name is set for the ${b.id} backend. Check Settings.`);
     const body = {
@@ -218,7 +248,7 @@
         { role: 'system', content: system },
         { role: 'user', content: user },
       ],
-      max_tokens: (maxTokens || 400) + (!b.kobold && (maxTokens || 400) < LLM.hostedJSONTokens ? LLM.hostedTextHeadroom : 0),
+      max_tokens: reply,
       temperature: temperature ?? E.settings.temperature,
       stream: false,
     };
@@ -226,7 +256,7 @@
     if (b.preset === 'openrouter') body.reasoning = { effort: 'low', exclude: true };
     const est = E.estTokens(system) + E.estTokens(user) + body.max_tokens;
     const t0 = Date.now();
-    const entry = { kind, step: LLM.stepOf(kind), backend: `${b.id}: ${b.model || b.label}`, system, user, raw: '', ms: 0, estTokens: est, overBudget: !!b.context && est > b.context,
+    const entry = { kind, step: LLM.stepOf(kind), backend: `${b.id}: ${b.model || b.label}`, system, user, raw: '', ms: 0, estTokens: est, overBudget: !!b.context && est > b.context, squeezed,
       retry: /\((retry|more room)\)/.test(kind) };
     try {
       const out = await LLM.transport(b.url + '/chat/completions', body, kind, b);
