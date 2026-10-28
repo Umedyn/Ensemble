@@ -2617,7 +2617,6 @@
     applyNewExtras(state, upd.new_extras, ctx.turn ?? state.turn, ctx.endLoc || state.characters[state.player].status.location,
       (why) => reject('new_extras', why), (note) => report.extras.push(note));
 
-    if (upd.chapter_worthy === true) state.flags.chapterWorthy = true;
     return report;
   };
 

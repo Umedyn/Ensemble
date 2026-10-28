@@ -11,7 +11,7 @@ A local, character-driven story sim in the spirit of Pax Historia, but at person
 
 No Python? Open `index.html` directly and use **Open folder** to pick the `scenarios` folder (or a single world folder).
 
-Each backend has its own context size: **Test** reads it from KoboldCpp, or from the provider's model list when it has one (OpenRouter does). Settings also has the memory cap, scene length, temperature and turns per chapter.
+Each backend has its own context size: **Test** reads it from KoboldCpp, or from the provider's model list when it has one (OpenRouter does). Settings also has the memory cap, scene length, temperature and the most turns a chapter runs.
 
 **Settings → Appearance** sets the theme (Dark, Light, **High visibility** for low vision, or the same as your device), text size (90–150%), story font (serif or sans), line spacing, reduce motion and map detail (detailed floor plans, or simple boxes for older phones). Changes show as you pick them and are kept in this browser. With a screen reader, each new beat and note is read out as it appears.
 
@@ -44,7 +44,7 @@ Note: a page hosted on `https://` usually can't reach `http://localhost`, so on 
 3. **Narrate** (1 call): writes the scene from your point of view. The narrator never sees anyone's secrets, and covert actions are only hinted at.
 3b. **Beats:** the scene is written in beats, each starting with a time marker (`[+0m]`, `[+40m]`…): one for a minute or a few minutes, up to four overnight. **A minute** is for dense conversations: each exchange moves the clock one minute, so a long talk doesn't eat the evening. The page shows one beat at a time, with **Step in here** and **Next ▸** under the newest one. Next settles that beat and shows the following one. Stepping in (or simply acting before you reach the last beat) cuts the turn at that point: later beats never happen and are never shown, time only advances to that moment, and your next action starts there. "About an hour" and "A few hours" are approximate: the clock follows where the scene actually ends, and a scene that stops before half the step is asked to continue once.
 4. **Update** (1 call, at the start of your next turn, so it only records the part of the scene you let play out): returns facts, state changes and relationship shifts as JSON. The engine validates everything (real IDs, allowed fields, clamped values) and rejects the rest; the Debug panel shows what was accepted or rejected.
-5. **Chapter** (occasional call): every 5 turns, or early after a big moment (at least 2 turns in), minor facts are rolled into a journal entry. Major facts (weight 3) and characters' private knowledge are kept individually.
+5. **Chapter** (occasional call): when the minor facts of the chapter have grown enough to be worth rolling up (about a third of the memory set aside for facts, after at least 4 turns), or at the latest after 12 turns (Settings), they are rolled into a journal entry to free context. In the story, a closed chapter folds into one row that opens to its summary and its turns. Major facts (weight 3) and characters' private knowledge are kept individually.
 
 If a call fails, the turn is rolled back. If only the update step fails, the scene is kept and a basic fact is recorded instead.
 

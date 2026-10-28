@@ -981,9 +981,8 @@ ${Object.keys(state.standees || {}).length ? `          {"target":"standee:group
           {"target":"faction:group_id","value":"new short stance"},
           {"target":"clock:clock_id","delta":-2}],
  "relations":[{"from":"character_id","to":"character_id","delta":5,"reason":"short reason"}],
- "player_attitude":[{"to":"character_id","delta":-5,"reason":"short reason in past tense"}],${sc.inventExtras ? `
- "new_extras":[],` : ''}
- "chapter_worthy":false}
+ "player_attitude":[{"to":"character_id","delta":-5,"reason":"short reason in past tense"}]${sc.inventExtras ? `,
+ "new_extras":[]` : ''}}
 Guidelines:
 - 1 to 5 facts. Only things that actually happened or were revealed. Skip trivia.
 - known_by lists who witnessed or was told. Use ["all"] only when everyone at the location would know. Hidden actions are known only by the actor and anyone who caught them.
@@ -996,8 +995,7 @@ Guidelines:
 - tags: short visible states or situations (e.g. "sprained ankle", "covered in dust", "on night shift"), at most 5 words, with "turns" for how long they last (default 6). Remove tags that no longer fit. Not feelings${sc.needs.length ? `; ${needsList(sc)} tracked as needs` : ''}.
 - mood: for each non-player character present, at most one short line on how they come across right now, as others could read it (e.g. "short with everyone, avoiding Okafor"). Only when it changed. Never for ${name(state, state.player)}, and never hint at anyone's secret.
 - relations: how this turn changed how non-player characters feel about others (never ${name(state, state.player)}'s own feelings), delta between -15 and 15. Leave empty if nothing changed.
-- player_attitude: how ${name(state, state.player)}'s own feelings toward someone shifted, judged ONLY from the player action as quoted above (their words and tone), never from how the narrator embellished it. Snapping, mocking or threatening lowers it; thanking, helping, joking warmly or confiding raises it. Delta between -10 and 10. Leave empty if the action was neutral.
-- chapter_worthy: true only for a major turning point.${Object.keys(state.extras || {}).length ? `
+- player_attitude: how ${name(state, state.player)}'s own feelings toward someone shifted, judged ONLY from the player action as quoted above (their words and tone), never from how the narrator embellished it. Snapping, mocking or threatening lowers it; thanking, helping, joking warmly or confiding raises it. Delta between -10 and 10. Leave empty if the action was neutral.${Object.keys(state.extras || {}).length ? `
 - minor people: may be in facts (about, known_by) and may change location; no relations, moods, tags or needs.` : ''}${Object.keys(state.standees || {}).length ? `
 - unnamed groups: count goes down for members killed, captured or gone (it only goes up if an event brought more); state when the scene shows them change (fled: they leave for good); location only one linked room, when seen leaving.` : ''}${siteGuide(state)}${sc.inventExtras ? `
 - new_extras: only if the scene clearly brought in a new minor person or group not listed above: {"name","role","location","group":false}. At most 1.` : ''}

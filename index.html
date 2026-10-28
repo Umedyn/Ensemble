@@ -220,7 +220,7 @@ try { window.EnsembleAppearance((JSON.parse(localStorage.getItem('ensemble.setti
         <label>Memory cap (tokens): the most context memory is planned for, even on bigger models <input id="sMemoryCap" type="number" min="4096" step="4096"></label>
         <label>Scene length (max tokens, scaled by time step) <input id="sNarrate" type="number" min="150" max="1200" step="10"></label>
         <label>Temperature <input id="sTemp" type="number" min="0" max="2" step="0.05"></label>
-        <label>Turns per chapter <input id="sChapter" type="number" min="2" max="20"></label>
+        <label>Most turns per chapter (chapters close sooner when their facts fill the memory budget) <input id="sChapter" type="number" min="4" max="40"></label>
       </fieldset>
     </details>
     <div id="sStatus" class="muted"></div>

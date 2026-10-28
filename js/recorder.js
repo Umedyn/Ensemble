@@ -22,7 +22,7 @@
       backends[id] = { preset: b.preset, model: b.model || '', context: b.context || null };
     });
     return {
-      narrateTokens: s.narrateTokens, temperature: s.temperature, chapterLength: s.chapterLength,
+      narrateTokens: s.narrateTokens, temperature: s.temperature, chapterLength: s.chapterLength, chapterRule: s.chapterRule,
       memoryCap: s.memoryCap, routing: Object.assign({}, s.routing), backends,
     };
   };

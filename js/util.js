@@ -30,7 +30,10 @@
     memoryCap: 32768, // the most context memory is planned for, however big the model's
     temperature: 0.8,
     narrateTokens: 320,
-    chapterLength: 5,
+    // The most turns a chapter runs; chapters mostly close when their facts
+    // fill a share of the memory budget (Memory.needsChapter).
+    chapterLength: 12,
+    chapterRule: 2,
     debug: false,
     // Settings › Appearance; index.html applies it before first paint.
     appearance: { theme: 'dark', textSize: 100, storyFont: 'serif', lineSpacing: 'normal', motion: 'system', mapDetail: 'detailed' },
@@ -54,6 +57,9 @@
           saved.backends.local = Object.assign({}, E.defaults.backends.local, saved.backends.local, { context: saved.contextSize });
         }
         delete saved.contextSize;
+        // Chapters used to close every 5 turns by default; now they close
+        // by size, with a longer backstop.
+        if (!saved.chapterRule) { if (saved.chapterLength === 5) delete saved.chapterLength; saved.chapterRule = 2; }
         Object.assign(E.settings, saved);
         E.settings.backends = Object.assign(JSON.parse(JSON.stringify(E.defaults.backends)), E.settings.backends || {});
         Object.keys(E.defaults.backends).forEach((id) => {

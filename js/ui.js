@@ -10,6 +10,7 @@
   let suggested = null; // suggested actions: { state, key, list } (see renderSuggestions)
   let uiShown = 1; // beats of the live scene revealed so far
   const openTurns = new Set(); // folded earlier turns the player has opened
+  const openChapters = new Set(); // closed chapters the player has opened
   const notes = []; // undo/reroll history for the Debug panel
   const loaded = new Map(); // worlds in the picker; see "worlds and starts"
 
@@ -1006,12 +1007,23 @@
       else if (last && !last.chapter && last.turn === e.turn) last.entries.push(e);
       else groups.push({ turn: e.turn, entries: [e] });
     });
-    const html = groups.map((g) => {
-      if (g.chapter) return renderEntry(g.chapter);
+    const turnHtml = (g) => {
       const body = g.entries.map(renderEntry).join('');
       if (g.turn === state.turn) return `<div class="turn-current" data-turn="${g.turn}">${body}</div>`;
       return `<details class="turn-group" data-turn="${g.turn}"${openTurns.has(g.turn) ? ' open' : ''}><summary>${turnSummary(g)}</summary>${body}</details>`;
-    }).join('');
+    };
+    // A closed chapter folds its turns under one row: its title, its turns
+    // and its summary, opened on demand (and kept open until reloaded).
+    const out = [];
+    let since = [];
+    groups.forEach((g) => {
+      if (!g.chapter) return since.push(g);
+      const c = g.chapter.chapter;
+      out.push(`<details class="chapter-group" data-chapter="${c.n}"${openChapters.has(c.n) ? ' open' : ''}><summary><span class="chapter-n">Chapter ${c.n}</span><b>${esc(c.title)}</b><span class="when">turns ${c.fromTurn}–${c.toTurn}</span></summary>` +
+        `<div class="chapter-summary">${esc(c.summary)}</div>${since.map(turnHtml).join('')}</details>`);
+      since = [];
+    });
+    const html = out.concat(since.map(turnHtml)).join('');
     log.innerHTML = html || '<div class="empty">Write your first action below.</div>';
     if (state.flags.gameOver) log.insertAdjacentHTML('beforeend', '<div class="entry chapter"><b>Your story ends here.</b>Load a save or start a new game.</div>');
     // An ending (not death): the player may go on past it, once the scene is read.
@@ -1072,8 +1084,14 @@
   }
 
   // Which folded turns the player has opened; cleared when a new turn starts.
+  // Opened chapters stay open.
   $('log').addEventListener('toggle', (ev) => {
     const d = ev.target;
+    if (d.classList && d.classList.contains('chapter-group')) {
+      const n = Number(d.dataset.chapter);
+      if (d.open) openChapters.add(n); else openChapters.delete(n);
+      return;
+    }
     if (!d.classList || !d.classList.contains('turn-group')) return;
     const n = Number(d.dataset.turn);
     if (d.open) openTurns.add(n); else openTurns.delete(n);
@@ -2102,8 +2120,7 @@
 
   function renderJournal() {
     if (!state.chapters.length) {
-      const left = E.settings.chapterLength - E.Memory.turnsInChapter(state);
-      $('journal').innerHTML = `<div class="muted">Chapter ${state.chapter} in progress${state.turn ? ` (closes in about ${Math.max(left, 0)} turns)` : ''}.</div>`;
+      $('journal').innerHTML = `<div class="muted">Chapter ${state.chapter} in progress${state.turn ? ` (turn ${E.Memory.turnsInChapter(state)}; it closes when its notes fill the memory, or after ${E.settings.chapterLength} turns)` : ''}.</div>`;
       return;
     }
     $('journal').innerHTML = state.chapters.slice().reverse().map((c) =>
@@ -2348,7 +2365,7 @@
     E.settings.memoryCap = Math.max(4096, parseInt($('sMemoryCap').value, 10) || E.defaults.memoryCap);
     E.settings.narrateTokens = E.clamp(parseInt($('sNarrate').value, 10) || E.defaults.narrateTokens, 150, 1200);
     E.settings.temperature = E.clamp(parseFloat($('sTemp').value) || E.defaults.temperature, 0, 2);
-    E.settings.chapterLength = E.clamp(parseInt($('sChapter').value, 10) || E.defaults.chapterLength, 2, 20);
+    E.settings.chapterLength = E.clamp(parseInt($('sChapter').value, 10) || E.defaults.chapterLength, 4, 40);
     E.settings.appearance = readAppearance();
   }
 

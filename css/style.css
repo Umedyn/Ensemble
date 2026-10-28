@@ -363,6 +363,15 @@ button:disabled { opacity: .5; cursor: default; }
 .turn-group > summary:hover { color: var(--text); }
 .turn-group > summary .turn-n { color: var(--text); font-weight: 600; margin-right: 8px; }
 .turn-group > summary .when { margin-left: 8px; font-size: 0.7188rem; }
+/* A closed chapter: its turns folded under one row (summary on open). */
+.chapter-group { max-width: 760px; margin: 0 auto 8px; border: 1px solid var(--line); border-radius: 6px; }
+.chapter-group > summary { cursor: pointer; padding: 8px 10px; color: var(--muted); font-size: 0.8125rem; }
+.chapter-group > summary .chapter-n { margin-right: 8px; }
+.chapter-group > summary b { color: var(--text); font-family: var(--story-font); }
+.chapter-group > summary .when { margin-left: 8px; font-size: 0.7188rem; }
+.chapter-group[open] > summary { border-bottom: 1px solid var(--line); }
+.chapter-summary { font-family: var(--story-font); font-size: 0.875rem; padding: 8px 12px; color: var(--muted); }
+.chapter-group > .turn-group { margin: 6px; }
 .turn-group[open] { padding: 0 12px 4px; background: transparent; }
 .turn-group[open] > summary { margin: 0 -12px 12px; border-bottom: 1px solid var(--line); }
 .turn-current { padding-top: 6px; }

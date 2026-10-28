@@ -71,13 +71,22 @@
 
   Mem.turnsInChapter = (state) => state.turn - state.chapterStartTurn + 1;
 
+  // A chapter's job is to free context: its minor player-known facts are
+  // replaced by one summary. So it closes when that is worth it, not on a
+  // dramatic moment (chapters were closing after one or two turns):
+  // - size: the facts it would roll up reach a share of the facts budget
+  //   (after a few turns), or the header's facts are over budget (after two);
+  // - length: a backstop, the most turns a chapter runs (Settings).
+  Mem.CHAPTER = { minTurns: 4, share: 0.35 };
+  // Tokens a chapter close would free: this chapter's minor facts the player knows.
+  Mem.freeable = (state) => E.estTokens(Mem.chapterFacts(state).filter((f) => f.weight < 3 && !f.inSummary).map(factLine).join('\n'));
   Mem.needsChapter = function (state) {
     if (state.turn < state.chapterStartTurn) return false;
-    if (Mem.turnsInChapter(state) >= E.settings.chapterLength) return 'length';
-    // Big moments close a chapter early, but never after a single turn.
-    if (state.flags.chapterWorthy && Mem.turnsInChapter(state) >= 2) return 'story beat';
-    const playerFacts = Mem.headerFacts(state).map(factLine).join('\n');
-    if (E.estTokens(playerFacts) > Mem.budgets().facts) return 'size';
+    const turns = Mem.turnsInChapter(state);
+    const budget = Mem.budgets().facts;
+    if (turns >= 2 && E.estTokens(Mem.headerFacts(state).map(factLine).join('\n')) > budget) return 'size';
+    if (turns >= Mem.CHAPTER.minTurns && Mem.freeable(state) >= budget * Mem.CHAPTER.share) return 'size';
+    if (turns >= E.settings.chapterLength) return 'length';
     return false;
   };
 

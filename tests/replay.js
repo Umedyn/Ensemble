@@ -29,6 +29,27 @@ function applySettings(E, s) {
   });
 }
 
+// Recordings made before chapters closed by size (2026-10-27, chapterRule 2)
+// close them as the engine did then: after the length, on a "story beat"
+// (any of the moments that set flags.chapterWorthy, or the update's
+// chapter_worthy) from the second turn, or when the facts outgrow the budget.
+function oldChapterRule(E) {
+  const M = E.Memory;
+  M.needsChapter = function (state) {
+    if (state.turn < state.chapterStartTurn) return false;
+    if (M.turnsInChapter(state) >= E.settings.chapterLength) return 'length';
+    if (state.flags.chapterWorthy && M.turnsInChapter(state) >= 2) return 'story beat';
+    const facts = M.headerFacts(state).map((f) => `- [T${f.turn}] ${f.text}`).join('\n');
+    return E.estTokens(facts) > M.budgets().facts ? 'size' : false;
+  };
+  const apply = E.Engine.applyUpdate;
+  E.Engine.applyUpdate = function (state, upd, ...rest) {
+    const out = apply.call(this, state, upd, ...rest);
+    if (upd && upd.chapter_worthy === true) state.flags.chapterWorthy = true;
+    return out;
+  };
+}
+
 // replay(fixtureOrName, { until, setup }) → { E, state, steps: [{ index, action, state, result, error }] }
 // until: stop after this many actions (default: all). setup(E): runs before the
 // first action, to turn engine behaviour the recording predates off. Each step's state is a copy.
@@ -36,6 +57,7 @@ async function replay(fixture, opts = {}) {
   if (typeof fixture === 'string') fixture = loadFixture(fixture);
   const E = loadEngine();
   applySettings(E, fixture.settings);
+  if (!fixture.settings || fixture.settings.chapterRule !== 2) oldChapterRule(E);
   if (opts.setup) opts.setup(E);
   E.LLM.perf = async () => null;
   const state = E.Engine.migrate(JSON.parse(JSON.stringify(fixture.start)));

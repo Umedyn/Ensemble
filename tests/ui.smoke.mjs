@@ -185,6 +185,32 @@ await check('lore packs: only for their world, ticked in the picker, in the game
   assert.equal(await page.textContent('#btnPacks'), 'Lore packs (1)');
 });
 
+// Chapters: a closed one folds its turns under one row that opens to its summary.
+await check('chapters fold their turns under one row, with the summary inside', async (page) => {
+  const { state } = helpers.newGame('mars-station');
+  for (let t = 1; t <= 3; t++) {
+    state.log.push({ turn: t, type: 'action', text: `Action ${t}.`, time: `Sol 214, 0${t}:00` });
+    state.log.push({ turn: t, type: 'scene', text: `Scene ${t}.`, beats: [{ at: 0, text: `Scene ${t}.` }] });
+  }
+  const chapter = { n: 1, title: 'The rattle in the recycler', summary: 'Kit and Teo traced the rattle to a failing pump.', fromTurn: 0, toTurn: 3, reason: 'size' };
+  state.chapters.push(chapter);
+  state.log.push({ turn: 3, type: 'chapter', chapter });
+  state.log.push({ turn: 4, type: 'action', text: 'Action 4.', time: 'Sol 214, 04:00' });
+  state.log.push({ turn: 4, type: 'scene', text: 'Scene 4.', beats: [{ at: 0, text: 'Scene 4.' }] });
+  Object.assign(state, { turn: 4, chapter: 2, chapterStartTurn: 4 });
+  await page.setInputFiles('#loadInput', { name: 'chapters.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(state)) });
+  await page.waitForSelector('.chapter-group');
+  assert.equal(await page.locator('.chapter-group[open]').count(), 0, 'folded');
+  assert.match(await page.textContent('.chapter-group > summary'), /Chapter 1\s*The rattle in the recycler\s*turns 0–3/);
+  assert.equal(await page.isVisible('.chapter-summary'), false);
+  assert.equal(await page.locator('.chapter-group .turn-group').count(), 4, 'the opening and turns 1–3 inside');
+  assert.match(await page.textContent('.turn-current'), /Scene 4/, 'the latest turn stays out');
+  await page.click('.chapter-group > summary');
+  assert.equal(await page.isVisible('.chapter-summary'), true);
+  assert.match(await page.textContent('.chapter-summary'), /failing pump/);
+  await page.locator('#log').screenshot({ path: path.join(shots, 'chapters.png') });
+});
+
 // Endings: a story that reached one shows it and an end card; Keep playing goes on.
 await check('endings: the end card after a story reaches an ending, and Keep playing', async (page) => {
   const { E, state } = helpers.newGame('zombie-holdout');
