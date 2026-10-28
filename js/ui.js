@@ -1247,8 +1247,9 @@
     const site = E.Sites.playerSite(state);
     const key = `${sc.worldId}|${sc.startId}|${site}|${Object.values(state.locations).map((l) => l.id + ':' + (l.connects || []).join('+')).join(',')}`;
     const home = site === E.Sites.HOME;
-    const authored = home ? (sc.locations && sc.locations.length ? sc.locations : Object.values(state.locations).filter((l) => !l.site)) : E.Sites.rooms(state, site);
-    if (planCache.key !== key) planCache = { key, plan: E.Layouts.plan(authored, { type: home && sc.site ? sc.site.type : null, seed: `${sc.worldId}:${home ? sc.startId : site}`, linkLocs: state.locations }) };
+    // An authored place (task 7-2) is drawn on its own, with its own layout style.
+    const authored = home ? (sc.locations && sc.locations.length ? sc.locations : Object.values(state.locations)).filter((l) => !l.site) : E.Sites.rooms(state, site);
+    if (planCache.key !== key) planCache = { key, plan: E.Layouts.plan(authored, { type: home ? (sc.site ? sc.site.type : null) : ((state.sites || {})[site] || {}).layout, seed: `${sc.worldId}:${home ? sc.startId : site}`, linkLocs: state.locations }) };
     return planCache.plan;
   }
   // Tokens by room, as the player knows them.

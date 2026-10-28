@@ -142,7 +142,7 @@
     {
       "id": "momo",
       "status": {
-        "location": "sora-room"
+        "location": "hayakawa-entry"
       },
       "joins": null
     },
@@ -200,7 +200,7 @@
     {
       "id": "takumi",
       "status": {
-        "location": "field"
+        "location": "behind-gym"
       },
       "tier": "secondary"
     },
@@ -232,7 +232,7 @@
     {
       "id": "lena",
       "status": {
-        "location": "dorm-lounge"
+        "location": "lena-room"
       }
     },
     {
@@ -258,7 +258,7 @@
     {
       "id": "goro",
       "status": {
-        "location": "gym"
+        "location": "judo-dojo"
       },
       "tier": "secondary"
     },
@@ -319,65 +319,181 @@
   ],
   "locations": [
     {
-      "id": "hayakawa-living",
-      "name": "Hayakawa house: living room and kitchen",
-      "region": "mito-station-south",
-      "desc": "A small two-storey house in Station South: a low table, the TV always on, the kitchen where Mom sings.",
-      "connects": [],
-      "links": [
-        {
-          "to": "sora-room",
-          "kind": "stairs"
-        },
-        {
-          "to": "street-south",
-          "kind": "door"
-        }
-      ],
-      "features": [
-        "low table",
-        "TV",
-        "family photos"
-      ]
-    },
-    {
-      "id": "sora-room",
-      "name": "Your room",
-      "region": "mito-station-south",
-      "desc": "Upstairs: a futon, a desk with a manga pile, a window that looks straight into the Mizuharas' house next door.",
-      "connects": [],
-      "links": [],
-      "size": "small",
-      "level": 1,
-      "features": [
-        "futon",
-        "desk",
-        "window to next door"
-      ]
-    },
-    {
       "id": "street-south",
       "name": "Your street in Station South",
       "region": "mito-station-south",
       "desc": "A narrow residential street: the Mizuharas' gate next door, vending machines, the walk to the station.",
-      "connects": [],
+      "connects": [
+        "hayakawa-entry",
+        "ramen-stall",
+        "station-plaza"
+      ],
       "links": [
         {
+          "to": "hayakawa-entry",
+          "kind": "door"
+        },
+        {
           "to": "ramen-stall",
-          "kind": "open"
+          "kind": "trip"
         },
         {
           "to": "station-plaza",
-          "kind": "open"
+          "kind": "trip"
         }
       ],
       "outside": true,
       "features": [
         "vending machines",
         "Mizuhara gate"
-      ]
+      ],
+      "site": "hayakawa-house"
+    },
+    {
+      "id": "hayakawa-entry",
+      "name": "Front door and genkan",
+      "region": "mito-station-south",
+      "desc": "The front step, a jumble of shoes, the umbrella stand and the stairs up.",
+      "connects": [
+        "hayakawa-living",
+        "hayakawa-bath",
+        "upstairs"
+      ],
+      "links": [
+        {
+          "to": "hayakawa-living",
+          "kind": "open"
+        },
+        {
+          "to": "hayakawa-bath",
+          "kind": "door"
+        },
+        {
+          "to": "upstairs",
+          "kind": "stairs"
+        }
+      ],
+      "size": "small",
+      "features": [
+        "shoe jumble",
+        "umbrella stand"
+      ],
+      "site": "hayakawa-house"
+    },
+    {
+      "id": "hayakawa-living",
+      "name": "Living room and kitchen",
+      "region": "mito-station-south",
+      "desc": "A low table, the TV always on, the kitchen where Mom sings, the family photos on the wall.",
+      "connects": [],
+      "links": [],
+      "features": [
+        "low table",
+        "TV",
+        "family photos",
+        "kitchen counter"
+      ],
+      "site": "hayakawa-house"
+    },
+    {
+      "id": "hayakawa-bath",
+      "name": "Bathroom",
+      "region": "mito-station-south",
+      "desc": "The one bathroom the whole family fights over every morning.",
+      "connects": [],
+      "links": [],
+      "size": "small",
+      "features": [
+        "bathtub",
+        "sink"
+      ],
+      "site": "hayakawa-house"
+    },
+    {
+      "id": "upstairs",
+      "name": "Upstairs landing",
+      "region": "mito-station-south",
+      "desc": "A narrow landing with three doors and a laundry basket nobody empties.",
+      "connects": [
+        "sora-room",
+        "momo-room",
+        "parents-room"
+      ],
+      "links": [
+        {
+          "to": "sora-room",
+          "kind": "door"
+        },
+        {
+          "to": "momo-room",
+          "kind": "door"
+        },
+        {
+          "to": "parents-room",
+          "kind": "door"
+        }
+      ],
+      "level": 1,
+      "size": "small",
+      "features": [
+        "laundry basket"
+      ],
+      "site": "hayakawa-house"
+    },
+    {
+      "id": "sora-room",
+      "name": "Your room",
+      "region": "mito-station-south",
+      "desc": "A futon, a desk with a manga pile, a window that looks straight into the Mizuharas' house next door.",
+      "connects": [],
+      "links": [],
+      "level": 1,
+      "size": "small",
+      "features": [
+        "futon",
+        "desk",
+        "window to next door"
+      ],
+      "site": "hayakawa-house"
+    },
+    {
+      "id": "momo-room",
+      "name": "Momo's room",
+      "region": "mito-station-south",
+      "desc": "KEEP OUT on the door in three colours. Idol posters, a desk buried in workbooks.",
+      "connects": [],
+      "links": [],
+      "level": 1,
+      "size": "small",
+      "features": [
+        "KEEP OUT sign",
+        "idol posters",
+        "workbooks"
+      ],
+      "site": "hayakawa-house"
+    },
+    {
+      "id": "parents-room",
+      "name": "Parents' room",
+      "region": "mito-station-south",
+      "desc": "Futons folded away, Dad's camera bag, Mom's sewing machine.",
+      "connects": [],
+      "links": [],
+      "level": 1,
+      "size": "small",
+      "features": [
+        "camera bag",
+        "sewing machine"
+      ],
+      "site": "hayakawa-house"
     }
   ],
+  "siteInfo": {
+    "hayakawa-house": {
+      "name": "The Hayakawa house",
+      "kind": "family house"
+    }
+  },
   "clocks": [
     {
       "id": "dad-posting",
@@ -400,5 +516,5 @@
     "Today is the entrance ceremony for Seiryo High's new first-years.",
     "Aoi Mizuhara has lived next door to the Hayakawas since she and Sora were four."
   ],
-  "opening": "Wednesday the eighth of April, a few minutes past seven, and the Hayakawa house is already loud.\n\nMom stands in the kitchen doorway with a brand-new camera and the face of a woman on a mission. \"Turn around. No, the other way. Kenji, is it on? Why is it beeping?\" Dad leans over the low table, chopsticks in one hand and the instruction booklet in the other, and says that the camera, like him, is \"just warming up.\" Nobody laughs. He laughs.\n\nUpstairs, Momo bangs on the bathroom door that nobody is in and yells that some people have real school today, actually, and some people are only going to a ceremony.\n\nYour blazer is a size too big. The sleeves cover your knuckles. Outside, someone kicks the gate twice, the way only one person does, and Aoi's voice carries through the front door: \"Oi, dummy! If we're late on the first day I'm telling everyone you cried at the cherry trees!\"\n\nMom raises the camera. \"One photo. Just one. Smile like you mean it.\""
+  "opening": "Wednesday the eighth of April, a few minutes past seven, and the Hayakawa house is already loud.\n\nMom stands in the kitchen doorway with a brand-new camera and the face of a woman on a mission. \"Turn around. No, the other way. Kenji, is it on? Why is it beeping?\" Dad leans over the low table, chopsticks in one hand and the instruction booklet in the other, and says that the camera, like him, is \"just warming up.\" Nobody laughs. He laughs.\n\nIn the hall, Momo bangs on the bathroom door that nobody is in and yells that some people have real school today, actually, and some people are only going to a ceremony.\n\nYour blazer is a size too big. The sleeves cover your knuckles. Outside, someone kicks the gate twice, the way only one person does, and Aoi's voice carries through the front door: \"Oi, dummy! If we're late on the first day I'm telling everyone you cried at the cherry trees!\"\n\nMom raises the camera. \"One photo. Just one. Smile like you mean it.\""
 }

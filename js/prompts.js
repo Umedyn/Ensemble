@@ -69,6 +69,7 @@
   // never changes the header; the live ways are in the user message.
   // In a region-focused world (R-8) rooms are flavour: names and links here,
   // and the current room's description in the user message (inRoom).
+  P.ROOMS_NAMED = 30;
   B.places = ({ state, sc }) => {
     const rooms = sc.locations && sc.locations.length ? sc.locations : Object.values(state.locations);
     const many = new Set(rooms.map((l) => l.region)).size > 1;
@@ -80,12 +81,19 @@
     // Region-focused, the rooms come under their regions rather than each
     // tagged with one (task 7-2: thirty rooms, a fifth of the block).
     if (!(brief && many)) return ['\n=== LOCATIONS ==='].concat(rooms.map((l) => line(l, many)));
+    // An authored place (task 7-2: the school, a house) is its own group, named.
     const by = new Map();
-    rooms.forEach((l) => by.set(l.region || '', (by.get(l.region || '') || []).concat(l)));
-    // A compact context: one line a region, names only; the user message has
+    const placeName = (l) => ((sc.siteInfo || {})[l.site] || {}).name || (rooms.find((r) => r.site === l.site) || l).name;
+    rooms.forEach((l) => {
+      const k = l.site ? `${placeName(l)} (${l.region || 'no region'})` : l.region || 'no region';
+      by.set(k, (by.get(k) || []).concat(l));
+    });
+    // A compact context: one line a group, names only; the user message has
     // the ways from the player's room, and moves find their own way.
-    if (E.contextTier().id === 'compact') return ['\n=== LOCATIONS ==='].concat([...by].map(([region, ls]) => `- In ${region || 'no region'}: ${ls.map((l) => `${l.id} (${l.name})`).join(', ')}`));
-    return ['\n=== LOCATIONS ==='].concat([...by].flatMap(([region, ls]) => [`In ${region || 'no region'}:`].concat(ls.map((l) => line(l, false)))));
+    // Past ROOMS_NAMED rooms (Seiryo High's 51: 1,260 tokens), ids alone.
+    const named = rooms.length <= P.ROOMS_NAMED;
+    if (E.contextTier().id === 'compact') return ['\n=== LOCATIONS ==='].concat([...by].map(([k, ls]) => `- In ${k}: ${ls.map((l) => (named ? `${l.id} (${l.name})` : l.id)).join(', ')}`));
+    return ['\n=== LOCATIONS ==='].concat([...by].flatMap(([k, ls]) => [`In ${k}:`].concat(ls.map((l) => line(l, false)))));
   };
   // "Corner Café — six tables and a chalkboard menu" in a region-focused
   // world (the header leaves descriptions out), else the name.
@@ -500,8 +508,10 @@
     if (!ST.enabled(state.scenario)) return null;
     const lines = ['\n=== PLACES ==='];
     const here = ST.playerSite(state);
-    if (here !== ST.HOME) lines.push(`${state.sites[here].name} has these rooms: ${ST.rooms(state, here).map((l) => `${l.id} (${l.name})`).join(', ')}.`);
-    const known = Object.values(state.sites || {}).filter((s) => s.id !== here);
+    // An authored place's rooms are in the header already (task 7-2).
+    if (here !== ST.HOME && !state.sites[here].authored) lines.push(`${state.sites[here].name} has these rooms: ${ST.rooms(state, here).map((l) => `${l.id} (${l.name})`).join(', ')}.`);
+    // Authored places are in the header's rooms already (task 7-2).
+    const known = Object.values(state.sites || {}).filter((s) => s.id !== here && !s.authored);
     lines.push(known.length ? `Places the story knows of: ${known.map((s) => `${s.name} (${s.kind}${s.region ? `, ${s.region}` : ''}${s.stub ? s.summary ? `; ${s.summary}` : '; not visited yet' : ''})`).join('; ')}.` : 'No other places yet beyond these rooms.');
     lines.push('If the player\'s action clearly heads somewhere that is none of these rooms (another building, a part of town, a hideout), set "new_place" to {"name":"the place in the player\'s own words (like \"the chop shop\")","kind":"what kind of place","region":"region id"} and leave move_to null; for a place listed above, use its name. The engine decides whether to build it.');
     // Generated regions (R-6): somewhere bigger than a building.

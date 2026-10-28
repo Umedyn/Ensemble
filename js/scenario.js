@@ -16,7 +16,7 @@
   const START_OWN = ['id', 'title', 'summary', 'start', 'player', 'cast', 'opening', 'castLabel', 'region', 'playerSlot', 'generated'];
   // World fields a start may override (merge rules below).
   const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'tagThresholds', 'portraitSet', 'factions', 'world',
-    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'regionLabels', 'routeKinds', 'presence', 'reputation', 'mapFocus', 'tactical', 'standees', 'site', 'localMap', 'map', 'entrances', 'lore', 'loreTopics', 'timeline', 'projectTimeline', 'endings'];
+    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'regionLabels', 'routeKinds', 'presence', 'reputation', 'mapFocus', 'tactical', 'standees', 'site', 'siteInfo', 'localMap', 'map', 'entrances', 'lore', 'loreTopics', 'timeline', 'projectTimeline', 'endings'];
   const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'date', 'calendar', 'characters', 'starts', 'generatedStarts', 'generatedSites', 'generatedRegions', 'sites', 'lorePacks', ...OVERRIDABLE];
   const WORLD_RESERVED = [];
   const START_RESERVED = [];
@@ -25,7 +25,7 @@
   // unioned, plain objects merge shallowly; anything else is replaced.
   const ID_LISTS = ['locations', 'clocks', 'factions', 'extras', 'regions', 'standees', 'lore', 'timeline', 'endings'];
   const STRING_LISTS = ['rules', 'facts', 'tags'];
-  const OBJECTS = ['world', 'eventRates', 'eventSeeds', 'tiers', 'routeKinds', 'presence', 'loreTopics', 'reputation'];
+  const OBJECTS = ['world', 'eventRates', 'eventSeeds', 'tiers', 'routeKinds', 'presence', 'loreTopics', 'reputation', 'siteInfo'];
 
   const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
   const castId = (entry) => (typeof entry === 'string' ? entry : entry && entry.id);
@@ -1016,6 +1016,18 @@
     const locs = sc.locations || [];
     const byId = {};
     locs.forEach((l) => (byId[l.id] = l));
+    // Places (task 7-2): "site" puts a room in a place of its own (the school,
+    // a house), drawn as its own floor plan; "siteInfo" names them.
+    const placeIds = new Set(locs.map((l) => l.site).filter((s) => s != null));
+    placeIds.forEach((s) => req(typeof s === 'string' && /^[a-z0-9][a-z0-9_-]*$/.test(s) && s !== 'home' && !locIds.has(s), `place "${s}": a room's "site" must be lowercase letters, digits, - or _, and not "home" or a room's id`));
+    if (sc.siteInfo != null) {
+      if (!isObj(sc.siteInfo)) problems.push('"siteInfo" must be {place id: {name, kind, layout}}');
+      else Object.entries(sc.siteInfo).forEach(([id, v]) => {
+        req(placeIds.has(id), `siteInfo: no room is in the place "${id}"`);
+        req(isObj(v) && typeof v.name === 'string' && v.name.trim() && v.name.length <= 60 && (v.kind == null || (typeof v.kind === 'string' && v.kind.length <= 30))
+          && (v.layout == null || S.SITE_TYPES.includes(v.layout)), `siteInfo "${id}": needs a "name" (up to 60 characters), and optionally a "kind" and a "layout" (${S.SITE_TYPES.join(', ')})`);
+      });
+    }
     locs.forEach((l) => {
       const where = `location "${l.id}"`;
       req(l.size == null || S.ROOM_SIZES.includes(l.size), `${where}: "size" must be small, medium or large`);
@@ -1032,7 +1044,12 @@
       l.links.forEach((k) => {
         const ok = k && locIds.has(k.to) && k.to !== l.id;
         req(ok, `${where}: link to unknown room "${k && k.to}"`);
-        req(k && S.LINK_KINDS.includes(k.kind), `${where}: link to "${k && k.to}" needs a kind: ${S.LINK_KINDS.join(', ')}`);
+        req(k && (S.LINK_KINDS.includes(k.kind) || k.kind === 'trip'), `${where}: link to "${k && k.to}" needs a kind: ${S.LINK_KINDS.join(', ')} (or trip, to another place)`);
+        // Places (task 7-2): rooms in different places are joined by a trip, and only they are.
+        if (ok && k.kind != null) {
+          const apart = (l.site || null) !== (byId[k.to].site || null);
+          req(apart === (k.kind === 'trip'), apart ? `${where}: "${k.to}" is in another place, so the way there is a "trip"` : `${where}: "${k.to}" is in the same place, so the way there can't be a "trip"`);
+        }
         // Who holds the key to a locked door (task 3-6): characters in this start.
         req(!k || k.key == null || (Array.isArray(k.key) && k.key.every((id) => (sc.characters || []).includes(id))), `${where}: link to "${k && k.to}" has a "key" for someone not in the cast`);
         if (ok) { l.connects = l.connects || []; if (!l.connects.includes(k.to)) l.connects.push(k.to); }

@@ -299,21 +299,17 @@
       "id": "gate",
       "name": "School gate and the cherry slope",
       "region": "mito-senba",
-      "desc": "The main gate of Seiryo High at the top of a slope lined with cherry trees, the shoe lockers just inside.",
+      "desc": "The main gate at the top of a slope lined with cherry trees, where Vice Principal Ozaki checks uniforms every morning.",
       "connects": [
-        "hallway",
-        "gym",
+        "entrance",
         "field",
+        "courtyard",
         "dorm-entrance",
         "lake-senba"
       ],
       "links": [
         {
-          "to": "hallway",
-          "kind": "open"
-        },
-        {
-          "to": "gym",
+          "to": "entrance",
           "kind": "open"
         },
         {
@@ -321,48 +317,68 @@
           "kind": "open"
         },
         {
-          "to": "dorm-entrance",
+          "to": "courtyard",
           "kind": "open"
         },
         {
+          "to": "dorm-entrance",
+          "kind": "trip"
+        },
+        {
           "to": "lake-senba",
-          "kind": "open"
+          "kind": "trip"
         }
       ],
       "outside": true,
       "features": [
         "cherry trees",
-        "shoe lockers",
+        "gate pillars",
         "notice board"
-      ]
+      ],
+      "site": "seiryo"
     },
     {
-      "id": "hallway",
-      "name": "First-year corridor",
+      "id": "entrance",
+      "name": "Entrance hall and shoe lockers",
       "region": "mito-senba",
-      "desc": "The long corridor of the first-year classrooms, with the stairs up to the old wing and the club rooms.",
+      "desc": "Rows of shoe lockers where everyone changes into indoor shoes; love letters are said to turn up in them.",
       "connects": [
-        "classroom-1b",
-        "classroom-1a",
-        "staff-room",
-        "nurse",
-        "library",
-        "cafeteria",
-        "art-room",
-        "club-room",
-        "council-room"
+        "ground-hall"
       ],
       "links": [
         {
-          "to": "classroom-1b",
-          "kind": "door"
-        },
-        {
-          "to": "classroom-1a",
-          "kind": "door"
-        },
+          "to": "ground-hall",
+          "kind": "open"
+        }
+      ],
+      "features": [
+        "shoe lockers",
+        "umbrella stand",
+        "lost-and-found box"
+      ],
+      "site": "seiryo"
+    },
+    {
+      "id": "ground-hall",
+      "name": "Ground-floor corridor",
+      "region": "mito-senba",
+      "desc": "The main corridor downstairs: the staff room, the principal's office, the nurse, the cafeteria, the stairs up and the walkway to the old wing.",
+      "connects": [
+        "staff-room",
+        "principal",
+        "nurse",
+        "cafeteria",
+        "courtyard",
+        "walkway",
+        "hallway"
+      ],
+      "links": [
         {
           "to": "staff-room",
+          "kind": "door"
+        },
+        {
+          "to": "principal",
           "kind": "door"
         },
         {
@@ -370,56 +386,29 @@
           "kind": "door"
         },
         {
-          "to": "library",
-          "kind": "door"
-        },
-        {
           "to": "cafeteria",
           "kind": "open"
         },
         {
-          "to": "art-room",
+          "to": "courtyard",
           "kind": "door"
         },
         {
-          "to": "club-room",
-          "kind": "stairs"
+          "to": "walkway",
+          "kind": "door"
         },
         {
-          "to": "council-room",
+          "to": "hallway",
           "kind": "stairs"
         }
       ],
+      "size": "large",
       "features": [
-        "club board",
+        "trophy case",
         "vending machine",
-        "windows over the courtyard"
-      ]
-    },
-    {
-      "id": "classroom-1b",
-      "name": "Class 1-B",
-      "region": "mito-senba",
-      "desc": "Thirty-two desks, a blackboard, windows over the lake. The player's desk is by the window, second from the back.",
-      "connects": [],
-      "links": [],
-      "features": [
-        "blackboard",
-        "window seats",
-        "teacher's desk"
-      ]
-    },
-    {
-      "id": "classroom-1a",
-      "name": "Class 1-A",
-      "region": "mito-senba",
-      "desc": "The classroom next door, the same as 1-B but tidier.",
-      "connects": [],
-      "links": [],
-      "size": "medium",
-      "features": [
-        "blackboard"
-      ]
+        "notice boards"
+      ],
+      "site": "seiryo"
     },
     {
       "id": "staff-room",
@@ -432,7 +421,23 @@
         "teachers' desks",
         "kettle",
         "key cabinet"
-      ]
+      ],
+      "site": "seiryo"
+    },
+    {
+      "id": "principal",
+      "name": "Principal's office",
+      "region": "mito-senba",
+      "desc": "Leather sofas, portraits of past principals, a bonsai the principal talks to.",
+      "connects": [],
+      "links": [],
+      "size": "small",
+      "features": [
+        "leather sofas",
+        "bonsai",
+        "portraits"
+      ],
+      "site": "seiryo"
     },
     {
       "id": "nurse",
@@ -445,7 +450,149 @@
       "features": [
         "curtained beds",
         "cassette player"
-      ]
+      ],
+      "site": "seiryo"
+    },
+    {
+      "id": "cafeteria",
+      "name": "Cafeteria and bread stand",
+      "region": "mito-senba",
+      "desc": "Long tables, a noodle counter and the bread stand where the yakisoba buns sell out in four minutes.",
+      "connects": [
+        "courtyard"
+      ],
+      "links": [
+        {
+          "to": "courtyard",
+          "kind": "door"
+        }
+      ],
+      "size": "large",
+      "features": [
+        "bread stand",
+        "noodle counter",
+        "long tables"
+      ],
+      "site": "seiryo"
+    },
+    {
+      "id": "courtyard",
+      "name": "Courtyard",
+      "region": "mito-senba",
+      "desc": "Between the main building and the gym: benches under a big zelkova tree, the flower beds the gardening club guards, lunch in good weather.",
+      "connects": [
+        "gym",
+        "behind-gym"
+      ],
+      "links": [
+        {
+          "to": "gym",
+          "kind": "door"
+        },
+        {
+          "to": "behind-gym",
+          "kind": "open"
+        }
+      ],
+      "outside": true,
+      "features": [
+        "zelkova tree",
+        "benches",
+        "flower beds"
+      ],
+      "site": "seiryo"
+    },
+    {
+      "id": "hallway",
+      "name": "First-year corridor (first floor)",
+      "region": "mito-senba",
+      "desc": "The long corridor of the first-year classrooms, windows over the courtyard, the stairs up and down at either end.",
+      "connects": [
+        "classroom-1a",
+        "classroom-1b",
+        "classroom-1c",
+        "library",
+        "council-room",
+        "upper-hall"
+      ],
+      "links": [
+        {
+          "to": "classroom-1a",
+          "kind": "door"
+        },
+        {
+          "to": "classroom-1b",
+          "kind": "door"
+        },
+        {
+          "to": "classroom-1c",
+          "kind": "door"
+        },
+        {
+          "to": "library",
+          "kind": "door"
+        },
+        {
+          "to": "council-room",
+          "kind": "door"
+        },
+        {
+          "to": "upper-hall",
+          "kind": "stairs"
+        }
+      ],
+      "level": 1,
+      "size": "large",
+      "features": [
+        "club board",
+        "windows over the courtyard",
+        "water fountain"
+      ],
+      "site": "seiryo"
+    },
+    {
+      "id": "classroom-1a",
+      "name": "Class 1-A",
+      "region": "mito-senba",
+      "desc": "The classroom next door to 1-B, the same but tidier.",
+      "connects": [],
+      "links": [],
+      "level": 1,
+      "features": [
+        "blackboard",
+        "teacher's desk"
+      ],
+      "site": "seiryo"
+    },
+    {
+      "id": "classroom-1b",
+      "name": "Class 1-B",
+      "region": "mito-senba",
+      "desc": "Thirty-two desks, a blackboard, windows over the lake. The player's desk is by the window, second from the back.",
+      "connects": [],
+      "links": [],
+      "level": 1,
+      "features": [
+        "blackboard",
+        "window seats",
+        "teacher's desk",
+        "cleaning cupboard"
+      ],
+      "site": "seiryo"
+    },
+    {
+      "id": "classroom-1c",
+      "name": "Class 1-C",
+      "region": "mito-senba",
+      "desc": "The loudest classroom on the floor; half the track team is in it.",
+      "connects": [],
+      "links": [],
+      "level": 1,
+      "features": [
+        "blackboard",
+        "sports bags"
+      ],
+      "site": "seiryo"
     },
     {
       "id": "library",
@@ -454,26 +601,175 @@
       "desc": "Quiet tables between tall shelves; the study desks fill up in exam weeks.",
       "connects": [],
       "links": [],
+      "level": 1,
       "size": "large",
       "features": [
         "study desks",
         "shelves",
         "return counter"
-      ]
+      ],
+      "site": "seiryo"
     },
     {
-      "id": "cafeteria",
-      "name": "Cafeteria and bread stand",
+      "id": "council-room",
+      "name": "Student council room",
       "region": "mito-senba",
-      "desc": "Long tables, a noodle counter and the bread stand where the yakisoba buns sell out in four minutes.",
+      "desc": "A long table, filing cabinets, the council's tea set and a view over the whole school.",
       "connects": [],
       "links": [],
+      "level": 1,
+      "features": [
+        "long table",
+        "filing cabinets",
+        "tea set"
+      ],
+      "site": "seiryo"
+    },
+    {
+      "id": "upper-hall",
+      "name": "Second- and third-year corridor (second floor)",
+      "region": "mito-senba",
+      "desc": "The older years' floor: quieter, more serious, and the door to the roof stairs at the end, kept locked.",
+      "connects": [
+        "classrooms-2",
+        "classrooms-3",
+        "music-room",
+        "rooftop"
+      ],
+      "links": [
+        {
+          "to": "classrooms-2",
+          "kind": "door"
+        },
+        {
+          "to": "classrooms-3",
+          "kind": "door"
+        },
+        {
+          "to": "music-room",
+          "kind": "door"
+        },
+        {
+          "to": "rooftop",
+          "kind": "locked door",
+          "key": [
+            "shinji",
+            "ishida"
+          ]
+        }
+      ],
+      "level": 2,
       "size": "large",
       "features": [
-        "bread stand",
-        "noodle counter",
-        "long tables"
-      ]
+        "exam notices",
+        "roof door"
+      ],
+      "site": "seiryo"
+    },
+    {
+      "id": "classrooms-2",
+      "name": "Second-year classrooms",
+      "region": "mito-senba",
+      "desc": "Four classrooms in a row, the second-years' home for their middle year.",
+      "connects": [],
+      "links": [],
+      "level": 2,
+      "size": "large",
+      "features": [
+        "blackboards",
+        "school trip posters"
+      ],
+      "site": "seiryo"
+    },
+    {
+      "id": "classrooms-3",
+      "name": "Third-year classrooms",
+      "region": "mito-senba",
+      "desc": "Four classrooms where the third-years study with entrance exams pinned to the walls.",
+      "connects": [],
+      "links": [],
+      "level": 2,
+      "size": "large",
+      "features": [
+        "blackboards",
+        "exam countdown"
+      ],
+      "site": "seiryo"
+    },
+    {
+      "id": "music-room",
+      "name": "Music room",
+      "region": "mito-senba",
+      "desc": "A grand piano, tiered seats, portraits of composers whose eyes follow you; the light music club practises here after school.",
+      "connects": [],
+      "links": [],
+      "level": 2,
+      "features": [
+        "grand piano",
+        "drum kit",
+        "composer portraits"
+      ],
+      "site": "seiryo"
+    },
+    {
+      "id": "rooftop",
+      "name": "The rooftop",
+      "region": "mito-senba",
+      "desc": "Officially off limits. A fence, a water tank, the whole sky, and Mito laid out below.",
+      "connects": [],
+      "links": [],
+      "level": 3,
+      "outside": true,
+      "features": [
+        "fence",
+        "water tank"
+      ],
+      "site": "seiryo"
+    },
+    {
+      "id": "walkway",
+      "name": "Covered walkway to the old wing",
+      "region": "mito-senba",
+      "desc": "A roofed walkway across the back of the courtyard to the old wooden wing.",
+      "connects": [
+        "old-wing"
+      ],
+      "links": [
+        {
+          "to": "old-wing",
+          "kind": "door"
+        }
+      ],
+      "size": "small",
+      "features": [
+        "bike racks"
+      ],
+      "site": "seiryo"
+    },
+    {
+      "id": "old-wing",
+      "name": "Old wing corridor",
+      "region": "mito-senba",
+      "desc": "The old wooden building where the culture clubs live: creaking floors, club posters, a staircase up to the top floor.",
+      "connects": [
+        "art-room",
+        "club-room"
+      ],
+      "links": [
+        {
+          "to": "art-room",
+          "kind": "door"
+        },
+        {
+          "to": "club-room",
+          "kind": "stairs"
+        }
+      ],
+      "features": [
+        "club posters",
+        "creaking floorboards"
+      ],
+      "site": "seiryo"
     },
     {
       "id": "art-room",
@@ -485,120 +781,343 @@
       "features": [
         "easels",
         "plaster busts"
-      ]
+      ],
+      "site": "seiryo"
     },
     {
       "id": "club-room",
       "name": "Astronomy club room (old wing)",
       "region": "mito-senba",
-      "desc": "A cramped room on the top floor of the old wing: a battered telescope, star charts, a kotatsu someone smuggled in, and the door to the roof.",
-      "connects": [
-        "rooftop"
-      ],
-      "links": [
-        {
-          "to": "rooftop",
-          "kind": "locked door",
-          "key": [
-            "shinji",
-            "ishida"
-          ]
-        }
-      ],
+      "desc": "A cramped room on the top floor of the old wing: a battered telescope, star charts, and a kotatsu someone smuggled in.",
+      "connects": [],
+      "links": [],
+      "level": 1,
       "size": "small",
       "features": [
         "telescope",
         "star charts",
         "kotatsu"
-      ]
-    },
-    {
-      "id": "council-room",
-      "name": "Student council room",
-      "region": "mito-senba",
-      "desc": "A long table, filing cabinets, the trophy case and a view over the whole school.",
-      "connects": [],
-      "links": [],
-      "features": [
-        "long table",
-        "filing cabinets",
-        "trophy case"
-      ]
-    },
-    {
-      "id": "rooftop",
-      "name": "The rooftop",
-      "region": "mito-senba",
-      "desc": "Officially off limits. A fence, a water tank, the whole sky, and Mito laid out below.",
-      "connects": [],
-      "links": [],
-      "outside": true,
-      "features": [
-        "fence",
-        "water tank"
-      ]
+      ],
+      "site": "seiryo"
     },
     {
       "id": "gym",
       "name": "Gymnasium",
       "region": "mito-senba",
-      "desc": "The gym and its stage, where ceremonies and assemblies happen and the judo club practises upstairs.",
-      "connects": [],
-      "links": [],
+      "desc": "The gym and its stage, where ceremonies and assemblies happen.",
+      "connects": [
+        "judo-dojo",
+        "field"
+      ],
+      "links": [
+        {
+          "to": "judo-dojo",
+          "kind": "stairs"
+        },
+        {
+          "to": "field",
+          "kind": "door"
+        }
+      ],
       "size": "large",
       "features": [
         "stage",
-        "judo mats"
-      ]
+        "basketball hoops"
+      ],
+      "site": "seiryo"
+    },
+    {
+      "id": "judo-dojo",
+      "name": "Judo dojo (above the gym)",
+      "region": "mito-senba",
+      "desc": "Tatami mats, a wall of names, the smell of sweat and effort.",
+      "connects": [],
+      "links": [],
+      "level": 1,
+      "features": [
+        "tatami mats",
+        "name boards"
+      ],
+      "site": "seiryo"
+    },
+    {
+      "id": "behind-gym",
+      "name": "Behind the gym",
+      "region": "mito-senba",
+      "desc": "A narrow strip between the gym and the fence where nobody can see you: confessions, fights, and the stray cats Takumi feeds.",
+      "connects": [
+        "field"
+      ],
+      "links": [
+        {
+          "to": "field",
+          "kind": "open"
+        }
+      ],
+      "outside": true,
+      "size": "small",
+      "features": [
+        "stray cats",
+        "old bench"
+      ],
+      "site": "seiryo"
     },
     {
       "id": "field",
       "name": "Sports ground",
       "region": "mito-senba",
-      "desc": "The running track, the baseball diamond and the back of the gym, where stray cats wait for Takumi.",
-      "connects": [],
-      "links": [],
+      "desc": "The running track and the baseball diamond, with the pool behind its fence.",
+      "connects": [
+        "pool"
+      ],
+      "links": [
+        {
+          "to": "pool",
+          "kind": "door"
+        }
+      ],
       "size": "large",
       "outside": true,
       "features": [
         "baseball diamond",
         "running track",
-        "stray cats"
-      ]
+        "bleachers"
+      ],
+      "site": "seiryo"
+    },
+    {
+      "id": "pool",
+      "name": "Swimming pool",
+      "region": "mito-senba",
+      "desc": "The outdoor pool behind a green fence: open from July, drained and full of leaves the rest of the year.",
+      "connects": [],
+      "links": [],
+      "outside": true,
+      "features": [
+        "diving blocks",
+        "fence"
+      ],
+      "site": "seiryo"
     },
     {
       "id": "dorm-entrance",
-      "name": "Seiryo dorm: entrance hall",
+      "name": "Dorm entrance hall",
       "region": "mito-senba",
-      "desc": "The dorm behind the school: shoe racks, a sign-out book, Mrs. Ogura's window, and a clock that says nine o'clock is curfew.",
+      "desc": "Shoe racks, the sign-out book, Mrs. Ogura's window, and a clock that says nine o'clock is curfew.",
       "connects": [
-        "dorm-lounge"
+        "dorm-lounge",
+        "dorm-kitchen",
+        "dorm-bath",
+        "girls-wing",
+        "boys-wing"
       ],
       "links": [
         {
           "to": "dorm-lounge",
           "kind": "open"
+        },
+        {
+          "to": "dorm-kitchen",
+          "kind": "door"
+        },
+        {
+          "to": "dorm-bath",
+          "kind": "door"
+        },
+        {
+          "to": "girls-wing",
+          "kind": "stairs"
+        },
+        {
+          "to": "boys-wing",
+          "kind": "stairs"
         }
       ],
       "features": [
         "sign-out book",
         "shoe racks",
         "curfew clock"
-      ]
+      ],
+      "site": "dorm"
     },
     {
       "id": "dorm-lounge",
       "name": "Dorm dining room and lounge",
       "region": "mito-senba",
-      "desc": "Long tables, a shared TV, a kitchen hatch where Mrs. Ogura serves, and corridors to the boys' and girls' wings.",
-      "connects": [],
-      "links": [],
+      "desc": "Long tables, a shared TV everyone fights over, a kitchen hatch where Mrs. Ogura serves.",
+      "connects": [
+        "dorm-kitchen",
+        "dorm-study"
+      ],
+      "links": [
+        {
+          "to": "dorm-kitchen",
+          "kind": "door"
+        },
+        {
+          "to": "dorm-study",
+          "kind": "door"
+        }
+      ],
       "size": "large",
       "features": [
         "shared TV",
         "kitchen hatch",
         "chore chart"
-      ]
+      ],
+      "site": "dorm"
+    },
+    {
+      "id": "dorm-kitchen",
+      "name": "Dorm kitchen",
+      "region": "mito-senba",
+      "desc": "Mrs. Ogura's kingdom: huge rice cookers, a fridge with names on everything, no entry without permission.",
+      "connects": [],
+      "links": [],
+      "features": [
+        "rice cookers",
+        "labelled fridge"
+      ],
+      "site": "dorm"
+    },
+    {
+      "id": "dorm-bath",
+      "name": "Dorm baths",
+      "region": "mito-senba",
+      "desc": "A big shared bath, girls and boys by the rota on the door.",
+      "connects": [],
+      "links": [],
+      "features": [
+        "bath rota",
+        "big tub"
+      ],
+      "site": "dorm"
+    },
+    {
+      "id": "dorm-study",
+      "name": "Dorm study room",
+      "region": "mito-senba",
+      "desc": "Long desks and a whiteboard, packed before exams, a place to talk quietly the rest of the time.",
+      "connects": [],
+      "links": [],
+      "size": "small",
+      "features": [
+        "long desks",
+        "whiteboard"
+      ],
+      "site": "dorm"
+    },
+    {
+      "id": "girls-wing",
+      "name": "Girls' wing corridor",
+      "region": "mito-senba",
+      "desc": "Upstairs to the left: name cards on every door, a laundry room at the end, no boys past the landing.",
+      "connects": [
+        "kazuha-room",
+        "ayaka-room",
+        "lena-room"
+      ],
+      "links": [
+        {
+          "to": "kazuha-room",
+          "kind": "door"
+        },
+        {
+          "to": "ayaka-room",
+          "kind": "door"
+        },
+        {
+          "to": "lena-room",
+          "kind": "door"
+        }
+      ],
+      "level": 1,
+      "features": [
+        "name cards",
+        "laundry room"
+      ],
+      "site": "dorm"
+    },
+    {
+      "id": "kazuha-room",
+      "name": "Kazuha's room",
+      "region": "mito-senba",
+      "desc": "The dorm leader's room: tidy, a kettle for whoever comes crying, the council's files on the desk.",
+      "connects": [],
+      "links": [],
+      "level": 1,
+      "size": "small",
+      "features": [
+        "kettle",
+        "council files"
+      ],
+      "site": "dorm"
+    },
+    {
+      "id": "ayaka-room",
+      "name": "Ayaka's room",
+      "region": "mito-senba",
+      "desc": "Lace curtains, a single good teacup, and a room far smaller than the furniture that was meant for it.",
+      "connects": [],
+      "links": [],
+      "level": 1,
+      "size": "small",
+      "features": [
+        "lace curtains",
+        "one good teacup"
+      ],
+      "site": "dorm"
+    },
+    {
+      "id": "lena-room",
+      "name": "Room 2-7",
+      "region": "mito-senba",
+      "desc": "A room at the end of the girls' wing, aired out and kept ready for a new resident.",
+      "connects": [],
+      "links": [],
+      "level": 1,
+      "size": "small",
+      "features": [
+        "bed",
+        "desk"
+      ],
+      "site": "dorm"
+    },
+    {
+      "id": "boys-wing",
+      "name": "Boys' wing corridor",
+      "region": "mito-senba",
+      "desc": "Upstairs to the right: louder, a smell of instant noodles, no girls past the landing.",
+      "connects": [
+        "goro-room"
+      ],
+      "links": [
+        {
+          "to": "goro-room",
+          "kind": "door"
+        }
+      ],
+      "level": 1,
+      "features": [
+        "name cards",
+        "shoe pile"
+      ],
+      "site": "dorm"
+    },
+    {
+      "id": "goro-room",
+      "name": "Goro's room",
+      "region": "mito-senba",
+      "desc": "The judo captain's room, its door always shut. Nobody has been inside.",
+      "connects": [],
+      "links": [],
+      "level": 1,
+      "size": "small",
+      "seen": false,
+      "features": [
+        "closed curtains"
+      ],
+      "site": "dorm"
     },
     {
       "id": "lake-senba",
@@ -621,7 +1140,7 @@
         },
         {
           "to": "shopping-street",
-          "kind": "open"
+          "kind": "trip"
         }
       ],
       "outside": true,
@@ -629,7 +1148,8 @@
         "benches",
         "swan boats",
         "willows"
-      ]
+      ],
+      "site": "senba-park"
     },
     {
       "id": "kairakuen",
@@ -644,7 +1164,8 @@
         "plum trees",
         "bamboo grove",
         "pavilion"
-      ]
+      ],
+      "site": "senba-park"
     },
     {
       "id": "shrine",
@@ -658,7 +1179,8 @@
         "torii",
         "offering box",
         "fortune papers"
-      ]
+      ],
+      "site": "senba-park"
     },
     {
       "id": "shopping-street",
@@ -685,7 +1207,8 @@
         "karaoke box",
         "game centre",
         "bookshop"
-      ]
+      ],
+      "site": "downtown"
     },
     {
       "id": "cafe",
@@ -698,7 +1221,8 @@
       "features": [
         "counter",
         "siphon coffee"
-      ]
+      ],
+      "site": "downtown"
     },
     {
       "id": "station-plaza",
@@ -713,15 +1237,15 @@
       "links": [
         {
           "to": "ramen-stall",
-          "kind": "open"
+          "kind": "trip"
         },
         {
           "to": "tokyo-campus",
-          "kind": "open"
+          "kind": "trip"
         },
         {
           "to": "inn-front",
-          "kind": "open"
+          "kind": "trip"
         }
       ],
       "outside": true,
@@ -730,7 +1254,8 @@
         "Mito Komon statue",
         "bus terminal",
         "ticket gates"
-      ]
+      ],
+      "site": "downtown"
     },
     {
       "id": "ramen-stall",
@@ -744,7 +1269,8 @@
       "features": [
         "red lantern",
         "six stools"
-      ]
+      ],
+      "site": "fujiwara-ramen"
     },
     {
       "id": "tokyo-campus",
@@ -758,7 +1284,8 @@
       "features": [
         "campus gates",
         "bookshops"
-      ]
+      ],
+      "site": "tokyo-uni"
     },
     {
       "id": "inn-front",
@@ -767,7 +1294,8 @@
       "desc": "The family inn by Fukuroda Falls: a wooden entrance hall, slippers lined up, the smell of hot springs and cedar.",
       "connects": [
         "inn-bath",
-        "inn-kitchen"
+        "inn-kitchen",
+        "inn-guest"
       ],
       "links": [
         {
@@ -777,13 +1305,32 @@
         {
           "to": "inn-kitchen",
           "kind": "door"
+        },
+        {
+          "to": "inn-guest",
+          "kind": "door"
         }
       ],
       "features": [
         "slippers",
         "reception counter",
         "old photographs"
-      ]
+      ],
+      "site": "tsukimura-ya"
+    },
+    {
+      "id": "inn-guest",
+      "name": "Tsukimura-ya: guest rooms",
+      "region": "fukuroda",
+      "desc": "Six tatami guest rooms along a polished corridor, most of them empty this season.",
+      "connects": [],
+      "links": [],
+      "size": "large",
+      "features": [
+        "tatami",
+        "futon cupboards"
+      ],
+      "site": "tsukimura-ya"
     },
     {
       "id": "inn-bath",
@@ -796,7 +1343,8 @@
       "features": [
         "stone bath",
         "maples"
-      ]
+      ],
+      "site": "tsukimura-ya"
     },
     {
       "id": "inn-kitchen",
@@ -809,9 +1357,40 @@
         "kotatsu",
         "stove",
         "family altar"
-      ]
+      ],
+      "site": "tsukimura-ya"
     }
   ],
+  "siteInfo": {
+    "seiryo": {
+      "name": "Seiryo High",
+      "kind": "school"
+    },
+    "dorm": {
+      "name": "The Seiryo dorm",
+      "kind": "dormitory"
+    },
+    "senba-park": {
+      "name": "Lake Senba and Kairakuen",
+      "kind": "park"
+    },
+    "downtown": {
+      "name": "Downtown Mito",
+      "kind": "shopping street"
+    },
+    "fujiwara-ramen": {
+      "name": "Fujiwara ramen stall",
+      "kind": "ramen stall"
+    },
+    "tokyo-uni": {
+      "name": "University district, Bunkyo",
+      "kind": "university town"
+    },
+    "tsukimura-ya": {
+      "name": "Tsukimura-ya",
+      "kind": "family inn"
+    }
+  },
   "extras": [
     {
       "id": "matsudaira",

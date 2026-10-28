@@ -58,6 +58,42 @@ test('Japan by prefecture, Tokyo by ward, Mito by neighbourhood and Daigo by are
   assert.ok(trip('mito', 'kyoto') > 3, 'the school trip is a journey');
 });
 
+// ---------- places of their own ----------
+
+test('the school, the dorm and the house are places of their own: each its own floor plan, joined by trips', () => {
+  const { E, state } = game();
+  const s = state.sites;
+  assert.deepEqual([s.seiryo.name, s.seiryo.rooms.length, s.dorm.rooms.length, s['hayakawa-house'].name], ['Seiryo High', 28, 11, 'The Hayakawa house']);
+  assert.ok(Object.values(s).every((x) => x.authored && x.kept));
+  assert.equal(E.Sites.playerSite(state), 'hayakawa-house');
+  const plan = (room) => Object.keys(E.Engine.sitePlan(state, room).rooms).sort();
+  assert.deepEqual(plan('classroom-1b'), [...s.seiryo.rooms].sort(), 'the school plan has only the school');
+  assert.ok(!plan('hayakawa-living').includes('gate'));
+  // A move across places follows the trips; from the gate the dorm is a trip, not in sight.
+  assert.deepEqual([...E.Engine.route(state, 'gate', 'kazuha-room', { who: 'sora' })], ['gate', 'dorm-entrance', 'girls-wing', 'kazuha-room']);
+  state.characters.sora.status.location = 'gate';
+  assert.ok(!E.Engine.visibleRooms(state).includes('dorm-entrance'));
+  // They never fade, and don't count against the story's own places.
+  assert.equal(E.Sites.generatedCount(state), 0);
+  state.time.day += 30;
+  assert.deepEqual([...E.Sites.fade(state)], []);
+  // The header names each place over its rooms.
+  assert.match(E.Prompts.header(state), /\n- In Seiryo High \(mito-senba\): gate, entrance, ground-hall, /);
+});
+
+test('places are checked in plain words: a way to another place is a trip, and only that', () => {
+  const E = loadEngine();
+  const f = worldFiles(require('path').join(__dirname, '..', 'scenarios', 'seiryo-high'));
+  const gate = f['world.json'].locations.find((l) => l.id === 'gate');
+  gate.links.find((k) => k.to === 'dorm-entrance').kind = 'door';
+  gate.links.find((k) => k.to === 'entrance').kind = 'trip';
+  f['world.json'].siteInfo.nowhere = { name: 'Nowhere' };
+  const err = E.Scenario.prepareWorld('seiryo-high', f).starts[0].error;
+  assert.match(err, /location "gate": "dorm-entrance" is in another place, so the way there is a "trip"/);
+  assert.match(err, /location "gate": "entrance" is in the same place, so the way there can't be a "trip"/);
+  assert.match(err, /siteInfo: no room is in the place "nowhere"/);
+});
+
 // ---------- people who join later ----------
 
 test('someone who joins later is out of the story until their event: no cast line, no prompt, no feelings toward them yet', () => {
@@ -77,7 +113,7 @@ test('when their event happens they join as newcomers, where their file puts the
   E.Timeline.happen(state, event(state, 'second-term-1'), event(state, 'second-term-1'), res, 'fired');
   const c = state.characters.lena;
   assert.ok(c && !state.waiting.lena);
-  assert.deepEqual([c.joined, c.status.location, c.tier, 'joins' in c], [30, 'dorm-lounge', 'secondary', false]);
+  assert.deepEqual([c.joined, c.status.location, c.tier, 'joins' in c], [30, 'lena-room', 'secondary', false]);
   assert.ok(state.order.includes('lena'));
   assert.equal(state.characters.sayo.relations.lena, -20, 'Sayo\'s feelings toward her arrive with her');
   assert.ok(res.guards.some((g) => g.type === 'joined' && /Lena Kirishima/.test(g.detail)));
@@ -89,7 +125,7 @@ test('a start where the event is past, or where they belong from the start, leav
   // Momo is the Hayakawas' daughter: at home from day one in that start.
   const home = game('hayakawa');
   assert.ok(home.state.characters.momo && !home.state.waiting.momo);
-  assert.equal(home.state.characters.momo.status.location, 'sora-room');
+  assert.equal(home.state.characters.momo.status.location, 'hayakawa-entry');
   // In the dorm start she is one of next April's first-years.
   assert.ok(game('dorm').state.waiting.momo);
   const E = loadEngine();
@@ -213,10 +249,10 @@ test('Seiryo High fits an 8K context in a crowded classroom in its third year, w
     let user = E.Prompts.intent(state, present, 'Look around.', 'about an hour', 'hour', { regional: true }, front);
     const reply = 260 + 150 * front.length + 120;
     const over = E.estTokens(system) + E.estTokens(user) + reply - 8192;
-    // The safety net may take the lore, never more than that.
+    // The safety net may take the lore and the start of a long last scene, never the nearby regions.
     if (over > 0) {
       const sq = E.LLM.squeeze(user, over);
-      assert.deepEqual([...sq.cut], ['lore'], `${start}: ${over} over`);
+      assert.ok(!sq.cut.includes('nearby regions'), `${start}: ${over} over, cut ${sq.cut}`);
       user = sq.user;
     }
     assert.ok(E.estTokens(system) + E.estTokens(user) + reply <= 8192, start);

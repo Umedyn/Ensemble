@@ -86,6 +86,22 @@
   ST.siteOf = (state, room) => (state.locations[room] && state.locations[room].site) || ST.HOME;
   ST.playerSite = (state) => ST.siteOf(state, state.characters[state.player].status.location);
   ST.rooms = (state, site) => Object.values(state.locations).filter((l) => (l.site || ST.HOME) === site);
+  // Authored places (task 7-2): rooms with a "site" are a place of their own
+  // (the school, the family's house), set up at New game like a generated
+  // site that never fades or counts against maxSites: its own floor plan,
+  // a pin on the map, "trip" links to the other places. → nothing.
+  ST.initAuthored = function (state) {
+    const sc = state.scenario;
+    state.sites = state.sites || {};
+    (sc.locations || []).filter((l) => l.site).forEach((l) => {
+      const info = (sc.siteInfo || {})[l.site] || {};
+      const s = state.sites[l.site] || (state.sites[l.site] = { id: l.site, name: info.name || l.name, kind: info.kind || info.name || l.name, region: l.region || sc.region || null,
+        rooms: [], entry: l.id, authored: true, kept: true, keptWhy: 'drawn by the author', made: 0, visits: 0, lastVisit: null });
+      if (info.layout) s.layout = info.layout;
+      s.rooms.push(l.id);
+    });
+  };
+  ST.generatedCount = (state) => Object.values(state.sites || {}).filter((s) => !s.authored).length;
   ST.byName = (state, name) => Object.values(state.sites || {}).find((s) => norm(s.name) === norm(name)) || null;
   ST.hours = (t) => t.day * 24 + t.hour;
 
@@ -318,7 +334,7 @@
     if (known) return { site: known, note: headed };
     if (!ST.enabled(sc)) return ask ? { error: `"${name}" is not a place on the map (this world doesn't build new places)` } : null;
     const cfg = ST.config(sc);
-    if (Object.keys(state.sites || {}).length >= cfg.maxSites) return { error: `this story already has ${cfg.maxSites} places of its own` };
+    if (ST.generatedCount(state) >= cfg.maxSites) return { error: `this story already has ${cfg.maxSites} places of its own` };
     // Anywhere a route goes (R-2): a far place is a long trip, and a closed
     // way (not risky) refuses it before anything is built.
     const here = Eng().playerRegion(state);
@@ -551,7 +567,7 @@
   ST.tactical = function (state, siteId) {
     if (ST.mapFocus(state.scenario) === 'local') return true;
     const s = siteId !== ST.HOME ? (state.sites || {})[siteId] : null;
-    if (s && (s.tactical || s.grown)) return true;
+    if (s && (s.tactical || s.grown || s.authored)) return true;
     if (siteId === ST.HOME && state.scenario.tactical === true) return true;
     return ST.danger(state, siteId);
   };

@@ -212,7 +212,7 @@
     {
       "id": "takumi",
       "status": {
-        "location": "field"
+        "location": "behind-gym"
       },
       "tier": "secondary"
     },
@@ -246,7 +246,7 @@
     {
       "id": "lena",
       "status": {
-        "location": "dorm-lounge"
+        "location": "lena-room"
       }
     },
     {
@@ -266,7 +266,7 @@
     {
       "id": "kazuha",
       "status": {
-        "location": "dorm-lounge"
+        "location": "girls-wing"
       }
     },
     {
@@ -336,10 +336,12 @@
       "name": "Your dorm room",
       "region": "mito-senba",
       "desc": "A six-mat room in the girls' wing: a bed, a desk, a window over the cherry slope, and the boxes you haven't unpacked.",
-      "connects": [],
+      "connects": [
+        "girls-wing"
+      ],
       "links": [
         {
-          "to": "dorm-lounge",
+          "to": "girls-wing",
           "kind": "door"
         }
       ],
@@ -349,7 +351,8 @@
         "bed",
         "desk",
         "unpacked boxes"
-      ]
+      ],
+      "site": "dorm"
     }
   ],
   "clocks": [

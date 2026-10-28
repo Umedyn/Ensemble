@@ -71,6 +71,7 @@
     // The local map (task 3-3): rooms the player knows, and where they last saw everyone.
     state.seenRooms = Object.values(state.locations).filter((l) => l.seen !== false).map((l) => l.id);
     Eng.initSite(state);
+    E.Sites.initAuthored(state);
     state.known = {};
     Eng.knowAll(state, 0);
     Eng.noteSeen(state, null, 0);
@@ -794,8 +795,9 @@
     const sc = state.scenario;
     // A generated site (task 4-4) is planned from its own rooms.
     const site = room ? E.Sites.siteOf(state, room) : E.Sites.HOME;
-    if (site !== E.Sites.HOME) return E.Layouts.plan(E.Sites.rooms(state, site).map((l) => Object.assign({}, l, { links: (l.links || []).filter((k) => k.kind !== 'trip') })), { seed: `${sc.worldId}:${site}` });
-    if (!planCache.has(sc)) planCache.set(sc, E.Layouts.plan(sc.locations || [], { type: sc.site && sc.site.type, seed: `${sc.worldId}:${sc.startId}` }));
+    // An authored place (task 7-2) may name its layout style.
+    if (site !== E.Sites.HOME) return E.Layouts.plan(E.Sites.rooms(state, site).map((l) => Object.assign({}, l, { links: (l.links || []).filter((k) => k.kind !== 'trip') })), { type: ((state.sites || {})[site] || {}).layout, seed: `${sc.worldId}:${site}` });
+    if (!planCache.has(sc)) planCache.set(sc, E.Layouts.plan((sc.locations || []).filter((l) => !l.site), { type: sc.site && sc.site.type, seed: `${sc.worldId}:${sc.startId}` }));
     return planCache.get(sc);
   };
   // A way out ("to") may be in a room on the player's way this turn (the
@@ -1433,7 +1435,7 @@
         const name = String(s.name || '').replace(/\s+/g, ' ').trim().slice(0, 60);
         if (!name) return reject('new place has no name');
         if (E.Sites.byName(state, name) || Eng.resolveLocation(state, name, false)) return reject(`"${name}" is already a place`);
-        if (Object.keys(state.sites || {}).length >= E.Sites.config(state.scenario).maxSites) return reject(`too many places already for "${name}"`);
+        if (E.Sites.generatedCount(state) >= E.Sites.config(state.scenario).maxSites) return reject(`too many places already for "${name}"`);
         const regions = state.scenario.regions || [];
         if (regions.length && !regions.some((r) => r.id === s.region)) return reject(`unknown region "${s.region}" for "${name}"`);
         const st = E.Sites.addStub(state, { name, kind: String(s.kind || name).slice(0, 40), region: regions.length ? s.region : null, from: 'event', why: String(s.why || '').slice(0, 200) });
