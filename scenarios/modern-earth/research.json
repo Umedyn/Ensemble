@@ -10917,4 +10917,139 @@
       "warning": "\"Pago Pago Harbor\": no location \"american-samoa\" in this world; kept as a topic"
     },
     {
-      "s
+      "step": "American Samoa",
+      "warning": "\"Manu'a and its chiefs\": no location \"american-samoa\" in this world; kept as a topic"
+    },
+    {
+      "step": "worldbuild (research: American Samoa",
+      "attempt": 1,
+      "error": null,
+      "warnings": []
+    },
+    {
+      "step": "worldbuild (research: American Samoa",
+      "attempt": 1,
+      "error": null,
+      "warnings": [
+        "not about this world, dropped: Communal Land and Blood Quantum"
+      ]
+    },
+    {
+      "step": "American Samoa",
+      "warning": "not about this world, dropped: Communal Land and Blood Quantum"
+    },
+    {
+      "step": "worldbuild (research: Andorra",
+      "attempt": 1,
+      "error": null,
+      "warnings": [
+        "\"Andorra la Vella\": no location \"andorra-la-vella\" in this world; kept as a topic"
+      ]
+    },
+    {
+      "step": "Andorra",
+      "warning": "\"Andorra la Vella\": no location \"andorra-la-vella\" in this world; kept as a topic"
+    }
+  ],
+  "suggestions": {
+    "secrets": [],
+    "events": [
+      {
+        "topic": "Afghanistan",
+        "text": "Amanullah Khan proclaims himself King of Afghanistan on 9 June 1926.",
+        "scope": "regional",
+        "region": "afghanistan",
+        "date": null,
+        "day": null
+      },
+      {
+        "topic": "Afghanistan",
+        "text": "The Taliban consolidate their emirate while the economy and humanitarian situation worsen.",
+        "scope": "regional",
+        "region": "afghanistan",
+        "date": null,
+        "day": null
+      },
+      {
+        "topic": "Afghanistan",
+        "text": "War breaks out between Afghanistan and Pakistan over Taliban support for the TTP.",
+        "scope": "regional",
+        "region": "afghanistan",
+        "date": "2026-02-01",
+        "day": null
+      },
+      {
+        "topic": "Kabul",
+        "text": "Any events after the world's start date unfold during play.",
+        "scope": "regional",
+        "region": "kabul",
+        "date": null,
+        "day": null
+      },
+      {
+        "topic": "Kabul",
+        "text": "A drone strike in Kabul's Taimani district kills and wounds civilians, sparking the 2025 Afghanistan–Pakistan conflict.",
+        "scope": "regional",
+        "region": "kabul",
+        "date": "2025-10-09",
+        "day": null
+      },
+      {
+        "topic": "Albania",
+        "text": "Tourism keeps booming, with over eleven million visitors arriving in 2024.",
+        "scope": "regional",
+        "region": "albania",
+        "date": null,
+        "day": null
+      },
+      {
+        "topic": "Tirana",
+        "text": "Prime Minister Edi Rama announces plans to create the Sovereign State of the Bektashi Order, a sovereign microstate within Tirana.",
+        "scope": "regional",
+        "region": "tirana",
+        "date": "2024-09-21",
+        "day": null
+      },
+      {
+        "topic": "Tirana",
+        "text": "A Marriott hotel is planned to open next to the Air Albania Stadium.",
+        "scope": "regional",
+        "region": "tirana",
+        "date": null,
+        "day": null
+      },
+      {
+        "topic": "Tirana",
+        "text": "The Ecovolis and Mobike bicycle-sharing schemes, launched earlier in the city, have both been discontinued.",
+        "scope": "regional",
+        "region": "tirana",
+        "date": null,
+        "day": null
+      },
+      {
+        "topic": "Algeria",
+        "text": "The Algerian War of Independence continues after the story's start.",
+        "scope": "regional",
+        "region": "algeria",
+        "date": null,
+        "day": null
+      },
+      {
+        "topic": "American Samoa",
+        "text": "Filmmaker Paul Crompton visits to interview residents for a documentary on the 1974 Pan Am crash.",
+        "scope": "regional",
+        "region": "american-samoa",
+        "date": null,
+        "day": null
+      },
+      {
+        "topic": "American Samoa",
+        "text": "The local legislature passes a resolution backing the appeals court ruling that denied automatic citizenship to those born in the territory.",
+        "scope": "regional",
+        "region": "american-samoa",
+        "date": null,
+        "day": null
+      }
+    ]
+  }
+}
