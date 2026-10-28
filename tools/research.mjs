@@ -84,12 +84,13 @@ export async function main(argv, deps) {
   if (cmd === 'plan') {
     if (fs.existsSync(jobPath)) { log(`${jobPath} exists: edit it, or delete it to plan again.`); return 1; }
     const job = E.Research.newJob(loaded, {
-      wiki: flags.wiki, startId: flags.start, asOf: flags['as-of'], calendar: flags.date ? { date: flags.date } : null,
+      files, wiki: flags.wiki, startId: flags.start, asOf: flags['as-of'], calendar: flags.date ? { date: flags.date } : null,
       perTopic: flags['per-topic'] ? Number(flags['per-topic']) : null, checkKnown: !!flags['check-known'],
     });
     writeJSON(jobPath, job);
     log(`Planned ${job.topics.length} topics in ${jobPath}:`);
-    job.topics.forEach((t) => log(`  - ${t.name} (${t.about})`));
+    job.topics.forEach((t) => log(`  - ${t.name} (${t.about})${t.status === 'has lore' ? `: skipped, ${t.note}` : ''}`));
+    log('Topics that already have your lore are skipped, and stay skipped while they have it ("force": true researches one anyway).');
     log('Trim it before running: set "skip": true on topics that need no research (general knowledge, made-up people),');
     log('or give one a "page" (a wiki page title), a "url", or pasted "text". Then: npm run research -- run ' + world);
     return 0;
@@ -101,17 +102,18 @@ export async function main(argv, deps) {
     const which = configure(E, flags, deps.env);
     const b = E.LLM.backendFor('worldbuild');
     log(`Researching with the ${which} backend (${b.model || b.label} at ${b.url}).`);
-    const ctx = E.Research.context(loaded, job);
+    const ctx = E.Research.context(loaded, job, files);
     await E.Research.run(ctx, { fetch: deps.fetch, save: () => writeJSON(jobPath, job), onProgress: (m) => log('  ' + m) });
   }
   // Write the drafts: lore/research.json and world.json's timeline.
   const out = E.Research.apply(files, job);
   writeJSON(path.join(dir, 'lore', `${E.Research.PACKET}.json`), files[`lore/${E.Research.PACKET}.json`]);
   writeJSON(path.join(dir, 'world.json'), files['world.json']);
-  const count = (s) => job.topics.filter((t) => t.status === s).length;
-  log(`Topics: ${count('done')} done, ${count('known')} already known to the model, ${count('no source')} without a source, ${count('failed')} failed, ${job.topics.filter((t) => t.skip).length} skipped.`);
+  writeJSON(jobPath, job); // what was written, so the next apply knows what the author changed
+  const count = (s) => job.topics.filter((t) => t.status === s && !t.skip).length;
+  log(`Topics: ${count('done')} done, ${count('known')} already known to the model, ${count('no source')} without a source, ${count('failed')} failed, ${count('has lore')} with lore of yours already, ${job.topics.filter((t) => t.skip).length} skipped.`);
   job.topics.filter((t) => t.status === 'failed').forEach((t) => log(`  failed: ${t.name}: ${t.error} (run again to retry)`));
-  log(`Wrote ${out.entries} draft lore entries (lore/${E.Research.PACKET}.json) and ${out.events} draft timeline events (world.json); ${out.kept} accepted entries kept.`);
+  log(`Wrote ${out.entries} draft lore entries (lore/${E.Research.PACKET}.json) and ${out.events} draft timeline events (world.json); ${out.kept} entries of yours kept as they are${out.settled ? `, and ${out.settled} drafts you accepted, edited or deleted not written again` : ''}.`);
   if (job.suggestions.secrets.length) {
     log('Secrets found (not written; add them to the characters yourself if they fit):');
     job.suggestions.secrets.forEach((s) => log(`  - ${s.who}: ${s.text}`));

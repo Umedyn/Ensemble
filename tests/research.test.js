@@ -81,10 +81,14 @@ function goodModel(call) {
 }
 // The holdout's start is Day 23; say that is 2026-03-14.
 const PLAN = ['--date', '2026-03-14', '--as-of', 'March 2026, day 23 of the outbreak'];
-// Only the junction, Ridge and the convoy (which the wiki doesn't have).
+// Only the junction, Ridge and the convoy (which the wiki doesn't have). The
+// holdout has lore of its own for the junction and Ridge, so those are forced.
 function trim(dir) {
   const job = JSON.parse(fs.readFileSync(path.join(dir, 'research.json'), 'utf8'));
-  job.topics.forEach((t) => { t.skip = !['region:junction', 'region:ridge-town', 'group:convoy'].includes(t.id); });
+  job.topics.forEach((t) => {
+    t.skip = !['region:junction', 'region:ridge-town', 'group:convoy'].includes(t.id);
+    if (!t.skip) Object.assign(t, { force: true, status: 'todo' });
+  });
   fs.writeFileSync(path.join(dir, 'research.json'), JSON.stringify(job, null, 2));
   return job;
 }
@@ -130,7 +134,7 @@ test('run turns sources into checked drafts: lore in a packet, dated events in t
   assert.ok(world.lore.includes('research'));
   const guard = world.timeline.find((ev) => ev.draft);
   assert.deepEqual(guard, { id: 'research-a-national-guard-colu', when: { day: 26, hour: 9 }, scope: 'regional', text: 'A National Guard column passes through the junction heading west.', draft: true, region: 'junction' });
-  assert.match(out, /Topics: 2 done, 0 already known to the model, 1 without a source, 0 failed, 11 skipped\./);
+  assert.match(out, /Topics: 2 done, 0 already known to the model, 1 without a source, 0 failed, 0 with lore of yours already, 11 skipped\./);
   assert.match(out, /Secrets found[^]*han: She has been listening to convoy traffic/);
   assert.match(out, /Later events without a date[^]*The weigh station is set on fire\./);
   const job = JSON.parse(fs.readFileSync(path.join(dir, 'research.json'), 'utf8'));
@@ -169,7 +173,7 @@ test('a failed topic is marked and the run goes on; running again retries it and
   assert.ok(!fixed.calls.wiki.some((u) => u.includes('Highway')), 'and no fetch for the done one');
 });
 
-test('apply writes the drafts again without the model, keeping accepted entries and replacing old drafts', async () => {
+test('apply writes the drafts again without the model, keeping what the author accepted and replacing untouched drafts', async () => {
   const { main } = await cli();
   const dir = copyWorld();
   const q = quiet();
@@ -184,12 +188,58 @@ test('apply writes the drafts again without the model, keeping accepted entries 
   const f = fakeFetch(() => { throw new Error('no model calls'); });
   assert.equal(await main(['apply', dir], { fetch: f.fn, log: q.log }), 0);
   const after = JSON.parse(fs.readFileSync(packetPath, 'utf8'));
-  assert.deepEqual(after.map((e) => [e.id, !!e.draft]), [['knot', false], ['knot-2', true], ['ridge', true]]);
+  assert.deepEqual(after.map((e) => [e.id, !!e.draft]), [['knot', false], ['ridge', true]], 'an accepted draft is not written again');
   assert.match(after[0].text, /Edited\.$/);
   assert.equal(f.calls.model.length + f.calls.wiki.length, 0);
   const world = JSON.parse(fs.readFileSync(path.join(dir, 'world.json'), 'utf8'));
   assert.equal(world.timeline.filter((ev) => ev.draft).length, 1, 'old timeline drafts replaced, not doubled');
   assert.equal(world.lore.filter((x) => x === 'research').length, 1);
+});
+
+test('research leaves the author\'s lore alone: topics that have it are skipped, and edited, accepted or deleted drafts are never written over', async () => {
+  const { main } = await cli();
+  const dir = copyWorld();
+  const q = quiet();
+  await main(['plan', dir, ...PLAN], { fetch: fakeFetch(goodModel).fn, log: q.log });
+  let job = JSON.parse(fs.readFileSync(path.join(dir, 'research.json'), 'utf8'));
+  const t = (id) => job.topics.find((x) => x.id === id);
+  // The holdout's own lore: the junction, Ridge, the world and Ferris have it; the convoy and Pike don't.
+  assert.deepEqual([t('region:junction').status, t('region:junction').skip], ['has lore', true]);
+  assert.match(t('region:junction').note, /already has lore: /);
+  assert.deepEqual(['world', 'character:ferris', 'region:ridge-town'].map((id) => t(id).status), ['has lore', 'has lore', 'has lore']);
+  assert.deepEqual(['group:convoy', 'character:pike'].map((id) => t(id).status), ['todo', 'todo']);
+  assert.match(q.lines.join('\n'), /Highway junction \(the region Highway junction\): skipped, already has lore/);
+  // Lore written after the plan counts too: un-skipping without "force" still leaves it alone.
+  job.topics.forEach((x) => { x.skip = x.id !== 'region:junction'; x.status = 'todo'; });
+  fs.writeFileSync(path.join(dir, 'research.json'), JSON.stringify(job));
+  const f = fakeFetch(goodModel);
+  await main(['run', dir], { fetch: f.fn, log: q.log });
+  job = JSON.parse(fs.readFileSync(path.join(dir, 'research.json'), 'utf8'));
+  assert.equal(t('region:junction').status, 'has lore');
+  assert.equal(f.calls.model.length + f.calls.wiki.length, 0, 'no research for it');
+  // Forced, it is researched; then the author edits one draft, deletes another, and research applies again.
+  trim(dir);
+  await main(['run', dir], { fetch: fakeFetch(goodModel).fn, log: q.log });
+  const packetPath = path.join(dir, 'lore', 'research.json');
+  let packet = JSON.parse(fs.readFileSync(packetPath, 'utf8'));
+  assert.deepEqual(packet.map((e) => e.id), ['knot', 'ridge']);
+  packet[0].text = 'The Knot, in my own words: a tangle of ramps under the overpass, and the best place in the county to stop a car.';
+  packet = [packet[0]];
+  fs.writeFileSync(packetPath, JSON.stringify(packet));
+  const world = JSON.parse(fs.readFileSync(path.join(dir, 'world.json'), 'utf8'));
+  world.timeline.find((ev) => ev.draft).text = 'A National Guard column rolls through the junction, as the author tells it.';
+  fs.writeFileSync(path.join(dir, 'world.json'), JSON.stringify(world));
+  const q2 = quiet();
+  assert.equal(await main(['apply', dir], { fetch: fakeFetch(goodModel).fn, log: q2.log }), 0);
+  const after = JSON.parse(fs.readFileSync(packetPath, 'utf8'));
+  assert.deepEqual(after.map((e) => [e.id, !!e.draft]), [['knot', true]], 'the edited draft stays as edited, and the deleted one stays deleted');
+  assert.match(after[0].text, /in my own words/);
+  const w2 = JSON.parse(fs.readFileSync(path.join(dir, 'world.json'), 'utf8'));
+  assert.deepEqual(w2.timeline.filter((ev) => /^research-/.test(ev.id)).map((ev) => ev.text), ['A National Guard column rolls through the junction, as the author tells it.']);
+  assert.match(q2.lines.join('\n'), /3 drafts you accepted, edited or deleted not written again/);
+  // Applying again changes nothing.
+  await main(['apply', dir], { fetch: fakeFetch(goodModel).fn, log: q2.log });
+  assert.deepEqual(JSON.parse(fs.readFileSync(packetPath, 'utf8')), after);
 });
 
 test('asking the model first skips a topic it already knows', async () => {

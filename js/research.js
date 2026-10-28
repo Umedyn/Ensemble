@@ -20,8 +20,9 @@
   // ---------- the job ----------
   // Topics from the world: the world itself, its regions, its groups and its
   // named characters. The creator sets skip, or a page, url or pasted text,
-  // before running.
-  R.topics = function (loaded) {
+  // before running. With the world's files, a topic that already has lore of
+  // the author's (R.ownedLore) starts skipped.
+  R.topics = function (loaded, files) {
     const w = loaded.bundle.world;
     const topic = (id, name, level, ref, about) => ({ id, name, level, ref, about, query: name, page: null, url: null, text: null, skip: false, status: 'todo' });
     const out = [topic('world', w.title, 'world', null, 'the world as a whole')];
@@ -29,9 +30,25 @@
     (w.regions || []).forEach((r) => out.push(Object.assign(topic(`region:${r.id}`, r.name, 'region', r.id, `the region ${r.name}`), r.wiki && r.wiki.title ? { page: r.wiki.title } : {})));
     (w.factions || []).forEach((f) => out.push(topic(`group:${f.id}`, f.name, 'topic', null, `the group ${f.name}`)));
     Object.entries(loaded.bundle.characters || {}).forEach(([id, c]) => out.push(topic(`character:${id}`, c.name || id, 'character', id, `${c.name || id}, ${c.role || 'a character'}`)));
+    const owned = files ? R.ownedLore(files) : null;
+    if (owned) out.forEach((t) => { const has = owned.get(R.loreKey(t)); if (has) Object.assign(t, { skip: true, status: 'has lore', note: `already has lore: ${has.join(', ')}` }); });
     return out;
   };
-  // opts: wiki (a MediaWiki API URL or wiki address), startId, asOf (the start
+  // Lore the author owns, so research leaves it alone: every entry that isn't
+  // a draft waiting for review, by what it is about ("world", "region:<id>",
+  // "character:<id>"). → Map(key → [titles])
+  R.loreKey = (t) => (t.level === 'world' ? 'world' : (t.level === 'region' || t.level === 'character') && t.ref ? `${t.level}:${t.ref}` : null);
+  R.ownedLore = function (files) {
+    const out = new Map();
+    E.LoreEdit.loreItems(files).forEach(({ entry: e }) => {
+      if (e.draft === true) return;
+      const key = R.loreKey(e);
+      if (key) out.set(key, (out.get(key) || []).concat(e.title || e.id));
+    });
+    return out;
+  };
+  // opts: files (the world's raw files, lore included: topics that have lore
+  // start skipped), wiki (a MediaWiki API URL or wiki address), startId, asOf (the start
   // in words, like "March 2024"), calendar ({date: "YYYY-MM-DD"}: the real
   // date of the start, so dated events can be placed), perTopic, checkKnown.
   R.newJob = function (loaded, opts) {
@@ -40,17 +57,19 @@
       version: 1, world: loaded.folder, wiki: o.wiki || R.WIKIPEDIA, startId: o.startId || loaded.defaultStart || null,
       asOf: o.asOf || '', calendar: isObj(o.calendar) && o.calendar.date ? { date: o.calendar.date } : null,
       perTopic: o.perTopic || R.LIMITS.perTopic, checkKnown: !!o.checkKnown,
-      topics: R.topics(loaded), log: [], suggestions: { secrets: [], events: [] },
+      topics: R.topics(loaded, o.files), log: [], suggestions: { secrets: [], events: [] },
     };
   };
 
   // What every call shares: the world's generator header (setting, genre,
   // regions, groups), the ids drafts may point at, and the start.
-  R.context = function (loaded, job) {
+  // files (optional): the world's raw files, so a topic that has gained lore
+  // of the author's since the plan is skipped.
+  R.context = function (loaded, job, files) {
     const sc = E.StartGen.contextScenario(loaded, (loaded.bundle.world.regions || [])[0] && loaded.bundle.world.regions[0].id);
     const st = loaded.bundle.starts[job.startId] || loaded.bundle.starts[loaded.defaultStart] || {};
     const refs = E.LoreEdit.refs(R.filesOf(loaded));
-    return { loaded, job, sc, header: E.Prompts.genHeader(sc, []), refs, start: { day: (st.start && st.start.day) ?? 1, hour: (st.start && st.start.hour) ?? 8 }, title: loaded.bundle.world.title };
+    return { loaded, job, sc, owned: files ? R.ownedLore(files) : null, header: E.Prompts.genHeader(sc, []), refs, start: { day: (st.start && st.start.day) ?? 1, hour: (st.start && st.start.hour) ?? 8 }, title: loaded.bundle.world.title };
   };
   // The raw files of a loaded world, as the creator keeps them.
   R.filesOf = function (loaded) {
@@ -300,10 +319,18 @@
     deps.save();
   };
   // Every topic not done or skipped. A topic that fails is marked and the run
-  // goes on; running again retries it.
+  // goes on; running again retries it. One whose subject has lore of the
+  // author's is left alone (checked each run), unless it says "force": true.
   R.run = async function (ctx, deps) {
     for (const topic of ctx.job.topics) {
       if (topic.skip || ['done', 'known', 'no source'].includes(topic.status)) continue;
+      const has = !topic.force && ctx.owned && ctx.owned.get(R.loreKey(topic));
+      if (has) {
+        Object.assign(topic, { status: 'has lore', note: `already has lore: ${has.join(', ')}` });
+        deps.save();
+        if (deps.onProgress) deps.onProgress(`${topic.name}: already has lore, left alone`);
+        continue;
+      }
       try {
         topic.status = 'running';
         await R.runTopic(ctx, topic, deps);
@@ -321,40 +348,81 @@
   // ---------- output ----------
   // The job's drafts into the world's files: lore in lore/research.json (a
   // packet, listed in world.json) and dated events in world.json's timeline,
-  // all with "draft": true until accepted in the creator. Drafts from an
-  // earlier run are replaced; accepted entries and events stay.
+  // all with "draft": true until accepted in the creator. Research never
+  // overwrites the author: apply remembers what it wrote (job.written), and
+  // only a draft still exactly as written is written again. Anything else is
+  // the author's (accepted, edited, or not from research) and stays as it is,
+  // and what research wrote that the author accepted, edited or deleted isn't
+  // written again. An older job without job.written replaces every draft, as
+  // before, but still skips what matches an accepted entry's title and ref.
   R.PACKET = 'research';
+  const canon = (x) => JSON.stringify(Object.keys(x).filter((k) => k !== 'id' && k !== 'draft' && k !== 'wroteAs').sort().reduce((o, k) => ((o[k] = x[k]), o), {}));
+  const same = (t) => String(t || '').trim().toLowerCase();
   R.apply = function (files, job) {
     const w = files['world.json'];
     const path = `lore/${R.PACKET}.json`;
-    const kept = (Array.isArray(files[path]) ? files[path] : []).filter((e) => isObj(e) && !e.draft);
-    const others = E.LoreEdit.loreItems(files).filter((x) => x.file !== path).map((x) => x.entry.id);
-    const taken = others.concat(kept.map((e) => e.id));
+    const before = job.written || null;
+    const written = { lore: {}, events: {} };
+    const done = job.topics.filter((t) => t.status === 'done');
+    // Lore.
+    const packet = (Array.isArray(files[path]) ? files[path] : []).filter(isObj);
+    const oursLore = (e) => e.draft === true && (!before || (before.lore || {})[e.id] === canon(e));
+    const kept = packet.filter((e) => !oursLore(e));
+    const keptIds = new Set(kept.map((e) => e.id));
+    const goneLore = (id) => !!before && id in (before.lore || {}) && !packet.some((e) => e.id === id);
+    const settledLore = (e) => (e.wroteAs && (keptIds.has(e.wroteAs) || goneLore(e.wroteAs)))
+      || kept.some((k) => !k.draft && same(k.title) === same(e.title) && (k.ref ?? null) === (e.ref ?? null));
+    const taken = E.LoreEdit.loreItems(files).filter((x) => x.file !== path).map((x) => x.entry.id).concat([...keptIds]);
     const fresh = [];
-    job.topics.filter((t) => t.status === 'done').forEach((t) => (t.entries || []).forEach((e) => {
-      const id = E.MapEdit.slug(e.title, taken);
+    let settled = 0;
+    done.forEach((t) => (t.entries || []).forEach((e) => {
+      if (settledLore(e)) {
+        // Remembered, so it stays settled (a deleted one stays deleted) next time.
+        if (before && e.wroteAs && e.wroteAs in (before.lore || {})) written.lore[e.wroteAs] = before.lore[e.wroteAs];
+        settled++;
+        return;
+      }
+      const { wroteAs, ...body } = e;
+      const id = wroteAs && !taken.includes(wroteAs) ? wroteAs : E.MapEdit.slug(e.title, taken);
       taken.push(id);
-      fresh.push(Object.assign({ id }, e, { draft: true }));
+      const out = Object.assign({ id }, body, { draft: true });
+      e.wroteAs = id;
+      written.lore[id] = canon(out);
+      fresh.push(out);
     }));
     files[path] = kept.concat(fresh);
     w.lore = Array.isArray(w.lore) ? w.lore : [];
     if (!w.lore.includes(R.PACKET)) w.lore.push(R.PACKET);
-    const tl = (Array.isArray(w.timeline) ? w.timeline : []).filter((ev) => !(ev.draft && /^research-/.test(ev.id)));
-    const evTaken = tl.map((ev) => ev.id);
+    // Timeline events, the same way.
+    const timeline = Array.isArray(w.timeline) ? w.timeline : [];
+    const oursEvent = (ev) => ev.draft === true && /^research-/.test(ev.id) && (!before || (before.events || {})[ev.id] === canon(ev));
+    const tl = timeline.filter((ev) => !oursEvent(ev));
+    const tlIds = new Set(tl.map((ev) => ev.id));
+    const goneEvent = (id) => !!before && id in (before.events || {}) && !timeline.some((ev) => ev.id === id);
+    const settledEvent = (ev) => (ev.wroteAs && (tlIds.has(ev.wroteAs) || goneEvent(ev.wroteAs))) || tl.some((x) => !x.draft && same(x.text) === same(ev.text));
+    const evTaken = [...tlIds];
     const start = E.LoreEdit.startHours(files, job.startId);
     let events = 0;
-    job.topics.filter((t) => t.status === 'done').forEach((t) => (t.events || []).forEach((ev) => {
+    done.forEach((t) => (t.events || []).forEach((ev) => {
       // Only what comes after the start: earlier things are lore.
       if (ev.day == null || ev.day * 24 + 9 < start) return;
-      const id = E.MapEdit.slug(`research ${ev.text.split(/\s+/).slice(0, 4).join(' ')}`, evTaken);
+      if (settledEvent(ev)) {
+        if (before && ev.wroteAs && ev.wroteAs in (before.events || {})) written.events[ev.wroteAs] = before.events[ev.wroteAs];
+        settled++;
+        return;
+      }
+      const id = ev.wroteAs && !evTaken.includes(ev.wroteAs) ? ev.wroteAs : E.MapEdit.slug(`research ${ev.text.split(/\s+/).slice(0, 4).join(' ')}`, evTaken);
       evTaken.push(id);
       const out = { id, when: { day: ev.day, hour: 9 }, scope: ev.scope, text: ev.text, draft: true };
       if (ev.region) out.region = ev.region;
       else if (ev.scope === 'regional') out.scope = 'world';
+      ev.wroteAs = id;
+      written.events[id] = canon(out);
       tl.push(out);
       events++;
     }));
     if (tl.length) w.timeline = tl;
-    return { entries: fresh.length, events, kept: kept.length };
+    job.written = written;
+    return { entries: fresh.length, events, kept: kept.length, settled };
   };
 })(typeof window !== 'undefined' ? window : globalThis);
