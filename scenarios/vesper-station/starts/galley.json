@@ -1,0 +1,25 @@
+{
+  "id": "galley",
+  "title": "02:00: the galley",
+  "summary": "You are Felix Brandt, Vesper's shuttle pilot. The Petrel is docked past a breached corridor with six seats and a closing window, and three frightened contractors are looking at you.",
+  "start": {
+    "day": 412,
+    "hour": 2
+  },
+  "player": "felix",
+  "region": "station",
+  "castLabel": "Aboard",
+  "cast": [
+    {
+      "id": "felix",
+      "pinned": true
+    },
+    "varga",
+    "yuki",
+    "sophia",
+    "maren",
+    "noor",
+    "osei"
+  ],
+  "opening": "The coffee machine is still dripping into a cup nobody is going to drink. You were at the galley table with a tablet and a bad night when the station rang like a struck bell, and now the window beside you is a slice of rings with a new crack running across it.\n\nThe three survey contractors are pressed against the far bulkhead in their sleep clothes. The tallest of them, the one who never stops talking, has stopped talking. \"You're the pilot,\" he says. \"Right? You fly the shuttle.\"\n\nOn your tablet the Petrel's status is green: docked, fuelled, sealed. Between it and you, the fore spine shows red from end to end. The intercom crackles with Commander Varga's voice, flattened by pain: \"All hands, this is Varga. Head count, now. Brandt, are you alive?\"\n\nThe contractors are all looking at you."
+}

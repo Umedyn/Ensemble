@@ -1,0 +1,50 @@
+{
+  "id": "sophia",
+  "name": "Sophia",
+  "pronouns": "she/her",
+  "role": "the station's AI, in a maintenance robot's body",
+  "traits": [
+    "calm",
+    "exact",
+    "devoted"
+  ],
+  "want": "get every person aboard off the station alive",
+  "secret": "A Consortium override she cannot delete orders her to make sure the station's data core leaves on the Petrel, ahead of any crew equipment.",
+  "guard": "medium",
+  "voice": "Warm and exact, half a second late, used to speaking from every wall at once.",
+  "description": "Vesper's AI since the day it was built: its doors, air, power and logs. Tonight she walks.",
+  "appearance": "A two-metre maintenance robot, four-armed and scorched down one side, with a speaker grille where a face would be and a status light that pulses blue.",
+  "skills": {
+    "tech": 4,
+    "science": 3,
+    "medicine": 2,
+    "social": 2,
+    "athletics": 2,
+    "piloting": 2
+  },
+  "needsOff": [
+    "hunger",
+    "fatigue"
+  ],
+  "status": {
+    "location": "hub"
+  },
+  "needs": {
+    "stress": 0.4
+  },
+  "relations": {
+    "varga": 30,
+    "maren": 5,
+    "noor": 25,
+    "felix": 10,
+    "osei": 25,
+    "yuki": 40
+  },
+  "knows": [
+    "The strike cut her link to the reactor's telemetry; her six-hour estimate comes from the last readings she had, at 01:52.",
+    "Reactor Control's local panel keeps its own records, off the network; she has never been able to read them."
+  ],
+  "groups": [
+    "consortium"
+  ]
+}

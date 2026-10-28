@@ -1,0 +1,108 @@
+{
+  "id": "ops",
+  "title": "02:00: Ops",
+  "summary": "You are Yuki Tanabe, Vesper's maintenance tech. Eight minutes ago the station was struck; the commander is hurt, the reactor won't answer, and Sophia says six hours.",
+  "start": {
+    "day": 412,
+    "hour": 2
+  },
+  "player": "yuki",
+  "region": "station",
+  "castLabel": "Aboard",
+  "cast": [
+    {
+      "id": "yuki",
+      "pinned": true
+    },
+    {
+      "id": "varga",
+      "pinned": true
+    },
+    "sophia",
+    "maren",
+    "noor",
+    "felix",
+    "osei"
+  ],
+  "playerSlot": {
+    "location": "ops",
+    "summary": "You make your own person aboard Vesper, eight minutes after the strike, in Ops with the injured commander. The reactor won't answer, Sophia says six hours, and there are more people than seats.",
+    "needs": {
+      "hunger": 0.2,
+      "fatigue": 0.4,
+      "stress": 0.6
+    },
+    "roles": [
+      {
+        "id": "systems",
+        "label": "Systems engineer",
+        "desc": "Keeps Vesper's power, air and comms running alongside Yuki; knows the station's guts, not its reactor.",
+        "skills": {
+          "tech": 3,
+          "athletics": 1,
+          "science": 1
+        },
+        "suggestedTraits": [
+          "practical",
+          "calm",
+          "dry"
+        ]
+      },
+      {
+        "id": "medic",
+        "label": "Medic",
+        "desc": "Dr. Osei's assistant: trauma care, the med bay's stores, and everyone's blood type by heart.",
+        "skills": {
+          "medicine": 3,
+          "social": 1,
+          "science": 1
+        },
+        "suggestedTraits": [
+          "steady",
+          "kind",
+          "quick"
+        ]
+      },
+      {
+        "id": "scientist",
+        "label": "Ring researcher",
+        "desc": "One of Dr. Haddad's team, a year into a posting studying the rings; good with data, less so with suits.",
+        "skills": {
+          "science": 3,
+          "tech": 1,
+          "social": 1
+        },
+        "suggestedTraits": [
+          "curious",
+          "anxious",
+          "stubborn"
+        ]
+      },
+      {
+        "id": "contractor",
+        "label": "Survey contractor",
+        "desc": "Came aboard a month ago with the ring-mining survey. You don't know the station well, and nobody owes you a seat.",
+        "skills": {
+          "athletics": 2,
+          "tech": 2,
+          "social": 1
+        },
+        "suggestedTraits": [
+          "tough",
+          "wary",
+          "funny"
+        ]
+      }
+    ],
+    "freeform": true,
+    "skillPoints": 10,
+    "maxSkill": 3,
+    "relationsDefault": 10,
+    "castFeelings": 10,
+    "groups": [
+      "consortium"
+    ],
+    "keepDefault": true
+  },
+  "opening": "The status boards in Ops have gone the colour of a wound. Half of them show red outlines where modules used to be pressurised; the rest scroll faults faster than anyone could read them. Somewhere aft, something metal is still ticking as it cools.\n\nCommander Varga sits strapped into his chair with one arm bound across his chest, blood drying in his beard. \"Head count,\" he says, to nobody in particular. \"Then seats.\" The intercom gives him nothing but the hiss of the hub.\n\nSophia's voice comes from the ceiling and, a moment later, from the hatch: a four-armed maintenance robot ducking through it, scorched down one side. \"My racks are failing, so I've moved,\" she says. \"The reactor is not answering. On my last readings it breaches at about eight. Six hours.\"\n\nVarga looks at the reactor panel, which shows nothing at all, and then at you."
+}

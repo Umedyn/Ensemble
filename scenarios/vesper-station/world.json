@@ -1,0 +1,1022 @@
+{
+  "format": 2,
+  "id": "vesper-station",
+  "title": "Vesper Station",
+  "date": {
+    "day": 412,
+    "hour": 2
+  },
+  "summary": "A research station in orbit around Saturn, struck by micrometeoroids eight minutes ago. Six hours until the reactor takes it apart. Get out, and get the others out.",
+  "tags": [
+    "survival",
+    "adventure"
+  ],
+  "toneNote": "Tense, grounded hard SF against a clock. Scared, decent people; danger from vacuum, fire and too few seats; room for quiet heroism.",
+  "mapFocus": "local",
+  "setting": "Vesper Station orbits Saturn just beyond the outer edge of the rings: a twelve-berth research station of the International Outer Planets Consortium, studying the rings and the small moons that shepherd them. At 01:52 station time a swarm of micrometeoroids raked it from end to end. Two crew are dead, the fore spine is open to vacuum, a fire is loose in the quarters, and the reactor's coolant loop is holed. The control link from Ops to the reactor was cut, and Sophia, the station's AI, puts the reactor six hours from breaching containment. Earth is more than an hour away by light; the supply tender Long Haul is eleven days out. Whoever leaves, leaves on what is docked here: two escape pods and the shuttle Petrel.",
+  "rules": [
+    "Grounded near-future technology. No aliens, no magic, and no rescue in time: the only ways off are the two escape pods and the shuttle Petrel.",
+    "Vacuum kills in about two minutes. The fore spine and the hull outside need a suit; there are six EVA suits aboard.",
+    "Radiation is rising around the reactor. A few minutes in Reactor Control are survivable; a long stay is not, for people or for electronics.",
+    "The station's estimate stands: about six hours from the strike until the reactor breaches. The reactor doesn't answer from Ops, and nobody aboard believes it can be stopped.",
+    "Sophia is the station's AI, running in a maintenance robot's body. Harm to her is damage to the chassis: hurt is a dead arm or a dragging leg, badly hurt is failing power, dead is destroyed.",
+    "The crew are frightened professionals, not villains. Conflict comes from fear, guilt and too few seats."
+  ],
+  "timeLabel": "Mission day",
+  "wakeHour": 7,
+  "skills": [
+    "tech",
+    "science",
+    "medicine",
+    "piloting",
+    "athletics",
+    "social"
+  ],
+  "needs": [
+    {
+      "id": "hunger",
+      "label": "Hunger",
+      "perHour": 0.02
+    },
+    {
+      "id": "fatigue",
+      "label": "Fatigue",
+      "perHour": 0.05,
+      "limit": {
+        "text": "runs out of strength and goes down against a bulkhead"
+      }
+    },
+    {
+      "id": "stress",
+      "label": "Stress",
+      "perHour": 0.04
+    }
+  ],
+  "locations": [
+    {
+      "id": "ops",
+      "name": "Ops",
+      "desc": "The command deck: status boards washed red, the comm console, and the commander's chair.",
+      "connects": [
+        "hub"
+      ],
+      "size": "medium",
+      "features": [
+        "status boards",
+        "comm console",
+        "emergency locker"
+      ],
+      "links": [
+        {
+          "to": "hub",
+          "kind": "door"
+        }
+      ]
+    },
+    {
+      "id": "hub",
+      "name": "Central hub",
+      "desc": "The six-way junction where the modules meet the spine, lit amber by the emergency strobes.",
+      "connects": [
+        "ops",
+        "galley",
+        "quarters",
+        "medbay",
+        "lab",
+        "core",
+        "podbay",
+        "suitroom",
+        "breach",
+        "spine-aft"
+      ],
+      "size": "large",
+      "features": [
+        "evacuation board",
+        "intercom"
+      ]
+    },
+    {
+      "id": "galley",
+      "name": "Galley",
+      "desc": "The long table, the coffee machine still dripping, and a window full of rings.",
+      "connects": [
+        "hub"
+      ],
+      "size": "medium",
+      "features": [
+        "galley table",
+        "window"
+      ]
+    },
+    {
+      "id": "quarters",
+      "name": "Crew quarters",
+      "desc": "Twelve sleeping berths in two stacked rows, doors hanging open, smoke curling from a ceiling panel.",
+      "connects": [
+        "hub"
+      ],
+      "size": "medium",
+      "features": [
+        "berths",
+        {
+          "name": "fire",
+          "state": "spreading",
+          "states": [
+            "spreading",
+            "out"
+          ]
+        },
+        "fire extinguishers"
+      ],
+      "links": [
+        {
+          "to": "hub",
+          "kind": "door"
+        }
+      ]
+    },
+    {
+      "id": "medbay",
+      "name": "Med bay",
+      "desc": "Two beds, the trauma scanner and racks of oxygen bottles.",
+      "connects": [
+        "hub"
+      ],
+      "size": "small",
+      "features": [
+        "two beds",
+        "trauma kit",
+        "oxygen bottles"
+      ],
+      "links": [
+        {
+          "to": "hub",
+          "kind": "door"
+        }
+      ]
+    },
+    {
+      "id": "lab",
+      "name": "Ring lab",
+      "desc": "Analysis benches and the cryo-store of ring samples, its freezers humming on battery.",
+      "connects": [
+        "hub"
+      ],
+      "size": "medium",
+      "features": [
+        "cryo-store",
+        "analysis benches",
+        "sample cases"
+      ],
+      "links": [
+        {
+          "to": "hub",
+          "kind": "door"
+        }
+      ]
+    },
+    {
+      "id": "core",
+      "name": "Core room",
+      "desc": "Sophia's server racks behind a glass wall, one row scorched and dark, and the station's data core.",
+      "connects": [
+        "hub"
+      ],
+      "size": "small",
+      "features": [
+        "server racks",
+        "data core"
+      ],
+      "links": [
+        {
+          "to": "hub",
+          "kind": "locked door",
+          "key": [
+            "varga",
+            "sophia",
+            "yuki"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "podbay",
+      "name": "Pod bay",
+      "desc": "A short drum off the hub with two pod hatches set in the floor, their seat lights green and red.",
+      "connects": [
+        "hub",
+        "pod-1",
+        "pod-2"
+      ],
+      "size": "small",
+      "features": [
+        "pod status panel"
+      ],
+      "links": [
+        {
+          "to": "hub",
+          "kind": "door"
+        },
+        {
+          "to": "pod-1",
+          "kind": "hatch"
+        },
+        {
+          "to": "pod-2",
+          "kind": "hatch"
+        }
+      ]
+    },
+    {
+      "id": "pod-1",
+      "name": "Escape pod one",
+      "desc": "Four couches facing inward, a beacon, two weeks of air and water, and the launch lever.",
+      "connects": [
+        "podbay"
+      ],
+      "size": "small",
+      "features": [
+        "four couches",
+        {
+          "name": "launch clamps",
+          "state": "locked",
+          "states": [
+            "locked",
+            "released"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pod-2",
+      "name": "Escape pod two",
+      "desc": "The twin of pod one, its status light red: the strike buckled the collar around its clamps.",
+      "connects": [
+        "podbay"
+      ],
+      "size": "small",
+      "features": [
+        "four couches",
+        {
+          "name": "launch clamps",
+          "state": "jammed",
+          "states": [
+            "jammed",
+            "locked",
+            "released"
+          ],
+          "requires": {
+            "released": {
+              "if": [
+                {
+                  "feature": "pod-2|launch clamps",
+                  "is": "locked"
+                }
+              ],
+              "otherwise": "the clamps are jammed in the buckled collar; the lever does nothing until they are freed"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "suitroom",
+      "name": "Suit room",
+      "desc": "Six EVA suits on their racks, helmets above, and the small airlock out to the hull.",
+      "connects": [
+        "hub",
+        "hull"
+      ],
+      "size": "small",
+      "features": [
+        "suit racks",
+        "airlock"
+      ],
+      "links": [
+        {
+          "to": "hub",
+          "kind": "door"
+        },
+        {
+          "to": "hull",
+          "kind": "hatch"
+        }
+      ]
+    },
+    {
+      "id": "breach",
+      "name": "Fore spine (breached)",
+      "desc": "The long corridor to the docking ring, open to vacuum: frost on every surface, a ragged hole, Saturn showing through it.",
+      "connects": [
+        "hub",
+        "dock"
+      ],
+      "size": "medium",
+      "outside": true,
+      "features": [
+        "the hole",
+        "handholds"
+      ],
+      "links": [
+        {
+          "to": "hub",
+          "kind": "door"
+        },
+        {
+          "to": "dock",
+          "kind": "door"
+        }
+      ]
+    },
+    {
+      "id": "dock",
+      "name": "Docking ring",
+      "desc": "A ring of docking ports at the fore end, pressurised, with the Petrel's hatch and an airlock to the hull.",
+      "connects": [
+        "breach",
+        "petrel",
+        "hull"
+      ],
+      "size": "medium",
+      "features": [
+        "docking ports",
+        "airlock"
+      ],
+      "links": [
+        {
+          "to": "petrel",
+          "kind": "hatch"
+        },
+        {
+          "to": "hull",
+          "kind": "hatch"
+        }
+      ]
+    },
+    {
+      "id": "petrel",
+      "name": "The Petrel",
+      "desc": "The station's shuttle: six seats, a cramped flight deck and fuel for the crossing to the Titan relay.",
+      "connects": [
+        "dock"
+      ],
+      "size": "small",
+      "features": [
+        "pilot's seat",
+        "six seats",
+        {
+          "name": "docking clamps",
+          "state": "locked",
+          "states": [
+            "locked",
+            "released"
+          ],
+          "requires": {
+            "released": {
+              "if": [
+                {
+                  "not": {
+                    "clock": "window",
+                    "atLeast": 8
+                  }
+                }
+              ],
+              "otherwise": "the launch window is gone: the dock faces the debris stream, and releasing now would fly into it"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "hull",
+      "name": "Outside the hull",
+      "desc": "The station's skin under Saturn's light: handrails, antenna stubs, fresh craters, and the long drop of nothing.",
+      "connects": [
+        "suitroom",
+        "dock"
+      ],
+      "size": "large",
+      "outside": true,
+      "features": [
+        "handrails",
+        "tether points"
+      ]
+    },
+    {
+      "id": "spine-aft",
+      "name": "Aft spine",
+      "desc": "The corridor aft toward engineering, air thin and hissing past a patch slapped over a fist-sized hole.",
+      "connects": [
+        "hub",
+        "engineering"
+      ],
+      "size": "medium",
+      "features": [
+        {
+          "name": "hull patch",
+          "state": "leaking",
+          "states": [
+            "leaking",
+            "sealed"
+          ]
+        },
+        "cable runs"
+      ],
+      "links": [
+        {
+          "to": "hub",
+          "kind": "door"
+        },
+        {
+          "to": "engineering",
+          "kind": "door"
+        }
+      ]
+    },
+    {
+      "id": "engineering",
+      "name": "Engineering",
+      "desc": "Power distribution, the coolant pumps screaming, and the shielded door to Reactor Control.",
+      "connects": [
+        "spine-aft",
+        "reactor"
+      ],
+      "size": "medium",
+      "features": [
+        "power board",
+        "coolant pumps",
+        "dosimeters"
+      ],
+      "links": [
+        {
+          "to": "reactor",
+          "kind": "locked door",
+          "key": [
+            "maren",
+            "varga",
+            "sophia"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "reactor",
+      "name": "Reactor Control",
+      "desc": "A narrow shielded room against the reactor itself: the local panel, the radiation alarm, heat through the deck plates.",
+      "connects": [
+        "engineering"
+      ],
+      "size": "small",
+      "features": [
+        "local panel",
+        "radiation alarm",
+        {
+          "name": "rod interlock",
+          "state": "bypassed",
+          "states": [
+            "bypassed",
+            "reset"
+          ]
+        },
+        {
+          "name": "reactor",
+          "state": "running",
+          "states": [
+            "running",
+            "shut down"
+          ],
+          "requires": {
+            "shut down": {
+              "if": [
+                {
+                  "feature": "reactor|rod interlock",
+                  "is": "reset"
+                }
+              ],
+              "otherwise": "shutdown commands don't take here either: the rods won't drop"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "site": {
+    "type": "corridor"
+  },
+  "entrances": [
+    {
+      "room": "suitroom",
+      "kind": "airlock",
+      "watched": false
+    },
+    {
+      "room": "dock",
+      "kind": "airlock",
+      "watched": false
+    }
+  ],
+  "regions": [
+    {
+      "id": "station",
+      "name": "Vesper Station",
+      "label": "station",
+      "controller": "consortium",
+      "tags": [
+        "struck",
+        "venting air"
+      ],
+      "status": "twelve berths, ten people aboard, two dead; reactor failing",
+      "neighbours": [
+        "saturn-orbit"
+      ],
+      "lore": "The station itself: a hub of modules, a spine running fore to the docking ring and aft to engineering and the reactor, held by the Consortium."
+    },
+    {
+      "id": "saturn-orbit",
+      "name": "Saturn orbit",
+      "label": "orbit",
+      "controller": null,
+      "tags": [
+        "debris stream"
+      ],
+      "status": "a stream of ring debris crossing the station's orbit",
+      "neighbours": [
+        "station",
+        "titan-relay"
+      ],
+      "lore": "The space around the station, just outside the rings: Saturn filling half the sky, and tonight a thin stream of grit from a collision in the ring plane."
+    },
+    {
+      "id": "titan-relay",
+      "name": "Titan relay depot",
+      "label": "depot",
+      "controller": "consortium",
+      "tags": [],
+      "status": "uncrewed, life support on standby",
+      "neighbours": [
+        "saturn-orbit"
+      ],
+      "lore": "An uncrewed relay and supply depot in orbit around Titan, three days' flight from Vesper, with air, water and a pressurised hab for a crew waiting on a ship."
+    }
+  ],
+  "world": {
+    "reactor": "coolant loop holed, heating; no answer from Ops",
+    "comms": "long-range link up; the Long Haul is eleven days out",
+    "shuttle": "the Petrel docked and fuelled, launch window open",
+    "pods": "pod one ready; pod two's clamps jammed",
+    "aft": "aft spine leaking through a patch",
+    "fire": "electrical fire in the quarters"
+  },
+  "factions": [
+    {
+      "id": "consortium",
+      "name": "the Consortium",
+      "desc": "The International Outer Planets Consortium, which owns and runs Vesper Station from Earth, more than an hour away by light.",
+      "stance": "alarmed and far away; asking for a head count and the science data",
+      "color": 2,
+      "allies": [
+        "nordvik"
+      ]
+    },
+    {
+      "id": "nordvik",
+      "name": "Nordvik Atomics",
+      "desc": "The company that built Vesper's reactor and keeps an engineer aboard to run it. Its name is on every panel aft of the hub.",
+      "stance": "silent so far; its lawyers will want the reactor's records",
+      "color": 5,
+      "allies": [
+        "consortium"
+      ]
+    }
+  ],
+  "reputation": {
+    "consortium": 10,
+    "nordvik": 0
+  },
+  "clocks": [
+    {
+      "id": "breakup",
+      "name": "Reactor containment failure",
+      "value": 0,
+      "max": 12,
+      "perHour": 2,
+      "fixed": true,
+      "stopIf": [
+        {
+          "feature": "reactor|reactor",
+          "is": "shut down"
+        }
+      ],
+      "fireText": "The reactor breaches containment. A white flash runs the length of the spine, and Vesper Station comes apart around everyone still aboard.",
+      "fireWorld": {
+        "reactor": "breached; the station is breaking up"
+      }
+    },
+    {
+      "id": "window",
+      "name": "The Petrel's launch window",
+      "value": 0,
+      "max": 8,
+      "perHour": 2,
+      "fixed": true,
+      "fireText": "The station's slow tumble swings the docking ring into the debris stream. Grit rattles across the hull like hail, and the Petrel can no longer launch safely.",
+      "fireWorld": {
+        "shuttle": "launch window closed: the dock faces the debris stream"
+      }
+    },
+    {
+      "id": "aft-air",
+      "name": "Aft spine losing air",
+      "value": 2,
+      "max": 10,
+      "perHour": 2.5,
+      "stopIf": [
+        {
+          "feature": "spine-aft|hull patch",
+          "is": "sealed"
+        }
+      ],
+      "fireText": "The patch in the aft spine blows out. Air screams aft before the pressure doors slam, and the way to engineering and the reactor is vacuum now.",
+      "fireWorld": {
+        "aft": "aft spine open to vacuum; suits only past the hub"
+      }
+    },
+    {
+      "id": "fire",
+      "name": "Fire spreading through the quarters",
+      "value": 2,
+      "max": 10,
+      "perHour": 2.5,
+      "stopIf": [
+        {
+          "feature": "quarters|fire",
+          "is": "out"
+        }
+      ],
+      "fireText": "The fire in the quarters reaches the oxygen lines. Flame bursts out into the hub, and thick smoke rolls through every open door.",
+      "fireWorld": {
+        "fire": "quarters gutted; smoke through the hub"
+      }
+    }
+  ],
+  "facts": [
+    "Sophia's estimate: about six hours from the strike until the reactor breaches containment, at around 08:00.",
+    "The control link between Ops and the reactor was cut in the strike; the reactor doesn't answer from Ops.",
+    "The fore spine between the hub and the docking ring is open to vacuum; the Petrel is on the far side of it.",
+    "Escape pod two's launch clamps jammed in the strike.",
+    "There are six EVA suits aboard, and ten people."
+  ],
+  "eventRates": {
+    "regional": 3,
+    "world": 0
+  },
+  "eventSeeds": {
+    "regional": [
+      "a pressure door failing between two modules",
+      "a second, smaller debris hit",
+      "a power surge blacking out a module",
+      "smoke from a fire nobody had found",
+      "a maintenance drone malfunctioning",
+      "the station's tumble getting worse",
+      {
+        "text": "grit from the debris stream peppering the hull",
+        "region": "saturn-orbit"
+      }
+    ]
+  },
+  "majorEventDays": 0.15,
+  "majorHorizonDays": 1,
+  "majorSeeds": [
+    "a pressure door gives way and a module starts venting",
+    "a crew member is found pinned under fallen equipment",
+    "the power fails across the habitat ring",
+    "someone panics and tries to take a pod alone",
+    "a coolant line bursts in engineering"
+  ],
+  "projectTimeline": false,
+  "inventExtras": false,
+  "tiers": {
+    "demoteAfter": 4,
+    "maxLocal": 6
+  },
+  "extras": [
+    {
+      "id": "mercer",
+      "name": "Captain Odile Mercer",
+      "pronouns": "she/her",
+      "role": "captain of the supply tender Long Haul",
+      "location": "ops",
+      "note": "Only ever a voice on the comm console in Ops, a few seconds' delay; calm, practical, eleven days away and burning hard."
+    }
+  ],
+  "standees": [
+    {
+      "id": "contractors",
+      "label": "survey contractors",
+      "count": 3,
+      "location": "galley",
+      "state": "alert",
+      "note": "Three contractors from a ring-mining survey, a month aboard; they don't know the station, have never worn its suits, and want seats."
+    },
+    {
+      "id": "drones",
+      "label": "maintenance drones",
+      "count": 3,
+      "location": "spine-aft",
+      "state": "calm",
+      "post": "spine-aft",
+      "note": "Sophia's maintenance drones, still running their last orders: patching, cutting, carrying. They answer to Sophia and the maintenance crew."
+    }
+  ],
+  "lore": [
+    {
+      "id": "vesper",
+      "title": "Vesper Station",
+      "level": "world",
+      "alwaysOn": true,
+      "text": "Vesper Station has studied Saturn's rings for six years: the grains, the waves the small moons raise in them, and the collisions that keep them churning. It berths twelve and was carrying ten tonight: the crew, its reactor engineer from Nordvik Atomics, and three contractors from a ring-mining survey."
+    },
+    {
+      "id": "the-reactor",
+      "title": "The reactor",
+      "level": "location",
+      "ref": "reactor",
+      "keywords": [
+        "reactor",
+        "coolant",
+        "containment",
+        "rods",
+        "radiation"
+      ],
+      "topics": [
+        "tech"
+      ],
+      "text": "Sunlight at Saturn is too weak for solar panels, so Vesper runs on a compact fission reactor at the far end of the aft spine, built by Nordvik Atomics and shielded by the length of the station. Ops runs it over a control link, and Nordvik's engineer looks after it on the spot."
+    },
+    {
+      "id": "pods",
+      "title": "The escape pods",
+      "level": "location",
+      "ref": "podbay",
+      "keywords": [
+        "pod",
+        "pods",
+        "escape pod",
+        "beacon"
+      ],
+      "topics": [
+        "travel"
+      ],
+      "text": "Two escape pods hang under the pod bay, four couches each, with air, water and food for about two weeks and a beacon that calls for help on its own. Once the clamps let go, springs push the pod clear and it drifts until someone picks it up."
+    },
+    {
+      "id": "petrel",
+      "title": "The Petrel",
+      "level": "location",
+      "ref": "petrel",
+      "keywords": [
+        "Petrel",
+        "shuttle",
+        "launch window"
+      ],
+      "topics": [
+        "travel",
+        "tech"
+      ],
+      "text": "The Petrel is Vesper's shuttle, with a flight deck for one pilot and fuel enough to reach the depot at Titan. It launches from the docking ring at the fore end, which is only safe while the dock faces away from the debris."
+    },
+    {
+      "id": "suits",
+      "title": "EVA suits",
+      "level": "location",
+      "ref": "suitroom",
+      "keywords": [
+        "suit",
+        "suits",
+        "EVA",
+        "helmet",
+        "vacuum"
+      ],
+      "topics": [
+        "tech"
+      ],
+      "text": "The suit room holds six EVA suits, sized for the crew and good for about six hours outside. Anyone going through the fore spine or out on the hull needs one, and putting one on properly takes ten minutes with help, longer alone."
+    },
+    {
+      "id": "long-haul",
+      "title": "The Long Haul",
+      "level": "topic",
+      "keywords": [
+        "Long Haul",
+        "tender",
+        "rescue",
+        "Mercer"
+      ],
+      "topics": [
+        "travel"
+      ],
+      "text": "The Long Haul is the Consortium's supply tender, eleven days out on its regular run. It can pick up pods and their beacons, and it can reach the Titan relay, but nothing it does can get it to Vesper in hours."
+    },
+    {
+      "id": "sophia-body",
+      "title": "Sophia",
+      "level": "character",
+      "ref": "sophia",
+      "topics": [
+        "tech"
+      ],
+      "text": "Sophia has run Vesper since it was built: its doors, air, power and logs. Tonight her server racks are failing, so she has loaded herself into one of the station's maintenance robots, a four-armed chassis built for vacuum work, strong and slow."
+    },
+    {
+      "id": "rings",
+      "title": "The rings",
+      "level": "topic",
+      "keywords": [
+        "rings",
+        "ring plane",
+        "samples",
+        "debris",
+        "collision"
+      ],
+      "topics": [
+        "science"
+      ],
+      "text": "Saturn's rings are billions of ice grains in a sheet a few tens of metres thick. Collisions in them are constant and mostly harmless; tonight one threw a stream of grit out of the ring plane and across Vesper's orbit, and the station passes through it every time its tumble turns the wrong face forward."
+    }
+  ],
+  "timeline": [
+    {
+      "id": "probe-campaign",
+      "when": {
+        "day": 389,
+        "hour": 9
+      },
+      "scope": "world",
+      "text": "The ring-probe campaign began, the busiest stretch the station has had: probes fired into the ring plane day and night."
+    },
+    {
+      "id": "strike",
+      "when": {
+        "day": 412,
+        "hour": 1
+      },
+      "scope": "regional",
+      "region": "station",
+      "text": "Just before two in the morning, a swarm of micrometeoroids raked Vesper Station from end to end. Ana Ruiz and Teodor Lind died when the observation module tore open."
+    },
+    {
+      "id": "long-haul-answers",
+      "when": {
+        "day": 412,
+        "hour": 3
+      },
+      "scope": "world",
+      "visibility": "heard",
+      "text": "The Long Haul answers the distress call over the comm console: eleven days out and burning hard, ready to pick up pods, and asking for a head count.",
+      "preconditions": [
+        {
+          "not": {
+            "world": "comms",
+            "is": "down"
+          }
+        }
+      ],
+      "onBroken": "drop"
+    },
+    {
+      "id": "nordvik-calls",
+      "when": {
+        "day": 412,
+        "hour": 5
+      },
+      "scope": "world",
+      "visibility": "heard",
+      "text": "Nordvik Atomics' duty office comes through on the comm console, asking for the reactor's last readings and for its engineer, Maren Kjeldsen, by name.",
+      "effects": {
+        "groups": [
+          {
+            "id": "nordvik",
+            "stance": "urgent and careful; wants its engineer and its reactor's records"
+          }
+        ]
+      },
+      "preconditions": [
+        {
+          "not": {
+            "world": "comms",
+            "is": "down"
+          }
+        }
+      ],
+      "onBroken": "drop"
+    }
+  ],
+  "endings": [
+    {
+      "id": "pod-one",
+      "title": "Away in pod one",
+      "kind": "bittersweet",
+      "when": {
+        "reach": "pod-1"
+      },
+      "if": [
+        {
+          "feature": "pod-1|launch clamps",
+          "is": "released"
+        }
+      ],
+      "epilogue": "Springs push the pod clear, the beacon starts its call, and eleven days of waiting begin with the station falling away behind."
+    },
+    {
+      "id": "pod-two",
+      "title": "Away in pod two",
+      "kind": "bittersweet",
+      "when": {
+        "reach": "pod-2"
+      },
+      "if": [
+        {
+          "feature": "pod-2|launch clamps",
+          "is": "released"
+        }
+      ],
+      "epilogue": "The pod nobody thought would fly tears free of its buckled collar and tumbles clear, beacon calling."
+    },
+    {
+      "id": "petrel-away",
+      "title": "The Petrel's last flight",
+      "kind": "bittersweet",
+      "when": {
+        "reach": "petrel"
+      },
+      "if": [
+        {
+          "feature": "petrel|docking clamps",
+          "is": "released"
+        }
+      ],
+      "epilogue": "The shuttle drops away from the dock and turns for Titan, carrying whoever was chosen, and whatever that cost."
+    },
+    {
+      "id": "lost",
+      "title": "Lost with the station",
+      "kind": "loss",
+      "when": {
+        "clock": "breakup"
+      },
+      "if": [
+        {
+          "not": {
+            "feature": "reactor|reactor",
+            "is": "shut down"
+          }
+        }
+      ],
+      "epilogue": "Whoever was still aboard went with her. The beacons that got away go on calling for the Long Haul."
+    },
+    {
+      "id": "vesper-holds",
+      "title": "Vesper holds",
+      "kind": "win",
+      "if": [
+        {
+          "feature": "reactor|reactor",
+          "is": "shut down"
+        }
+      ],
+      "epilogue": "The screaming pumps wind down, the heat bleeds out of the deck, and the broken station is still there in the morning, with everyone who stayed."
+    },
+    {
+      "id": "nobody-left",
+      "title": "Nobody left behind",
+      "kind": "win",
+      "when": {
+        "judged": "the player gets off the station knowing every other living person aboard is already off it or leaving with them"
+      },
+      "epilogue": "Not everyone who woke up on Vesper tonight is alive, but everyone who was still alive got out."
+    },
+    {
+      "id": "left-behind",
+      "title": "Left behind",
+      "kind": "loss",
+      "when": {
+        "judged": "the player gets off the station while people they could still have reached are alive aboard and left there"
+      },
+      "epilogue": "Some of the voices on the intercom were still calling when the station fell away."
+    }
+  ],
+  "characters": [
+    "varga",
+    "maren",
+    "noor",
+    "felix",
+    "osei",
+    "yuki",
+    "sophia"
+  ],
+  "starts": [
+    "ops",
+    "galley",
+    "sophia"
+  ]
+}

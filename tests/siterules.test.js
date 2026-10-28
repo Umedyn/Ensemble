@@ -209,7 +209,7 @@ test('older saves get link and feature state from their rooms', () => {
   const up = E.Engine.migrate(v10);
   assert.equal(up.version, E.Engine.STATE_VERSION);
   assert.deepEqual(plain(up.links), { 'suitroom|surface': { locked: false, open: false }, 'garage|surface': { locked: false, open: false } });
-  assert.deepEqual(plain(up.features), { 'med|drug cabinet': 'locked' });
+  assert.deepEqual(plain(up.features), { 'med|drug cabinet': 'locked', 'hydro|water recycler': 'rattling' });
 });
 
 test('after a move, walking back out of the room is a relocation; staying is fine', () => {

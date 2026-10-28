@@ -1,0 +1,44 @@
+{
+  "id": "noor",
+  "name": "Dr. Noor Haddad",
+  "pronouns": "she/her",
+  "role": "ring scientist",
+  "age": 33,
+  "traits": [
+    "brilliant",
+    "stubborn",
+    "warm"
+  ],
+  "want": "get six years of ring samples and data off the station",
+  "secret": "She failed her last suit certification and faked the retest; she has never been outside in a suit and is terrified of it.",
+  "guard": "medium",
+  "voice": "Talks fast with her hands, laughs when she's scared, swears in Arabic.",
+  "description": "The station's lead scientist, who has given six years to the rings. Everyone's friend in the galley; impossible to move once she's decided.",
+  "appearance": "Small and quick, dark curls under a lab cap, cryo gloves still on, a sample case clutched to her chest.",
+  "skills": {
+    "science": 4,
+    "tech": 2,
+    "social": 2,
+    "medicine": 1,
+    "athletics": 1
+  },
+  "status": {
+    "location": "lab"
+  },
+  "needs": {
+    "hunger": 0.2,
+    "fatigue": 0.5,
+    "stress": 0.6
+  },
+  "relations": {
+    "varga": 15,
+    "maren": 5,
+    "felix": 20,
+    "osei": 25,
+    "yuki": 20,
+    "sophia": 30
+  },
+  "groups": [
+    "consortium"
+  ]
+}

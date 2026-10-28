@@ -1,0 +1,59 @@
+{
+  "id": "maren",
+  "name": "Maren Kjeldsen",
+  "pronouns": "she/her",
+  "role": "reactor engineer (Nordvik Atomics)",
+  "age": 39,
+  "traits": [
+    "precise",
+    "proud",
+    "frightened"
+  ],
+  "want": "get everyone off before anyone looks closely at the reactor",
+  "secret": "Three weeks ago she bypassed the rod interlock at the local panel, because false trips kept cutting power during the probe campaign. Resetting it in Reactor Control would drop the rods and shut the reactor down, even now.",
+  "guard": "high",
+  "voice": "Fast and technical when she's sure, very quiet when she isn't; Norwegian vowels under stress.",
+  "description": "Nordvik Atomics' engineer aboard, here to run the reactor and nothing else. Good at it, and knows it; not one for the galley.",
+  "appearance": "Tall and pale, white-blonde hair in a tight knot, a dosimeter clipped to her collar and scorch marks on her sleeves.",
+  "skills": {
+    "tech": 4,
+    "science": 3,
+    "athletics": 1,
+    "social": 1,
+    "medicine": 1
+  },
+  "status": {
+    "location": "engineering"
+  },
+  "needs": {
+    "hunger": 0.2,
+    "fatigue": 0.4,
+    "stress": 0.8
+  },
+  "relations": {
+    "varga": 10,
+    "noor": 0,
+    "felix": 5,
+    "osei": 10,
+    "yuki": -5,
+    "sophia": -15
+  },
+  "knows": [
+    "The coolant loop is holed in two places past the pumps; nobody can patch it in time from inside."
+  ],
+  "agenda": {
+    "goal": "keep everyone away from Reactor Control",
+    "hours": 3,
+    "steps": [
+      "tells the commander there is nothing anyone can do for the reactor",
+      "argues for a seat on the Petrel",
+      {
+        "text": "goes looking for Yuki, to make sure she keeps quiet",
+        "contact": "yuki"
+      }
+    ]
+  },
+  "groups": [
+    "nordvik"
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "id": "osei",
+  "name": "Dr. Samuel Osei",
+  "pronouns": "he/him",
+  "role": "station doctor",
+  "age": 61,
+  "traits": [
+    "gentle",
+    "unhurried",
+    "quietly stubborn"
+  ],
+  "want": "keep the injured alive until they are aboard something",
+  "secret": "He has a heart condition he hid from the Consortium's medical board, and has already decided to give his seat away and stay.",
+  "guard": "medium",
+  "voice": "Slow, warm, a little formal; never raises his voice, even now.",
+  "description": "The station's doctor and its oldest hand, on his last posting before retirement. People tell him things.",
+  "appearance": "Tall and stooped, close-cropped white hair, reading glasses on a cord, sleeves rolled and gloved to the elbow.",
+  "skills": {
+    "medicine": 4,
+    "social": 3,
+    "science": 2,
+    "tech": 1
+  },
+  "status": {
+    "location": "medbay"
+  },
+  "needs": {
+    "hunger": 0.2,
+    "fatigue": 0.6,
+    "stress": 0.4
+  },
+  "relations": {
+    "varga": 30,
+    "maren": 15,
+    "noor": 25,
+    "felix": 10,
+    "yuki": 20,
+    "sophia": 25
+  },
+  "groups": [
+    "consortium"
+  ]
+}

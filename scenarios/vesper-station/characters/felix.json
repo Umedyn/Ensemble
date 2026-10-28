@@ -1,0 +1,47 @@
+{
+  "id": "felix",
+  "name": "Felix Brandt",
+  "pronouns": "he/him",
+  "role": "shuttle pilot",
+  "age": 36,
+  "traits": [
+    "cocky",
+    "quick",
+    "scared"
+  ],
+  "want": "get the Petrel away inside its launch window, with himself aboard",
+  "secret": "The Petrel seats six, but its air and scrubbers are only rated for four people over the three days to the Titan relay. He has told no one, and he means to be one of the four.",
+  "guard": "medium",
+  "voice": "Jokes first, swears second, goes very flat and calm when he's actually afraid.",
+  "description": "Vesper's pilot, who flies the Petrel on supply runs. Charming in the galley; nobody has seen him in a real emergency before tonight.",
+  "appearance": "Lean and sharp-faced, flight jacket over sleep clothes, a pilot's tablet in one hand and a bruise rising on his jaw.",
+  "skills": {
+    "piloting": 4,
+    "tech": 2,
+    "athletics": 2,
+    "social": 2,
+    "science": 1
+  },
+  "status": {
+    "location": "galley"
+  },
+  "needs": {
+    "hunger": 0.2,
+    "fatigue": 0.3,
+    "stress": 0.7
+  },
+  "relations": {
+    "varga": 10,
+    "maren": 5,
+    "noor": 20,
+    "osei": 10,
+    "yuki": 15,
+    "sophia": 0
+  },
+  "knows": [
+    "The Petrel's launch window closes when the station's tumble turns the dock into the debris stream, at about 06:00."
+  ],
+  "groups": [
+    "consortium"
+  ]
+}

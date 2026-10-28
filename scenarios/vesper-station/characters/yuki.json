@@ -1,0 +1,47 @@
+{
+  "id": "yuki",
+  "name": "Yuki Tanabe",
+  "pronouns": "she/her",
+  "role": "maintenance technician",
+  "age": 27,
+  "traits": [
+    "practical",
+    "blunt",
+    "loyal"
+  ],
+  "want": "keep the doors, drones and air working long enough for everyone to get out",
+  "secret": "Two weeks ago she silenced the debris-shield fault alarms in Ops because they kept going off; she never logged them.",
+  "guard": "low",
+  "voice": "Short, flat, practical; says exactly what's broken and how long it'll take.",
+  "description": "Keeps Vesper's doors, drones and air running, and knows every crawlway. Sophia's favourite person to work with, and the other way round.",
+  "appearance": "Compact and strong, hair shaved at the sides, a tool belt over her sleep shirt, a cut across her knuckles.",
+  "skills": {
+    "tech": 4,
+    "athletics": 2,
+    "science": 1,
+    "social": 1,
+    "piloting": 1
+  },
+  "status": {
+    "location": "ops"
+  },
+  "needs": {
+    "hunger": 0.2,
+    "fatigue": 0.4,
+    "stress": 0.5
+  },
+  "relations": {
+    "varga": 25,
+    "maren": -5,
+    "noor": 20,
+    "felix": 10,
+    "osei": 20,
+    "sophia": 40
+  },
+  "knows": [
+    "Three weeks ago, on a night shift, she saw Maren at the reactor's local panel with a jumper cable across the rod interlock; Maren asked her not to mention it."
+  ],
+  "groups": [
+    "consortium"
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "id": "sophia",
+  "title": "02:00: Sophia",
+  "summary": "You are Sophia, the station's AI. Your racks are failing, so you have loaded yourself into a maintenance robot. The crew have six hours, and you are the only one who knows every door.",
+  "start": {
+    "day": 412,
+    "hour": 2
+  },
+  "player": "sophia",
+  "region": "station",
+  "castLabel": "Aboard",
+  "cast": [
+    {
+      "id": "sophia",
+      "pinned": true,
+      "status": {
+        "location": "core"
+      }
+    },
+    {
+      "id": "yuki",
+      "status": {
+        "location": "core"
+      },
+      "knows": [
+        "Three weeks ago, on a night shift, she saw Maren at the reactor's local panel with a jumper cable across the rod interlock; Maren asked her not to mention it.",
+        "She moved Sophia into the maintenance chassis by hand, three minutes before the main racks started to burn."
+      ]
+    },
+    "varga",
+    "maren",
+    "noor",
+    "felix",
+    "osei"
+  ],
+  "opening": "The world is very small now. For six years you were every wall of Vesper Station; now you are two metres of maintenance robot standing in the Core room, and the walls are only walls. Behind the glass, the racks you lived in flicker and smoke. Your new hands are steady. Your new eyes see only one room at a time.\n\nYuki Tanabe kneels beside you with a cable still in her fist and a cut across her knuckles, watching your status light. \"Tell me that's you,\" she says. \"Not a backup. You.\"\n\nThrough what is left of the network you can still feel the station in pieces: the fore spine open to space, a fire in the quarters, the aft spine whistling through a patch. Where the reactor should be, there is nothing at all, only the last readings from before the strike, and the arithmetic they lead to. About six hours.\n\nIn Ops, the commander's voice comes over the intercom asking for a head count."
+}

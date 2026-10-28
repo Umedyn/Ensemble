@@ -151,6 +151,7 @@
       "value": 0,
       "max": 10,
       "perHour": 0.5,
+      "fixed": true,
       "fireText": "The dust storm arrives. The sky turns the color of rust, solar output collapses and anyone outside has minutes to get in.",
       "fireWorld": {
         "power": "solar output collapsed, running on battery reserve"
@@ -184,6 +185,12 @@
       "value": 3,
       "max": 10,
       "perHour": 0.2,
+      "stopIf": [
+        {
+          "feature": "hydro|water recycler",
+          "is": "repaired"
+        }
+      ],
       "fireText": "The water recycler grinds to a halt. Until it is repaired, the station is on stored water only.",
       "fireWorld": {
         "recycler": "failed"

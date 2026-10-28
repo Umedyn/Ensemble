@@ -795,6 +795,18 @@
     clocks(sc.clocks);
     return out;
   };
+  // Tracked features (task 3-6) by "room|name", with the states each may take
+  // (task 7-3: a feature's "states"; null when any state goes), for the
+  // "feature" condition's checks.
+  S.trackedFeatures = function (sc) {
+    const features = new Set(), featureStates = {};
+    (sc.locations || []).forEach((l) => (isObj(l) && Array.isArray(l.features) ? l.features : []).forEach((f) => {
+      if (!isObj(f) || f.state == null || typeof f.name !== 'string') return;
+      features.add(`${l.id}|${f.name}`);
+      if (Array.isArray(f.states)) featureStates[`${l.id}|${f.name}`] = f.states.map((x) => String(x).toLowerCase());
+    }));
+    return { features, featureStates };
+  };
   S.endingProblems = function (sc) {
     const problems = [];
     // The shorthand's own shape.
@@ -814,7 +826,7 @@
     const addClocks = (cs) => (cs || []).forEach((c) => { if (c && c.id) { clocks.add(c.id); addClocks(c.then); } });
     addClocks(sc.clocks);
     const events = new Set((Array.isArray(sc.timeline) ? sc.timeline : []).map((ev) => ev && ev.id));
-    const refs = { regions: new Set((sc.regions || []).map((r) => r && r.id)), groups: new Set((sc.factions || []).map((f) => f && f.id)), clocks, characters: new Set(sc.characters || []) };
+    const refs = Object.assign({ regions: new Set((sc.regions || []).map((r) => r && r.id)), groups: new Set((sc.factions || []).map((f) => f && f.id)), clocks, characters: new Set(sc.characters || []) }, S.trackedFeatures(sc));
     list.forEach((e) => {
       if (!isObj(e)) return problems.push('each ending must be {id, title, kind, when, if, epilogue}');
       const at = `ending "${e.id || '?'}"`;
@@ -883,7 +895,7 @@
     const byId = new Map(list.filter(isObj).map((r) => [r.id, r]));
     const nameOf = (r) => (r && typeof r.name === 'string' && r.name.trim() ? r.name : `"${r && r.id}"`);
     const seen = new Set();
-    const routeRefs = { regions: ids, groups: groupIds, clocks: new Set((sc.clocks || []).map((c) => c && c.id)), characters: new Set(sc.characters || []) };
+    const routeRefs = Object.assign({ regions: ids, groups: groupIds, clocks: new Set((sc.clocks || []).map((c) => c && c.id)), characters: new Set(sc.characters || []) }, S.trackedFeatures(sc));
     if (sc.routeKinds != null) {
       if (!isObj(sc.routeKinds)) problems.push('"routeKinds" must be an object: {kind: {time, requires, risky}}');
       else Object.entries(sc.routeKinds).forEach(([k, v]) => {
@@ -1058,6 +1070,24 @@
       const featOk = (f) => (typeof f === 'string' && f.trim() && f.length <= 30) || (isObj(f) && typeof f.name === 'string' && f.name.trim() && f.name.length <= 30 && (f.state == null || (typeof f.state === 'string' && f.state.length <= 20)));
       req(l.features == null || (Array.isArray(l.features) && l.features.length <= 6 && l.features.every(featOk)),
         `${where}: "features" must be a list of at most 6 short names (30 characters each), or {name, state}`);
+      // The states a tracked feature may take, and what a state needs first (task 7-3).
+      (Array.isArray(l.features) ? l.features : []).filter(isObj).forEach((f) => {
+        const at = `${where}: feature "${f.name}"`;
+        if (f.states != null) {
+          const st = Array.isArray(f.states) ? f.states : [];
+          req(f.state != null, `${at}: "states" needs a "state" to start in`);
+          req(st.length >= 2 && st.length <= 8 && st.every((x) => typeof x === 'string' && x.trim() && x.length <= 20), `${at}: "states" must be a list of 2 to 8 short states (20 characters each)`);
+          req(f.state == null || st.map((x) => String(x).toLowerCase()).includes(String(f.state).toLowerCase()), `${at}: its "state" "${f.state}" isn't one of its "states"`);
+        }
+        if (f.requires == null) return;
+        if (!isObj(f.requires) || f.state == null) return req(false, `${at}: "requires" must be {state: {if: [conditions], otherwise}} on a feature with a "state"`);
+        Object.entries(f.requires).forEach(([state, r]) => {
+          req(!Array.isArray(f.states) || f.states.map((x) => String(x).toLowerCase()).includes(state.toLowerCase()), `${at}: "requires" names "${state}", which isn't one of its "states"`);
+          if (!isObj(r) || !Array.isArray(r.if) || !r.if.length) return req(false, `${at}: "requires.${state}" must be {if: [conditions], otherwise}`);
+          req(r.otherwise == null || (typeof r.otherwise === 'string' && r.otherwise.length <= 120), `${at}: "requires.${state}.otherwise" must be text of at most 120 characters (what the scene shows until then)`);
+          r.if.forEach((p, i) => problems.push(...E.Timeline.preconditionProblems(p, `${at}: "requires.${state}" ${i + 1}`, Object.assign({}, S.trackedFeatures({ locations: locs }), { characters: new Set(sc.characters || []) }))));
+        });
+      });
       if (l.links == null) return;
       if (!Array.isArray(l.links)) return problems.push(`${where}: "links" must be a list of {to, kind}`);
       l.links.forEach((k) => {
@@ -1280,6 +1310,12 @@
       Object.keys(c.fireWorld || {}).forEach((k) => req(sc.world && k in sc.world, `${where} "${c.id}" fireWorld key "${k}" not in world`));
       req(c.fireHarm == null || ['all', 'outside'].includes(c.fireHarm), `${where} "${c.id}": "fireHarm" must be "all" or "outside"`);
       req(c.repeat == null || typeof c.repeat === 'boolean', `${where} "${c.id}": "repeat" must be true or false`);
+      // fixed: only time moves it; stopIf: it stops for good once these hold (task 7-3).
+      req(c.fixed == null || typeof c.fixed === 'boolean', `${where} "${c.id}": "fixed" must be true or false`);
+      if (c.stopIf != null) {
+        if (!Array.isArray(c.stopIf) || !c.stopIf.length) req(false, `${where} "${c.id}": "stopIf" must be a list of conditions (the timeline's preconditions)`);
+        else c.stopIf.forEach((p, i) => problems.push(...E.Timeline.preconditionProblems(p, `${where} "${c.id}": "stopIf" ${i + 1}`, Object.assign({ characters: new Set(sc.characters || []) }, S.trackedFeatures(sc)))));
+      }
       (c.then || []).forEach((t) => {
         req(t.id && t.name && t.max > 0, `clock "${c.id}" has a follow-up ("then") without id, name and max`);
         clockShape(t, 'follow-up clock');

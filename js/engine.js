@@ -783,6 +783,17 @@
   Eng.features = (state, room) => ((state.locations[room] || {}).features || []).map((f) => ({
     name: featName(f), state: (state.features || {})[`${room}|${featName(f)}`] ?? null, inferred: !!(f && f.inferred),
   }));
+  // Where a tracked feature may go from here (task 7-3): the states it may take
+  // and, for each one held back by its "requires", what the scene shows instead.
+  // → { states (null: any), blocked: {state: otherwise text} }.
+  Eng.featureOptions = function (state, room, name) {
+    const f = ((state.locations[room] || {}).features || []).find((x) => x && typeof x === 'object' && x.name === name) || {};
+    const blocked = {};
+    Object.entries(f.requires || {}).forEach(([to, r]) => {
+      if (r && Array.isArray(r.if) && !r.if.every((p) => E.Timeline.holds(state, p))) blocked[to.toLowerCase()] = r.otherwise || '';
+    });
+    return { states: Array.isArray(f.states) ? f.states.map((x) => String(x).toLowerCase()) : null, blocked, requires: f.requires || {} };
+  };
   // Inferred features (intent step: "new_feature"): something the map is
   // silent about that the player's own action uses. Accepted only if nothing
   // contradicts it: the player's room, not over an authored feature, a way
@@ -1406,6 +1417,7 @@
         const cl = c && state.clocks.find((x) => x.id === c.id);
         if (!cl) return reject(`unknown clock "${c && c.id}"`);
         if (cl.fired) return reject(`${cl.id} has already fired`);
+        if (cl.fixed || cl.stopped) return reject(`${cl.id}: ${cl.stopped ? 'has stopped' : 'only time moves it'}`);
         const d = E.clamp(Number(c.delta) || 0, -cl.max / 2, cl.max / 2);
         if (!d) return null;
         cl.value = E.clamp(cl.value + d, 0, cl.max);
@@ -1999,8 +2011,9 @@
         }
       });
     });
+    Eng.stopClocks(state, res);
     state.clocks.slice().forEach((cl) => {
-      if (cl.fired) return;
+      if (cl.fired || cl.stopped) return;
       cl.value = E.clamp(cl.value + (cl.perHour || 0) * hours, 0, cl.max);
       if (cl.value >= cl.max) Eng.fireClock(state, cl, res);
     });
@@ -2095,7 +2108,22 @@
   // Pressures still in play: those that haven't gone off, and one that went off
   // this turn. After that it lives on as a fact and in the journal, not in the
   // Situation panel or the prompts (playtest-coffee-skips: six "(HAPPENED)" by Sol 328).
-  Eng.liveClocks = (state) => state.clocks.filter((c) => !c.fired || c.firedTurn === state.turn);
+  Eng.liveClocks = (state) => state.clocks.filter((c) => (!c.fired && !c.stopped) || c.firedTurn === state.turn);
+  // A pressure with "stopIf" stops for good once its conditions all hold
+  // (task 7-3: the reactor shut down before it blows): it never moves or goes
+  // off again. → the names of those that stopped now.
+  Eng.stopClocks = function (state, res) {
+    const out = [];
+    state.clocks.forEach((cl) => {
+      if (cl.fired || cl.stopped || !Array.isArray(cl.stopIf) || !cl.stopIf.length) return;
+      if (!cl.stopIf.every((p) => E.Timeline.holds(state, p))) return;
+      cl.stopped = true;
+      cl.stoppedTurn = state.turn;
+      out.push(cl.name);
+      if (res) guard(res, 'resolve', 'clock stopped', `${cl.name}: ${cl.stopIf.map((p) => E.Timeline.say(state, p)).join('; ')}`);
+    });
+    return out;
+  };
 
   Eng.REGION_TAG_HOURS = 72;
   function fadeRegionTags(state, res) {
@@ -2249,7 +2277,7 @@
     const horizon = (sc.majorHorizonDays ?? 30) * 24;
     const meanDays = E.Genres.pacing(sc).majorEventDays;
     // first clock to fire, following chains of follow-up clocks
-    const clocks = E.clone(state.clocks).filter((c) => !c.fired);
+    const clocks = E.clone(state.clocks).filter((c) => !c.fired && !c.stopped);
     let clockHit = null;
     for (let h = 1; h <= horizon && !clockHit; h++) {
       for (const c of clocks) {
@@ -2306,7 +2334,7 @@
   Eng.ended = (state) => !!(state.ending && !state.ending.continued);
   // Engine endings, checked after a turn's (or a skip's) events: the first
   // that holds is reached. → the ending, or null.
-  Eng.checkEndings = function (state, res) {
+  Eng.checkEndings = function (state, res, extra) {
     if (state.flags.gameOver || Eng.ended(state)) return null;
     const now = absHours(state);
     for (const e of Eng.endingsOf(state)) {
@@ -2334,7 +2362,7 @@
       } else if (Array.isArray(e.if) && e.if.length) {
         why = 'all of: ' + e.if.map((p) => E.Timeline.say(state, p)).join('; ');
       } else continue;
-      return Eng.reachEnding(state, e, why, res);
+      return Eng.reachEnding(state, e, why, res, extra);
     }
     return null;
   };
@@ -2702,7 +2730,15 @@
         if (!state.locations[room] || state.features[`${room}|${name}`] == null) return reject(label, 'no feature with a state there');
         if (s.field !== 'state' || typeof s.value !== 'string' || !s.value.trim()) return reject(label, 'a feature only changes its "state"');
         if (![ctx.startLoc, ctx.endLoc].includes(room)) return reject(label, 'nobody in the scene was there');
-        state.features[`${room}|${name}`] = s.value.trim().toLowerCase().slice(0, 20);
+        // Only the states it may take, and none held back by what it requires (task 7-3).
+        const to = s.value.trim().toLowerCase().slice(0, 20);
+        const opt = Eng.featureOptions(state, room, name);
+        if (opt.states && !opt.states.includes(to)) return reject(label, `the ${name} can only be: ${opt.states.join(', ')}`);
+        if (to in opt.blocked) {
+          const r = opt.requires[Object.keys(opt.requires).find((k) => k.toLowerCase() === to)];
+          return reject(label, `the ${name} can't be ${to} yet: needs ${r.if.filter((p) => !E.Timeline.holds(state, p)).map((p) => E.Timeline.say(state, p)).join('; ')}`);
+        }
+        state.features[`${room}|${name}`] = to;
       } else if (kind === 'room') {
         if (!state.locations[key]) return reject(label, 'unknown room');
         if (s.field !== 'seen' || s.value !== true) return reject(label, 'a room can only be revealed ("seen": true)');
@@ -2724,6 +2760,8 @@
         const cl = state.clocks.find((x) => x.id === key);
         if (!cl) return reject(label, 'unknown clock');
         if (cl.fired) return reject(label, 'clock already fired');
+        if (cl.fixed) return reject(label, 'only time moves this pressure');
+        if (cl.stopped) return reject(label, 'this pressure has stopped');
         cl.value = E.clamp(cl.value + E.clamp(Number(s.delta) || 0, -cl.max, cl.max), 0, cl.max);
         if (cl.value >= cl.max) Eng.fireClock(state, cl, { events: [] });
       } else return reject(label, 'unknown target kind');
@@ -3118,6 +3156,11 @@
       const factsBefore = state.facts.length;
       report = Eng.applyUpdate(state, upd, p.present, { startLoc: p.frame.startLoc, endLoc, prose, keptProse: cut ? prose : null, involved: p.res.involved, turn: p.turn, action: p.action, playerHarmed: (p.res.guards || []).some((g) => g.type === 'harm' && g.detail.startsWith(state.characters[state.player].name + ':')), extrasPresent: p.extrasPresent || [], engaged: p.res.engaged || [] });
       report.rejected.forEach((r) => guard(p.res, 'memory', 'update rejected', r));
+      // What the scene changed may stop a pressure, or reach an ending the
+      // engine checks (task 7-3: the reactor shut down); that ending closes
+      // the story like a judged one, before the next action.
+      Eng.stopClocks(state, p.res);
+      if (!Eng.ended(state)) Eng.checkEndings(state, p.res, { closing: true });
       expired.concat(report.tags).forEach((t) => guard(p.res, 'memory', 'tags & mood', t));
       report.extras.forEach((t) => guard(p.res, 'memory', 'extras', t));
       (report.standing || []).forEach((t) => guard(p.res, 'memory', 'standing', t));

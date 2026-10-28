@@ -14,7 +14,7 @@
   TL.SCOPES = ['regional', 'world'];
   TL.VISIBILITY = ['seen', 'heard', 'hidden'];
   TL.ON_BROKEN = ['drop', 'diverge'];
-  TL.PRE_KEYS = ['alive', 'controls', 'clock', 'world', 'known', 'reputation', 'role', 'not'];
+  TL.PRE_KEYS = ['alive', 'controls', 'clock', 'world', 'feature', 'known', 'reputation', 'role', 'not'];
   TL.PROJECT = { days: 3, max: 3 };
   TL.TEXT_MAX = 240;
   // Hours between projection attempts, so an empty or failed one isn't
@@ -61,6 +61,14 @@
     world: {
       holds: (s, p) => s.world[p.world] === p.is,
       say: (s, p) => `${p.world} is "${p.is}"`,
+    },
+    // A tracked feature's state (task 7-3): {"feature": "room|name", "is": "shut down"}.
+    feature: {
+      holds: (s, p) => String((s.features || {})[p.feature] ?? '').toLowerCase() === String(p.is).toLowerCase(),
+      say: (s, p) => {
+        const i = p.feature.indexOf('|'), room = s.locations && s.locations[p.feature.slice(0, i)];
+        return `the ${p.feature.slice(i + 1)} in ${room ? room.name : p.feature.slice(0, i)} is "${p.is}"`;
+      },
     },
     // A fact someone knows (default: the player): the one a canon event made
     // (by event id), or one that has all the words.
@@ -362,6 +370,11 @@
       if (refs.clocks && !refs.clocks.has(p.clock)) warnings.push(`${at}: precondition clock "${p.clock}" is not a clock of the world or any start (fine for a follow-up clock; otherwise it never holds)`);
     }
     if (k === 'world' && !(typeof p.world === 'string' && typeof p.is === 'string')) no('"world" needs a world key and "is" (text)');
+    if (k === 'feature') {
+      if (!(typeof p.feature === 'string' && p.feature.indexOf('|') > 0 && typeof p.is === 'string')) return no('"feature" needs "room|name" and "is" (text)');
+      if (refs.features && !refs.features.has(p.feature)) no(`"feature": no tracked feature "${p.feature}" (a room's {name, state})`);
+      else if (refs.featureStates && refs.featureStates[p.feature] && !refs.featureStates[p.feature].includes(p.is.toLowerCase())) no(`"feature": "${p.feature}" can't be "${p.is}" (its states: ${refs.featureStates[p.feature].join(', ')})`);
+    }
     if (k === 'known') {
       const ok = typeof p.known === 'string' || (isObj(p.known) && Array.isArray(p.known.words) && p.known.words.length && p.known.words.every((x) => typeof x === 'string' && x.trim()));
       if (!ok) no('"known" must be an event id or {words: [...]}');

@@ -1,0 +1,61 @@
+{
+  "id": "varga",
+  "name": "Commander Elias Varga",
+  "pronouns": "he/him",
+  "role": "station commander",
+  "age": 54,
+  "traits": [
+    "steady",
+    "stubborn",
+    "protective"
+  ],
+  "want": "get every living person off Vesper, and be the last one out",
+  "secret": "Eight months ago he signed off on putting off the debris-shield refit to keep the probe campaign on schedule; tonight's strike came through the section that refit would have covered.",
+  "guard": "medium",
+  "voice": "Low and even, short sentences, calls everyone by surname; the pain shows only in the pauses.",
+  "description": "Has commanded Vesper for two years. Ex-navy, careful, liked; the crew would follow him into vacuum, and some of them may have to.",
+  "appearance": "Broad and grey-bearded, a gash over one eye taped shut, his left arm strapped across his chest.",
+  "skills": {
+    "social": 3,
+    "piloting": 2,
+    "tech": 2,
+    "athletics": 1,
+    "medicine": 1,
+    "science": 1
+  },
+  "status": {
+    "location": "ops",
+    "health": "hurt"
+  },
+  "needs": {
+    "hunger": 0.2,
+    "fatigue": 0.5,
+    "stress": 0.6
+  },
+  "relations": {
+    "maren": 15,
+    "noor": 20,
+    "felix": 10,
+    "osei": 30,
+    "yuki": 25,
+    "sophia": 30
+  },
+  "knows": [
+    "The debris-shield sensors over the observation module flagged faults for weeks before the strike."
+  ],
+  "agenda": {
+    "goal": "run the evacuation from Ops",
+    "hours": 3,
+    "steps": [
+      "takes a head count over the intercom",
+      "works out who goes in which pod and who flies with Felix",
+      "tries the reactor controls from Ops one more time"
+    ]
+  },
+  "groups": [
+    {
+      "id": "consortium",
+      "role": "favored"
+    }
+  ]
+}

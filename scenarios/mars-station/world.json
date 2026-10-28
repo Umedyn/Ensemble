@@ -123,7 +123,16 @@
       ],
       "size": "medium",
       "features": [
-        "grow racks"
+        "grow racks",
+        {
+          "name": "water recycler",
+          "state": "rattling",
+          "states": [
+            "rattling",
+            "repaired",
+            "failed"
+          ]
+        }
       ]
     },
     {

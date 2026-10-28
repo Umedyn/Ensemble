@@ -260,6 +260,8 @@ test('converted bundled worlds start the same game as their legacy versions', ()
     // And harmful, repeating pressures (playtest-coffee-skips): Ares Deep's thirst, Holdout's hunger.
     const noHarm = (list) => (list || []).forEach((c) => {
       delete c.fireHarm; delete c.repeat;
+      // And pressures only time moves or that stop (task 7-3): Ares Deep's storm and recycler.
+      delete c.fixed; delete c.stopIf;
       if (c.then) { c.then = c.then.filter((t) => t.id !== 'thirst'); noHarm(c.then); if (!c.then.length) delete c.then; }
     });
     noHarm(now.state.clocks);

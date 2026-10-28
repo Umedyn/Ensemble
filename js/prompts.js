@@ -299,10 +299,13 @@
     const st = k.kind === 'locked door' && k.locked ? 'locked' : k.open ? 'open' : 'shut';
     return `${state.locations[to].name} (${k.kind === 'locked door' ? 'door' : k.kind}, ${st})`;
   }
+  // What a tracked feature can't do yet, in the scene's own words (task 7-3:
+  // the reactor won't shut down while its interlock is bypassed).
+  const heldBack = (state, room, name) => Object.values(Eng().featureOptions(state, room, name).blocked).filter(Boolean);
   function siteLines(state, room) {
     if (!hasSite(state)) return '';
     const ways = Eng().linkedRooms(state, room).map((o) => wayText(state, room, o));
-    const things = Eng().features(state, room).map((f) => f.name + (f.state ? ` (${f.state})` : ''));
+    const things = Eng().features(state, room).map((f) => f.name + (f.state ? ` (${[f.state].concat(heldBack(state, room, f.name)).join('; ')})` : ''));
     return `Ways from here: ${ways.join(', ') || 'none'}` + (things.length ? `\nThings here: ${things.join(', ')}` : '');
   }
   const lockedHere = (state) => {
@@ -1046,7 +1049,7 @@ Reply with the beats only.`;
   };
   B.closingTask = ({ ending, pc }) => `
 === TASK ===
-That scene ended the story: "${ending.title}" (${ENDING_TONE[ending.kind] || ENDING_TONE.neutral}). ${ending.judged ? `It happened: ${ending.judged}.` : ''}${ending.epilogue ? ` ${ending.epilogue}` : ''}
+That scene ended the story: "${ending.title}" (${ENDING_TONE[ending.kind] || ENDING_TONE.neutral}). ${ending.judged ? `It happened: ${ending.judged}.` : ending.why ? `It happened: ${ending.why}.` : ''}${ending.epilogue ? ` ${ending.epilogue}` : ''}
 Write the closing in second person, present tense ("you" is ${pc.name}): 2 or 3 short paragraphs (100–180 words). Pick up right after the last scene, show the ending settle, then a brief look at what it means for the people in this story. Use only what has happened; invent no new turns. Close on it: no question, no choice left open.
 Reply with the closing text only.`;
   B.updateCrisis = ({ state, res }) => (res && res.crisisText
@@ -1067,7 +1070,11 @@ ${updateSiteIds(state)}${Object.keys(state.standees || {}).length ? `unnamed gro
     const here = state.characters[state.player].status.location;
     const ways = Eng().linkedRooms(state, here).filter((o) => { const k = Eng().linkInfo(state, here, o); return k && k.kind !== 'open'; })
       .map((o) => `${[here, o].sort().join('|')} (${wayText(state, here, o).replace(/^[^(]*\(|\)$/g, '')})`);
-    const feats = Eng().features(state, here).filter((f) => f.state).map((f) => `${here}|${f.name} (${f.state})`);
+    const feats = Eng().features(state, here).filter((f) => f.state).map((f) => {
+      const opt = Eng().featureOptions(state, here, f.name);
+      const can = (opt.states || []).filter((x) => x !== f.state && !(x in opt.blocked));
+      return `${here}|${f.name} (${f.state}${opt.states ? `; can become: ${can.join(', ') || 'nothing else now'}` : ''})`;
+    });
     const unseen = Object.keys(state.locations).filter((r) => !(state.seenRooms || []).includes(r));
     return { ways, feats, unseen };
   }

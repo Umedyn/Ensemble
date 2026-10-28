@@ -269,7 +269,29 @@
       "size": "large",
       "outside": true,
       "features": [
-        "the pickup",
+        {
+          "name": "the pickup",
+          "state": "won't start",
+          "states": [
+            "won't start",
+            "running"
+          ],
+          "requires": {
+            "running": {
+              "if": [
+                {
+                  "known": {
+                    "words": [
+                      "pickup",
+                      "keys"
+                    ]
+                  }
+                }
+              ],
+              "otherwise": "it won't start without its keys, and nobody has found them"
+            }
+          }
+        },
         "abandoned cars"
       ]
     }
