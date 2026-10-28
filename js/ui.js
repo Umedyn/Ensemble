@@ -1124,6 +1124,8 @@
     const top = log.scrollTop;
     renderLog();
     renderControls();
+    // People who move in this beat move on the map now.
+    renderMap();
     log.scrollTop = top;
     if (nextBtn) {
       announceBeat(uiShown - 1);
@@ -1213,16 +1215,24 @@
     const add = (loc, t) => { if (loc && state.seenRooms.includes(loc)) (byRoom[loc] = byRoom[loc] || []).push(t); };
     const pc = state.characters[state.player];
     add(pc.status.location, { kind: 'character', id: state.player, label: pc.name, player: true, now: true });
+    // While the scene is read beat by beat, someone who moves in a beat not
+    // shown yet is still where they were (up to the step-in point, if one is
+    // chosen), so the map follows the scene instead of jumping to its end.
+    const live = liveScene();
+    const read = live ? uiCut || uiShown : Infinity;
+    const later = {};
+    if (live) E.Engine.sceneMoves(state).forEach((m) => { if (m.beat >= read) later[m.id] = m.from; });
+    const where = (id) => (later[id] ? { loc: later[id], now: true, turn: state.turn } : E.Engine.knownWhere(state, id));
     E.Engine.cast(state, { alive: true, includePlayer: false }).forEach((id) => {
-      const kw = E.Engine.knownWhere(state, id);
+      const kw = where(id);
       if (kw) add(kw.loc, { kind: 'character', id, label: state.characters[id].name, now: kw.now, turn: kw.turn });
     });
     Object.values(state.extras || {}).forEach((x) => {
-      const kw = E.Engine.knownWhere(state, x.id);
+      const kw = where(x.id);
       if (kw) add(kw.loc, { kind: 'extra', id: x.id, label: x.name, now: kw.now, turn: kw.turn });
     });
     Object.values(state.standees || {}).forEach((g) => {
-      const kw = E.Engine.knownWhere(state, g.id);
+      const kw = where(g.id);
       if (kw) add(kw.loc, { kind: 'standee', id: g.id, label: g.label, count: g.count, state: g.state, now: kw.now, turn: kw.turn });
     });
     return byRoom;
@@ -1245,19 +1255,10 @@
     }
     return `<g ${attrs}><title>${esc(tip)}</title>${body}</g>`;
   }
-  // Tokens in a row (wrapping) inside a room's box; the rest as "+N".
-  function roomTokens(list, x, y, w, h) {
-    const r = 9, step = 2 * r + 4;
-    const cols = Math.max(1, Math.floor((w - 8) / step));
-    const rows = Math.max(1, Math.floor((h - 4) / step));
-    const fit = cols * rows;
-    const shown = list.length > fit ? list.slice(0, fit - 1) : list;
-    let out = shown.map((t, i) => tokenSvg(t, x + 4 + r + (i % cols) * step, y + r + 2 + Math.floor(i / cols) * step, r)).join('');
-    if (list.length > shown.length) {
-      const i = shown.length;
-      out += `<text class="map-more" x="${x + 4 + (i % cols) * step + 2}" y="${y + r + 6 + Math.floor(i / cols) * step}">+${list.length - shown.length}</text>`;
-    }
-    return out;
+  // Tokens spread around a room's box, each keeping its spot (the same
+  // placement as the detailed map); the rest as "+N".
+  function roomTokens(list, x, y, w, h, id) {
+    return E.SiteDraw.tokensIn(list, { x, y, w, h }, [], id || '', tokenSvg);
   }
   function linkMark(k) {
     const len = 0.9 * CELL, x = k.x * CELL, y = k.y * CELL;
@@ -1414,7 +1415,7 @@
     if (im) svg = imageMapSvg(site, im, here, tokens);
     else if (lm) {
       const url = portraitUrl(lm.image);
-      const rooms = Object.entries(lm.rooms).map(([id, r]) => `<g class="map-room${id === here ? ' here' : ''}" tabindex="0" role="button" data-room="${esc(id)}" aria-label="${esc(roomName(id))}"><rect class="floor" x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" style="fill-opacity:0.15"/>${roomTokens(tokens[id] || [], r.x, r.y, r.w, r.h)}</g>`).join('');
+      const rooms = Object.entries(lm.rooms).map(([id, r]) => `<g class="map-room${id === here ? ' here' : ''}" tabindex="0" role="button" data-room="${esc(id)}" aria-label="${esc(roomName(id))}"><rect class="floor" x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" style="fill-opacity:0.15"/>${roomTokens(tokens[id] || [], r.x, r.y, r.w, r.h, id)}</g>`).join('');
       svg = `<svg class="map-svg" viewBox="0 0 ${lm.width} ${lm.height}" role="img" aria-label="Map">${url ? `<image href="${esc(url)}" x="0" y="0" width="${lm.width}" height="${lm.height}"/>` : ''}${rooms}</svg>`;
     } else if ((mapDetailPreview || E.settings.appearance.mapDetail) !== 'simple') {
       svg = detailedMapSvg(here, tokens);
@@ -1433,7 +1434,7 @@
         const up = plan.links.filter((k) => k.remote && (k.a === id || k.b === id) && plan.rooms[k.a].level !== plan.rooms[k.b].level)
           .map((k) => { const o = k.a === id ? k.b : k.a; return `${KIND_WORD[k.kind]} to ${roomName(o)}`; });
         const upText = up.length ? `<text class="map-feat" x="${x + 5}" y="${y + h - (feats ? 16 : 5)}">↕ ${esc(E.shorten(up.join(', '), Math.floor((w - 8) / 5)))}</text>` : '';
-        const toks = roomTokens(tokens[id] || [], x, y + 18, w, h - (up.length ? 42 : 30));
+        const toks = roomTokens(tokens[id] || [], x, y + 18, w, h - (up.length ? 42 : 30), id);
         return `<g class="${cls}" tabindex="0" role="button" data-room="${esc(id)}" aria-label="${esc(roomName(id))}"><rect class="floor" x="${x}" y="${y}" width="${w}" height="${h}" rx="2"/>${label}${upText}${feats}</g><g class="map-tokens">${toks}</g>`;
       }).join('');
       const remote = plan.links.filter((k) => k.remote && plan.rooms[k.a].level === plan.rooms[k.b].level).map((k) => {

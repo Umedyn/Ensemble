@@ -417,11 +417,15 @@
 
     // Furniture: in view, everything (decoration unless turned off) with
     // feature state; remembered, the gameplay pieces only, with no state.
+    // What stands on the floor is kept, so tokens can stand clear of it.
+    const furniture = {};
     ids.forEach((id) => {
       const l = Object.assign({ id }, rooms[id]);
       const see = inView.has(id);
+      furniture[id] = [];
       SD.furnish(plan.rooms[id], l, seed, claimed[id]).forEach((p) => {
         if (!p.feature && (!see || !decor)) return;
+        if (!p.back) furniture[id].push(p);
         used.add(p.sym);
         const cx = px(p.x + p.w / 2), cy = px(p.y + p.h / 2);
         const tf = p.rot ? ` transform="rotate(${p.rot} ${cx} ${cy})"` : '';
@@ -478,7 +482,7 @@
       }).filter(Boolean);
       if (notes.length) L.labels.push(`<text class="sd-note" x="${x + 5}" y="${n1(bottom - 15)}">${esc(E.shorten(notes.join(', '), Math.floor((w - 8) / 4.6)))}</text>`);
       const list = (view.tokens || {})[id] || [];
-      if (list.length && view.tokenSvg) L.tokens.push(tokensIn(list, x, px(r.y), w, px(r.h - STRIP) - (notes.length ? 11 : 0), view.tokenSvg));
+      if (list.length && view.tokenSvg) L.tokens.push(SD.tokensIn(list, { x, y: px(r.y), w, h: px(r.h - STRIP) - (notes.length ? 11 : 0) }, (furniture[id] || []).map(pieceBox), id, view.tokenSvg));
     });
 
     // Level captions, for levels with something drawn.
@@ -504,20 +508,50 @@
       `<g>${L.furniture.join('')}</g><g>${L.openings.join('')}</g><g>${L.here.join('')}</g><g class="sd-labels">${L.labels.join('')}</g><g>${L.stubs.join('')}</g><g class="map-tokens">${L.tokens.join('')}</g></svg>`;
   };
 
-  // Tokens in rows inside a room's free area; the rest as "+N".
-  function tokensIn(list, x, y, w, h, tokenSvg) {
-    const r = 9, step = 2 * r + 4;
-    const cols = Math.max(1, Math.floor((w - 8) / step));
-    const rows = Math.max(1, Math.floor((h - 4) / step));
-    const fit = cols * rows;
-    const shown = list.length > fit ? list.slice(0, fit - 1) : list;
-    let out = shown.map((t, i) => tokenSvg(t, x + 4 + r + (i % cols) * step, y + r + 4 + Math.floor(i / cols) * step, r)).join('');
-    if (list.length > shown.length) {
-      const i = shown.length;
-      out += `<text class="map-more" x="${x + 4 + (i % cols) * step + 2}" y="${y + r + 8 + Math.floor(i / cols) * step}">+${list.length - shown.length}</text>`;
-    }
+  // A furniture piece's box in pixels (a quarter turn swaps its sides).
+  const pieceBox = (p) => {
+    const turned = p.rot && Math.abs(p.rot) % 180 === 90;
+    const cx = px(p.x + p.w / 2), cy = px(p.y + p.h / 2), w = px(turned ? p.h : p.w), h = px(turned ? p.w : p.h);
+    return { x: cx - w / 2, y: cy - h / 2, w, h };
+  };
+  // Where tokens stand in a room: spots on a grid over its free floor
+  // (box, in pixels, above the label), clear of the furniture first. Each
+  // token takes the spot its id and the room pick, or the next free one, so
+  // people spread around the room and keep their places as others come and
+  // go. opts: r (token radius), inside(spot) (a room that isn't a box).
+  // → { placed: [{ t, x, y }], more (how many didn't fit), last spot }.
+  SD.SPOT = { r: 9, gap: 4 };
+  SD.tokenSpots = function (list, box, blocked, roomId, opts) {
+    const o = opts || {};
+    const r = o.r || SD.SPOT.r, step = 2 * r + SD.SPOT.gap;
+    const cols = Math.max(1, Math.floor((box.w - 8) / step));
+    const rows = Math.max(1, Math.floor((box.h - 4) / step));
+    // The grid centred in the box.
+    const x0 = box.x + (box.w - cols * step) / 2 + step / 2, y0 = box.y + (box.h - rows * step) / 2 + step / 2;
+    const spots = [];
+    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) spots.push({ x: n1(x0 + i * step), y: n1(y0 + j * step) });
+    if (o.inside) { const inner = spots.filter(o.inside); if (inner.length) spots.splice(0, spots.length, ...inner); }
+    const hits = (s) => blocked.some((b) => s.x + r > b.x && s.x - r < b.x + b.w && s.y + r > b.y && s.y - r < b.y + b.h);
+    const clear = spots.filter((s) => !hits(s));
+    const pool = clear.length >= Math.min(list.length, spots.length) ? clear : clear.concat(spots.filter(hits));
+    const fit = list.length > pool.length ? pool.length - 1 : list.length;
+    const taken = new Set();
+    const out = list.slice(0, Math.max(0, fit)).map((t) => {
+      let k = (E.hash(`${roomId}|${t.id}`) >>> 0) % pool.length;
+      while (taken.has(k)) k = (k + 1) % pool.length;
+      taken.add(k);
+      return { t, x: pool[k].x, y: pool[k].y };
+    });
+    return { placed: out, more: list.length - out.length, last: pool[pool.length - 1] };
+  };
+  // Tokens drawn at their spots; the rest as "+N".
+  SD.tokensIn = function (list, box, blocked, roomId, tokenSvg) {
+    const { placed, more, last } = SD.tokenSpots(list, box, blocked, roomId);
+    const r = SD.SPOT.r;
+    let out = placed.map((p) => tokenSvg(p.t, p.x, p.y, r)).join('');
+    if (more > 0 && last) out += `<text class="map-more" x="${n1(last.x - r + 2)}" y="${n1(last.y + 4)}">+${more}</text>`;
     return out;
-  }
+  };
 
   // One opening on a shared wall: a gap with posts (open), a leaf and swing
   // into the room it opens into (door, padlock when locked), vents and
@@ -652,16 +686,16 @@
         out.push(`<text class="sd-img-unknown" x="${n1(x + ((c[0] - x) / len) * unit * 4)}" y="${n1(y + ((c[1] - y) / len) * unit * 4 + unit)}" text-anchor="middle" style="font-size:${n1(unit * 3)}px">?</text>`);
       }
     });
-    // Tokens in a row (wrapping) around the middle of their room.
+    // Tokens spread around their room, inside its outline (as on drawn plans).
     const r = Math.max(8, Math.round(unit * 1.6));
     Object.entries(view.tokens || {}).forEach(([id, list]) => {
       if (!known(id) || !rooms[id] || !rooms[id].shape || !view.tokenSvg) return;
-      const c = Geo.centroid(rooms[id].shape);
-      const step = 2 * r + 4, cols = Math.max(1, Math.min(list.length, 4));
-      list.forEach((t, i) => {
-        const col = i % cols, row = Math.floor(i / cols);
-        out.push(view.tokenSvg(t, n1(c[0] + (col - (cols - 1) / 2) * step), n1(c[1] + row * step), r));
-      });
+      const ring = rooms[id].shape;
+      const xs = ring.map((p) => p[0]), ys = ring.map((p) => p[1]);
+      const box = { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
+      const spots = SD.tokenSpots(list, box, [], id, { r, inside: (s) => Geo.inside([s.x, s.y], ring) });
+      spots.placed.forEach((p) => out.push(view.tokenSvg(p.t, p.x, p.y, r)));
+      if (spots.more > 0 && spots.last) out.push(`<text class="map-more" x="${n1(spots.last.x - r + 2)}" y="${n1(spots.last.y + 4)}">+${spots.more}</text>`);
     });
     return `<svg class="map-svg sd-image" viewBox="0 0 ${W} ${H}" role="img" aria-label="Map">${out.join('')}</svg>`;
   };

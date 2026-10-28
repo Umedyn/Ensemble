@@ -952,3 +952,29 @@ test('a minute step: one exchange of a conversation moves the clock a minute, no
   assert.match(narrate.user, /This covers about a minute: the next exchange of the conversation/);
   assert.match(calls.find((c) => c.kind === 'intent').user, /None, unless something was already about to happen this very minute/);
 });
+
+// ---------- the map follows the scene ----------
+
+test('a move happens in the beat that shows it, so the map can follow a scene beat by beat', async () => {
+  const { E, state } = newGame('mars-station');
+  mockLLM(E, ({ kind }) => (kind === 'intent'
+    ? { player: { summary: 'asks Teo to give them the room' }, intents: [{ id: 'bauer', action: 'heads to hydroponics', move_to: 'hydro' }, { id: 'okafor', action: 'goes to her quarters', move_to: 'quarters' }], events: [] }
+    : kind === 'update' ? { facts: [], state: [], relations: [], player_attitude: [] }
+      : '[+0m] You ask Teo for a minute alone with Okafor. He nods.\n\n[+5m] Teo picks up his tablet and heads off to hydroponics.\n\n[+10m] The commons is quiet. The fans hum.'));
+  await E.Engine.runTurn(state, 'Ask Teo to give us the room.', 'hour');
+  const moves = [...E.Engine.sceneMoves(state)].map((m) => [m.id, m.from, m.to, m.beat]);
+  assert.deepEqual(moves.find((m) => m[0] === 'bauer'), ['bauer', 'commons', 'hydro', 1], 'Teo goes in the second beat');
+  assert.deepEqual(moves.find((m) => m[0] === 'okafor'), ['okafor', 'commons', 'quarters', 2], 'Okafor, never shown going, by the end of the scene');
+  assert.ok(!moves.some((m) => m[0] === state.player), 'the player\'s own move is not one of them');
+  assert.equal(state.characters.bauer.status.location, 'hydro', 'the state itself is the end of the turn');
+});
+
+test('only real coming and going places a move in a beat: stepping closer or shaking a head is not leaving', async () => {
+  const { E, state } = newGame('mars-station');
+  mockLLM(E, ({ kind }) => (kind === 'intent'
+    ? { player: { summary: 'talks with Teo' }, intents: [{ id: 'bauer', action: 'goes back to hydroponics', move_to: 'hydro' }], events: [] }
+    : kind === 'update' ? { facts: [], state: [], relations: [], player_attitude: [] }
+      : '[+0m] Teo steps closer and shakes his head.\n\n[+5m] "I should check the racks," Teo says, and makes his way to the door.\n\n[+10m] You are alone.'));
+  await E.Engine.runTurn(state, 'Talk with Teo.', 'hour');
+  assert.equal([...E.Engine.sceneMoves(state)].find((m) => m.id === 'bauer').beat, 1);
+});

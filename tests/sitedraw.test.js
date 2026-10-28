@@ -145,3 +145,35 @@ test('room kinds come from names and features; anything else is generic', () => 
   assert.equal(k('Studio Apartment'), 'apartment');
   assert.equal(E.SiteDraw.countIn('two cots'), 2);
 });
+
+// ---------- where tokens stand ----------
+
+test('tokens spread around the room, clear of its furniture, not in a row in one corner', () => {
+  const { E, state } = newGame('mars-station');
+  const people = ['a', 'b', 'c', 'd'].map((id) => ({ id, kind: 'character' }));
+  const { svg } = draw(E, state, ['commons'], [], { tokens: { commons: people } });
+  const at = [...svg.matchAll(/<circle class="tok" data-id="(\w)" cx="([\d.]+)" cy="([\d.]+)"/g)].map((m) => ({ id: m[1], x: Number(m[2]), y: Number(m[3]) }));
+  assert.equal(at.length, 4);
+  assert.ok(new Set(at.map((p) => p.y)).size > 1 || new Set(at.map((p) => p.x)).size === 4, 'not all on the top row from the left corner');
+  const xs = at.map((p) => p.x), ys = at.map((p) => p.y);
+  assert.ok(Math.max(...xs) - Math.min(...xs) > 40 || Math.max(...ys) - Math.min(...ys) > 40, 'spread over the room');
+  // None overlaps another.
+  at.forEach((p, i) => at.slice(i + 1).forEach((q) => assert.ok(Math.hypot(p.x - q.x, p.y - q.y) >= 18, `${p.id} and ${q.id} apart`)));
+});
+
+test('a token keeps its spot as others come and go, avoids furniture while there is floor, and the rest show as +N', () => {
+  const E = newGame('mars-station').E;
+  const box = { x: 0, y: 0, w: 200, h: 120 };
+  const table = [{ x: 60, y: 30, w: 80, h: 40 }];
+  const t = (id) => ({ id });
+  const spot = (list) => Object.fromEntries([...E.SiteDraw.tokenSpots(list, box, table, 'room').placed].map((p) => [p.t.id, [p.x, p.y]]));
+  const two = spot([t('ruth'), t('dex')]);
+  const three = spot([t('ruth'), t('dex'), t('gil')]);
+  assert.deepEqual(three.ruth, two.ruth, 'someone arriving moves no one');
+  assert.deepEqual(spot([t('dex')]).dex, two.dex, 'nor does someone leaving');
+  const clear = (p) => !(p[0] + 9 > 60 && p[0] - 9 < 140 && p[1] + 9 > 30 && p[1] - 9 < 70);
+  Object.values(three).forEach((p) => assert.ok(clear(p), 'off the table'));
+  const many = Array.from({ length: 60 }, (_, i) => t(`p${i}`));
+  const out = E.SiteDraw.tokenSpots(many, box, table, 'room');
+  assert.ok(out.more > 0 && out.placed.length + out.more === 60, 'a crowd: those that fit, then +N');
+});

@@ -862,8 +862,51 @@
     return { loc: k.loc, turn: k.turn, now: k.loc === actual && view.includes(actual) && (k.loc === state.characters[state.player].status.location || !!(state.standees || {})[id]) };
   };
 
+  // The moves the player sees in the pending turn's scene, each with the beat
+  // it happens in, so the map can follow the scene as it is read instead of
+  // jumping to the end: [{ id, from, to, beat }] (beat: 0-based). The
+  // player's own move is the first beat; anyone else's is the first beat
+  // that names them with a coming-or-going word or the room they go to, else
+  // the end of the scene (being named isn't leaving).
+  // Real coming and going ("heads off", "leaves", "out the door"), not any
+  // movement ("steps closer", "shakes his head").
+  const GOING = new RegExp('\\b(?:leaves|left|leaving|exits?|exited|departs?|departed|arrives?|arrived|enters?|entered|follows?|followed|disappears?|disappeared|retreats?|retreated|out the door|upstairs|downstairs'
+    + '|excuses (?:him|her|them)sel(?:f|ves)'
+    + '|(?:walks?|walked|steps?|stepped|slips?|slipped|ducks?|ducked|hurries|hurried|storms?|stormed|wanders?|wandered|runs?|ran|goes|went|heads|headed|heading|comes?|came|makes? (?:his|her|their) way)'
+    + ' (?:out|off|away|outside|inside|in|back|upstairs|downstairs|over to|to|into|through|toward|towards|for))\\b', 'i');
+  Eng.sceneMoves = function (state) {
+    const p = state.pending;
+    if (!p || !p.pre || !p.res) return [];
+    const beats = p.beats || [];
+    const last = Math.max(0, beats.length - 1);
+    const out = [];
+    const add = (id, to) => {
+      const from = whereIs(p.pre, id);
+      if (!to || !from || from === to) return;
+      const names = Eng.moverNames(state, id);
+      const room = state.locations[to] && state.locations[to].name;
+      const named = (t) => names.some((n) => E.Lore.matches(n, t));
+      const beat = beats.findIndex((b) => named(b.text) && (GOING.test(b.text) || (room && E.Lore.matches(room, b.text))));
+      out.push({ id, from, to, beat: beat < 0 ? last : beat });
+    };
+    (p.res.outcomes || []).forEach((o) => { if (o.visible && o.moved && o.id !== state.player) add(o.id, o.moved); });
+    (p.res.groups || []).forEach((g) => { if (g.visible && g.moved) add(g.id, g.moved); });
+    return out;
+  };
+  // The words a scene uses for someone: their full name, a first name or
+  // surname of 3+ letters, or a group's label ("the dead", "stragglers").
+  Eng.moverNames = function (state, id) {
+    const c = state.characters[id] || (state.extras || {})[id];
+    if (c && c.name) {
+      const parts = String(c.name).replace(/["“][^"”]*["”]/g, ' ').replace(/^(dr|mr|mrs|ms|mx|prof|capt|sgt)\.?\s+/i, '').split(/\s+/).filter((w) => w.length >= 3);
+      return [c.name].concat(parts);
+    }
+    const g = (state.standees || {})[id];
+    return g ? [g.label, String(g.label).replace(/^(the|a|an)\s+/i, '')].filter(Boolean) : [];
+  };
+
   // Where someone is, character, extra or group.
-  const whereIs = (state, id) => (state.characters[id] ? state.characters[id].status.location : state.extras && state.extras[id] ? state.extras[id].location : state.standees && state.standees[id] ? state.standees[id].location : null);
+  const whereIs =(state, id) => (state.characters[id] ? state.characters[id].status.location : state.extras && state.extras[id] ? state.extras[id].location : state.standees && state.standees[id] ? state.standees[id].location : null);
   const isExtra = (state, id) => !!(state.extras && state.extras[id]);
   const isStandee = (state, id) => !!(state.standees && state.standees[id]);
 
