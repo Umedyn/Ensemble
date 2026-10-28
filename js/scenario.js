@@ -706,11 +706,41 @@
   // Problems in one route or route-kind setting, in words.
   // Endings (a world's or a start's): how the story can end, in words.
   S.ENDING_FIELDS = ['id', 'title', 'kind', 'when', 'if', 'epilogue'];
+  // The shorthand on a timeline event or a pressure: "ending": true, or
+  // {title, kind, epilogue, if}; the story ends when it happens.
+  S.MARK_FIELDS = ['title', 'kind', 'epilogue', 'if'];
+  const marked = (v, base) => (v === true ? base : isObj(v) ? Object.assign(base, Object.fromEntries(Object.entries(v).filter(([k]) => S.MARK_FIELDS.includes(k)))) : null);
+  // Every ending: the "endings" list, then timeline events and pressures
+  // (follow-ups too) marked as endings, as entries of the same shape.
+  S.allEndings = function (sc) {
+    const out = Array.isArray(sc.endings) ? sc.endings.slice() : [];
+    (Array.isArray(sc.timeline) ? sc.timeline : []).forEach((ev) => {
+      const e = isObj(ev) && ev.ending != null && marked(ev.ending, { id: `timeline-${ev.id}`, title: E.shorten(String(ev.text || ev.id), 80), when: { event: ev.id } });
+      if (e) out.push(e);
+    });
+    const clocks = (cs) => (cs || []).forEach((c) => {
+      if (!isObj(c)) return;
+      const e = c.ending != null && marked(c.ending, { id: `clock-${c.id}`, title: c.name || c.id, when: { clock: c.id } });
+      if (e) out.push(e);
+      clocks(c.then);
+    });
+    clocks(sc.clocks);
+    return out;
+  };
   S.endingProblems = function (sc) {
-    const list = sc.endings;
-    if (list == null) return [];
-    if (!Array.isArray(list)) return ['"endings" must be a list of {id, title, kind, when, if, epilogue}'];
     const problems = [];
+    // The shorthand's own shape.
+    const markShape = (v, at) => {
+      if (v == null || v === true) return;
+      if (!isObj(v)) return problems.push(`${at}: "ending" must be true, or {title, kind, epilogue, if}`);
+      Object.keys(v).filter((k) => !S.MARK_FIELDS.includes(k)).forEach((k) => problems.push(`${at}: "ending" has an unknown field "${k}"`));
+    };
+    (Array.isArray(sc.timeline) ? sc.timeline : []).forEach((ev) => isObj(ev) && markShape(ev.ending, `timeline "${ev.id}"`));
+    const clockMarks = (cs) => (cs || []).forEach((c) => { if (isObj(c)) { markShape(c.ending, `clock "${c.id}"`); clockMarks(c.then); } });
+    clockMarks(sc.clocks);
+    if (sc.endings != null && !Array.isArray(sc.endings)) return problems.concat('"endings" must be a list of {id, title, kind, when, if, epilogue}');
+    const list = S.allEndings(sc);
+    if (!list.length) return problems;
     const seen = new Set();
     const clocks = new Set();
     const addClocks = (cs) => (cs || []).forEach((c) => { if (c && c.id) { clocks.add(c.id); addClocks(c.then); } });
@@ -731,7 +761,8 @@
       const w = e.when;
       if (w != null) {
         const keys = isObj(w) ? Object.keys(w) : [];
-        if (keys.length !== 1 || !['event', 'after', 'clock', 'judged'].includes(keys[0])) req(false, '"when" must be one of {"event": id}, {"after": {day, hour}}, {"clock": id} or {"judged": "what the scene must show"}');
+        if (keys.length !== 1 || !['event', 'after', 'clock', 'reach', 'judged'].includes(keys[0])) req(false, '"when" must be one of {"event": id}, {"after": {day, hour}}, {"clock": id}, {"reach": room or region id} or {"judged": "what the scene must show"}');
+        else if (keys[0] === 'reach') req((sc.locations || []).some((l) => l && l.id === w.reach) || (sc.regions || []).some((r) => r && r.id === w.reach), `"when": no room or region "${w.reach}" to reach`);
         else if (keys[0] === 'event') req(events.has(w.event), `"when": no timeline event "${w.event}"`);
         else if (keys[0] === 'clock') req(clocks.has(w.clock), `"when": no pressure (clock) "${w.clock}"`);
         else if (keys[0] === 'after') req(isObj(w.after) && Number.isInteger(w.after.day) && Number.isInteger(w.after.hour) && w.after.hour >= 0 && w.after.hour <= 23, '"when": "after" must be {day, hour} with whole numbers (hour 0–23)');
@@ -746,7 +777,7 @@
       const who = E.Lore.leak({ title: e.title, text: [e.epilogue, w && w.judged].filter(Boolean).join(' ') }, sc.characterData || []);
       if (who) problems.push(`${at} gives away ${who.name || who.id}'s secret (an ending is shown to the narrator once it happens)`);
     });
-    if (list.length > 12) problems.push('"endings" can have at most 12 endings');
+    if (list.length > 12) problems.push('a story can have at most 12 endings (the "endings" list and the events and pressures marked as endings)');
     return problems;
   };
   function routeProblems(sc, r, where, refs, ids) {

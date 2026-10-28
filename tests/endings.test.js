@@ -176,3 +176,59 @@ test('the scene that ends the story plays out whole: no stepping in before its e
   d.state.flags.gameOver = true;
   assert.equal(d.E.Engine.checkEndings(d.state, { guards: [] }), null);
 });
+
+// ---------- shorthand on timeline events and pressures; reaching a place ----------
+
+test('a timeline event or a pressure marked "ending" ends the story when it happens', async () => {
+  // The convoy reaching the junction, marked on the event itself.
+  const a = holdout([]);
+  const ev = a.state.scenario.timeline.find((x) => x.id === 'convoy-checkpoint');
+  ev.ending = { title: 'The convoy', kind: 'bittersweet' };
+  model(a.E);
+  a.state.time.day = 26; a.state.time.hour = 8;
+  await a.E.Engine.runTurn(a.state, 'Listen to the radio.', 'hour');
+  assert.deepEqual([a.state.ending.id, a.state.ending.title, a.state.ending.kind], ['timeline-convoy-checkpoint', 'The convoy', 'bittersweet']);
+  // "ending": true on a pressure: the title is its name.
+  const b = holdout([]);
+  const horde = b.state.scenario.clocks.find((c) => c.id === 'horde');
+  horde.ending = true;
+  const live = b.state.clocks.find((c) => c.id === 'horde');
+  live.value = live.max - 0.01;
+  model(b.E);
+  await b.E.Engine.runTurn(b.state, 'Hold the door.', 'hours');
+  assert.deepEqual([b.state.ending.id, b.state.ending.title], ['clock-horde', horde.name]);
+  // The bundled example: Ares Deep's cargo lander.
+  const { E, state } = newGame('mars-station');
+  assert.ok(E.Engine.endingsOf(state).some((e) => e.id === 'timeline-cargo-lander' && e.title === 'End of rotation' && e.when.event === 'cargo-lander'));
+});
+
+test('an ending when the player reaches a room or anywhere inside a region', async () => {
+  const room = holdout([{ id: 'roof', title: 'Up top', when: { reach: 'roof' } }]);
+  model(room.E);
+  await room.E.Engine.runTurn(room.state, 'Look around.', 'moment');
+  assert.equal(room.state.ending, undefined);
+  room.state.characters[room.state.player].status.location = 'roof';
+  await room.E.Engine.runTurn(room.state, 'Look out over the town.', 'moment');
+  assert.match(room.state.ending.why, /the player reached Roof/);
+  // A region: anywhere inside it (Harmon's is in the highway strip, in Harmon).
+  const region = holdout([{ id: 'in-town', title: 'Home', when: { reach: 'town' } }]);
+  model(region.E);
+  await region.E.Engine.runTurn(region.state, 'Look around.', 'moment');
+  assert.equal(region.state.ending && region.state.ending.id, 'in-town');
+});
+
+test('the shorthand and reach are checked in plain words, and a start adds or replaces endings by id', () => {
+  const E = loadEngine();
+  const sc = readScenario('zombie-holdout');
+  const problems = (edit) => { const s = plain(sc); edit(s); try { E.Scenario.validate(s); return ''; } catch (err) { return err.message; } };
+  assert.match(problems((s) => { s.timeline[0].ending = 'yes'; }), /timeline "first-cases": "ending" must be true, or \{title, kind, epilogue, if\}/);
+  assert.match(problems((s) => { s.clocks[0].ending = { title: 'X', reward: 1 }; }), /clock "[^"]+": "ending" has an unknown field "reward"/);
+  assert.match(problems((s) => { s.clocks[0].ending = { kind: 'tragic' }; }), /"kind" must be one of win, loss, bittersweet, neutral/);
+  assert.match(problems((s) => { s.endings = [{ id: 'x', when: { reach: 'atlantis' } }]; }), /no room or region "atlantis" to reach/);
+  // A start's endings merge with the world's by id.
+  const { worldFiles } = require('./helpers');
+  const f = worldFiles('zombie-holdout');
+  f['starts/herd.json'].endings = [{ id: 'got-out', title: 'Gone', when: { reach: 'junction' } }, { id: 'roof', when: { reach: 'roof' } }];
+  const st = E.Scenario.prepareWorld('zombie-holdout', f).starts[0].scenario;
+  assert.deepEqual(plain(st.endings.map((e) => [e.id, e.title || null])), [['got-out', 'Gone'], ['a-month-on', 'A month on'], ['roof', null]]);
+});

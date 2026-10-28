@@ -305,6 +305,7 @@
         else Object.keys(ev.effects).filter((k) => !refs.effectKeys.includes(k)).forEach((k) => problems.push(`${at}: unknown effect "${k}"`));
       }
       req(ev.preconditions == null || Array.isArray(ev.preconditions), '"preconditions" must be a list');
+      req(ev.ending == null || ev.ending === true || isObj(ev.ending), '"ending" must be true, or {title, kind, epilogue, if}: the story ends when it happens');
       (Array.isArray(ev.preconditions) ? ev.preconditions : []).forEach((p) => preProblems(p, at, refs, problems, warnings));
       if (okWhen && refs.start != null && TL.at(w) < refs.start) {
         ['effects', 'preconditions', 'onBroken'].filter((k) => ev[k] != null).forEach((k) =>

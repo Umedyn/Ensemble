@@ -680,13 +680,6 @@
       "kind": "neutral",
       "when": { "judged": "the crew agrees on what the renewal report to Earth will say, and it is sent" },
       "epilogue": "Whatever Earth decides, it will decide from what this crew chose to tell it."
-    },
-    {
-      "id": "end-of-rotation",
-      "title": "End of rotation",
-      "kind": "bittersweet",
-      "when": { "event": "cargo-lander" },
-      "epilogue": "The lander brings the next crew's advance team, and the station starts to become someone else's."
     }
   ],
   "timeline": [
@@ -775,6 +768,7 @@
       "region": "crater-rim",
       "visibility": "heard",
       "text": "The cargo lander touches down on its pad on the rim, carrying spare parts, seeds and food.",
+      "ending": { "title": "End of rotation", "kind": "bittersweet", "epilogue": "The lander brings the next crew's advance team, and the station starts to become someone else's." },
       "effects": {
         "world": [
           {

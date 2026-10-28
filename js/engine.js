@@ -2134,7 +2134,8 @@
   // player chooses to keep playing.
   Eng.ENDING_KINDS = ['win', 'loss', 'bittersweet', 'neutral'];
   const isObjE = (v) => v && typeof v === 'object' && !Array.isArray(v);
-  Eng.endingsOf = (state) => (Array.isArray(state.scenario.endings) ? state.scenario.endings.filter(isObjE) : []);
+  // The "endings" list and the timeline events and pressures marked as endings.
+  Eng.endingsOf = (state) => E.Scenario.allEndings(state.scenario).filter(isObjE);
   const endingOpen = (state, e) => !(state.endingsReached || []).includes(e.id) && (!Array.isArray(e.if) || e.if.every((p) => E.Timeline.holds(state, p)));
   // Hours until the next ending set for a time: { id, hours } or null.
   Eng.nextEndingTime = function (state) {
@@ -2165,6 +2166,13 @@
         const cl = (state.clocks || []).find((c) => c.id === w.clock);
         if (!cl || !cl.fired) continue;
         why = `"${cl.name}" came to a head`;
+      } else if (w.reach) {
+        // The player got there: the room itself, or anywhere inside the region.
+        const here = state.characters[state.player].status.location;
+        const region = Eng.regionOf(state, here);
+        if (here !== w.reach && !(region && Eng.regionChain(state, region).includes(w.reach))) continue;
+        const def = state.locations[w.reach] || Eng.regionDef(state, w.reach) || {};
+        why = `the player reached ${def.name || w.reach}`;
       } else if (Array.isArray(e.if) && e.if.length) {
         why = 'all of: ' + e.if.map((p) => E.Timeline.say(state, p)).join('; ');
       } else continue;

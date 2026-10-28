@@ -518,6 +518,7 @@ Task 5-2. Events that happen at a set time whatever the player does, unless the 
 | `effects` | as for events: `world`, `groups`, `clocks`, `new_clock`, `control`, `add_tag`, `remove_tag`, `region_status`; checked when it happens |
 | `preconditions` | all must hold when it comes due: `{"alive": id}`, `{"controls": {"group": id or null, "region": id}}`, `{"clock": id, "atLeast": n}` (or fired), `{"world": key, "is": "value"}`, `{"known": "event id"}` or `{"known": {"words": [...]}}` with optional `"by": id` (default the player), `{"not": {...}}` |
 | `onBroken` | `drop` (default: it doesn't happen) or `diverge` (the model writes what happens instead) |
+| `ending` | optional: `true` or `{title, kind, epilogue, if}`; the story ends when this event happens. See [Endings](#endings) |
 | `draft` | `true` while the event waits for review (from the research helper): validated, but it never happens until accepted in the creator |
 
 **The past** becomes public facts and a "Before the story" chapter at New game; hidden past events become private facts for `who`. Past events don't use `effects`, `preconditions` or `onBroken` (a warning): write the world as it is at the start. **The future** never reaches a prompt before it is due, so lore and descriptions must not mention it either. A public event that shares 4+ content words with someone's secret is an error, as for lore.
@@ -546,11 +547,12 @@ How a story can end, besides the player's death. On a world, or a start (merged 
 | `id` | lowercase letters, digits, `-` or `_` |
 | `title` | up to 80 characters; shown on the end card |
 | `kind` | `win`, `loss`, `bittersweet` or `neutral` (default): the closing's tone |
-| `when` | one of: `{"event": id}` (a timeline event happened, as written or changed; not dropped), `{"after": {day, hour}}`, `{"clock": id}` (a pressure came to a head), or `{"judged": "what the scene must show"}` (the model rules on it, up to 300 characters) |
+| `when` | one of: `{"event": id}` (a timeline event happened, as written or changed; not dropped), `{"after": {day, hour}}`, `{"clock": id}` (a pressure came to a head), `{"reach": id}` (the player is in that room, or anywhere inside that region), or `{"judged": "what the scene must show"}` (the model rules on it, up to 300 characters) |
 | `if` | optional conditions that must hold too, in the timeline's precondition form (`alive`, `controls`, `clock` with `atLeast`, `world`, `known`, `not`); an ending with only `if` happens as soon as they all hold |
 | `epilogue` | optional, up to 300 characters: how the ending should feel, for the closing |
 
-- **Checked by the engine** (`event`, `after`, `clock`, `if` alone): after each turn's events, and in skips, which also stop at an `after` time. The scene of that turn closes the story.
+- **The shorthand**: a timeline event or a pressure (`clocks`, follow-ups too) can carry `"ending": true`, or `"ending": {title, kind, epilogue, if}`, instead of an entry in `endings`: the story ends when that event happens or that pressure comes to a head. Its id is `timeline-<event id>` or `clock-<clock id>`, and its title defaults to the event's text or the pressure's name. A start can carry its own `endings` too, merged with the world's by `id` (`mars-station` marks its cargo lander event this way).
+- **Checked by the engine** (`event`, `after`, `clock`, `reach`, `if` alone): after each turn's events, and in skips, which also stop at an `after` time. The scene of that turn closes the story.
 - **Judged by the model**: the memory update (no extra call) is told which endings are on offer and says if the scene shows one, quoting it; the engine accepts only a real ending id with a quote of 4+ words that is really in the scene. The next action then isn't played: a short closing scene plays instead, and the action goes back in the box.
 - After an ending the story stops with an end card. **Keep playing** carries on as an epilogue (the ending stays reached, and is a public fact); undo goes back to before it. A dead player's story ends there, as before.
 - Endings are seen by the narrator once they happen, so they may not give away anyone's secret (validated). `mars-station` and `zombie-holdout` each have one the engine checks and one the model judges.
