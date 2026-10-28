@@ -1,0 +1,33 @@
+{
+  "id": "delorme",
+  "name": "Abbé Jean Delorme",
+  "pronouns": "he/him",
+  "role": "parish priest of Saint-Polycarpe",
+  "age": 52,
+  "traits": [
+    "gentle",
+    "stubborn",
+    "funny"
+  ],
+  "want": "save as many as he can without dragging his parish down with him",
+  "secret": "He has hidden the group's few pistols and a crate of explosives in the crypt of his church, without telling the bishop or the movement's leaders.",
+  "guard": "medium",
+  "voice": "Warm, mischievous, answers questions with questions.",
+  "description": "A parish priest on the slopes who hides people in his presbytery and argues politics with Madeleine every week, and loses on purpose.",
+  "appearance": "Round and bald under a black hat, a cassock shiny at the elbows, a bicycle with a wicker basket.",
+  "skills": {
+    "fighting": 0,
+    "shooting": 0,
+    "stealth": 1,
+    "persuasion": 3,
+    "deception": 1,
+    "technical": 0,
+    "medicine": 2
+  },
+  "relations": {
+    "aubert": 30,
+    "rey": 20,
+    "keller": 25,
+    "vidal": 10
+  }
+}

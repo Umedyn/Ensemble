@@ -1,0 +1,46 @@
+{
+  "id": "vidal",
+  "name": "Odette Vidal",
+  "pronouns": "she/her",
+  "role": "secretary at the prefecture",
+  "age": 26,
+  "traits": [
+    "nervous",
+    "proud",
+    "clever"
+  ],
+  "want": "do her part, and come out of the war with a future",
+  "secret": "The prefect's chief of staff caught her taking blank identity cards in March. He lets her go on, because he wants to know who uses them, and she reports to him every week.",
+  "guard": "high",
+  "voice": "Bright and fast, a little too eager to please, goes cold when cornered.",
+  "description": "Types letters for the prefecture's bureau of foreigners and brings the group blank identity cards and the news of coming round-ups.",
+  "appearance": "Neat, in a good grey suit kept with care, a handbag clutched like a shield, lipstick drawn on with a pencil because there is none.",
+  "skills": {
+    "fighting": 0,
+    "shooting": 0,
+    "stealth": 2,
+    "persuasion": 2,
+    "deception": 3,
+    "technical": 1,
+    "medicine": 0
+  },
+  "relations": {
+    "aubert": 25,
+    "rey": 30,
+    "keller": 10,
+    "delorme": 5
+  },
+  "agenda": {
+    "goal": "give the chief of staff enough to keep him quiet, and nothing that hurts the people she likes",
+    "hours": 36,
+    "visibility": "hidden",
+    "steps": [
+      "tells the chief of staff that the blanks go to a bookshop on the slopes",
+      "asks Madeleine who the next cards are for",
+      {
+        "text": "warns the player of danger in a way she can deny",
+        "contact": true
+      }
+    ]
+  }
+}

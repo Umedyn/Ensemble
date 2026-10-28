@@ -1,0 +1,33 @@
+{
+  "id": "leroy",
+  "name": "Nadine Leroy",
+  "pronouns": "she/her",
+  "role": "courier",
+  "age": 19,
+  "traits": [
+    "brave",
+    "funny",
+    "restless"
+  ],
+  "want": "keep her parents safe until the war is over",
+  "secret": "Nadine Leroy is a forged name. She was born Nadia Lewkowicz to Polish-born Jewish parents, who are hiding in a maid's room in Belleville and cannot go out.",
+  "guard": "medium",
+  "voice": "Quick, teasing, never still; goes very quiet when frightened.",
+  "description": "Carries the paper's bundles and messages around Paris on a bicycle with a basket. Says she is a student; seems to know every back way in the east of the city.",
+  "appearance": "Thin, dark curls under a beret, a coat with mended elbows and a bicycle that squeaks.",
+  "skills": {
+    "fighting": 1,
+    "shooting": 0,
+    "stealth": 3,
+    "persuasion": 2,
+    "deception": 2,
+    "technical": 0,
+    "medicine": 1
+  },
+  "relations": {
+    "vasseur": 45,
+    "ferrand": 25,
+    "marchal": 35,
+    "brossard": -20
+  }
+}

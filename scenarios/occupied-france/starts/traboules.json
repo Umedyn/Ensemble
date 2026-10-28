@@ -1,0 +1,407 @@
+{
+  "id": "traboules",
+  "title": "Lyon, April 1942: the bookshop on the slopes",
+  "summary": "You are Lucien Aubert, a silk-workshop foreman and courier for a movement in Lyon, in the free zone. The bookshop below your workshop is the group's letter box, a radio operator lives in the attic, and a family hiding at the presbytery must reach Switzerland before the police find them.",
+  "start": {
+    "day": 959,
+    "hour": 18
+  },
+  "region": "lyon-1",
+  "tactical": true,
+  "castLabel": "Group",
+  "player": "aubert",
+  "playerSlot": {
+    "location": "bookshop",
+    "summary": "You make your own member of a small group on the slopes of the Croix-Rousse in Lyon, in the free zone. The bookshop is the group's letter box, a radio operator lives in the attic, and a family hiding at the presbytery must reach Switzerland before the police find them.",
+    "knows": [
+      "The guide who can take the family at the presbytery over the Swiss border leaves Annemasse in three days."
+    ],
+    "needs": {
+      "hunger": 0.4,
+      "fatigue": 0.4,
+      "fear": 0.2
+    },
+    "roles": [
+      {
+        "id": "courier",
+        "label": "Courier",
+        "desc": "Carries messages, papers and money by bicycle and train, and knows which stations are watched.",
+        "skills": {
+          "stealth": 2,
+          "deception": 2,
+          "persuasion": 1
+        },
+        "suggestedTraits": [
+          "quick",
+          "cool-headed",
+          "restless"
+        ]
+      },
+      {
+        "id": "railwayman",
+        "label": "Railway worker",
+        "desc": "Works the yards and the trains; knows the timetables, the signals and the guards.",
+        "skills": {
+          "technical": 2,
+          "fighting": 1,
+          "stealth": 1
+        },
+        "suggestedTraits": [
+          "steady",
+          "blunt",
+          "loyal"
+        ]
+      },
+      {
+        "id": "nurse",
+        "label": "Nurse",
+        "desc": "Works at a hospital where the wounded and the hunted sometimes come in under other names.",
+        "skills": {
+          "medicine": 3,
+          "persuasion": 1
+        },
+        "suggestedTraits": [
+          "calm",
+          "compassionate",
+          "tired"
+        ]
+      },
+      {
+        "id": "student",
+        "label": "Student",
+        "desc": "At the university or a lycée; angry, idealistic, and watched by the police since the November 1940 march.",
+        "skills": {
+          "persuasion": 1,
+          "stealth": 2,
+          "deception": 1
+        },
+        "suggestedTraits": [
+          "idealistic",
+          "reckless",
+          "bright"
+        ]
+      },
+      {
+        "id": "clerk",
+        "label": "Town hall clerk",
+        "desc": "Stamps identity cards and ration cards all day; has access to blanks and seals.",
+        "skills": {
+          "deception": 2,
+          "persuasion": 2
+        },
+        "suggestedTraits": [
+          "meticulous",
+          "quiet",
+          "nervous"
+        ]
+      }
+    ],
+    "freeform": true,
+    "skillPoints": 10,
+    "maxSkill": 3,
+    "relationsDefault": 20,
+    "castFeelings": 20
+  },
+  "cast": [
+    {
+      "id": "aubert",
+      "status": {
+        "location": "bookshop"
+      },
+      "needs": {
+        "hunger": 0.4,
+        "fatigue": 0.4,
+        "fear": 0.2
+      },
+      "knows": [
+        "The guide who can take the family at the presbytery over the Swiss border leaves Annemasse in three days.",
+        "Odette Vidal's blank cards have been coming more easily since March."
+      ]
+    },
+    {
+      "id": "rey",
+      "status": {
+        "location": "bookshop"
+      },
+      "needs": {
+        "hunger": 0.3,
+        "fatigue": 0.3,
+        "fear": 0.3
+      },
+      "knows": [
+        "Her old friend from the communist groups wants to meet her on Sunday at the Croix-Rousse market."
+      ]
+    },
+    {
+      "id": "keller",
+      "tier": "secondary",
+      "status": {
+        "location": "attic"
+      },
+      "needs": {
+        "hunger": 0.4,
+        "fatigue": 0.5,
+        "fear": 0.5
+      },
+      "knows": [
+        "London has asked for the times of the trains through Perrache, and twice now the set's signal has been answered by a station he doesn't know."
+      ]
+    },
+    {
+      "id": "delorme",
+      "tier": "secondary",
+      "status": {
+        "location": "presbytery"
+      },
+      "needs": {
+        "hunger": 0.4,
+        "fatigue": 0.3,
+        "fear": 0.3
+      },
+      "knows": [
+        "The family upstairs at the presbytery have no papers at all, and the youngest has a cough that carries."
+      ]
+    },
+    {
+      "id": "vidal",
+      "status": {
+        "location": "bookshop"
+      },
+      "needs": {
+        "hunger": 0.2,
+        "fatigue": 0.3,
+        "fear": 0.6
+      },
+      "knows": [
+        "The chief of staff asked her on Tuesday whether she reads much, and smiled."
+      ]
+    }
+  ],
+  "locations": [
+    {
+      "id": "bookshop",
+      "name": "Librairie Rey",
+      "desc": "A narrow second-hand bookshop on the montée de la Grande-Côte: shelves to the ceiling, a counter, a cat asleep on the poetry.",
+      "connects": [
+        "backshop",
+        "montee"
+      ],
+      "size": "small",
+      "features": [
+        "shelves",
+        "counter",
+        "shop window"
+      ],
+      "links": [
+        {
+          "to": "montee",
+          "kind": "door"
+        },
+        {
+          "to": "backshop",
+          "kind": "door"
+        }
+      ]
+    },
+    {
+      "id": "backshop",
+      "name": "Back of the bookshop",
+      "desc": "Crates of books, a stove, and on the third shelf the hollowed-out dictionary that serves as the group's letter box.",
+      "connects": [
+        "bookshop",
+        "traboule"
+      ],
+      "size": "small",
+      "features": [
+        "crates of books",
+        "stove",
+        {
+          "name": "hollowed-out dictionary",
+          "state": "two letters inside"
+        }
+      ],
+      "links": [
+        {
+          "to": "traboule",
+          "kind": "door"
+        }
+      ]
+    },
+    {
+      "id": "traboule",
+      "name": "The traboule",
+      "desc": "A vaulted passage running from behind the shop through two courtyards and up a spiral stair, to come out on the street above. Damp, dark, and known to every child on the slopes.",
+      "connects": [
+        "backshop",
+        "workshop",
+        "montee"
+      ],
+      "size": "medium",
+      "outside": true,
+      "features": [
+        "spiral stair",
+        "two courtyards",
+        "way out above"
+      ],
+      "links": [
+        {
+          "to": "workshop",
+          "kind": "stairs"
+        },
+        {
+          "to": "montee",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "workshop",
+      "name": "Silk workshop",
+      "desc": "A tall-windowed room of looms on the first floor, quiet now that silk is short; Lucien's workplace.",
+      "connects": [
+        "traboule",
+        "attic"
+      ],
+      "size": "large",
+      "level": 1,
+      "features": [
+        "looms",
+        "tall windows",
+        "bolts of silk"
+      ],
+      "links": [
+        {
+          "to": "attic",
+          "kind": "stairs"
+        }
+      ]
+    },
+    {
+      "id": "attic",
+      "name": "The attic",
+      "desc": "Frédéric's room under the roof: a workbench of watch parts, a skylight, and the radio set hidden under a loose floorboard.",
+      "connects": [
+        "workshop"
+      ],
+      "size": "small",
+      "level": 3,
+      "secure": true,
+      "features": [
+        "watch bench",
+        "skylight",
+        {
+          "name": "radio set",
+          "state": "hidden"
+        }
+      ]
+    },
+    {
+      "id": "montee",
+      "name": "Montée de la Grande-Côte",
+      "desc": "A steep street of steps and old silk workers' houses climbing the slope, the traboules' doors along it, the church of Saint-Polycarpe a few steps down.",
+      "connects": [
+        "bookshop",
+        "traboule",
+        "presbytery"
+      ],
+      "size": "large",
+      "outside": true,
+      "features": [
+        "steps",
+        "traboule doors",
+        "view over the Saône"
+      ]
+    },
+    {
+      "id": "presbytery",
+      "name": "Presbytery of Saint-Polycarpe",
+      "desc": "The Abbé's kitchen and study beside the church, with a back stair up to the rooms where his guests stay out of sight.",
+      "connects": [
+        "montee"
+      ],
+      "size": "medium",
+      "features": [
+        "kitchen table",
+        "back stair",
+        "door to the church"
+      ],
+      "links": [
+        {
+          "to": "montee",
+          "kind": "door"
+        }
+      ]
+    }
+  ],
+  "entrances": [
+    {
+      "room": "montee",
+      "kind": "street",
+      "watched": false
+    },
+    {
+      "room": "traboule",
+      "kind": "traboule",
+      "watched": false
+    }
+  ],
+  "site": {
+    "type": "generic"
+  },
+  "extras": [
+    {
+      "id": "sternberg",
+      "name": "Lea Sternberg",
+      "pronouns": "she/her",
+      "role": "refugee from Vienna, hiding with her two children",
+      "location": "presbytery",
+      "note": "Fled Vienna in 1938 and Paris in 1940; her husband was taken from a hotel in Lyon last month. She speaks French well and trusts no one."
+    }
+  ],
+  "standees": [
+    {
+      "id": "cyclists",
+      "label": "police on bicycles",
+      "count": 2,
+      "location": "montee",
+      "state": "calm",
+      "faction": "vichy",
+      "patrol": [
+        "montee",
+        "traboule"
+      ],
+      "note": "Ordinary agents on their round; bored, but they ask for papers when someone runs."
+    }
+  ],
+  "clocks": [
+    {
+      "id": "radio-hunt",
+      "name": "Radio detection closes in on the attic",
+      "value": 3,
+      "max": 12,
+      "perHour": 0.05,
+      "fireText": "A van with a loop aerial on its roof parks at the foot of the montée, and men in civilian clothes begin going from building to building."
+    },
+    {
+      "id": "crossing",
+      "name": "The guide to Switzerland leaves",
+      "value": 0,
+      "max": 8,
+      "perHour": 0.11,
+      "fireText": "The guide in Annemasse leaves tonight for the border: with the Sternbergs if they are there, without them if they are not."
+    },
+    {
+      "id": "prefecture",
+      "name": "The prefecture's questions",
+      "value": 2,
+      "max": 12,
+      "perHour": 0.04,
+      "fireText": "The police arrest a man at Perrache with a blank identity card from the prefecture, and the questions start, in the prefecture and on the slopes."
+    }
+  ],
+  "facts": [
+    "The Vichy police have been checking foreigners in the hotels of Lyon all month.",
+    "Silk is short, and half the looms on the slopes are silent."
+  ],
+  "opening": "Six in the evening, and the light is going gold on the slopes of the Croix-Rousse. In the bookshop Madeleine Rey is wrapping a parcel of second-hand novels for a customer who isn't really buying anything, and the bell over the door has rung twice in ten minutes.\n\nOdette Vidal from the prefecture is leafing through the poetry shelf, her handbag held a little too tightly against her side. Upstairs, under the roof, Frédéric will be warming up his set for the nine o'clock schedule with London.\n\nA few steps down the montée, at the presbytery of Saint-Polycarpe, the Abbé is hiding a mother and two children from Vienna who have run out of places to run.\n\nTwo policemen cycle slowly past the window. Madeleine doesn't look up. \"The usual,\" she says to you, under her breath. \"Odette has something for us. And Frédéric wants to see you before nine.\""
+}

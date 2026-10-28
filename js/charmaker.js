@@ -231,6 +231,10 @@
     });
     sc.characters.unshift(c.id);
     sc.characterData.unshift(c);
+    // The made character takes the authored player's place, keys and all
+    // (task 7-1: the typesetter's key to the cellar press).
+    const gone = sc.player && !cast.includes(sc.player) ? sc.player : null;
+    if (gone) (sc.locations || []).forEach((l) => (l.links || []).forEach((k) => { if (Array.isArray(k.key)) k.key = [...new Set(k.key.map((id) => (id === gone ? c.id : id)))]; }));
     sc.player = c.id;
     sc.madePlayer = c.id;
     return E.Scenario.validate(sc);

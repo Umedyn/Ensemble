@@ -1,0 +1,46 @@
+{
+  "id": "marchal",
+  "name": "Théo Marchal",
+  "pronouns": "he/him",
+  "role": "apprentice printer",
+  "age": 23,
+  "traits": [
+    "eager",
+    "charming",
+    "frightened"
+  ],
+  "want": "matter in the fight, and get out of the trap he is in",
+  "secret": "In February the Brigades spéciales arrested him with leaflets and let him go after he agreed to report to an Inspector Lemoine. He has given them small things so far, and tells himself he can stop.",
+  "guard": "high",
+  "voice": "Talks fast, laughs too much, always wants to do more.",
+  "description": "Came to the shop two months ago through a friend of a friend, keen and brave. Wants guns, not leaflets.",
+  "appearance": "Tall and good-looking, a cigarette always behind his ear, a jacket too thin for April and a bruise fading on his cheekbone.",
+  "skills": {
+    "fighting": 2,
+    "shooting": 1,
+    "stealth": 1,
+    "persuasion": 2,
+    "deception": 3,
+    "technical": 1,
+    "medicine": 0
+  },
+  "relations": {
+    "vasseur": 25,
+    "ferrand": 10,
+    "leroy": 40,
+    "brossard": -10
+  },
+  "agenda": {
+    "goal": "keep the inspector satisfied without giving up anyone he cares about",
+    "hours": 30,
+    "visibility": "hidden",
+    "steps": [
+      "tells the inspector which day the next issue goes out",
+      {
+        "text": "asks the player where the paper is stored, as if it were nothing",
+        "contact": true
+      },
+      "warns Nadine not to come to the shop on Saturday, without saying why"
+    ]
+  }
+}

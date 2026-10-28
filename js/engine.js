@@ -252,11 +252,17 @@
     const S = E.Scenario;
     const list = (sc.regions || []).filter((r) => r && r.id);
     const out = new Map(list.map((r) => [r.id, []]));
+    // A border both sides list (neighbours made two-way) is one way, not two
+    // (task 7-1: "Entrepôt (10th) (border) | Entrepôt (10th) (border)").
+    const add = (from, e) => {
+      const has = out.get(from).some((x) => x.to === e.to && x.kind === e.kind && x.hours === e.hours && JSON.stringify(x.requires) === JSON.stringify(e.requires) && x.risky === e.risky);
+      if (!has) out.get(from).push(e);
+    };
     list.forEach((r) => (r.routes || []).forEach((x) => {
       if (!x || !out.has(x.to) || x.to === r.id) return;
       const e = S.routeOf(sc, x);
-      out.get(r.id).push(Object.assign({}, e, { from: r.id }));
-      if (!e.oneWay) out.get(x.to).push(Object.assign({}, e, { from: x.to, to: r.id }));
+      add(r.id, Object.assign({}, e, { from: r.id }));
+      if (!e.oneWay) add(x.to, Object.assign({}, e, { from: x.to, to: r.id }));
     }));
     const bare = new Set(list.filter((r) => !out.get(r.id).length).map((r) => r.id));
     list.filter((p) => S.regionChildrenIn(list, p.id).length > 1).forEach((p) => {
@@ -396,13 +402,21 @@
     if (!now) return { text: 'no one', controller: null, mixed: false };
     if (now.controller) return { text: name(now.controller), controller: now.controller, mixed: false };
     // Hidden ones (R-5) don't count: the summary would give them away.
-    const kids = Eng.regionChildren(state, id).filter((k) => Eng.regionKnown(state, k));
-    if (!kids.length) return { text: 'no one', controller: null, mixed: false };
+    const kids = (x) => Eng.regionChildren(state, x).filter((k) => Eng.regionKnown(state, k));
+    if (!kids(id).length) return { text: 'no one', controller: null, mixed: false };
+    // A child with no holder of its own counts for the one group that holds
+    // everything inside it, if one does (task 7-1: France → its zones → départements).
+    const sole = (x, depth) => {
+      if (state.regions[x].controller) return state.regions[x].controller;
+      const cs = depth < E.Scenario.REGION_DEPTH ? kids(x).map((k) => sole(k, depth + 1)) : [];
+      return cs.length && cs.every((c) => c && c === cs[0]) ? cs[0] : null;
+    };
     const counts = new Map();
-    kids.forEach((k) => { const c = state.regions[k].controller || null; counts.set(c, (counts.get(c) || 0) + 1); });
+    kids(id).forEach((k) => { const c = sole(k, 1); counts.set(c, (counts.get(c) || 0) + 1); });
     const held = [...counts.entries()].filter(([c]) => c);
     if (!held.length) return { text: 'no one', controller: null, mixed: false };
-    return { text: `no single holder (${held.map(([c, n]) => `${name(c)} holds ${n} of ${kids.length}`).join(', ')})`, controller: null, mixed: true };
+    if (held.length === 1 && held[0][1] === kids(id).length) return { text: `${name(held[0][0])} (all of it)`, controller: null, mixed: false };
+    return { text: `no single holder (${held.map(([c, n]) => `${name(c)} holds ${n} of ${kids(id).length}`).join(', ')})`, controller: null, mixed: true };
   };
   // Where a bigger event happens: a known region id, or the player's region
   // for a regional event that names none (or an unknown one). World events
@@ -1467,6 +1481,10 @@
   // Applies an event's effects. Returns the display lines; rejections become
   // 'effect rejected' guards on res.
   // opts.lasting: tags it adds don't fade (the timeline's authored events).
+  // opts.authored: an authored canon event as written, which the per-event
+  // limits don't ration (task 7-1: occupying a zone hands over 40 départements
+  // at once); the model's events and versions keep them.
+  Eng.AUTHORED_MAX = 200;
   function applyEffects(state, eff, scope, res, opts) {
     const done = [];
     if (!eff || typeof eff !== 'object') return done;
@@ -1478,8 +1496,9 @@
       let items;
       if (h.list) {
         if (!Array.isArray(v)) return no(key, 'not a list');
-        items = v.slice(0, h.max);
-        if (v.length > h.max) no(key, `only ${h.max} allowed, dropped ${v.length - h.max}`);
+        const max = opts && opts.authored ? Eng.AUTHORED_MAX : h.max;
+        items = v.slice(0, max);
+        if (v.length > max) no(key, `only ${max} allowed, dropped ${v.length - max}`);
       } else {
         if (typeof v !== 'object' || Array.isArray(v)) return no(key, 'not an object');
         items = [v];

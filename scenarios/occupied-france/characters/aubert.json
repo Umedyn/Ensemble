@@ -1,0 +1,31 @@
+{
+  "id": "aubert",
+  "name": "Lucien Aubert",
+  "pronouns": "he/him",
+  "role": "foreman in a silk workshop",
+  "age": 31,
+  "traits": [
+    "patient",
+    "wry",
+    "stubborn"
+  ],
+  "want": "get the family at the presbytery to Switzerland and keep the letter box safe",
+  "voice": "Unhurried, Lyonnais, says less than he knows.",
+  "description": "Runs the looms of a small silk workshop above the bookshop and carries messages for the movement on his rounds to the mills. Knows every traboule on the slopes.",
+  "appearance": "Lean, with a worker's cap, rolled sleeves, silk lint on his trousers and a bicycle clip still on one ankle.",
+  "skills": {
+    "fighting": 1,
+    "shooting": 0,
+    "stealth": 2,
+    "persuasion": 2,
+    "deception": 2,
+    "technical": 2,
+    "medicine": 1
+  },
+  "relations": {
+    "rey": 40,
+    "keller": 25,
+    "delorme": 30,
+    "vidal": 20
+  }
+}

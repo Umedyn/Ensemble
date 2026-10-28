@@ -1,0 +1,33 @@
+{
+  "id": "brossard",
+  "name": "Paul Brossard",
+  "pronouns": "he/him",
+  "role": "police inspector at the local station",
+  "age": 44,
+  "traits": [
+    "cynical",
+    "careful",
+    "decent"
+  ],
+  "want": "stay alive and end up on the right side",
+  "secret": "His younger brother was among the communists shot by the Germans last winter. He tips the cell off before raids, and he knows that someone from Ferrand's shop has been seen at the Préfecture's side door, though not who.",
+  "guard": "high",
+  "voice": "Slow, ironic, never says anything he could be quoted on.",
+  "description": "A plain-clothes inspector at the commissariat of the 11th who drinks his coffee at the café across the street and lets things pass that others wouldn't.",
+  "appearance": "Heavy-set in a creased raincoat, a soft hat pushed back, a wedding ring and the patience of a fisherman.",
+  "skills": {
+    "fighting": 2,
+    "shooting": 2,
+    "stealth": 1,
+    "persuasion": 2,
+    "deception": 2,
+    "technical": 0,
+    "medicine": 0
+  },
+  "relations": {
+    "vasseur": 10,
+    "ferrand": 15,
+    "leroy": 0,
+    "marchal": -5
+  }
+}

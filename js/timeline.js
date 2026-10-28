@@ -25,7 +25,7 @@
   const nm = (state, id) => (state.characters[id] ? state.characters[id].name : id);
   TL.at = (when) => when.day * 24 + when.hour;
   TL.now = (state) => state.time.day * 24 + state.time.hour;
-  TL.fmt = (sc, when) => `${sc.timeLabel || 'Day'} ${when.day}, ${String(when.hour).padStart(2, '0')}:00`;
+  TL.fmt = (sc, when) => `${E.dayName(sc, when.day)}, ${String(when.hour).padStart(2, '0')}:00`;
 
   // Projection settings, or null when the world turns it off.
   TL.config = (sc) => (sc.projectTimeline === false ? null : Object.assign({}, TL.PROJECT, isObj(sc.projectTimeline) ? sc.projectTimeline : {}));
@@ -108,7 +108,9 @@
     const text = cleanText(version.text);
     const who = (ev.who || []).filter((id) => state.characters[id] && id !== state.player);
     const region = ev.region || (scope === 'regional' ? Eng().playerRegion(state) : null);
-    const effects = vis !== 'hidden' ? Eng().applyEffects(state, version.effects, scope, res, { lasting: true }) : [];
+    // As written, an authored event's effects aren't rationed (projected events and
+    // the model's diverged versions are).
+    const effects = vis !== 'hidden' ? Eng().applyEffects(state, version.effects, scope, res, { lasting: true, authored: how === 'fired' && !ev.projected }) : [];
     let fact = null;
     if (vis === 'hidden') {
       if (who.length) fact = E.Memory.addFact(state, { about: who, text, known_by: who, weight: 2 });
@@ -179,7 +181,7 @@
       }
       const f = E.Memory.addFact(state, { about: who, text: ev.text, known_by: ['all'], weight: 2 });
       Object.assign(f, { canon: ev.id, chapter: 0, turn: 0, inSummary: true });
-      lines.push(`${sc.timeLabel || 'Day'} ${ev.when.day}: ${ev.text}`);
+      lines.push(`${E.dayName(sc, ev.when.day)}: ${ev.text}`);
     });
     if (lines.length) state.chapters.unshift({ n: 0, title: 'Before the story', summary: lines.join(' '), fromTurn: 0, toTurn: 0, reason: 'canon' });
   };

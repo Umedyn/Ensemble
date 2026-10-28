@@ -91,7 +91,7 @@
   P.knownAtStart = (sc) => (sc.regions || []).filter((r) => r && !r.generated && !E.Scenario.regionChainIn(sc.regions, r.id).some((x) => ((sc.regions || []).find((y) => y.id === x) || {}).known === false));
   P.regionOutline = function (sc) {
     const list = P.knownAtStart(sc);
-    if (list.length <= P.REGIONS_FULL) return { full: list, far: [] };
+    if (list.length <= P.REGIONS_FULL) return { full: list, far: [], chain: null };
     const S = E.Scenario;
     const byId = new Map(list.map((r) => [r.id, r]));
     const order = new Map(list.map((r, i) => [r.id, i]));
@@ -123,7 +123,7 @@
     const far = list.filter((r) => !shown.has(r.id))
       .sort((a, b) => top(a) - top(b) || hop(a) - hop(b) || (a.name < b.name ? -1 : 1))
       .slice(0, P.REGION_NAMES_MAX);
-    return { full, far };
+    return { full, far, chain };
   };
   // ", a part of town in Harmon", ", a town", " in Harmon" or "" (R-1): the
   // region's label and what it is inside, by name, in plain words.
@@ -137,13 +137,17 @@
   B.regions = ({ sc }) => {
     const known = P.knownAtStart(sc);
     if (!known.length) return null;
-    const { full, far } = P.regionOutline(sc);
+    const { full, far, chain } = P.regionOutline(sc);
     const shown = new Set(known.map((r) => r.id));
+    // A big world's outline gives borders only along the start's chain (task
+    // 7-1: twenty arrondissements listing each other): the routes line in
+    // each turn's message has the rest.
+    const borders = (r) => !chain || chain.includes(r.id);
     const places = E.Scenario.mapPlaces(sc);
     const placesIn = (id) => places.filter((p) => p.region === id).map((p) => (p.kind === 'capital' ? `${p.name} (capital)` : p.name));
     const lines = ['\n=== REGIONS ==='].concat(full.map((r) => {
       const pl = placesIn(r.id);
-      const nb = (r.neighbours || []).filter((n) => shown.has(n));
+      const nb = borders(r) ? (r.neighbours || []).filter((n) => shown.has(n)) : [];
       return `- ${r.id}: ${r.name}${P.regionWhat(sc, r.id, true)}${r.lore ? ` — ${r.lore}` : ''}${nb.length ? ` (neighbours: ${nb.join(', ')})` : ''}${pl.length ? ` [places: ${pl.join(', ')}]` : ''}`;
     }));
     if (far.length) lines.push(`Further away: ${far.map((r) => r.name).join(', ')}${known.length > full.length + far.length ? ', and others' : ''}.`);
@@ -1162,7 +1166,7 @@ Reply with JSON only:
     // Somewhere not on the map (R-7): the story starts there, inside the region above.
     if (job.place) lines.push(`Where exactly: the player starts at ${job.place}${r ? `, in ${r.name}` : ''}.`);
     const g = sc.start;
-    if (g) lines.push(`When: ${sc.timeLabel || 'Day'} ${g.day}, ${String(g.hour).padStart(2, '0')}:00.`);
+    if (g) lines.push(`When: ${E.dayName(sc, g.day)}, ${String(g.hour).padStart(2, '0')}:00.`);
     if (job.note) lines.push(`What the player wants from this story: ${job.note}`);
     return lines;
   };

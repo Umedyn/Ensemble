@@ -1,0 +1,33 @@
+{
+  "id": "rey",
+  "name": "Madeleine Rey",
+  "pronouns": "she/her",
+  "role": "bookseller",
+  "age": 46,
+  "traits": [
+    "sharp",
+    "warm",
+    "secretive"
+  ],
+  "want": "build the movement in Lyon into something that can fight",
+  "secret": "She was a Communist Party member until 1939, and she still meets a contact from the communist armed groups whom the movement's leaders have forbidden her to work with.",
+  "guard": "medium",
+  "voice": "Brisk and amused; quotes poets when she's nervous.",
+  "description": "Her bookshop on the montée is the group's letter box. She recruits, organises and decides, and nobody remembers agreeing that she should.",
+  "appearance": "Tall, grey-streaked hair in a bun, reading glasses on a chain, a cardigan with pockets full of slips of paper.",
+  "skills": {
+    "fighting": 0,
+    "shooting": 1,
+    "stealth": 1,
+    "persuasion": 3,
+    "deception": 2,
+    "technical": 1,
+    "medicine": 0
+  },
+  "relations": {
+    "aubert": 40,
+    "keller": 30,
+    "delorme": 15,
+    "vidal": 25
+  }
+}

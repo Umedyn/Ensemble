@@ -1,0 +1,31 @@
+{
+  "id": "vasseur",
+  "name": "Jeanne Vasseur",
+  "pronouns": "she/her",
+  "role": "typesetter",
+  "age": 27,
+  "traits": [
+    "steady",
+    "sharp-eyed",
+    "dry"
+  ],
+  "want": "get Le Veilleur out every week without losing anyone",
+  "voice": "Quiet and precise, with a Parisian's dry humour.",
+  "description": "Grew up two streets from the shop. Her father, a printer too, was killed on the roads south in June 1940. She sets type faster than anyone in the 11th and edits the paper's copy at night.",
+  "appearance": "Small and quick, with ink-stained fingers, hair pinned up under a scarf and a man's jacket two sizes too big.",
+  "skills": {
+    "fighting": 0,
+    "shooting": 0,
+    "stealth": 2,
+    "persuasion": 2,
+    "deception": 2,
+    "technical": 3,
+    "medicine": 1
+  },
+  "relations": {
+    "ferrand": 40,
+    "leroy": 35,
+    "marchal": 5,
+    "brossard": 0
+  }
+}

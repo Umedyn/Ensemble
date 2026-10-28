@@ -849,7 +849,7 @@
     state.seenRooms = (state.seenRooms || []).filter((r) => !rooms.has(r));
     Object.values(state.extras || {}).forEach((x) => { if (rooms.has(x.location)) delete state.extras[x.id]; });
     Object.values(state.standees || {}).forEach((g) => { if (rooms.has(g.location)) delete state.standees[g.id]; });
-    const visit = `visited ${s.visits === 1 ? 'once' : `${s.visits} times`}, last on ${state.scenario.timeLabel || 'Day'} ${s.lastVisit.day}${met.length ? `; met ${met.join(', ')}` : ''}`;
+    const visit = `visited ${s.visits === 1 ? 'once' : `${s.visits} times`}, last on ${E.dayName(state.scenario, s.lastVisit.day)}${met.length ? `; met ${met.join(', ')}` : ''}`;
     state.sites[s.id] = { id: s.id, name: s.name, kind: s.kind, region: s.region, stub: true, from: s.from, why: s.why, summary: visit, made: s.made, visits: s.visits, lastVisit: s.lastVisit, kept: false };
   };
 
@@ -1020,7 +1020,7 @@
       if (r.stub || !r.lastVisit) return;
       if (!r.kept && Object.values(state.sites || {}).some((s) => s.kept && s.region && Eng().regionChain(state, s.region).includes(r.id))) { r.kept = true; r.keptWhy = 'a place there is kept'; }
       if (r.kept || inside.has(r.id) || nowH - ST.hours(r.lastVisit) < cfg.keepDays * 24) return;
-      r.summary = `visited ${r.visits === 1 ? 'once' : `${r.visits} times`}, last on ${state.scenario.timeLabel || 'Day'} ${r.lastVisit.day}`;
+      r.summary = `visited ${r.visits === 1 ? 'once' : `${r.visits} times`}, last on ${E.dayName(state.scenario, r.lastVisit.day)}`;
       delete r.lore;
       r.stub = true;
       state.regions[r.id] = { controller: null, tags: [], status: '' };

@@ -1,0 +1,73 @@
+[
+  {
+    "id": "paris-life",
+    "title": "Paris under the occupation",
+    "level": "region",
+    "ref": "paris",
+    "priority": 4,
+    "keywords": [
+      "metro",
+      "curfew",
+      "Paris"
+    ],
+    "text": "German signposts on every corner, German soldiers on the café terraces, the metro packed because there are no buses or taxis, and bicycles and velo-taxis on the boulevards. The clocks are on Berlin time. Curfew is at midnight; anyone caught out after it spends the night in a police station and may be taken as a hostage."
+  },
+  {
+    "id": "lyon-life",
+    "title": "Lyon in the free zone",
+    "level": "region",
+    "ref": "lyon",
+    "priority": 4,
+    "keywords": [
+      "traboule",
+      "traboules",
+      "Lyon",
+      "Croix-Rousse"
+    ],
+    "text": "Lyon has no German troops but plenty of Vichy police, and German agents work in it quietly. The southern movements meet in its cafés and back rooms, and the traboules of the Croix-Rousse slopes and Vieux Lyon let anyone who knows them lose a follower in a minute."
+  },
+  {
+    "id": "marseille-life",
+    "title": "Marseille",
+    "level": "region",
+    "ref": "marseille",
+    "priority": 4,
+    "keywords": [
+      "Marseille",
+      "visa",
+      "port",
+      "consulate"
+    ],
+    "text": "The last big open port: refugees queue at consulates for visas to America, smugglers and gangsters work the docks and the black market, and the Vichy police raid the hotels for foreigners without papers. American, British and French networks get people out by sea and over the Pyrenees."
+  },
+  {
+    "id": "the-line",
+    "title": "Crossing the line",
+    "level": "region",
+    "ref": "occupied",
+    "priority": 4,
+    "keywords": [
+      "demarcation line",
+      "smuggler",
+      "passeur",
+      "crossing",
+      "Ausweis"
+    ],
+    "topics": [
+      "travel"
+    ],
+    "text": "The demarcation line runs through fields, woods and villages from the Spanish border near Saint-Jean-Pied-de-Port to the Swiss border near Geneva. German patrols with dogs walk it; farmers whose land straddles it, priests, railwaymen and paid smugglers take people across at night. Those caught are fined, jailed, or worse if they carry anything."
+  },
+  {
+    "id": "vichy-town",
+    "title": "Vichy",
+    "level": "region",
+    "ref": "vichy",
+    "priority": 3,
+    "keywords": [
+      "Hôtel du Parc",
+      "Vichy"
+    ],
+    "text": "A spa town playing at capital: ministries crowded into hotels, the Marshal's guard at the Hôtel du Parc, diplomats from the countries still keeping an embassy, and a swarm of petitioners, job-seekers and informers."
+  }
+]

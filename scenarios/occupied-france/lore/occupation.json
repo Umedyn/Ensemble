@@ -1,0 +1,240 @@
+[
+  {
+    "id": "two-frances",
+    "title": "The zones",
+    "level": "world",
+    "alwaysOn": true,
+    "priority": 5,
+    "keywords": [
+      "zone",
+      "demarcation line",
+      "Ausweis",
+      "line"
+    ],
+    "text": "Since the armistice of June 1940 France is cut up. The Germans occupy the north, Paris and the Atlantic coast; the south is the free zone, governed from Vichy. A guarded demarcation line divides them: crossing needs a German pass (an Ausweis) or a smuggler, and letters across it go on printed postcards. Alsace and Moselle are annexed in all but name, and the Nord and Pas-de-Calais are governed from Brussels."
+  },
+  {
+    "id": "vichy-state",
+    "title": "The French State",
+    "level": "world",
+    "priority": 4,
+    "keywords": [
+      "Vichy",
+      "Pétain",
+      "Marshal",
+      "Darlan",
+      "National Revolution",
+      "Légion"
+    ],
+    "topics": [
+      "politics"
+    ],
+    "text": "Marshal Pétain, the old hero of Verdun, rules from Vichy as head of the French State. His \"National Revolution\" preaches work, family and fatherland, and his portrait is in every shop and classroom. Admiral Darlan leads the government. Vichy's police, prefects and courts work for the occupier as well as for themselves; its laws bar Jews from many jobs, and its camps hold foreigners and communists."
+  },
+  {
+    "id": "german-police",
+    "title": "Who hunts the Resistance",
+    "level": "world",
+    "priority": 4,
+    "keywords": [
+      "Gestapo",
+      "SD",
+      "Abwehr",
+      "Brigades spéciales",
+      "Majestic",
+      "avenue Foch",
+      "informer",
+      "police"
+    ],
+    "topics": [
+      "law"
+    ],
+    "text": "In the occupied zone the German military command rules from the Hôtel Majestic in Paris; the Abwehr (military intelligence) and the security police and SD, whom everyone calls the Gestapo, hunt agents and resisters, using French informers and French gangsters. The French police do much of the work: in Paris the Brigades spéciales of the Préfecture track communists and \"terrorists\", by following people for weeks before they strike."
+  },
+  {
+    "id": "papers",
+    "title": "Papers",
+    "level": "world",
+    "priority": 4,
+    "keywords": [
+      "papers",
+      "identity card",
+      "carte d'identité",
+      "forged",
+      "forgery",
+      "false papers",
+      "stamp"
+    ],
+    "topics": [
+      "law"
+    ],
+    "text": "Everyone over sixteen carries an identity card, and ration cards and work papers too. Checks happen at stations, on trains, at metro exits and in round-ups that seal off a street. Forgers make false cards from stolen blanks and carved stamps; a good one passes a glance, but a careful police officer checks the town hall's register by telephone."
+  },
+  {
+    "id": "rationing",
+    "title": "Rationing",
+    "level": "world",
+    "priority": 3,
+    "keywords": [
+      "ration",
+      "coupons",
+      "queue",
+      "black market",
+      "ersatz",
+      "rutabaga"
+    ],
+    "topics": [
+      "rationing"
+    ],
+    "text": "Bread, meat, fat, sugar, coffee, coal, shoes and tobacco are on ration cards, by category of person, and the shops often run out anyway. People queue from dawn, keep rabbits on balconies and cycle to the countryside for eggs. The black market sells everything at ten times the price; restaurants serve the Germans and the rich."
+  },
+  {
+    "id": "resistance-movements",
+    "title": "The Resistance",
+    "level": "world",
+    "priority": 4,
+    "keywords": [
+      "Resistance",
+      "Combat",
+      "Libération",
+      "Franc-Tireur",
+      "FTP",
+      "network",
+      "movement",
+      "underground paper"
+    ],
+    "topics": [
+      "underground"
+    ],
+    "text": "There is no single Resistance. In the north, small groups publish papers such as Résistance and Libération-Nord; in the south, movements such as Combat, Libération and Franc-Tireur print, recruit and organise. The communists, in the fight since 1941, run their own armed groups. Intelligence networks work for London. De Gaulle's Free France tries to bring them together. Most members do ordinary jobs by day."
+  },
+  {
+    "id": "cell-rules",
+    "title": "How a cell survives",
+    "level": "world",
+    "priority": 3,
+    "keywords": [
+      "safe house",
+      "meeting",
+      "cutout",
+      "letter box",
+      "dead drop",
+      "false name"
+    ],
+    "topics": [
+      "underground"
+    ],
+    "text": "Members know each other by false first names, meet in different places, never write down an address, and carry nothing that names anyone. A member who misses a meeting is assumed arrested: everyone they knew moves house. Someone arrested is asked to hold out for forty-eight hours, so the others have time to vanish."
+  },
+  {
+    "id": "bbc",
+    "title": "Radio London",
+    "level": "world",
+    "priority": 3,
+    "keywords": [
+      "BBC",
+      "Radio London",
+      "Radio Londres",
+      "personal messages",
+      "wireless",
+      "radio"
+    ],
+    "topics": [
+      "underground"
+    ],
+    "text": "Every evening people listen to the BBC's French broadcasts behind closed shutters, though it is forbidden. \"Les Français parlent aux Français\" mocks the Germans and Vichy; the \"personal messages\" that follow (\"The carrots are cooked\") are coded orders to the Resistance. The Germans jam the signal and confiscate sets."
+  },
+  {
+    "id": "persecution",
+    "title": "The persecution",
+    "level": "world",
+    "priority": 4,
+    "keywords": [
+      "Jewish",
+      "Jews",
+      "Drancy",
+      "statute",
+      "round-up",
+      "camp",
+      "deported",
+      "deportation"
+    ],
+    "text": "Vichy's laws bar Jews from the civil service, teaching, the press and many trades, and take their businesses. In the occupied zone the Germans have made Jews register, put signs on their shops, and in 1941 the French police interned thousands of men at Drancy, Pithiviers and Beaune-la-Rolande. Foreign Jews, refugees from Germany, Austria and Poland, are the most exposed. Trains have begun to leave Drancy for the east."
+  },
+  {
+    "id": "hostages",
+    "title": "Hostages",
+    "level": "world",
+    "priority": 3,
+    "keywords": [
+      "hostages",
+      "reprisals",
+      "poster",
+      "execution",
+      "shot",
+      "Mont-Valérien"
+    ],
+    "topics": [
+      "underground"
+    ],
+    "text": "After each attack on a German soldier the military command shoots hostages chosen from its prisons, communists and Jews first, and posts their names on red-and-yellow posters. Many in the Resistance argue over whether attacks are worth the price."
+  },
+  {
+    "id": "collaborators",
+    "title": "Collaborators",
+    "level": "world",
+    "priority": 3,
+    "keywords": [
+      "collaborator",
+      "collaboration",
+      "Doriot",
+      "Déat",
+      "PPF",
+      "denounce",
+      "denunciation",
+      "letter"
+    ],
+    "topics": [
+      "politics"
+    ],
+    "text": "Some French people welcome the occupation: the Paris newspapers paid by the Germans, the fascist parties of Doriot and Déat, the volunteers of the Legion fighting in Russia, and the many who write anonymous letters denouncing a neighbour, a rival or a Jew to the police."
+  },
+  {
+    "id": "trains",
+    "title": "Travelling",
+    "level": "world",
+    "priority": 3,
+    "keywords": [
+      "train",
+      "station",
+      "bicycle",
+      "smuggler",
+      "passeur",
+      "gazogène"
+    ],
+    "topics": [
+      "travel"
+    ],
+    "text": "There is almost no petrol: people travel by bicycle, on foot, in gas-burning cars, and on crowded, slow trains where the German and French police check papers. Crossing the demarcation line on the train means a check at the line, so many people cross on foot at night with a smuggler who is paid in cash and may or may not be honest."
+  },
+  {
+    "id": "free-france",
+    "title": "Free France",
+    "level": "world",
+    "priority": 3,
+    "keywords": [
+      "de Gaulle",
+      "Free France",
+      "Free French",
+      "London",
+      "Gaullist",
+      "BCRA",
+      "parachute"
+    ],
+    "topics": [
+      "politics",
+      "military"
+    ],
+    "text": "General de Gaulle leads Free France from London: its small army fights in Africa, its agents parachute in at night, and its radio speaks to France. Vichy has condemned him to death in his absence. Most of the Resistance, divided as it is, looks to him or to London."
+  }
+]

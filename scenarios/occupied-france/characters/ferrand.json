@@ -1,0 +1,46 @@
+{
+  "id": "ferrand",
+  "name": "Auguste Ferrand",
+  "pronouns": "he/him",
+  "role": "owner of the print shop",
+  "age": 58,
+  "traits": [
+    "gruff",
+    "proud",
+    "weary"
+  ],
+  "want": "keep the shop open, his people safe and his son alive",
+  "secret": "A German officer from the prisoner-of-war office has offered to have his son Pierre sent home from a camp in Germany, in exchange for printing work and a few names. He has not said no.",
+  "guard": "high",
+  "voice": "Few words, growled; a veteran of Verdun who swears like one.",
+  "description": "Has run the shop for thirty years and agreed to the cellar press without a speech. His son Pierre has been a prisoner of war since 1940.",
+  "appearance": "Big, stooped, grey moustache yellowed by tobacco, a printer's apron over a waistcoat and a limp from the last war.",
+  "skills": {
+    "fighting": 1,
+    "shooting": 2,
+    "stealth": 0,
+    "persuasion": 2,
+    "deception": 1,
+    "technical": 3,
+    "medicine": 0
+  },
+  "relations": {
+    "vasseur": 45,
+    "leroy": 20,
+    "marchal": 0,
+    "brossard": 10
+  },
+  "agenda": {
+    "goal": "decide what to do about the German offer before it is too late for Pierre",
+    "hours": 40,
+    "visibility": "hidden",
+    "steps": [
+      "meets the German officer again in a café near the Gare de l'Est",
+      "prints a job for the Germans after hours, alone",
+      {
+        "text": "comes to the player for advice, without telling them everything",
+        "contact": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "keller",
+  "name": "Frédéric Keller",
+  "pronouns": "he/him",
+  "role": "watch repairer and the group's radio operator",
+  "age": 34,
+  "traits": [
+    "meticulous",
+    "anxious",
+    "loyal"
+  ],
+  "want": "keep the set working and never be taken alive",
+  "secret": "His real name is Fritz Kessler. He is a German socialist who escaped from the internment camp at Les Milles in 1940, and his Swiss papers are forged.",
+  "guard": "high",
+  "voice": "Careful French with a slight accent he calls Swiss; jokes only about the weather.",
+  "description": "Repairs watches in a rented attic room and keeps the group's radio set hidden under the floor. Keeps the schedule with London to the minute.",
+  "appearance": "Thin and round-shouldered, wire spectacles, a jeweller's loupe on a cord, and fingers that never stop moving.",
+  "skills": {
+    "fighting": 1,
+    "shooting": 1,
+    "stealth": 2,
+    "persuasion": 0,
+    "deception": 2,
+    "technical": 3,
+    "medicine": 0
+  },
+  "relations": {
+    "aubert": 30,
+    "rey": 35,
+    "delorme": 20,
+    "vidal": 0
+  }
+}

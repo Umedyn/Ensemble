@@ -122,12 +122,41 @@
     v >= 50 ? 'trusts' : v >= 15 ? 'friendly' : v > -15 ? 'neutral' : v > -50 ? 'wary' : 'hostile';
   E.healthWord = (h) => ({ ok: 'unhurt', hurt: 'hurt', badly_hurt: 'badly hurt', dead: 'dead' }[h] || h);
 
+  // A world with a real calendar (task 7-1, `calendar: {day1: "1939-09-01"}`)
+  // names its days as dates; any other names them "Day 12" ("Sol 214").
+  const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  // A "YYYY-MM-DD" date in milliseconds (UTC), or null when it isn't a real date.
+  const utcDate = (ymd) => {
+    const m = typeof ymd === 'string' && /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
+    if (!m) return null;
+    const t = Date.UTC(+m[1], +m[2] - 1, +m[3]);
+    const d = new Date(t);
+    return d.getUTCFullYear() === +m[1] && d.getUTCMonth() === +m[2] - 1 && d.getUTCDate() === +m[3] ? t : null;
+  };
+  E.calendarDay1 = (cal) => utcDate(cal && cal.day1);
+  // A day number's date: { y, m (1–12), d, weekday }, or null without a calendar.
+  E.dateOfDay = function (sc, day) {
+    const t0 = E.calendarDay1(sc && sc.calendar);
+    if (t0 == null) return null;
+    const d = new Date(t0 + (Math.floor(day) - 1) * 86400000);
+    return { y: d.getUTCFullYear(), m: d.getUTCMonth() + 1, d: d.getUTCDate(), weekday: WEEKDAYS[d.getUTCDay()] };
+  };
+  // The day number of "YYYY-MM-DD" on the world's calendar, or null.
+  E.dayOfDate = function (sc, ymd) {
+    const t0 = E.calendarDay1(sc && sc.calendar), t = utcDate(ymd);
+    return t0 == null || t == null ? null : Math.round((t - t0) / 86400000) + 1;
+  };
+  // "Thursday 16 April 1942", or "Day 12".
+  E.dayName = function (sc, day) {
+    const g = E.dateOfDay(sc, day);
+    return g ? `${g.weekday} ${g.d} ${MONTHS[g.m - 1]} ${g.y}` : `${(sc && sc.timeLabel) || 'Day'} ${day}`;
+  };
   E.fmtTime = function (state) {
-    const label = state.scenario.timeLabel || 'Day';
     const mins = Math.round(state.time.hour * 60);
     const hh = String(Math.floor(mins / 60) % 24).padStart(2, '0');
     const mm = String(mins % 60).padStart(2, '0');
-    return `${label} ${state.time.day}, ${hh}:${mm}`;
+    return `${E.dayName(state.scenario, state.time.day)}, ${hh}:${mm}`;
   };
 
   E.esc = (s) =>

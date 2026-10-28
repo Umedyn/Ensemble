@@ -73,7 +73,10 @@
     const picture = owner ? def(owner).map : sc.map || null;
     const seed = `${sc.worldId || ''}${base ? ':' + base : ''}`;
     if (picture) {
-      const regions = list.filter((r) => inside(r.id, owner));
+      // Not what is inside a region with a map of its own: that is drawn on
+      // its map (task 7-1: départements on France's, not as stray points on Europe's).
+      const deeper = (x) => chainOf(x).slice(1).some((c) => c !== owner && inside(c, owner) && def(c).map);
+      const regions = list.filter((r) => inside(r.id, owner) && !deeper(r.id));
       const g = D.geometry(regions, picture, seed);
       const focus = id == null || id === owner ? null : (leaf ? [id] : list.filter((r) => inside(r.id, id)).map((r) => r.id).filter((x) => g.shapes[x]));
       // A leaf: as the regional view was, twice its size within what's near it.
@@ -175,6 +178,9 @@
   };
   D.worldSvg = function (o) {
     const g = o.g;
+    // Yours is the nearest region of your chain drawn on this picture (an
+    // arrondissement on Seine's map is Seine on France's).
+    if (o.mine != null && !g.shapes[o.mine]) o = Object.assign({}, o, { mine: (o.branch || []).find((x) => g.shapes[x]) || null });
     const vbox = o.viewBox || g.full;
     const shown = D.detailShown(g, o.regions, vbox, [o.mine, o.selected].concat(o.branch || []));
     // Text, badges and pins keep their size on screen whatever the map's

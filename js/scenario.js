@@ -17,7 +17,7 @@
   // World fields a start may override (merge rules below).
   const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'tagThresholds', 'portraitSet', 'factions', 'world',
     'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'regionLabels', 'routeKinds', 'presence', 'mapFocus', 'tactical', 'standees', 'site', 'localMap', 'map', 'entrances', 'lore', 'loreTopics', 'timeline', 'projectTimeline', 'endings'];
-  const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'date', 'characters', 'starts', 'generatedStarts', 'generatedSites', 'generatedRegions', 'sites', 'lorePacks', ...OVERRIDABLE];
+  const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'date', 'calendar', 'characters', 'starts', 'generatedStarts', 'generatedSites', 'generatedRegions', 'sites', 'lorePacks', ...OVERRIDABLE];
   const WORLD_RESERVED = [];
   const START_RESERVED = [];
   const CAST_FIELDS = ['id', 'status', 'needs', 'relations', 'knows', 'want', 'secret', 'guard', 'tags', 'tier', 'pinned', 'agenda'];
@@ -249,6 +249,8 @@
     const pool = Array.isArray(world.characters) ? world.characters : [];
     const startIds = Array.isArray(world.starts) ? world.starts : [];
     req(world.date == null || (isObj(world.date) && Number.isFinite(world.date.day) && Number.isFinite(world.date.hour)), '"date" must be {day, hour}');
+    // A real calendar (task 7-1): the date of day 1, so days read as dates.
+    req(world.calendar == null || (isObj(world.calendar) && E.calendarDay1(world.calendar) != null), '"calendar" must be {"day1": "YYYY-MM-DD"}, the date of day 1');
     if (world.generatedStarts != null || !startIds.length) problems.push(...E.StartGen.configProblems(world));
     // Generated sites and library maps (task 4-4).
     problems.push(...E.Sites.configProblems(world));
@@ -302,8 +304,14 @@
 
     // Regions the world map leaves out get an automatic point (task 3-4).
     // A region with regions inside it needs no shape: its children stand for it (R-1).
+    // One drawn on the map of a region it is inside counts (task 7-1: départements
+    // on France's map, arrondissements on a city's).
+    const onMapUp = (r) => S.regionChainIn(world.regions, r.id).slice(1).some((id) => {
+      const up = world.regions.find((x) => x && x.id === id);
+      return up && isObj(up.map) && isObj(up.map.regions) && up.map.regions[r.id];
+    });
     if (isObj(world.map) && Array.isArray(world.regions)) world.regions.forEach((r) => {
-      if (r && r.id && !world.regions.some((c) => c && c.parent === r.id) && !(isObj(world.map.regions) && world.map.regions[r.id])) warnings.push
+      if (r && r.id && !world.regions.some((c) => c && c.parent === r.id) && !(isObj(world.map.regions) && world.map.regions[r.id]) && !onMapUp(r)) warnings.push
 (`world.json: region "${r.id}" is not on the map; it gets a point placed automatically`);
     });
     // World-level extras and groups stand in a room of the world or of some start.

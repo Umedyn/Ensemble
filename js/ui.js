@@ -1089,7 +1089,7 @@
     };
     const t = at(b);
     if (sameDayAs && at(sameDayAs).day === t.day) return t.hhmm;
-    return `${state.scenario.timeLabel || 'Day'} ${t.day}, ${t.hhmm}`;
+    return `${E.dayName(state.scenario, t.day)}, ${t.hhmm}`;
   }
 
   function liveScene() {

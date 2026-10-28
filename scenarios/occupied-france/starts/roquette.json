@@ -1,0 +1,387 @@
+{
+  "id": "roquette",
+  "title": "Paris, April 1942: the print shop",
+  "summary": "You are Jeanne Vasseur, a typesetter at a print shop off the rue de la Roquette. By day it prints wedding cards; at night, in the cellar, your cell prints the underground paper Le Veilleur. Saturday's issue is half done, and there are strangers in the street.",
+  "start": {
+    "day": 959,
+    "hour": 8
+  },
+  "region": "paris-11",
+  "tactical": true,
+  "castLabel": "Cell",
+  "player": "vasseur",
+  "playerSlot": {
+    "location": "shop",
+    "summary": "You make your own member of a small cell that prints the underground paper Le Veilleur in the cellar of a print shop off the rue de la Roquette. Saturday's issue is half done, and there are strangers in the street.",
+    "knows": [
+      "Théo Marchal joined the cell two months ago through a friend of a friend, and nobody has checked him further."
+    ],
+    "needs": {
+      "hunger": 0.4,
+      "fatigue": 0.3,
+      "fear": 0.3
+    },
+    "roles": [
+      {
+        "id": "printer",
+        "label": "Printer",
+        "desc": "Sets type and runs a press; can make a newspaper, a poster or a pass look right.",
+        "skills": {
+          "technical": 2,
+          "deception": 1,
+          "stealth": 1
+        },
+        "suggestedTraits": [
+          "careful",
+          "stubborn",
+          "dry"
+        ]
+      },
+      {
+        "id": "courier",
+        "label": "Courier",
+        "desc": "Carries messages, papers and money by bicycle and train, and knows which stations are watched.",
+        "skills": {
+          "stealth": 2,
+          "deception": 2,
+          "persuasion": 1
+        },
+        "suggestedTraits": [
+          "quick",
+          "cool-headed",
+          "restless"
+        ]
+      },
+      {
+        "id": "student",
+        "label": "Student",
+        "desc": "At the university or a lycée; angry, idealistic, and watched by the police since the November 1940 march.",
+        "skills": {
+          "persuasion": 1,
+          "stealth": 2,
+          "deception": 1
+        },
+        "suggestedTraits": [
+          "idealistic",
+          "reckless",
+          "bright"
+        ]
+      },
+      {
+        "id": "clerk",
+        "label": "Town hall clerk",
+        "desc": "Stamps identity cards and ration cards all day; has access to blanks and seals.",
+        "skills": {
+          "deception": 2,
+          "persuasion": 2
+        },
+        "suggestedTraits": [
+          "meticulous",
+          "quiet",
+          "nervous"
+        ]
+      }
+    ],
+    "freeform": true,
+    "skillPoints": 10,
+    "maxSkill": 3,
+    "relationsDefault": 20,
+    "castFeelings": 20
+  },
+  "cast": [
+    {
+      "id": "vasseur",
+      "status": {
+        "location": "shop"
+      },
+      "needs": {
+        "hunger": 0.4,
+        "fatigue": 0.3,
+        "fear": 0.3
+      },
+      "knows": [
+        "Théo Marchal joined the cell two months ago through a friend of a friend, and nobody has checked him further.",
+        "Monsieur Ferrand takes his telephone calls with the back-room door shut since his son's last letter."
+      ]
+    },
+    {
+      "id": "ferrand",
+      "status": {
+        "location": "backroom"
+      },
+      "needs": {
+        "hunger": 0.3,
+        "fatigue": 0.5,
+        "fear": 0.4
+      },
+      "knows": [
+        "Théo asked twice last week where the shop gets its paper stock."
+      ]
+    },
+    {
+      "id": "leroy",
+      "status": {
+        "location": "shop"
+      },
+      "needs": {
+        "hunger": 0.5,
+        "fatigue": 0.4,
+        "fear": 0.5
+      },
+      "knows": [
+        "The same man in a grey hat has been at the Voltaire metro exit four mornings running."
+      ]
+    },
+    {
+      "id": "marchal",
+      "status": {
+        "location": "courtyard"
+      },
+      "needs": {
+        "hunger": 0.3,
+        "fatigue": 0.4,
+        "fear": 0.6
+      },
+      "knows": [
+        "Inspector Lemoine expects to hear from him by Friday."
+      ]
+    },
+    {
+      "id": "brossard",
+      "tier": "secondary",
+      "status": {
+        "location": "cafe"
+      },
+      "needs": {
+        "hunger": 0.2,
+        "fatigue": 0.4,
+        "fear": 0.3
+      },
+      "knows": [
+        "The Brigades spéciales have asked the local station for the list of printers in the 11th."
+      ]
+    }
+  ],
+  "locations": [
+    {
+      "id": "shop",
+      "name": "Ferrand's print shop",
+      "desc": "The front of the shop: a counter, wedding cards and menus in the window, and the old platen press that prints them.",
+      "connects": [
+        "backroom",
+        "street"
+      ],
+      "size": "medium",
+      "features": [
+        "platen press",
+        "type cases",
+        "shop window",
+        "counter"
+      ],
+      "links": [
+        {
+          "to": "backroom",
+          "kind": "door"
+        },
+        {
+          "to": "street",
+          "kind": "door"
+        }
+      ]
+    },
+    {
+      "id": "backroom",
+      "name": "Back room",
+      "desc": "Paper stock, drying racks, Ferrand's desk and telephone, and the stair down to the cellar.",
+      "connects": [
+        "shop",
+        "cellar",
+        "courtyard"
+      ],
+      "size": "medium",
+      "features": [
+        "paper stock",
+        "drying racks",
+        "Ferrand's desk",
+        "telephone"
+      ],
+      "links": [
+        {
+          "to": "cellar",
+          "kind": "locked door",
+          "key": [
+            "ferrand",
+            "vasseur"
+          ]
+        },
+        {
+          "to": "courtyard",
+          "kind": "door"
+        }
+      ]
+    },
+    {
+      "id": "cellar",
+      "name": "The cellar",
+      "desc": "Behind a false wall of bottle racks: a small hand press, cases of type and the week's bundles of Le Veilleur.",
+      "connects": [
+        "backroom"
+      ],
+      "size": "small",
+      "level": -1,
+      "secure": true,
+      "features": [
+        "hand press",
+        {
+          "name": "bundles of Le Veilleur",
+          "state": "half printed"
+        },
+        "false wall of bottle racks"
+      ]
+    },
+    {
+      "id": "courtyard",
+      "name": "Courtyard",
+      "desc": "Cobbles, bins and bicycles, with the concierge's window looking out on everything. A passage runs through to rue Keller.",
+      "connects": [
+        "backroom",
+        "lodge",
+        "street"
+      ],
+      "size": "medium",
+      "outside": true,
+      "features": [
+        "bicycles",
+        "concierge's window",
+        "passage to rue Keller"
+      ],
+      "links": [
+        {
+          "to": "lodge",
+          "kind": "door"
+        },
+        {
+          "to": "street",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "lodge",
+      "name": "Concierge's lodge",
+      "desc": "Madame Gauthier's lodge: a stove, a cat, the tenants' pigeonholes and a window on the courtyard.",
+      "connects": [
+        "courtyard"
+      ],
+      "size": "small",
+      "features": [
+        "pigeonholes",
+        "stove",
+        "window"
+      ]
+    },
+    {
+      "id": "street",
+      "name": "Rue de la Roquette",
+      "desc": "A busy street of workshops and cafés running up from the Bastille, a bakery queue on the corner, the Voltaire metro entrance at the far end.",
+      "connects": [
+        "shop",
+        "courtyard",
+        "cafe"
+      ],
+      "size": "large",
+      "outside": true,
+      "features": [
+        "bakery queue",
+        "metro entrance",
+        "poster wall"
+      ]
+    },
+    {
+      "id": "cafe",
+      "name": "Café des Trois Marches",
+      "desc": "Zinc bar, a stove, a telephone booth and a back table by the window where Inspector Brossard drinks his morning coffee.",
+      "connects": [
+        "street"
+      ],
+      "size": "small",
+      "features": [
+        "zinc bar",
+        "telephone booth",
+        "window table"
+      ],
+      "links": [
+        {
+          "to": "street",
+          "kind": "door"
+        }
+      ]
+    }
+  ],
+  "entrances": [
+    {
+      "room": "street",
+      "kind": "street",
+      "watched": true
+    },
+    {
+      "room": "courtyard",
+      "kind": "passage from rue Keller",
+      "watched": false
+    }
+  ],
+  "site": {
+    "type": "generic"
+  },
+  "extras": [
+    {
+      "id": "gauthier",
+      "name": "Madame Gauthier",
+      "pronouns": "she/her",
+      "role": "concierge",
+      "location": "lodge",
+      "note": "Sees everyone who comes and goes and loves to talk; her son is a prisoner in Germany too."
+    }
+  ],
+  "standees": [
+    {
+      "id": "watchers",
+      "label": "men in plain clothes",
+      "count": 2,
+      "location": "street",
+      "state": "calm",
+      "faction": "vichy",
+      "post": "street",
+      "note": "Brigades spéciales watchers following people who come and go from the shop; they write everything down."
+    }
+  ],
+  "clocks": [
+    {
+      "id": "filature",
+      "name": "The police close in on the shop",
+      "value": 2,
+      "max": 12,
+      "perHour": 0.06,
+      "fireText": "Before dawn, black cars stop outside the shop and the courtyard fills with men in raincoats: the Brigades spéciales have come for the printers.",
+      "fireWorld": {
+        "the print shop": "raided by the Brigades spéciales"
+      }
+    },
+    {
+      "id": "issue",
+      "name": "Saturday's issue must go out",
+      "value": 4,
+      "max": 10,
+      "perHour": 0.12,
+      "fireText": "The bundles of Le Veilleur are due at the distribution points tonight; if they don't move now, the network goes without this week."
+    }
+  ],
+  "world": {
+    "the print shop": "open for business; the cellar press running at night"
+  },
+  "facts": [
+    "Le Veilleur is an underground paper printed somewhere in the 11th arrondissement; the police have offered a reward for the printers.",
+    "There have been men in plain clothes in the rue de la Roquette all week."
+  ],
+  "opening": "Thursday, a quarter past eight, and the queue outside the bakery across the street has been there since six. In the front of the shop the old platen press thumps out wedding cards for the Lefèvre girl, and the smell of ink hangs over everything.\n\nMonsieur Ferrand stands in the back-room doorway with a letter in his hand, the third this month with a prison camp's stamp on it, and folds it away when he sees you looking. Down in the cellar, behind the bottle racks, half of Saturday's Le Veilleur is drying in bundles.\n\nThrough the back window you can see Théo in the courtyard, pumping up his bicycle tyres and whistling something from the radio. Madame Gauthier watches him from her lodge, as she watches everyone.\n\nThe shop bell rings. Nadine comes in out of breath, unwinds her scarf and says quietly, \"The man in the grey hat is at the metro again. Fourth morning.\" She looks at you, waiting."
+}

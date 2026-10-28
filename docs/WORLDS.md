@@ -71,6 +71,7 @@ With no `starts` the picker offers only **✦ Make my own start** (as if the wor
 | `format` | `2` | optional in `world.json` (default `2`); any other value is an error. A folder with `scenario.json` instead is a legacy folder |
 | `id`, `title` | string | `title` required; `id` defaults to the folder name |
 | `date` | `{day, hour}` | optional (R-0): the date a generated start begins on, and of an authored start that gives no `start`. Default day 1, 9:00 |
+| `calendar` | `{day1}` | optional (task 7-1): the real date of day 1, `"YYYY-MM-DD"`, so every day reads as a date ("Thursday 16 April 1942") in the game, the prompts, the timeline and the past; `timeLabel` is then unused. Day numbers stay the clock (`E.dayOfDate` converts). World-wide only |
 | `summary` | string | one or two lines for the world picker |
 | `setting` | string | the always-on world context (keep it broad; regional detail goes in region lore) |
 | `rules` | string[] | |
@@ -178,11 +179,11 @@ Task R-1. A flat list of regions is a whole world; add `parent` only where the s
 
 - **Every field is optional.** A region without `parent` sits directly under the world. Depth varies by branch, up to 6 levels. Validation names regions by name: "Paris is inside Lyon, which is inside Paris", "Lyon is inside "x", which isn't one of the regions", "The Vault is 7 levels deep (inside …); 6 is the most".
 - **Rooms and sites hang off any region**, as before (`region` on a location, or the start's).
-- **Who holds what.** `controller` works at any level. A parent with no controller of its own shows its children's state in summary ("no single holder (The Occupation holds 1 of 2, …)"); it never gets a made-up owner.
+- **Who holds what.** `controller` works at any level. A parent with no controller of its own shows its children's state in summary ("no single holder (The Occupation holds 1 of 2, …)"); it never gets a made-up owner. A child with no controller counts for the one group that holds everything inside it, and when one group holds all of a parent's children it reads "The German occupation (all of it)" (task 7-1: France counts its zones by their départements, so a zone needs no holder of its own and stays right as they change hands).
 - **Near.** What counts as near a region (`Engine.regionNear`): where its routes go (R-2; its neighbours before routes), then its siblings under the same parent (not at the top level: the other countries of a world map aren't near), then its children, at most 8. The player's region and what's near get their current state in the prompt; each region the player's is inside gets one entry on an `Inside:` line.
-- **The prompt.** The header's region block is an outline built once from the start's region: the start's chain, what's within two steps (neighbours, parent, children), the siblings along the chain and `notable` regions in full (up to 24), then names for the rest, top-level ones first. A line reads `- paris: Paris, a city in Occupied Zone — lore`. It is the same for the whole game, so a deep tree costs nothing per turn. A flat world gets the lines it always had.
+- **The prompt.** The header's region block is an outline built once from the start's region: the start's chain, what's within two steps (neighbours, parent, children), the siblings along the chain and `notable` regions in full (up to 24), then names for the rest, top-level ones first. A line reads `- paris: Paris, a city in Occupied Zone — lore`. In an outline (more than 24 regions) only the start's chain lists its `(neighbours: …)`; the routes line of each turn has the rest (task 7-1: Paris's twenty arrondissements each listing the others cost 500 tokens). It is the same for the whole game, so a deep tree costs nothing per turn. A flat world gets the lines it always had.
 - **Lore and events up the chain.** Region lore for the regions the player's is inside comes in after the region's own (a ward with no lore still gets its city's); an event idea tied to an ancestor counts as near, and a regional event may name any of them.
-- **The map.** A region with regions inside it is drawn only when the map gives it a shape of its own (under its children); otherwise its children stand for it, and it needs no shape and gets no automatic point. Named `places` on the map stay pins in a region, not regions.
+- **The map.** A region with regions inside it is drawn only when the map gives it a shape of its own (under its children); otherwise its children stand for it, and it needs no shape and gets no automatic point. A region drawn on the map of a region it is inside counts as on the map (no automatic point on the world's), and a map level leaves out everything inside a region with a map of its own: the départements are on France's map, not points on Europe's. "You are here" on a level is the nearest region of the player's chain drawn there (Seine, on France's map, for a player in an arrondissement). Named `places` on the map stay pins in a region, not regions.
 
 ### Routes and travel
 
@@ -292,7 +293,7 @@ A character file is the person's **identity**: name, pronouns, role, age, traits
 | `skillPoints`, `maxSkill` | required; the point-buy budget across the world's skills, and the highest any one skill can be (1–4) |
 | `relationsDefault` | the player's starting feelings toward the cast: a number, or `{id: n}` (−100..100; default 0). The form starts from these and the player can change them |
 | `castFeelings` | how the cast feels about the newcomer, same shape (default 0) |
-| `keepDefault` | false (default): the authored `player` leaves the cast when someone makes their own; true keeps them on as a non-player character |
+| `keepDefault` | false (default): the authored `player` leaves the cast when someone makes their own, and the made character takes their keys to locked doors (task 7-1); true keeps them on as a non-player character |
 
 The made character is a character file like any other (`id` from the name, made unique; `people` when a people was picked; `portrait` a path from the world's `portraitSet`, left out for the stand-in, or `false` for initials only), checked by `Scenario.characterProblems`. `CharMaker.withPlayer` adds it to the composed scenario as the player, at the front of the cast, sets `madePlayer`, applies `castFeelings`, drops the authored player (and feelings about them) unless `keepDefault`, and validates the result. When a world loads, each start with a slot is checked with a sample made character, so a slot that can't produce a playable game shows "(has errors)" in the picker. Saves embed the scenario, so the character travels with the game.
 
@@ -424,7 +425,7 @@ npm run basemap -- regions modern-earth --within --places cities --min-pop 10000
 
 then the regions sorted by name (each country followed by its cities) and a few names fixed by hand ("Lianshan" → Huludao, "St-Martin", "St-Barthélemy", "Falkland Islands / Malvinas"). Importing again keeps hand-made changes to names, lore and the rest, by `key`.
 
-**Worked example: France, 1942.** The world is broad and France is detailed, with zones that cut across départements.
+**Worked example: France, 1942.** The world is broad and France is detailed, with zones that cut across départements. The bundled **Occupied France** (`scenarios/occupied-france`, task 7-1) is this example built, by its own script (`node tools/occupied-france.mjs fetch|build`) rather than by hand: the départements of 1942 (Seine and Seine-et-Oise merged back, one Corse, old names), the thirteen the demarcation line cut split along it into two regions each (so the line is a border between regions, with the zones' `routes` its crossings), and Paris, Lyon and Marseille as regions with maps of their arrondissements (from IGN's open data, under Licence Ouverte 2.0). The steps below do the same in the tool and the creator.
 
 1. `npm run basemap -- fetch --states`, then a **New world** on the base map (or `crop my-1942 --bounds -12,34,32,60`) and `regions my-1942 --within --labels "country, zone, département"`. Today's countries are only a start: rename them for 1942, merge Germany and Austria into the Reich, and so on, in the creator.
 2. `crop my-1942 --region france --width 2400`: France gets its own picture.
@@ -520,6 +521,8 @@ Task 5-2. Events that happen at a set time whatever the player does, unless the 
 | `onBroken` | `drop` (default: it doesn't happen) or `diverge` (the model writes what happens instead) |
 | `ending` | optional: `true` or `{title, kind, epilogue, if}`; the story ends when this event happens. See [Endings](#endings) |
 | `draft` | `true` while the event waits for review (from the research helper): validated, but it never happens until accepted in the creator |
+
+**Effects as written are the author's**: an authored event that happens as written isn't held to the per-event limits that ration the model's events (one `control` change, two tags), so one event can hand a whole zone over (Occupied France's 11 November 1942 changes some fifty regions). Projected events and the model's diverged versions keep the limits (task 7-1).
 
 **The past** becomes public facts and a "Before the story" chapter at New game; hidden past events become private facts for `who`. Past events don't use `effects`, `preconditions` or `onBroken` (a warning): write the world as it is at the start. **The future** never reaches a prompt before it is due, so lore and descriptions must not mention it either. A public event that shares 4+ content words with someone's secret is an error, as for lore.
 
