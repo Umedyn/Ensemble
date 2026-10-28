@@ -57,6 +57,8 @@
         req(r.desc == null || (typeof r.desc === 'string' && r.desc.length <= 300), `${where}: "desc" must be text of at most 300 characters`);
         req(r.suggestedTraits == null || (Array.isArray(r.suggestedTraits) && r.suggestedTraits.every((t) => typeof t === 'string' && t.trim() && t.length <= CM.LIMITS.trait)),
           `${where}: "suggestedTraits" must be a list of short traits (${CM.LIMITS.trait} characters each)`);
+        // A role may come without some of the world's needs (task G-5: an android).
+        if (r.needsOff != null) E.Scenario.needsOffProblems(r.needsOff, sc, where).forEach((p) => req(false, p));
         if (!withSkills) return req(r.skills == null, `${where}: only roles have "skills"`);
         if (r.skills == null) return;
         if (!isObj(r.skills)) return req(false, `${where}: "skills" must map skills to numbers`);
@@ -121,7 +123,20 @@
       role: role ? role.id : '', roleText: '', people: slot.peoples && slot.peoples.length ? slot.peoples[0].id : '', peopleText: '',
       description: '', appearance: '', traits: [], voice: '', want: '', secret: '', guard: 'medium',
       skills: CM.roleSkills(sc, role && role.id), portrait: 'standin', feelings,
+      needsOff: CM.roleNeedsOff(sc, role && role.id),
     };
+  };
+  // The needs a listed role comes without (task G-5), as a list of need ids.
+  CM.roleNeedsOff = function (sc, roleId) {
+    const r = ((sc.playerSlot && sc.playerSlot.roles) || []).find((x) => x.id === roleId);
+    const off = r && r.needsOff;
+    return off === true ? (sc.needs || []).map((n) => n.id) : Array.isArray(off) ? off.slice() : [];
+  };
+  // Need ids off → the file's form: none (left out), a list, or true for all.
+  CM.needsOffField = function (sc, list) {
+    const ids = (sc.needs || []).map((n) => n.id);
+    const off = [...new Set((list || []).filter((x) => ids.includes(x)))];
+    return !off.length ? undefined : off.length === ids.length ? true : off;
   };
 
   // Trait ideas from the chosen role and people.
@@ -202,6 +217,11 @@
     }
     if (portrait !== undefined) c.portrait = portrait;
     if (slot.needs) c.needs = E.clone(slot.needs);
+    const off = CM.needsOffField(sc, f.needsOff);
+    if (off !== undefined) {
+      c.needsOff = off;
+      if (c.needs) (sc.needs || []).forEach((n) => { if (!E.Scenario.hasNeed(c, n.id)) delete c.needs[n.id]; });
+    }
     if (slot.knows && slot.knows.length) c.knows = slot.knows.slice();
     const cast = CM.castFor(sc);
     cast.forEach((other) => {
@@ -269,6 +289,7 @@
     if (data.portrait === false) f.portrait = 'none';
     else if ((sc.portraitSet || []).includes(data.portrait)) f.portrait = data.portrait;
     Object.keys(f.feelings).forEach((id) => { if (isObj(data.relations) && typeof data.relations[id] === 'number') f.feelings[id] = data.relations[id]; });
+    if (data.needsOff != null) f.needsOff = data.needsOff === true ? (sc.needs || []).map((n) => n.id) : Array.isArray(data.needsOff) ? data.needsOff.filter((x) => (sc.needs || []).some((n) => n.id === x)) : [];
     return f;
   };
 
@@ -323,6 +344,7 @@
     f.tags = Array.isArray(d.tags) ? d.tags.filter((x) => typeof x === 'string') : [];
     f.topics = Array.isArray(d.topics) ? d.topics.filter((x) => typeof x === 'string') : [];
     f.needs = isObj(d.needs) ? Object.assign({}, d.needs) : {};
+    f.needsOff = d.needsOff === true ? (sc.needs || []).map((n) => n.id) : Array.isArray(d.needsOff) ? d.needsOff.slice() : [];
     return f;
   };
   // The form → { character } (a pool file) or { errors }. original: the file
@@ -377,6 +399,7 @@
       else needs[k] = n;
     });
     set('needs', needs);
+    set('needsOff', CM.needsOffField(sc, f.needsOff));
     const locIds = new Set((sc.locations || []).map((l) => l.id));
     const check = Object.assign({}, c, { status: Object.assign({}, c.status, { location: sc.playerSlot.location }) });
     errors.push(...E.Scenario.characterProblems(check, sc, locIds, sc.characters.concat(c.id)));

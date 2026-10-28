@@ -84,6 +84,8 @@
         `<fieldset class="mk-skills"><legend>${author ? `Skills: 0 to ${slot.maxSkill} each` : `Skills: <span class="${left < 0 ? 'fail' : ''}">${left} of ${slot.skillPoints} points left</span>, up to ${slot.maxSkill} each`}</legend>${skills}</fieldset>` +
         `<fieldset class="mk-pics"><legend>Portrait${author ? ' <span class="muted">(your own images only)</span>' : ''}</legend>${portraits}</fieldset>` +
         (feelings ? `<fieldset class="mk-feelings"><legend>${you.feel}</legend>${feelings}</fieldset>` : '') +
+        // Needs this person goes without (task G-5): a robot doesn't eat or sleep.
+        ((sc.needs || []).length ? `<fieldset class="mk-needs-off"><legend>${author ? 'Needs they go without' : 'Needs you go without'} <span class="muted small">(a robot, a ghost: none of these, ever)</span></legend>${sc.needs.map((n) => `<label class="mk-option"><input type="checkbox" data-need-off="${esc(n.id)}"${(form.needsOff || []).includes(n.id) ? ' checked' : ''}> <span>${esc(n.label || n.id)}</span></label>`).join('')}</fieldset>` : '') +
         (author ? authorFields(sc, form) : '') +
         (m.note ? `<div class="fail small">${esc(m.note)}</div>` : '');
       renderErrors();
@@ -142,7 +144,11 @@
       if (t.dataset.choice) {
         m.form[t.dataset.choice] = t.value;
         // A listed role brings its skills; your own keeps what you set.
-        if (t.dataset.choice === 'role' && t.value) m.form.skills = CM.roleSkills(m.sc, t.value);
+        if (t.dataset.choice === 'role' && t.value) { m.form.skills = CM.roleSkills(m.sc, t.value); m.form.needsOff = CM.roleNeedsOff(m.sc, t.value); }
+      } else if (t.dataset.needOff) {
+        const off = new Set(m.form.needsOff || []);
+        if (t.checked) off.add(t.dataset.needOff); else off.delete(t.dataset.needOff);
+        m.form.needsOff = [...off];
       } else if (t.dataset.portrait) m.form.portrait = t.value;
       else if (t.dataset.pfile && t.files && t.files[0]) {
         try { m.form.portrait = await m.opts.onPortraitFile(t.files[0]); m.note = ''; } catch (e) { m.note = e.message; }

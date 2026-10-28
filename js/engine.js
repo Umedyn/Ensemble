@@ -45,7 +45,11 @@
     sc.characterData.forEach((raw) => {
       const c = E.clone(raw);
       c.needs = c.needs || {};
-      sc.needs.forEach((n) => { if (c.needs[n.id] == null) c.needs[n.id] = 0.2; });
+      // A need the character doesn't have (needsOff, task G-5) isn't kept at all.
+      sc.needs.forEach((n) => {
+        if (!E.Scenario.hasNeed(c, n.id)) delete c.needs[n.id];
+        else if (c.needs[n.id] == null) c.needs[n.id] = 0.2;
+      });
       c.status = Object.assign({ health: 'ok' }, c.status || {});
       // Authored conditions and tags last until the story removes them.
       c.tags = [...new Set([].concat(c.status.conditions || [], raw.tags || []).map(String))].map((text) => ({ text, set: 0, until: null }));
@@ -1847,6 +1851,7 @@
     state.scenario.needs.forEach((n) => {
       Eng.cast(state, { alive: true }).forEach((id) => {
         const c = state.characters[id];
+        if (!E.Scenario.hasNeed(c, n.id)) return; // a need this character doesn't have (task G-5)
         const v = c.needs[n.id] || 0;
         const unmet = id === state.player && climb.includes(n.id);
         // People in the background live their routine: needs settle, not climb.
@@ -2042,7 +2047,9 @@
   Eng.unmetNeeds = function (state, action) {
     const t = String(action || '').toLowerCase();
     if (!t.trim() || ROUTINE_PLAN.test(t)) return [];
-    return state.scenario.needs.map((n) => n.id).filter((id) => { const lim = Eng.needLimit(state, id); return lim && !lim.relief.test(t); });
+    const pc = state.characters[state.player];
+    // Only the needs the player has (task G-5): a robot's plan needn't say it eats.
+    return state.scenario.needs.map((n) => n.id).filter((id) => { const lim = Eng.needLimit(state, id); return E.Scenario.hasNeed(pc, id) && lim && !lim.relief.test(t); });
   };
   function bodyStop(state, action) {
     const pc = state.characters[state.player];
@@ -2518,7 +2525,7 @@
           if (out.error) return reject(label, out.error);
           report.tags.push(`${c.name}: mood "${c.mood.text}"${c.mood.reason ? ` (${c.mood.reason})` : ''}`);
         } else if (s.field === 'need') {
-          if (c.needs[s.need] == null) return reject(label, 'unknown need');
+          if (c.needs[s.need] == null) return reject(label, state.scenario.needs.some((n) => n.id === s.need) ? `${c.name} doesn't have that need` : 'unknown need');
           // The player's needs climb on the engine's clock; the model can only
           // ease them (playtest-coffee-toothless: +1 fatigue after each collapse).
           if (key === state.player && Number(s.delta) > 0) return reject(label, "the player's needs only climb with time");

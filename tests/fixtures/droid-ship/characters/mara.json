@@ -1,0 +1,1 @@
+{ "id": "mara", "name": "Mara Voss", "pronouns": "she/her", "role": "pilot", "age": 41, "traits": ["dry", "stubborn"], "want": "deliver the ore and get paid", "voice": "Short sentences, long sighs.", "skills": { "piloting": 3, "technical": 1, "social": 1 }, "relations": { "unit7": 30 } }

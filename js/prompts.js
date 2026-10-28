@@ -193,6 +193,9 @@
     if (c.traits && c.traits.length) bits.push(`Traits: ${c.traits.join(', ')}.`);
     if (c.want && id !== state.player) bits.push(`Wants: ${c.want}.`);
     if (c.voice) bits.push(`Voice: ${c.voice}`);
+    // Needs this person doesn't have (task G-5), so the story never gives them any.
+    const off = (state.scenario.needs || []).filter((n) => !E.Scenario.hasNeed(c, n.id)).map((n) => (n.label || n.id).toLowerCase());
+    if (off.length) bits.push(`Never feels: ${off.join(', ')}.`);
     return `- ${id}${tag}: ${bits.join(' ')}`;
   };
   // Static: the starting cast. People promoted from extras (task 2-3) are

@@ -1,0 +1,1 @@
+{ "id": "unit7", "name": "Unit Seven", "pronouns": "it/its", "role": "maintenance droid", "traits": ["literal", "loyal"], "want": "keep the ship flying", "voice": "Precise; reports numbers nobody asked for.", "skills": { "piloting": 0, "technical": 3, "social": 0 }, "needsOff": ["hunger", "fatigue"], "relations": { "mara": 40 } }

@@ -1,0 +1,25 @@
+{
+  "id": "galley",
+  "title": "Day 12 of the run",
+  "summary": "You are Mara Voss. The coolant pump is whining again.",
+  "start": { "day": 12, "hour": 9 },
+  "player": "mara",
+  "castLabel": "Crew",
+  "playerSlot": {
+    "location": "galley",
+    "roles": [
+      { "id": "pilot", "label": "Pilot", "skills": { "piloting": 2, "social": 1 } },
+      { "id": "android", "label": "Android crewmate", "desc": "A synthetic crew member: no food, no sleep.", "skills": { "technical": 2, "piloting": 1 }, "needsOff": ["hunger", "fatigue"] }
+    ],
+    "freeform": true, "skillPoints": 4, "maxSkill": 3
+  },
+  "cast": [
+    { "id": "mara", "status": { "location": "galley" } },
+    { "id": "unit7", "status": { "location": "engine" } }
+  ],
+  "locations": [
+    { "id": "galley", "name": "Galley", "desc": "A fold-down table, a hot plate and a bunk behind a curtain.", "connects": ["engine"] },
+    { "id": "engine", "name": "Engine Room", "desc": "The reactor's hum, the coolant pump's whine.", "connects": ["galley"] }
+  ],
+  "opening": "The coolant pump whines from the engine room. Unit Seven's voice comes over the intercom with the pump's temperature, to two decimal places."
+}

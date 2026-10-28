@@ -2046,8 +2046,10 @@
   }
 
   function cardNeeds(c, dead) {
-    if (dead || !state.scenario.needs.length) return '';
-    return `<div class="needs">${state.scenario.needs.map((n) => {
+    // Only the needs this person has (task G-5).
+    const has = state.scenario.needs.filter((n) => E.Scenario.hasNeed(c, n.id));
+    if (dead || !has.length) return '';
+    return `<div class="needs">${has.map((n) => {
       const v = c.needs[n.id] || 0;
       return `<span>${esc(n.label || n.id)}</span><div class="bar ${v >= 0.85 ? 'danger' : ''}"><i style="width:${Math.round(v * 100)}%"></i></div>`;
     }).join('')}</div>`;

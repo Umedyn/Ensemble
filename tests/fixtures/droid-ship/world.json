@@ -1,0 +1,20 @@
+{
+  "format": 2,
+  "id": "droid-ship",
+  "title": "The Tamsin Rae",
+  "summary": "A small freighter, its tired pilot and the droid who keeps it flying.",
+  "tags": ["adventure"],
+  "setting": "The Tamsin Rae is a battered cargo hauler on a long run between mining stations. Its pilot sleeps in the galley and its maintenance droid never sleeps at all.",
+  "rules": ["Ordinary spacefaring life: cargo, repairs, debts."],
+  "timeLabel": "Day",
+  "wakeHour": 7,
+  "skills": ["piloting", "technical", "social"],
+  "needs": [
+    { "id": "hunger", "label": "Hunger", "perHour": 0.04 },
+    { "id": "fatigue", "label": "Fatigue", "perHour": 0.05 },
+    { "id": "stress", "label": "Stress", "perHour": 0.01 }
+  ],
+  "world": { "hull": "patched", "cargo": "ore for Kessa Station" },
+  "characters": ["mara", "unit7"],
+  "starts": ["galley"]
+}

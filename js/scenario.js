@@ -20,7 +20,7 @@
   const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'date', 'calendar', 'characters', 'starts', 'generatedStarts', 'generatedSites', 'generatedRegions', 'sites', 'lorePacks', ...OVERRIDABLE];
   const WORLD_RESERVED = [];
   const START_RESERVED = [];
-  const CAST_FIELDS = ['id', 'status', 'needs', 'relations', 'knows', 'want', 'secret', 'guard', 'tags', 'tier', 'pinned', 'agenda'];
+  const CAST_FIELDS = ['id', 'status', 'needs', 'needsOff', 'relations', 'knows', 'want', 'secret', 'guard', 'tags', 'tier', 'pinned', 'agenda'];
   // Merge rules: lists of {id} objects merge by id, lists of strings are
   // unioned, plain objects merge shallowly; anything else is replaced.
   const ID_LISTS = ['locations', 'clocks', 'factions', 'extras', 'regions', 'standees', 'lore', 'timeline', 'endings'];
@@ -578,6 +578,16 @@
 
   // One character's sheet: a character file merged with its cast entry, or a
   // promoted extra (task 2-3). castIds: who relations may point at.
+  // Needs a character doesn't have (task G-5): true for none of the world's,
+  // or a list of its need ids (a robot doesn't eat or sleep).
+  S.needsOffProblems = function (off, sc, who) {
+    if (off == null || off === true || off === false) return [];
+    const ids = (sc.needs || []).map((n) => n && n.id);
+    if (!Array.isArray(off) || !off.every((x) => typeof x === 'string')) return [`${who}: "needsOff" must be true (no needs at all) or a list of the world's need ids`];
+    return off.filter((x) => !ids.includes(x)).map((x) => `${who}: "needsOff" names "${x}", which isn't one of this world's needs (${ids.join(', ') || 'it has none'})`);
+  };
+  // Does this character have this need? (Not when needsOff says so.)
+  S.hasNeed = (c, id) => !(c && (c.needsOff === true || (Array.isArray(c.needsOff) && c.needsOff.includes(id))));
   S.characterProblems = function (c, sc, locIds, castIds) {
     const problems = [];
     const req = (cond, msg) => { if (!cond) problems.push(msg); };
@@ -585,6 +595,7 @@
     req(!c.guard || ['low', 'medium', 'high'].includes(c.guard), `character "${c.id}" guard must be low, medium or high`);
     req(c.tier == null || ['local', 'secondary'].includes(c.tier), `character "${c.id}" tier must be local or secondary`);
     req(c.pinned == null || typeof c.pinned === 'boolean', `character "${c.id}" pinned must be true or false`);
+    problems.push(...S.needsOffProblems(c.needsOff, sc, `character "${c.id}"`));
     if (c.agenda != null) {
       const a = E.Engine.cleanAgenda(c.agenda);
       req(!a.error, `character "${c.id}": ${a.error}`);
