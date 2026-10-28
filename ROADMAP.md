@@ -26,6 +26,7 @@ The plan from here to a game that can host any kind of story: a Mars crew, a zom
 - [x] **Two scenarios.** Ares Deep (Mars) and the zombie holdout; engine and UI smoke tests.
 - [x] **License setup.** PolyForm Noncommercial, `CONTRIBUTING.md`, `MODDING.md`.
 - [x] **Groundwork** (tasks G-1 to G-3). Cast lists go through `Eng.cast`/`present`/`offstage`; event effects are a handler table (`Eng.EFFECTS`) with rejections reported in Debug; prompts are built from named blocks (`P.blocks`/`P.layouts`) with the live header blocks kept last; cast cards are built from one function per section; `Scenario.validate` ignores fields it doesn't use yet. A prompt snapshot test pins every prompt.
+- [ ] **Context tiers** (task G-4): prompt scope that shifts with the context window. Facts, chapters and lore already scale; the fixed blocks (region outline, nearby regions, groups, rules, the task text) get a size per tier, so small windows keep only what the engine needs and the room freed goes to the story. Measure every block first.
 
 ## Phase 0: Playtest tools
 
