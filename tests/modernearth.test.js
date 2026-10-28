@@ -106,3 +106,18 @@ test('the base map tool keeps tiny countries as points, takes cities by size int
     assert.ok(def('capitol').tags.includes('capital'));
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
+
+test('research on a big world lists only the regions around the topic, not all of them in every call', () => {
+  const E = loadEngine();
+  const loaded = readWorld('modern-earth');
+  const job = E.Research.newJob(loaded, { asOf: 'October 2026', brief: true });
+  const ctx = E.Research.context(loaded, job);
+  const regionsLine = (id) => /regions: ([^\n]+)/.exec(E.Prompts.research(ctx, job.topics.find((t) => t.id === id), { title: 'x' }, 'src', 0, 1, true))[1];
+  const lyon = regionsLine('region:lyon');
+  assert.match(lyon, /^france \(France\), lille \(Lille\), lyon \(Lyon\), marseille \(Marseille\), paris \(Paris\) \(and \d+ more\)$/);
+  const france = regionsLine('region:france');
+  assert.ok(['germany (Germany)', 'paris (Paris)'].every((x) => france.includes(x)) && !france.includes('berlin'), france);
+  assert.ok(regionsLine('world').split('), ').length <= E.Prompts.RESEARCH_REGIONS);
+  // Refs still resolve against every region.
+  assert.equal(E.Research.resolve(ctx.refs, 'region', 'Berlin'), 'berlin');
+});

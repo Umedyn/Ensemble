@@ -69,7 +69,8 @@ function promptsFor(folder) {
 }
 
 // The research helper (ROADMAP Phase 5, tools/research.mjs): one chunk of a
-// source for the first region, and the "what do you know" question.
+// source for the first region, the brief summary of a page's opening, and
+// the "what do you know" question.
 function researchPrompts(E, folder) {
   const loaded = readWorld(folder, E);
   const job = E.Research.newJob(loaded, { asOf: 'the start of the story', calendar: { date: '2026-03-14' } });
@@ -77,6 +78,7 @@ function researchPrompts(E, folder) {
   const topic = job.topics.find((t) => t.level === 'region') || job.topics[0];
   return {
     research: ctx.header + '\n\n' + E.Prompts.research(ctx, topic, { title: 'A page', url: 'https://example.org/page' }, 'Some source text about the place.', 0, 2),
+    researchBrief: E.Prompts.research(ctx, topic, { title: 'A page', url: 'https://example.org/page' }, 'The opening of a page about the place.', 0, 1, true),
     researchKnown: E.Prompts.researchKnown(ctx, topic),
   };
 }

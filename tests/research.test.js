@@ -52,7 +52,9 @@ function fakeFetch(model) {
     }
     if (params.get('prop') === 'extracts|info') {
       const t = params.get('titles');
-      return ok({ query: { pages: [PAGES[t] ? { title: t, extract: PAGES[t], fullurl: `https://en.wikipedia.org/wiki/${encodeURIComponent(t)}` } : { title: t, missing: true }] } });
+      // exintro: only the opening section, as Wikipedia gives it.
+      const extract = PAGES[t] && (params.get('exintro') ? PAGES[t].split('\n\n')[0] : PAGES[t]);
+      return ok({ query: { pages: [PAGES[t] ? { title: t, extract, fullurl: `https://en.wikipedia.org/wiki/${encodeURIComponent(t)}` } : { title: t, missing: true }] } });
     }
     throw new Error('unexpected fetch: ' + u);
   };
@@ -240,6 +242,33 @@ test('research leaves the author\'s lore alone: topics that have it are skipped,
   // Applying again changes nothing.
   await main(['apply', dir], { fetch: fakeFetch(goodModel).fn, log: q2.log });
   assert.deepEqual(JSON.parse(fs.readFileSync(packetPath, 'utf8')), after);
+});
+
+test('brief research reads only a page\'s opening, in one call, for one entry; a topic can still ask for the whole page', async () => {
+  const { main } = await cli();
+  const dir = copyWorld();
+  const q = quiet();
+  await main(['plan', dir, ...PLAN, '--brief'], { fetch: fakeFetch(goodModel).fn, log: q.log });
+  assert.match(q.lines.join('\n'), /Brief: each topic is one summary/);
+  const job = trim(dir);
+  assert.equal(job.brief, true);
+  job.topics.find((t) => t.id === 'region:ridge-town').brief = false;
+  fs.writeFileSync(path.join(dir, 'research.json'), JSON.stringify(job));
+  const f = fakeFetch(goodModel);
+  await main(['run', dir], { fetch: f.fn, log: q.log });
+  const pageCalls = f.calls.wiki.filter((u) => u.includes('extracts'));
+  assert.ok(pageCalls.find((u) => u.includes('Highway')).includes('exintro=1'), 'only the opening of the junction page');
+  assert.ok(!pageCalls.find((u) => u.includes('Ridge')).includes('exintro'), 'all of Ridge');
+  const junction = f.calls.model.filter((c) => topicOf(c.user) === 'Highway junction');
+  assert.match(junction[0].user, /Summarise Highway junction as one lore note/);
+  assert.match(junction[0].user, /=== SOURCE: Highway junction \(Harmon County\) ===\nThe Harmon County junction/);
+  assert.ok(!/part 1 of/.test(junction[0].user) && !/A weigh station/.test(junction[0].user), 'one call, up to the first paragraph break the wiki gave as the opening');
+  assert.match(f.calls.model.find((c) => topicOf(c.user) === 'Ridge').user, /Turn what in the source matters/);
+  const done = JSON.parse(fs.readFileSync(path.join(dir, 'research.json'), 'utf8'));
+  assert.equal(done.topics.find((t) => t.id === 'region:junction').entries.length, 1);
+  // The lead of a page without an intro-only extract stops at its first heading.
+  const E = loadEngine();
+  assert.equal(E.Research.lead('Opening one.\n\nOpening two.\n== History ==\nLater.'), 'Opening one.\n\nOpening two.');
 });
 
 test('asking the model first skips a topic it already knows', async () => {

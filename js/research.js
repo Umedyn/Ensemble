@@ -15,7 +15,7 @@
   R.UA = 'Ensemble-research/1.0 (local world-building tool)';
   R.WIKIPEDIA = 'https://en.wikipedia.org/w/api.php';
   // words: what a good entry has; longer ones are sent back to be split.
-  R.LIMITS = { minWords: 15, maxWords: 110, perTopic: 4, worldPerTopic: 1, chunks: 4, copyRun: 8, keywords: 12 };
+  R.LIMITS = { minWords: 15, maxWords: 110, perTopic: 4, worldPerTopic: 1, chunks: 4, copyRun: 8, keywords: 12, leadChars: 2400 };
 
   // ---------- the job ----------
   // Topics from the world: the world itself, its regions, its groups and its
@@ -48,7 +48,8 @@
     return out;
   };
   // opts: files (the world's raw files, lore included: topics that have lore
-  // start skipped), wiki (a MediaWiki API URL or wiki address), startId, asOf (the start
+  // start skipped), brief (every topic summarised from its page's opening
+  // section in one call, one entry; a topic's own "brief" wins), wiki (a MediaWiki API URL or wiki address), startId, asOf (the start
   // in words, like "March 2024"), calendar ({date: "YYYY-MM-DD"}: the real
   // date of the start, so dated events can be placed), perTopic, checkKnown.
   R.newJob = function (loaded, opts) {
@@ -56,7 +57,7 @@
     return {
       version: 1, world: loaded.folder, wiki: o.wiki || R.WIKIPEDIA, startId: o.startId || loaded.defaultStart || null,
       asOf: o.asOf || '', calendar: isObj(o.calendar) && o.calendar.date ? { date: o.calendar.date } : null,
-      perTopic: o.perTopic || R.LIMITS.perTopic, checkKnown: !!o.checkKnown,
+      perTopic: o.perTopic || R.LIMITS.perTopic, checkKnown: !!o.checkKnown, brief: !!o.brief,
       topics: R.topics(loaded, o.files), log: [], suggestions: { secrets: [], events: [] },
     };
   };
@@ -97,8 +98,9 @@
   };
   // A page's plain text: TextExtracts where the wiki has it (Wikipedia), else
   // the parsed page's HTML with the markup stripped (Fandom and others).
-  R.wikiPage = async function (fetchFn, api, title) {
-    const j = await R.getJSON(fetchFn, `${api}?${q({ action: 'query', prop: 'extracts|info', explaintext: 1, inprop: 'url', redirects: 1, titles: title })}`);
+  // intro: only the opening section, where the wiki can give just that.
+  R.wikiPage = async function (fetchFn, api, title, intro) {
+    const j = await R.getJSON(fetchFn, `${api}?${q(Object.assign({ action: 'query', prop: 'extracts|info', explaintext: 1, inprop: 'url', redirects: 1, titles: title }, intro ? { exintro: 1 } : {}))}`);
     const page = j.query && j.query.pages && j.query.pages[0];
     if (!page || page.missing) return null;
     let text = page.extract;
@@ -116,13 +118,24 @@
     return { title: t ? R.htmlText(t[1]).trim() : host(url), url, text: R.cleanText(R.htmlText(html)) };
   };
   // The topic's source: pasted text, a URL, a named page, or the wiki's best
-  // match for the topic. null when nothing was found.
-  R.source = async function (fetchFn, job, topic) {
+  // match for the topic. null when nothing was found. intro: a wiki page's
+  // opening section only.
+  R.source = async function (fetchFn, job, topic, intro) {
     if (topic.text) return { title: topic.page || topic.name, url: topic.url || null, text: R.cleanText(topic.text) };
     if (topic.url) return R.urlPage(fetchFn, topic.url);
     const api = R.apiOf(job.wiki);
     const title = topic.page || (await R.findPage(fetchFn, api, topic.query || topic.name));
-    return title ? R.wikiPage(fetchFn, api, title) : null;
+    return title ? R.wikiPage(fetchFn, api, title, intro) : null;
+  };
+  // Brief research: is this topic summarised from its opening alone?
+  R.isBrief = (job, topic) => (typeof topic.brief === 'boolean' ? topic.brief : !!job.brief);
+  // The opening of a text: up to its first section heading, at most `max`
+  // characters (cut at a paragraph or sentence). Wikis without an intro-only
+  // extract, URLs and pasted text are cut here too.
+  R.lead = function (text, max) {
+    const t = String(text || '');
+    const head = t.search(/^\s*=+[^=\n]+=+\s*$/m);
+    return R.chunks(head > 0 ? t.slice(0, head) : t, max || R.LIMITS.leadChars, 1)[0] || '';
   };
 
   const ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', ndash: '–', mdash: '—', hellip: '…', rsquo: '’', lsquo: '‘', rdquo: '”', ldquo: '“' };
@@ -280,16 +293,19 @@
   // ---------- running ----------
   // One topic: find its source, optionally ask the model what it knows, then
   // each chunk through the model and the checks. Saves after every chunk via
-  // deps.save, so a stopped run resumes at the next chunk.
+  // deps.save, so a stopped run resumes at the next chunk. A brief topic
+  // (R.isBrief) reads only its page's opening, in one call, for one entry.
   R.runTopic = async function (ctx, topic, deps) {
     const job = ctx.job;
     const say = (m) => deps.onProgress && deps.onProgress(m);
+    const brief = R.isBrief(job, topic);
     if (!topic.source) {
       say(`${topic.name}: finding a source…`);
-      const src = await R.source(deps.fetch, job, topic);
-      if (!src || !src.text) { topic.status = 'no source'; deps.save(); return; }
+      const src = await R.source(deps.fetch, job, topic, brief);
+      const lead = src && brief ? R.lead(src.text, Math.min(R.LIMITS.leadChars, R.chunkChars())) : null;
+      if (!src || !src.text || (brief && !lead)) { topic.status = 'no source'; deps.save(); return; }
       topic.source = { title: src.title, url: src.url };
-      topic.chunks = R.chunks(src.text, R.chunkChars(), R.LIMITS.chunks);
+      topic.chunks = brief ? [lead] : R.chunks(src.text, R.chunkChars(), R.LIMITS.chunks);
       topic.done = 0;
       topic.entries = []; topic.events = [];
       deps.save();
@@ -304,7 +320,7 @@
     for (let i = topic.done; i < topic.chunks.length; i++) {
       say(`${topic.name}: reading part ${i + 1} of ${topic.chunks.length}…`);
       const runs = R.runs(topic.chunks[i], R.LIMITS.copyRun);
-      const out = await E.StartGen.attempt(ctx, `worldbuild (research: ${topic.name})`, E.Prompts.research(ctx, topic, src, topic.chunks[i], i, topic.chunks.length), 1100, (raw) => R.check(raw, ctx, topic, src, runs));
+      const out = await E.StartGen.attempt(ctx, `worldbuild (research: ${topic.name})`, E.Prompts.research(ctx, topic, src, topic.chunks[i], i, topic.chunks.length, brief), brief ? 600 : 1100, (raw) => R.check(raw, ctx, topic, src, runs));
       out.warnings.forEach((w) => job.log.push({ step: topic.name, warning: w }));
       topic.entries = topic.entries.concat(out.entries);
       out.events.forEach((ev) => (ev.day != null ? topic.events.push(ev) : job.suggestions.events.push(Object.assign({ topic: topic.name }, ev))));
@@ -314,7 +330,7 @@
     }
     // A few entries per topic, and at most one about the world as a whole.
     let world = 0;
-    topic.entries = topic.entries.filter((e) => (e.level === 'world' ? ++world <= R.LIMITS.worldPerTopic : true)).slice(0, job.perTopic || R.LIMITS.perTopic);
+    topic.entries = topic.entries.filter((e) => (e.level === 'world' ? ++world <= R.LIMITS.worldPerTopic : true)).slice(0, brief ? 1 : job.perTopic || R.LIMITS.perTopic);
     topic.status = 'done';
     deps.save();
   };

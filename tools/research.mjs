@@ -5,7 +5,7 @@
 // read wiki pages without a browser's cross-site limits. Drafts wait for
 // review in the creator (Lore and Timeline tabs) and the game ignores them.
 //
-//   npm run research -- plan <world> [--wiki URL] [--start ID] [--as-of TEXT] [--date YYYY-MM-DD] [--per-topic N] [--check-known]
+//   npm run research -- plan <world> [--wiki URL] [--start ID] [--as-of TEXT] [--date YYYY-MM-DD] [--per-topic N] [--check-known] [--brief]
 //   npm run research -- run <world> [--backend local|external] [--url URL] [--model NAME] [--context TOKENS]
 //   npm run research -- apply <world>
 //
@@ -26,7 +26,7 @@ const require = createRequire(import.meta.url);
 const { loadEngine, worldFiles } = require(path.join(root, 'tests', 'helpers.js'));
 
 const USAGE = `Usage:
-  npm run research -- plan <world> [--wiki URL] [--start ID] [--as-of TEXT] [--date YYYY-MM-DD] [--per-topic N] [--check-known]
+  npm run research -- plan <world> [--wiki URL] [--start ID] [--as-of TEXT] [--date YYYY-MM-DD] [--per-topic N] [--check-known] [--brief]
   npm run research -- run <world> [--backend local|external] [--url URL] [--model NAME] [--context TOKENS]
   npm run research -- apply <world>`;
 
@@ -36,7 +36,7 @@ export function parseArgs(argv) {
     const a = argv[i];
     if (!a.startsWith('--')) continue;
     const k = a.slice(2);
-    if (k === 'check-known') out.flags[k] = true;
+    if (k === 'check-known' || k === 'brief') out.flags[k] = true;
     else out.flags[k] = argv[++i];
   }
   return out;
@@ -85,11 +85,12 @@ export async function main(argv, deps) {
     if (fs.existsSync(jobPath)) { log(`${jobPath} exists: edit it, or delete it to plan again.`); return 1; }
     const job = E.Research.newJob(loaded, {
       files, wiki: flags.wiki, startId: flags.start, asOf: flags['as-of'], calendar: flags.date ? { date: flags.date } : null,
-      perTopic: flags['per-topic'] ? Number(flags['per-topic']) : null, checkKnown: !!flags['check-known'],
+      perTopic: flags['per-topic'] ? Number(flags['per-topic']) : null, checkKnown: !!flags['check-known'], brief: !!flags.brief,
     });
     writeJSON(jobPath, job);
     log(`Planned ${job.topics.length} topics in ${jobPath}:`);
     job.topics.forEach((t) => log(`  - ${t.name} (${t.about})${t.status === 'has lore' ? `: skipped, ${t.note}` : ''}`));
+    if (job.brief) log('Brief: each topic is one summary of its page\'s opening ("brief": false on a topic reads all of it).');
     log('Topics that already have your lore are skipped, and stay skipped while they have it ("force": true researches one anyway).');
     log('Trim it before running: set "skip": true on topics that need no research (general knowledge, made-up people),');
     log('or give one a "page" (a wiki page title), a "url", or pasted "text". Then: npm run research -- run ' + world);

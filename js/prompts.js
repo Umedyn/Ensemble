@@ -1363,13 +1363,32 @@ Reply with JSON only:
   // System: the world's generator header. User: the topic, the start, the
   // ids drafts may point at, one chunk of the source, the task.
   P.layouts.research = ['researchTopic', 'researchIds', 'researchSource', 'researchTask'];
-  P.research = (ctx, topic, src, chunk, i, n) => P.build('research', { ctx, topic, src, chunk, i, n });
+  P.research = (ctx, topic, src, chunk, i, n, brief) => P.build(brief ? 'researchBrief' : 'research', { ctx, topic, src, chunk, i, n });
+  // Brief research: the page's opening, summarised in one entry.
+  P.layouts.researchBrief = ['researchTopic', 'researchIds', 'researchSource', 'researchBriefTask'];
   const asOfLine = (ctx) => `The story starts ${ctx.job.asOf ? `in ${ctx.job.asOf}` : 'at the start date of this world'}${ctx.job.calendar ? ` (${ctx.job.calendar.date})` : ''}.`;
   B.researchTopic = ({ ctx, topic }) => `=== RESEARCH: ${topic.name} ===\nFor this world, about ${topic.about}.\n${asOfLine(ctx)}`;
-  B.researchIds = ({ ctx }) => {
+  // A big world (more than RESEARCH_REGIONS regions) lists only the regions
+  // around a region topic: its own, the ones it's inside, what's near it and
+  // inside it; for any other topic, the first of the top level. Refs are
+  // still resolved against every region.
+  P.RESEARCH_REGIONS = 40;
+  const researchRegions = (ctx, topic) => {
+    const all = ctx.refs.regions;
+    if (all.length <= P.RESEARCH_REGIONS) return all;
+    const S = E.Scenario, defs = ctx.loaded.bundle.world.regions || [];
+    const at = topic.level === 'region' && topic.ref ? topic.ref : null;
+    const keep = new Set(at ? [].concat(S.regionChainIn(defs, at), S.regionNearIn(defs, at, 12), S.regionChildrenIn(defs, at).slice(0, 12)) : []);
+    const top = S.regionChildrenIn(defs, null);
+    if (at) return all.filter((x) => keep.has(x.id));
+    return all.filter((x) => top.includes(x.id)).slice(0, P.RESEARCH_REGIONS);
+  };
+  B.researchIds = ({ ctx, topic }) => {
     const r = ctx.refs;
     const list = (xs) => xs.map((x) => `${x.id} (${x.name})`).join(', ') || 'none';
-    return `\n=== IN THIS WORLD ===\nregions: ${list(r.regions)}\nplaces: ${list(r.rooms)}\npeople: ${list(r.characters)}\ngroups: ${list(r.groups)}`;
+    const regions = researchRegions(ctx, topic);
+    const more = r.regions.length - regions.length;
+    return `\n=== IN THIS WORLD ===\nregions: ${list(regions)}${more > 0 ? ` (and ${more} more)` : ''}\nplaces: ${list(r.rooms)}\npeople: ${list(r.characters)}\ngroups: ${list(r.groups)}`;
   };
   B.researchSource = ({ src, chunk, i, n }) => `\n=== SOURCE: ${src.title}${n > 1 ? ` (part ${i + 1} of ${n})` : ''} ===\n${chunk}`;
   B.researchTask = ({ ctx, topic }) => `
@@ -1387,6 +1406,19 @@ Reply with JSON only:
 {"entries":[{"title":"short title","about":"${topic.level}","ref":${topic.ref ? `"${topic.ref}"` : 'null'},"keywords":["name","alias"],"topics":[],"text":"40–80 words"}],
  "later":[{"date":null,"text":"one sentence","scope":"regional","region":null}],
  "secrets":[{"who":"person","text":"what they hide"}]}`;
+  B.researchBriefTask = ({ ctx, topic }) => `
+=== TASK ===
+Summarise ${topic.name} as one lore note the narrator can draw on when a scene is set there.
+- ONE entry of 40–80 words, written entirely in your own words: never copy sentences or phrases from the source.
+- What a storyteller setting a scene there needs: what and where it is, how big, what it is known for, and what it is like to be there (the people and languages, the look of the place, how life runs).
+- Everything as it stands when the story starts. Anything that happens after that goes in "later" (with "date" as YYYY-MM-DD if the source gives one, else null), never in the entry.
+- Secrets (what some people hide from others) go in "secrets", never in the entry: entries are public knowledge.
+- "keywords": the names a player would use for it, with other spellings and nicknames.
+- "topics": up to ${E.Lore.LIMITS.topics} of ${E.Lore.topicIds(ctx.loaded.bundle.world).join(', ')}, or [] when it matters to everyone (usual for a place).
+Reply with JSON only:
+{"entries":[{"title":${JSON.stringify(topic.name)},"about":"${topic.level}","ref":${topic.ref ? `"${topic.ref}"` : 'null'},"keywords":[${JSON.stringify(topic.name)}],"topics":[],"text":"40–80 words"}],
+ "later":[],
+ "secrets":[]}`;
   P.layouts.researchKnown = ['researchTopic', 'researchKnownTask'];
   P.researchKnown = (ctx, topic) => P.build('researchKnown', { ctx, topic });
   B.researchKnownTask = ({ topic }) => `\n=== TASK ===\nIn two or three sentences, say what you know about ${topic.name}: names, places, dates. If you don't know it, say "I don't know." Plain text, no lists.`;
