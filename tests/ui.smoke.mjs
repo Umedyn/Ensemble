@@ -918,6 +918,8 @@ await check('world and regional views: regions by who holds them, the info strip
   assert.equal(await page.locator('#worldSvg .region-g').count(), 5);
   assert.ok(await page.locator('.region-g[data-region="ridge-town"] .region-shape.fc-1').count(), 'Ridge in The Ridge\'s colour');
   assert.ok(await page.locator('.region-g[data-region="highway-strip"] .region-shape.here').count(), 'your region is marked');
+  assert.equal(await page.locator('#worldSvg .you-here').count(), 1, 'one "You are here" pin');
+  assert.match(await page.textContent('#worldSvg .you-here'), /You are here/);
   assert.match(await page.textContent('#regionInfo'), /The highway strip, a part of town in Harmon \(you are here\).*held by no one.*quiet except for stragglers.*dead nearby/
 );
   await page.locator('.region-g[data-region="ridge-town"] .region-shape').click({ position: { x: 40, y: 40 } });

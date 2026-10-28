@@ -329,7 +329,10 @@ button:disabled { opacity: .5; cursor: default; }
 .region-tag-text { fill: var(--text); font-family: var(--sans); font-size: 9.5px; pointer-events: none; }
 .region-hit { fill-opacity: 0; stroke: none; pointer-events: all; cursor: pointer; }
 .region-shape.point { fill-opacity: 0.9; }
-.region-pin { fill: var(--accent); stroke: var(--bg); stroke-width: 2; pointer-events: none; }
+.you-here { pointer-events: none; }
+.you-pin { fill: var(--accent); stroke: var(--bg); stroke-width: 2; stroke-linejoin: round; }
+.you-pin-dot { fill: var(--bg); }
+.you-here-label { fill: var(--text); font-family: var(--sans); font-size: 11px; font-weight: 700; paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
 .region-loc { fill: var(--text); stroke: var(--bg); stroke-width: 1.5; }
 .region-place { fill: var(--muted); stroke: var(--bg); stroke-width: 1; vector-effect: non-scaling-stroke; pointer-events: none; }
 .region-place.capital { fill: var(--text); }

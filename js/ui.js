@@ -1561,8 +1561,12 @@
     // Rooms placed on the picture, at a leaf (as the regional view had them).
     const rooms = lv.leaf ? lv.rooms.filter((p) => state.locations[p.id] && state.seenRooms.includes(p.id)).map((p) => ({ x: p.x, y: p.y, name: state.locations[p.id].name })) : [];
     const key = levelId == null ? 'root' : levelId;
+    // The pin stands on the player's room when the picture places it.
+    const where = state.characters[state.player].status.location;
+    const placed = lv.rooms.find((p) => p.id === where);
     return E.MapDraw.worldSvg({
       g: lv.g, regions: lv.regions, now: state.regions, factions: state.factions, mine, branch, selected: mapSel, pulse, rooms, contested,
+      here: placed ? { x: placed.x, y: placed.y } : null,
       places: lv.picture ? E.MapDraw.placesOf(lv.picture) : [], dim: lv.dim, closed: lv.picture ? null : closedEdges(lv),
 
       zoomable: lv.children.filter((id) => E.MapDraw.hasLevel(sc, id, hidden)),

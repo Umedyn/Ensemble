@@ -139,8 +139,9 @@
   // o: { g (from geometry), regions (definitions), now ({id: {controller,
   // tags}}), factions, mine, selected, pulse (ids), imageUrl, viewBox, id,
   // view, label, rooms ([{x, y, name}]), places ([{x, y, name, kind,
-  // notable}]: named points such as capitals, task 4-5), overlay (extra SVG
-  // on top) }
+  // notable}]: named points such as capitals, task 4-5), here ({x, y}: where
+  // the player is on this picture, when their room is placed on it; otherwise
+  // the "You are here" pin stands on their region), overlay (extra SVG on top) }
   // Detail by zoom: a region inside one outlined on the picture (a city in
   // its country) shows once that outline's biggest piece is at least
   // 1/DETAIL of the view's width (inside a point, only the cap below); on a crowded picture (over CROWDED
@@ -233,10 +234,9 @@
         tx += w + 4 * k;
         return out;
       }).join('');
-      const pin = r.id === o.mine ? `<circle class="region-pin" cx="${ax}" cy="${n1(ay - 24 * k)}" r="${n1(6 * k)}"/>` : '';
       const label = `${r.name}, held by ${D.factionName(o.factions, now.controller)}${(o.contested || []).includes(r.id) ? ', contested' : ''}${r.id === o.mine ? ', you are here' : ''}`;
       const text = show ? `<text class="region-label" x="${ax}" y="${n1(ly)}" text-anchor="middle"${k > 1 ? ` style="font-size:${n1(12 * k)}px;stroke-width:${n1(3 * k)}px"` : ''}>${esc(r.name)}</text>` : '';
-      return `<g class="region-g${pulse.has(r.id) ? ' changed' : ''}${dim.has(r.id) ? ' dim' : ''}" tabindex="0" role="button" data-region="${esc(r.id)}"${zoomable.has(r.id) ? ' data-zoomable="1"' : ''} aria-label="${esc(label)}${zoomable.has(r.id) ? ', zoom in' : ''}">${shapeSvg(r.id, cls)}${text}${badges}${pin}</g>`;
+      return `<g class="region-g${pulse.has(r.id) ? ' changed' : ''}${dim.has(r.id) ? ' dim' : ''}" tabindex="0" role="button" data-region="${esc(r.id)}"${zoomable.has(r.id) ? ' data-zoomable="1"' : ''} aria-label="${esc(label)}${zoomable.has(r.id) ? ', zoom in' : ''}">${shapeSvg(r.id, cls)}${text}${badges}</g>`;
     }).join('');
     const small = k > 1 ? ` style="font-size:${n1(11 * k)}px;stroke-width:${n1(3 * k)}px"` : '';
     const rooms = (o.rooms || []).map((p) => `<circle class="region-loc" cx="${p.x}" cy="${p.y}" r="${n1(4 * k)}"/><text class="region-loc-label" x="${n1(p.x + 7 * k)}" y="${n1(p.y + 4 * k)}"${small}>${esc(p.name)}</text>`).join('');
@@ -248,8 +248,22 @@
       const name = zoomed || p.notable ? `<text class="region-loc-label" x="${n1(p.x + r + 3 * k)}" y="${n1(p.y + 4 * k)}"${small}>${esc(p.name)}</text>` : '';
       return `<g class="region-place-g"><title>${esc(p.name)}</title>${dot}${name}</g>`;
     }).join('');
+    // "You are here": a pin on top of everything, its tip on the player's
+    // room when it is placed on the picture, else on their region (a dot's
+    // centre, or just above an outline's or a node's name).
+    let you = '';
+    const at = o.here && isFinite(o.here.x) && isFinite(o.here.y) ? [o.here.x, o.here.y] :
+      o.mine != null && g.anchors[o.mine] ? [g.anchors[o.mine][0], g.anchors[o.mine][1] - (g.shapes[o.mine].circle ? 0 : 16 * k)] : null;
+    if (at) {
+      const [x, y] = at.map(n1);
+      const hy = n1(y - 16 * k), r = n1(7 * k);
+      you = `<g class="you-here" aria-hidden="true"><title>You are here</title>` +
+        `<path class="you-pin" d="M${x},${y} L${n1(x - 6 * k)},${n1(hy + 3.6 * k)} A${r} ${r} 0 1 1 ${n1(x + 6 * k)},${n1(hy + 3.6 * k)} Z"/>` +
+        `<circle class="you-pin-dot" cx="${x}" cy="${hy}" r="${n1(2.6 * k)}"/>` +
+        `<text class="you-here-label" x="${n1(x + 10 * k)}" y="${n1(hy + 4 * k)}"${k > 1 ? ` style="font-size:${n1(11 * k)}px;stroke-width:${n1(3 * k)}px"` : ''}>You are here</text></g>`;
+    }
     const img = o.imageUrl && g.image ? `<image href="${esc(o.imageUrl)}" x="0" y="0" width="${g.image.width}" height="${g.image.height}"/>` : '';
     const vb = vbox.map((n) => Math.round(n)).join(' ');
-    return `<svg class="world-svg" id="${esc(o.id || 'worldSvg')}" data-view="${esc(o.view || 'world')}" viewBox="${vb}" role="img" aria-label="${esc(o.label || 'World map')}">${img}${edges}${body}${places}${rooms}${o.overlay || ''}</svg>`;
+    return `<svg class="world-svg" id="${esc(o.id || 'worldSvg')}" data-view="${esc(o.view || 'world')}" viewBox="${vb}" role="img" aria-label="${esc(o.label || 'World map')}">${img}${edges}${body}${places}${rooms}${you}${o.overlay || ''}</svg>`;
   };
 })(typeof window !== 'undefined' ? window : globalThis);

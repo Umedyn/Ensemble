@@ -135,6 +135,29 @@ test('the picture is drawn first, under every shape, route and label (decoration
   assert.equal((svg.match(/class="region-g dim"/g) || []).length, 2);
 });
 
+test('"You are here": one pin on the world and region maps, on the player\'s room when the picture places it, else on their region', () => {
+  const { E, state } = newGame('zombie-holdout');
+  const D = E.MapDraw, sc = state.scenario;
+  const mine = E.Engine.playerRegion(state);
+  const branch = E.Engine.regionChain(state, mine);
+  const pin = (svg) => (svg.match(/<g class="you-here"[^]*?<\/g>/g) || []);
+  // The world: the pin stands on the region of the player's chain drawn there.
+  const root = D.level(sc, null);
+  const top = pin(D.worldSvg({ g: root.g, regions: root.regions, factions: state.factions, mine, branch }));
+  assert.equal(top.length, 1);
+  assert.match(top[0], /You are here/);
+  // Their room placed on the picture: the pin's tip is on it.
+  const placed = root.rooms[0];
+  const onRoom = pin(D.worldSvg({ g: root.g, regions: root.regions, factions: state.factions, mine, branch, here: { x: placed.x, y: placed.y } }))[0];
+  assert.ok(onRoom.includes(`d="M${placed.x},${placed.y} `), 'the tip is on the room');
+  // A node map (no picture) has it too; no player, no pin (the creator).
+  const bare = Object.assign({}, sc);
+  delete bare.map;
+  const nodes = D.level(bare, null);
+  assert.equal(pin(D.worldSvg({ g: nodes.g, regions: nodes.regions, factions: state.factions, mine, branch })).length, 1);
+  assert.equal(pin(D.worldSvg({ g: root.g, regions: root.regions, factions: state.factions })).length, 0);
+});
+
 test('levels without a picture: node maps of each level\'s children, with routes lifted from inside them, by kind, closed ones marked', () => {
   const { E, state } = newGame('zombie-holdout');
   const sc = Object.assign({}, state.scenario);
