@@ -16,14 +16,14 @@
   const START_OWN = ['id', 'title', 'summary', 'start', 'player', 'cast', 'opening', 'castLabel', 'region', 'playerSlot', 'generated'];
   // World fields a start may override (merge rules below).
   const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'tagThresholds', 'portraitSet', 'factions', 'world',
-    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'regionLabels', 'routeKinds', 'presence', 'mapFocus', 'tactical', 'standees', 'site', 'localMap', 'map', 'entrances', 'lore', 'loreTopics', 'timeline', 'projectTimeline'];
+    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'regionLabels', 'routeKinds', 'presence', 'mapFocus', 'tactical', 'standees', 'site', 'localMap', 'map', 'entrances', 'lore', 'loreTopics', 'timeline', 'projectTimeline', 'endings'];
   const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'date', 'characters', 'starts', 'generatedStarts', 'generatedSites', 'generatedRegions', 'sites', 'lorePacks', ...OVERRIDABLE];
   const WORLD_RESERVED = [];
   const START_RESERVED = [];
   const CAST_FIELDS = ['id', 'status', 'needs', 'relations', 'knows', 'want', 'secret', 'guard', 'tags', 'tier', 'pinned', 'agenda'];
   // Merge rules: lists of {id} objects merge by id, lists of strings are
   // unioned, plain objects merge shallowly; anything else is replaced.
-  const ID_LISTS = ['locations', 'clocks', 'factions', 'extras', 'regions', 'standees', 'lore', 'timeline'];
+  const ID_LISTS = ['locations', 'clocks', 'factions', 'extras', 'regions', 'standees', 'lore', 'timeline', 'endings'];
   const STRING_LISTS = ['rules', 'facts', 'tags'];
   const OBJECTS = ['world', 'eventRates', 'eventSeeds', 'tiers', 'routeKinds', 'presence', 'loreTopics'];
 
@@ -704,6 +704,51 @@
     };
   };
   // Problems in one route or route-kind setting, in words.
+  // Endings (a world's or a start's): how the story can end, in words.
+  S.ENDING_FIELDS = ['id', 'title', 'kind', 'when', 'if', 'epilogue'];
+  S.endingProblems = function (sc) {
+    const list = sc.endings;
+    if (list == null) return [];
+    if (!Array.isArray(list)) return ['"endings" must be a list of {id, title, kind, when, if, epilogue}'];
+    const problems = [];
+    const seen = new Set();
+    const clocks = new Set();
+    const addClocks = (cs) => (cs || []).forEach((c) => { if (c && c.id) { clocks.add(c.id); addClocks(c.then); } });
+    addClocks(sc.clocks);
+    const events = new Set((Array.isArray(sc.timeline) ? sc.timeline : []).map((ev) => ev && ev.id));
+    const refs = { regions: new Set((sc.regions || []).map((r) => r && r.id)), groups: new Set((sc.factions || []).map((f) => f && f.id)), clocks, characters: new Set(sc.characters || []) };
+    list.forEach((e) => {
+      if (!isObj(e)) return problems.push('each ending must be {id, title, kind, when, if, epilogue}');
+      const at = `ending "${e.id || '?'}"`;
+      const req = (cond, msg) => { if (!cond) problems.push(`${at}: ${msg}`); };
+      req(typeof e.id === 'string' && /^[a-z0-9][a-z0-9_-]*$/.test(e.id), '"id" must be lowercase letters, digits, - or _');
+      if (seen.has(e.id)) problems.push(`${at} is listed twice`);
+      seen.add(e.id);
+      Object.keys(e).filter((k) => !S.ENDING_FIELDS.includes(k)).forEach((k) => req(false, `unknown field "${k}"`));
+      req(e.title == null || (typeof e.title === 'string' && e.title.trim() && e.title.length <= 80), '"title" must be text of at most 80 characters');
+      req(e.kind == null || E.Engine.ENDING_KINDS.includes(e.kind), `"kind" must be one of ${E.Engine.ENDING_KINDS.join(', ')}`);
+      req(e.epilogue == null || (typeof e.epilogue === 'string' && e.epilogue.length <= 300), '"epilogue" must be text of at most 300 characters (how the ending should feel)');
+      const w = e.when;
+      if (w != null) {
+        const keys = isObj(w) ? Object.keys(w) : [];
+        if (keys.length !== 1 || !['event', 'after', 'clock', 'judged'].includes(keys[0])) req(false, '"when" must be one of {"event": id}, {"after": {day, hour}}, {"clock": id} or {"judged": "what the scene must show"}');
+        else if (keys[0] === 'event') req(events.has(w.event), `"when": no timeline event "${w.event}"`);
+        else if (keys[0] === 'clock') req(clocks.has(w.clock), `"when": no pressure (clock) "${w.clock}"`);
+        else if (keys[0] === 'after') req(isObj(w.after) && Number.isInteger(w.after.day) && Number.isInteger(w.after.hour) && w.after.hour >= 0 && w.after.hour <= 23, '"when": "after" must be {day, hour} with whole numbers (hour 0–23)');
+        else req(typeof w.judged === 'string' && w.judged.trim() && w.judged.length <= 300, '"when": "judged" must say, in up to 300 characters, what the scene has to show');
+      }
+      if (e.if != null) {
+        if (!Array.isArray(e.if) || !e.if.length) req(false, '"if" must be a list of conditions (the timeline\'s preconditions)');
+        else e.if.forEach((p, i) => problems.push(...E.Timeline.preconditionProblems(p, `${at}: "if" ${i + 1}`, refs)));
+      }
+      req(w != null || (Array.isArray(e.if) && e.if.length), 'needs "when", or "if" conditions, to know when it happens');
+      // Its words reach the narrator once it happens (and the title, the player).
+      const who = E.Lore.leak({ title: e.title, text: [e.epilogue, w && w.judged].filter(Boolean).join(' ') }, sc.characterData || []);
+      if (who) problems.push(`${at} gives away ${who.name || who.id}'s secret (an ending is shown to the narrator once it happens)`);
+    });
+    if (list.length > 12) problems.push('"endings" can have at most 12 endings');
+    return problems;
+  };
   function routeProblems(sc, r, where, refs, ids) {
     const problems = [];
     const req = (cond, msg) => { if (!cond) problems.push(`${where}: ${msg}`); };
@@ -1084,6 +1129,7 @@
     }, []));
     problems.push(...projectProblems(sc.projectTimeline));
     problems.push(...E.Lore.topicProblems(sc.loreTopics, ''));
+    problems.push(...S.endingProblems(sc));
     // Lore packs (task 5-7): whether a pack may replace the world's entries.
     req(sc.lorePacks == null || (isObj(sc.lorePacks) && Object.keys(sc.lorePacks).every((k) => k === 'replace') && (sc.lorePacks.replace == null || typeof sc.lorePacks.replace === 'boolean')), '"lorePacks" must be {"replace": true or false}');
     // Lore (task 5-1): its shape here; rooms and people are checked across

@@ -230,6 +230,7 @@ Regions become a free-form tree with routes, and maps attach to any region, so o
 - [x] **Generated regions** (R-6): `new_region` like `new_place`, one level up, fading like sites.
 - [x] **Start anywhere** (R-7): pick a start in a big tree by search or zoom, or "Surprise me"; `startable` on branches.
 - [x] **Map focus by genre and stakes** (R-8): tactical local maps for tense stories, the city as the lived space for everyday ones; flavour sites in one call that turn tactical when danger arrives.
+- [x] **Endings** (2026-10-27): `endings` on a world or start, checked by the engine (a timeline event, a time, a pressure, conditions) or judged by the model in the memory update with a quote from the scene; a closing scene, an end card and Keep playing.
 - [x] **Real places as a tree** (R-9): the base map tool writes countries, provinces and cities with routes.
 - [ ] **Recurring faces in generated starts** (later, after R-0): `generatedStarts.pool: true` lets generation draw side characters from the world's authored pool instead of only making new people. Off by default; lore figures stay out either way.
 

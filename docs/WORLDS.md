@@ -526,6 +526,35 @@ Task 5-2. Events that happen at a set time whatever the player does, unless the 
 
 `mars-station` and `zombie-holdout` each have a past and future events with preconditions, one of which diverges.
 
+## Endings
+
+How a story can end, besides the player's death. On a world, or a start (merged by `id`).
+
+```json
+"endings": [
+  { "id": "got-out", "title": "Out of Harmon", "kind": "win",
+    "when": { "judged": "the player gets out of Harmon for good with at least one of the others" },
+    "epilogue": "Not everyone made it, and the road ahead is long." },
+  { "id": "meltdown", "title": "The reactor", "kind": "loss", "when": { "event": "reactor-explodes" },
+    "if": [{ "not": { "world": "reactor", "is": "shut down" } }] },
+  { "id": "a-month-on", "kind": "bittersweet", "when": { "after": { "day": 53, "hour": 9 } } }
+]
+```
+
+| field | notes |
+|---|---|
+| `id` | lowercase letters, digits, `-` or `_` |
+| `title` | up to 80 characters; shown on the end card |
+| `kind` | `win`, `loss`, `bittersweet` or `neutral` (default): the closing's tone |
+| `when` | one of: `{"event": id}` (a timeline event happened, as written or changed; not dropped), `{"after": {day, hour}}`, `{"clock": id}` (a pressure came to a head), or `{"judged": "what the scene must show"}` (the model rules on it, up to 300 characters) |
+| `if` | optional conditions that must hold too, in the timeline's precondition form (`alive`, `controls`, `clock` with `atLeast`, `world`, `known`, `not`); an ending with only `if` happens as soon as they all hold |
+| `epilogue` | optional, up to 300 characters: how the ending should feel, for the closing |
+
+- **Checked by the engine** (`event`, `after`, `clock`, `if` alone): after each turn's events, and in skips, which also stop at an `after` time. The scene of that turn closes the story.
+- **Judged by the model**: the memory update (no extra call) is told which endings are on offer and says if the scene shows one, quoting it; the engine accepts only a real ending id with a quote of 4+ words that is really in the scene. The next action then isn't played: a short closing scene plays instead, and the action goes back in the box.
+- After an ending the story stops with an end card. **Keep playing** carries on as an epilogue (the ending stays reached, and is a public fact); undo goes back to before it. A dead player's story ends there, as before.
+- Endings are seen by the narrator once they happen, so they may not give away anyone's secret (validated). `mars-station` and `zombie-holdout` each have one the engine checks and one the model judges.
+
 ## Saves
 
 - Bump the state `version` to `2`. New states store `scenario.worldId` and `scenario.startId`.

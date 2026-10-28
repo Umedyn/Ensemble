@@ -822,7 +822,8 @@
       uiShown = 1;
       openTurns.clear();
       if ($('timeStep').value === 'major') $('timeStep').value = 'hour';
-      $('actionInput').value = '';
+      // A judged ending plays its closing instead of the action, which goes back in the box.
+      $('actionInput').value = result.held || '';
       autosave();
       renderAll();
       announceBeat(0);
@@ -837,6 +838,11 @@
     }
   }
   $('actionForm').addEventListener('submit', (ev) => { ev.preventDefault(); act(); });
+  // Going on past an ending (not after death).
+  $('log').addEventListener('click', (ev) => {
+    if (ev.target.id !== 'btnKeepPlaying' || busy || !state) return;
+    if (E.Engine.keepPlaying(state)) { autosave(); renderAll(); $('actionInput').focus(); }
+  });
   $('actionInput').addEventListener('keydown', (ev) => {
     if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); act(); }
   });
@@ -1008,6 +1014,8 @@
     }).join('');
     log.innerHTML = html || '<div class="empty">Write your first action below.</div>';
     if (state.flags.gameOver) log.insertAdjacentHTML('beforeend', '<div class="entry chapter"><b>Your story ends here.</b>Load a save or start a new game.</div>');
+    // An ending (not death): the player may go on past it, once the scene is read.
+    else if (E.Engine.ended(state) && canAct()) log.insertAdjacentHTML('beforeend', '<div class="entry chapter end-card"><b>The story has reached an ending.</b>Keep playing to see what comes after, or start a new game. <button type="button" id="btnKeepPlaying" class="primary small">Keep playing</button></div>');
     // Land at the start of the latest turn, or at the bottom if it's short.
     const cur = log.querySelector('.turn-current');
     log.scrollTop = cur ? Math.min(offsetIn(log, cur) - 8, log.scrollHeight) : log.scrollHeight;
@@ -1029,6 +1037,15 @@
     if (e.type === 'scene') return renderScene(e);
     if (e.type === 'action') return `<div class="entry action">${e.skip ? '⏭ ' : ''}${esc(e.text)}<span class="when">${esc(e.time || '')}${e.until ? ' → ' + esc(e.until) : ''}</span></div>`;
     if (e.type === 'chapter') return `<div class="entry chapter">Chapter ${e.chapter.n} ends<b>${esc(e.chapter.title)}</b></div>`;
+    // An ending: its closing scene (a judged one) and the title, once the scene before it is read.
+    if (e.type === 'ending') {
+      const live = liveScene();
+      if (live && live.turn === e.turn && !canAct()) return '';
+      const word = { win: 'A win', loss: 'A loss', bittersweet: 'Bittersweet', neutral: 'An ending' }[e.kind] || 'An ending';
+      return (e.text ? `<div class="entry scene ending">${String(e.text).split(/\n\s*\n/).map((p) => `<p>${esc(p.trim())}</p>`).join('')}</div>` : '') +
+        `<div class="entry chapter ending-title">${word}<b>The end: ${esc(e.title)}</b></div>`;
+    }
+    if (e.type === 'note') return `<div class="entry note muted small">${esc(e.text)}</div>`;
     if (e.type === 'resolve') {
       const items = e.outcomes.map((o) => {
         const hidden = !o.visible && o.id !== state.player;

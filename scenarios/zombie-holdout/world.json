@@ -401,6 +401,22 @@
     "store"
   ],
   "loreTopics": { "scavenging": ["scavenge", "scavenging", "scavenger", "scavengers", "supply run", "supply runs", "looting", "looted", "salvage"] },
+  "endings": [
+    {
+      "id": "got-out",
+      "title": "Out of Harmon",
+      "kind": "win",
+      "when": { "judged": "the player gets out of Harmon for good with at least one of the others: past the junction checkpoint, up the ridge road, or away by road" },
+      "epilogue": "Not everyone made it, and the road ahead is long."
+    },
+    {
+      "id": "a-month-on",
+      "title": "A month on",
+      "kind": "bittersweet",
+      "when": { "after": { "day": 53, "hour": 9 } },
+      "epilogue": "Harmon's is still standing, and so are some of the people inside it."
+    }
+  ],
   "timeline": [
     {
       "id": "first-cases",

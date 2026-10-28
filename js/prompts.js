@@ -645,8 +645,14 @@ ${intentExample(state, present, action, due)}`;
   // Frame, status, last scene, player action and resolved outcomes are shared
   // by the scene and its continuation.
   const SCENE_CONTEXT = ['sceneFrame', 'status', 'lore', 'lastScene', 'sceneAction', 'resolved'];
-  P.layouts.narrate = SCENE_CONTEXT.concat(['worn', 'narrateTask']);
-  P.layouts.narrateMore = SCENE_CONTEXT.concat(['sceneSoFar', 'worn', 'narrateMoreTask']);
+  P.layouts.narrate = SCENE_CONTEXT.concat(['worn', 'narrateTask', 'endingClose']);
+  P.layouts.narrateMore = SCENE_CONTEXT.concat(['sceneSoFar', 'worn', 'narrateMoreTask', 'endingClose']);
+  // An ending the engine reached this turn: the scene closes the story, after
+  // the task (so it wins over "end on a moment for the player").
+  const ENDING_TONE = { win: 'a hard-won success', loss: 'a defeat', bittersweet: 'bittersweet: something won, something lost', neutral: 'an ending, neither triumph nor defeat' };
+  B.endingClose = ({ res }) => (res && res.ending
+    ? `\n=== THIS SCENE ENDS THE STORY ===\n"${res.ending.title}" (${ENDING_TONE[res.ending.kind] || ENDING_TONE.neutral}): ${res.ending.why}.${res.ending.epilogue ? ` ${res.ending.epilogue}` : ''}\nThe final beat shows this ending and closes on it, with how the people here take it. This overrides the rule about ending on a moment for the player: no question, no open choice.`
+    : null);
   // Phrases recent scenes keep repeating (playtest-coffee-skips: "the pot is the
   // only instrument anyone trusts"), found by the engine.
   B.worn = ({ state }) => {
@@ -801,6 +807,9 @@ ${worldLines(state)}`;
       ? `The downtime ends when ${rk.name} comes to confront ${pc.name}, who has sat out ${plan.reckoning.sat.length} emergencies (${plan.reckoning.sat.map((t) => `"${t}"`).join('; ')}). ${rk.name} has had enough and comes with something real, true to who they are: an ultimatum, a decision about ${pc.name} made without them, or something taken away. Write it in "reckoning", and set "major_event" to null; ${rk.name} is with ${pc.name} at the end, and your positions should fit that moment.`
       : plan.reason === 'agenda'
       ? `The downtime ends when ${who.name} comes to find ${pc.name}: "${plan.agenda.text}". Set "major_event" to null; ${who.name} is with ${pc.name} at the end, and your positions should fit that moment.`
+      // An ending set for this time (the engine checks it, and the scene closes the story).
+      : plan.reason === 'ending'
+      ? `The downtime ends at ${frame.endTime || 'the time the story was set to end'}, with no new event: the story reaches its ending here. Set "major_event" to null; your positions should fit that moment.`
       : plan.reason === 'clock'
       ? `The downtime ends because a pressure comes to a head: "${res.events[res.events.length - 1] || plan.clock.name}". Set "major_event" to null; your positions should fit that moment.`
       // The timeline (task 5-2): an event as written, or one the story changed.
@@ -838,7 +847,7 @@ Guidelines:${plan.crisis ? `
 - player_where: where ${pc.name} is when it hits, consistent with their plan.`;
   };
 
-  P.layouts.narrateSkip = ['downtimeFrame', 'status', 'lore', 'lastScene', 'montage', 'alsoDuring', 'endsIt', 'whereEveryone', 'worn', 'narrateSkipTask'];
+  P.layouts.narrateSkip = ['downtimeFrame', 'status', 'lore', 'lastScene', 'montage', 'alsoDuring', 'endsIt', 'whereEveryone', 'worn', 'narrateSkipTask', 'endingClose'];
   P.narrateSkip = function (state, action, frame, montage, doings, res, presentStart) {
     const pc = state.characters[state.player];
     const here = pc.status.location;
@@ -879,7 +888,29 @@ Reply with the beats only.`;
   };
 
   // ---------- update ----------
-  P.layouts.update = ['validIds', 'whatHappened', 'sceneNarrated', 'updateCrisis', 'updateTask'];
+  P.layouts.update = ['validIds', 'whatHappened', 'sceneNarrated', 'updateCrisis', 'updateTask', 'updateEndings'];
+  // Endings the model rules on (judged): only those on offer now, with a
+  // quote the engine looks for in the scene.
+  B.updateEndings = ({ state }) => {
+    const list = Eng().judgedEndings(state);
+    return list.length
+      ? ['\n=== ENDINGS ===', 'The story ends if the scene above SHOWS one of these happening (not planned, hoped for, attempted or nearly):']
+        .concat(list.map((e) => `- ${e.id}: ${e.when.judged}`))
+        .concat(['If one happened, add to your JSON "ending": {"id": "the id", "quote": "the exact words from the scene that show it"}. Otherwise leave "ending" out.'])
+      : null;
+  };
+  // The closing scene of an ending the update found (judged endings).
+  P.layouts.closing = ['closingScene', 'closingTask'];
+  P.closing = (state, ending) => P.build('closing', { state, ending, pc: state.characters[state.player] });
+  B.closingScene = ({ state }) => {
+    const r = state.recent && state.recent[state.recent.length - 1];
+    return r ? `=== THE LAST SCENE ===\n${r.text}` : null;
+  };
+  B.closingTask = ({ ending, pc }) => `
+=== TASK ===
+That scene ended the story: "${ending.title}" (${ENDING_TONE[ending.kind] || ENDING_TONE.neutral}). ${ending.judged ? `It happened: ${ending.judged}.` : ''}${ending.epilogue ? ` ${ending.epilogue}` : ''}
+Write the closing in second person, present tense ("you" is ${pc.name}): 2 or 3 short paragraphs (100–180 words). Pick up right after the last scene, show the ending settle, then a brief look at what it means for the people in this story. Use only what has happened; invent no new turns. Close on it: no question, no choice left open.
+Reply with the closing text only.`;
   B.updateCrisis = ({ state, res }) => (res && res.crisisText
     ? `\n=== AN EMERGENCY WAS STILL HAPPENING ===\nThe scene began with an emergency still unanswered: "${res.crisisText}" If ${state.characters[state.player].name}'s action ignored it, the people who needed ${state.characters[state.player].name} may think less of them: record that in relations, with the reason.`
     : null);

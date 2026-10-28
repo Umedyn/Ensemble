@@ -2113,7 +2113,95 @@
     // or someone's agenda at the same hour comes first.
     const canon = E.Timeline.next(state);
     const first = canon && (canon.hours < plan.hours || (canon.hours === plan.hours && !['agenda', 'clock'].includes(plan.reason)));
-    return first ? { hours: canon.hours, reason: 'canon', canon } : plan;
+    const out = first ? { hours: canon.hours, reason: 'canon', canon } : plan;
+    // An ending set for a time stops the skip there, before anything later.
+    const end = Eng.nextEndingTime(state);
+    return end && end.hours > 0 && end.hours < out.hours ? { hours: end.hours, reason: 'ending', ending: end.id } : out;
+  };
+
+  // ---------- endings ----------
+  // A world or start may say how the story can end: "endings": [{ id, title,
+  // kind (win, loss, bittersweet, neutral), when, if, epilogue }]. "when" is
+  // what the engine checks itself ({event}: a timeline event happened; {after:
+  // {day, hour}}; {clock}: a pressure came to a head) or what the model judges
+  // from the scene ({judged: "the player gets out of the city"}, ruled on in
+  // the memory update with a quote the engine finds in the scene); "if" is a
+  // list of timeline preconditions that must hold too (an ending with only
+  // "if" fires as soon as they all do). An engine ending is checked after
+  // each turn's events, so its scene closes the story; a judged one is found
+  // when the next action commits the scene, and a short closing scene plays
+  // instead of that action. The story then stops, like a death, until the
+  // player chooses to keep playing.
+  Eng.ENDING_KINDS = ['win', 'loss', 'bittersweet', 'neutral'];
+  const isObjE = (v) => v && typeof v === 'object' && !Array.isArray(v);
+  Eng.endingsOf = (state) => (Array.isArray(state.scenario.endings) ? state.scenario.endings.filter(isObjE) : []);
+  const endingOpen = (state, e) => !(state.endingsReached || []).includes(e.id) && (!Array.isArray(e.if) || e.if.every((p) => E.Timeline.holds(state, p)));
+  // Hours until the next ending set for a time: { id, hours } or null.
+  Eng.nextEndingTime = function (state) {
+    const now = absHours(state);
+    const next = Eng.endingsOf(state).filter((e) => isObjE(e.when) && isObjE(e.when.after) && !(state.endingsReached || []).includes(e.id))
+      .map((e) => ({ id: e.id, hours: E.Timeline.at(e.when.after) - now })).filter((x) => x.hours > 0).sort((a, b) => a.hours - b.hours);
+    return next[0] || null;
+  };
+  // The story stopped at an ending the player hasn't chosen to go past.
+  Eng.ended = (state) => !!(state.ending && !state.ending.continued);
+  // Engine endings, checked after a turn's (or a skip's) events: the first
+  // that holds is reached. → the ending, or null.
+  Eng.checkEndings = function (state, res) {
+    if (state.flags.gameOver || Eng.ended(state)) return null;
+    const now = absHours(state);
+    for (const e of Eng.endingsOf(state)) {
+      const w = isObjE(e.when) ? e.when : {};
+      if (w.judged || !endingOpen(state, e)) continue;
+      let why;
+      if (w.event) {
+        const c = state.canon && state.canon[w.event];
+        if (!c || c.status === 'dropped' || c.status === 'past') continue;
+        why = `the timeline event "${w.event}" happened`;
+      } else if (w.after) {
+        if (now < E.Timeline.at(w.after)) continue;
+        why = `it is past ${E.Timeline.fmt(state.scenario, w.after)}`;
+      } else if (w.clock) {
+        const cl = (state.clocks || []).find((c) => c.id === w.clock);
+        if (!cl || !cl.fired) continue;
+        why = `"${cl.name}" came to a head`;
+      } else if (Array.isArray(e.if) && e.if.length) {
+        why = 'all of: ' + e.if.map((p) => E.Timeline.say(state, p)).join('; ');
+      } else continue;
+      return Eng.reachEnding(state, e, why, res);
+    }
+    return null;
+  };
+  // An ending reached: recorded once, as a public fact, and on the turn.
+  Eng.reachEnding = function (state, e, why, res, extra) {
+    state.endingsReached = (state.endingsReached || []).concat(e.id);
+    state.ending = Object.assign({ id: e.id, title: e.title || e.id, kind: Eng.ENDING_KINDS.includes(e.kind) ? e.kind : 'neutral', why, turn: state.turn, time: E.fmtTime(state) },
+      e.epilogue ? { epilogue: e.epilogue } : {}, isObjE(e.when) && e.when.judged ? { judged: e.when.judged } : {}, extra || {});
+    E.Memory.addFact(state, { about: [state.player], text: `The story reached an ending: ${state.ending.title}.`, known_by: ['all'], weight: 3 });
+    if (res) { res.ending = state.ending; guard(res, 'resolve', 'ending', `${state.ending.title} (${state.ending.kind}): ${why}`); }
+    return state.ending;
+  };
+  // The judged endings the memory update may rule on now: not reached yet,
+  // their "if" holding.
+  Eng.judgedEndings = (state) => (Eng.ended(state) || state.flags.gameOver ? [] : Eng.endingsOf(state).filter((e) => isObjE(e.when) && typeof e.when.judged === 'string' && endingOpen(state, e)));
+  // The update's verdict: { id, quote }. Accepted only for a judged ending on
+  // offer, with a quote of 4+ words that is really in the scene (rule 1).
+  Eng.judgeEnding = function (state, verdict, prose, res) {
+    if (!isObjE(verdict) || verdict.id == null || verdict.id === '' || verdict.id === 'null') return null;
+    const e = Eng.judgedEndings(state).find((x) => x.id === verdict.id);
+    const norm = (t) => String(t || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+    const quote = norm(verdict.quote);
+    if (!e) { guard(res, 'memory', 'ending refused', `"${verdict.id}" isn't an ending the story can reach now`); return null; }
+    if (quote.split(' ').length < 4 || !norm(prose).includes(quote)) { guard(res, 'memory', 'ending refused', `${e.title || e.id}: the quote isn't in the scene ("${E.shorten(String(verdict.quote || ''), 80)}")`); return null; }
+    return Eng.reachEnding(state, e, `the scene shows it: "${E.shorten(String(verdict.quote), 160)}"`, res, { closing: true });
+  };
+  // The player chooses to go on past an ending: the story carries on as an
+  // epilogue, the ending stays reached.
+  Eng.keepPlaying = function (state) {
+    if (!Eng.ended(state)) return false;
+    state.ending.continued = true;
+    state.log.push({ turn: state.turn, type: 'note', text: `The story goes on after "${state.ending.title}".` });
+    return true;
   };
 
   // ---------- tags and mood (task 1-6) ----------
@@ -2853,6 +2941,8 @@
         kind: 'update', system: E.Prompts.header(state), user: E.Prompts.update(state, p.action, p.res, prose, p.present, !!cut),
         maxTokens: 520, temperature: 0.3,
       });
+      // A judged ending the scene shows (taken out before the update is applied).
+      if (upd && typeof upd === 'object' && 'ending' in upd) { Eng.judgeEnding(state, upd.ending, prose, p.res); delete upd.ending; }
       const expired = Eng.expireTags(state, p.turn);
       const before = {};
       Eng.cast(state, { includePlayer: false }).forEach((id) => (before[id] = state.characters[id].status.location));
@@ -3202,6 +3292,8 @@
       res.major = { text, scope: 'reckoning', who: c.id };
     } else if (plan.reason === 'arrive') {
       // a journey that got there: no major event
+    } else if (plan.reason === 'ending') {
+      // the time an ending was set for (checked below)
     } else if (plan.reason !== 'clock') {
       const m = obj.major_event && typeof obj.major_event.text === 'string' ? obj.major_event : { text: 'Something goes badly wrong, and the routine ends.' };
       const text = E.clip(m.text, 240);
@@ -3242,6 +3334,10 @@
       else guard(res, 'resolve', 'move cancelled', `the downtime put the player in ${pw}; their plan doesn't take them there`);
     }
     Eng.revealAround(state, res);
+    // An ending the engine checks closes the downtime's scene; one set for
+    // this time that doesn't hold lets the time pass quietly.
+    if (Eng.checkEndings(state, res)) res.major = res.major || { text: `${res.ending.title}: ${res.ending.why}.`, scope: 'ending' };
+    else if (plan.reason === 'ending') res.major = { text: `${E.fmtTime(state)} comes and goes.`, scope: 'quiet' };
     // A journey's arrival is a visit, as in a played turn.
     E.Sites.noteVisit(state, frame.startLoc);
     E.Sites.noteRegionVisit(state, frame.startLoc);
@@ -3295,6 +3391,7 @@
     state.log.push({ turn: state.turn, type: 'action', text: action || '(downtime)', time: frame.startTime, until: frame.endTime, skip: plan.reason });
     state.log.push({ turn: state.turn, type: 'resolve', outcomes: res.outcomes, events: res.events });
     state.log.push({ turn: state.turn, type: 'scene', text, beats, startDay: pre.time.day, startMinutes: Math.round(pre.time.hour * 60) });
+    if (res.ending) state.log.push({ turn: state.turn, type: 'ending', id: res.ending.id, title: res.ending.title, kind: res.ending.kind });
     state.recent = [{ turn: state.turn, action, text }];
     const here = state.characters[state.player].status.location;
     const witnesses = Eng.present(state);
@@ -3509,6 +3606,9 @@
   Eng.runTurn = async function (state, action, stepId, onPhase, cutAt) {
     const phase = onPhase || (() => {});
     if (state.flags.gameOver) throw new Error('This story has ended. Start a new game or load a save.');
+    if (Eng.ended(state)) throw new Error('This story has reached an ending. Choose Keep playing to go on, or start a new game.');
+    // The scene that ended the story plays out whole when the player goes on.
+    if (state.ending && state.pending && state.ending.turn === state.pending.turn) cutAt = null;
     const snapshot = E.clone(state);
     const committing = state.pending ? { turn: state.pending.turn, res: state.pending.res } : null;
     const tel = startReport('turn', state.turn + 1, action, stepId);
@@ -3619,9 +3719,26 @@
 
   const replaceState = (state, from) => { Object.keys(state).forEach((k) => delete state[k]); Object.assign(state, from); };
 
+  // The closing scene of a judged ending: one narration call from the last
+  // scene, logged as the ending's own entry.
+  async function closeStory(state, phase) {
+    phase('Closing the story…');
+    const raw = await E.LLM.chat({ kind: 'narrate', system: E.Prompts.header(state), user: E.Prompts.closing(state, state.ending), maxTokens: Math.round(E.settings.narrateTokens * 1.2), temperature: 0.8 });
+    const text = Eng.cleanProse(String(raw && raw.text != null ? raw.text : raw || '')).replace(/^\[\+?\d+[mhd]\]\s*/gm, '').trim();
+    state.ending.closed = true;
+    state.log.push({ turn: state.ending.turn, type: 'ending', id: state.ending.id, title: state.ending.title, kind: state.ending.kind, text });
+    phase('');
+  }
+
   async function playTurn(state, action, stepId, phase, cutAt) {
     const report = await Eng.commitPending(state, cutAt, phase);
     if (state.flags.gameOver) { phase(''); return { report, ended: true }; }
+    // A judged ending found in the scene just recorded: a closing scene
+    // instead of this action (the page puts the action back in the box).
+    if (Eng.ended(state) && state.ending.closing && !state.ending.closed) {
+      await closeStory(state, phase);
+      return { report, ended: true, ending: state.ending, held: action };
+    }
     Eng.clearTransit(state);
     // Facts the player learned last turn may name a hidden region (R-5).
     const early = { guards: [] };
@@ -3718,6 +3835,8 @@
     E.Sites.fade(state).forEach((t) => guard(res, 'resolve', 'site faded', t));
     E.Sites.noteRegionVisit(state, frame.startLoc);
     E.Sites.fadeRegions(state).forEach((t) => guard(res, 'resolve', 'region faded', t));
+    // An ending the engine checks (a time, a timeline event, a pressure): this scene closes the story.
+    Eng.checkEndings(state, res);
 
     // Everything Reroll needs to write this scene again from the same resolution.
     const narration = { system, step, before, after: timeSnapshot(state) };
@@ -3727,6 +3846,7 @@
     state.log.push({ turn: state.turn, type: 'action', text: action, time: frame.startTime, until });
     state.log.push({ turn: state.turn, type: 'resolve', outcomes: res.outcomes, events: res.events });
     state.log.push({ turn: state.turn, type: 'scene', text, beats, startDay: pre.time.day, startMinutes });
+    if (res.ending) state.log.push({ turn: state.turn, type: 'ending', id: res.ending.id, title: res.ending.title, kind: res.ending.kind });
     state.recent = [{ turn: state.turn, action, text }];
 
     // Memory is recorded at the start of the next turn, once we know how

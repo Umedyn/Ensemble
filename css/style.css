@@ -356,6 +356,7 @@ button:disabled { opacity: .5; cursor: default; }
 .entry.action .when { color: var(--muted); font-style: normal; font-size: 0.75rem; margin-left: 6px; }
 .entry.chapter { text-align: center; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 10px; color: var(--muted); }
 .entry.chapter b { color: var(--text); font-family: var(--story-font); font-size: 1rem; display: block; }
+.entry.end-card button { display: block; margin: 0.5rem auto 0; }
 /* Earlier turns, folded */
 .turn-group { max-width: 760px; margin: 0 auto 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
 .turn-group > summary { cursor: pointer; padding: 6px 10px; font-size: 0.7813rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

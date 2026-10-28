@@ -673,6 +673,22 @@
       "text": "The next cargo lander is about nine weeks out, carrying spare parts, seeds and food. It lands by itself on a marked pad on the rim; until then, everything the station needs has to be fixed, grown or rationed from what is already here."
     }
   ],
+  "endings": [
+    {
+      "id": "the-report",
+      "title": "The report",
+      "kind": "neutral",
+      "when": { "judged": "the crew agrees on what the renewal report to Earth will say, and it is sent" },
+      "epilogue": "Whatever Earth decides, it will decide from what this crew chose to tell it."
+    },
+    {
+      "id": "end-of-rotation",
+      "title": "End of rotation",
+      "kind": "bittersweet",
+      "when": { "event": "cargo-lander" },
+      "epilogue": "The lander brings the next crew's advance team, and the station starts to become someone else's."
+    }
+  ],
   "timeline": [
     {
       "id": "landing",

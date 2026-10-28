@@ -40,7 +40,8 @@ test('scenario validation reports authoring mistakes', () => {
 test('scenario validation accepts and ignores fields the engine does not use yet', () => {
   const E = loadEngine();
   const sc = readScenario('mars-station');
-  Object.assign(sc, { tags: ['hard-sf'], endings: [{ id: 'rescue', title: 'The cargo lander arrives' }] });
+  // (endings were such a field until the engine used them; one now needs a trigger)
+  Object.assign(sc, { tags: ['hard-sf'], endings: [{ id: 'rescue', title: 'The cargo lander arrives', when: { event: 'cargo-lander' } }] });
   Object.assign(sc.characterData[1], { tags: ['stubborn'], portrait: 'okafor.png', region: 'tharsis' });
   const state = E.Engine.newGame(E.Scenario.validate(sc));
   assert.equal(state.characters[sc.characterData[1].id].name, sc.characterData[1].name);

@@ -185,6 +185,22 @@ await check('lore packs: only for their world, ticked in the picker, in the game
   assert.equal(await page.textContent('#btnPacks'), 'Lore packs (1)');
 });
 
+// Endings: a story that reached one shows it and an end card; Keep playing goes on.
+await check('endings: the end card after a story reaches an ending, and Keep playing', async (page) => {
+  const { E, state } = helpers.newGame('zombie-holdout');
+  E.Engine.reachEnding(state, { id: 'got-out', title: 'Out of Harmon', kind: 'win', when: { judged: 'out' } }, 'the scene shows it', null, { closing: true, closed: true });
+  state.log.push({ turn: 0, type: 'ending', id: 'got-out', title: 'Out of Harmon', kind: 'win', text: 'The road opens ahead of you.\n\nBehind you, Harmon shrinks to smoke.' });
+  await page.setInputFiles('#loadInput', { name: 'ended.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(state)) });
+  await page.waitForSelector('#btnKeepPlaying');
+  assert.match(await page.textContent('#log'), /The road opens ahead of you\.[\s\S]*A win\s*The end: Out of Harmon[\s\S]*The story has reached an ending/);
+  await page.locator('#log').screenshot({ path: path.join(shots, 'ending.png') });
+  await page.click('#btnKeepPlaying');
+  await page.waitForFunction(() => !document.getElementById('btnKeepPlaying'));
+  assert.match(await page.textContent('#log'), /The story goes on after "Out of Harmon"\./);
+  await act(page, 'Look back at the town.');
+  assert.equal(await page.locator('.entry.action').count(), 1, 'and the story goes on');
+});
+
 await check('debug shows a turn report with tokens, prompt time and guards', async (page) => {
   await newGame(page);
   await act(page, 'I open up the recycler.');
