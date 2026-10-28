@@ -1,0 +1,1598 @@
+[
+  {
+    "id": "world-today",
+    "title": "The world today",
+    "level": "world",
+    "text": "Earth in the present day, October 2026. Real countries, borders, cities and institutions as they are now; roughly eight billion people across nearly two hundred states, linked by air travel, trade, the internet and smartphones. Life runs on national laws, local currencies and global markets. Most people live in cities, work ordinary jobs, worry about money, family and news from afar, and move through familiar streets and routines.",
+    "keywords": [
+      "The world today",
+      "Earth",
+      "present day",
+      "2026"
+    ],
+    "sources": [
+      {
+        "title": "The World Today",
+        "url": "https://en.wikipedia.org/wiki/The_World_Today"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "afghanistan",
+    "title": "Afghanistan",
+    "level": "region",
+    "text": "A landlocked, mountainous country of roughly 40 million people where the Hindu Kush divides northern plains from southwestern desert. Ruled since 2021 by the Taliban's Islamic Emirate from Kabul, it sits between Iran, Pakistan, and Central Asia. Life is shaped by decades of war, conservative religious rule, and a struggling economy; Dari and Pashto are the main languages, and daily life runs on family ties, bazaars, and farming.",
+    "keywords": [
+      "Afghanistan",
+      "Islamic Emirate of Afghanistan",
+      "Afghan"
+    ],
+    "ref": "afghanistan",
+    "sources": [
+      {
+        "title": "Afghanistan",
+        "url": "https://en.wikipedia.org/wiki/Afghanistan"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "kabul",
+    "title": "Kabul",
+    "level": "region",
+    "text": "Afghanistan's capital and largest city, home to over five million people in a high, narrow valley of the Hindu Kush, cut by the Kabul River. Ancient and storied, with old gardens and palaces, it is the country's political and economic heart. Most residents speak Dari or Pashto; life runs through crowded bazaars, tight neighborhoods divided into 22 districts, under the current Taliban-era administration headed by Mayor Mawlawi Abdul Rashid.",
+    "keywords": [
+      "Kabul",
+      "Paris of Central Asia"
+    ],
+    "ref": "kabul",
+    "sources": [
+      {
+        "title": "Kabul",
+        "url": "https://en.wikipedia.org/wiki/Kabul"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "land",
+    "title": "Åland",
+    "level": "region",
+    "text": "A small autonomous, demilitarised region of Finland in the Baltic Sea, between Sweden and the Finnish mainland. Its 30,000-odd residents, nearly all on the main island Fasta Åland, speak Swedish; the capital is Mariehamn. Ferries link it to Turku and Stockholm, and life revolves around shipping, fishing and tourism. Thousands of skerries dot its eastern side, and its neutrality dates to the mid-1800s.",
+    "keywords": [
+      "Åland",
+      "Ahvenanmaa",
+      "Aland Islands",
+      "Mariehamn"
+    ],
+    "ref": "aland",
+    "sources": [
+      {
+        "title": "Åland",
+        "url": "https://en.wikipedia.org/wiki/%C3%85land"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "albania",
+    "title": "Albania",
+    "level": "region",
+    "text": "A small Balkan republic on the Adriatic and Ionian seas, bordering Montenegro, Kosovo, North Macedonia and Greece. Its landscape swings from snowy northern peaks to coastal plains. Tirana, the crowded, noisy capital, dwarfs Durrës, Vlorë and Shkodër. Albanian is spoken everywhere; life blends Mediterranean ease with memories of Ottoman rule and communist isolation. People are warm, family-oriented, and many work abroad or dream of leaving.",
+    "keywords": [
+      "Albania",
+      "Republic of Albania",
+      "Shqipëria",
+      "Albanian"
+    ],
+    "ref": "albania",
+    "sources": [
+      {
+        "title": "Albania",
+        "url": "https://en.wikipedia.org/wiki/Albania"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "tirana",
+    "title": "Tirana",
+    "level": "region",
+    "text": "Albania's capital and largest city, set in the country's center beneath Mount Dajti, with distant views toward the Adriatic. A young, lively city of cafes, painted buildings and heavy traffic, where Albanian is spoken and daily life revolves around Skanderbeg Square and the boulevard. Founded under Ottoman rule, it became capital in 1920 and is now the nation's political and economic heart, wet but famously sunny.",
+    "keywords": [
+      "Tirana",
+      "Tirona",
+      "Tiranë"
+    ],
+    "ref": "tirana",
+    "sources": [
+      {
+        "title": "Tirana",
+        "url": "https://en.wikipedia.org/wiki/Tirana"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "algeria",
+    "title": "Algeria",
+    "level": "region",
+    "text": "A vast North African republic, the largest country in Africa by area, with around 47 million people crowded into the Mediterranean north while the Sahara swallows most of the south. Centuries of Amazigh, Arab, Ottoman and French rule left a layered identity; independence in 1962 followed a brutal war, and a civil war scarred the 1990s. Algerian Arabic dominates daily life, with Amazigh official too and French widely understood. Algiers is the political and economic heart.",
+    "keywords": [
+      "Algeria",
+      "People's Democratic Republic of Algeria",
+      "DZ"
+    ],
+    "ref": "algeria",
+    "sources": [
+      {
+        "title": "Algeria",
+        "url": "https://en.wikipedia.org/wiki/Algeria"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "algiers",
+    "title": "Algiers",
+    "level": "region",
+    "text": "Algiers, capital of Algeria, spreads along a Mediterranean bay ringed by mountains and the Mitidja plain, home to over four million people. Known as \"the white\" for its whitewashed buildings, it mixes an old hillside Casbah of Ottoman and Andalusian alleys with a grander French-built lower city. Life runs in Arabic, French, and Berber; it remains the country's political, cultural, and tourist heart.",
+    "keywords": [
+      "Algiers",
+      "Alger",
+      "al-Jazāʾir",
+      "Dzayer",
+      "al-ʿĀṣima",
+      "the White"
+    ],
+    "ref": "algiers",
+    "sources": [
+      {
+        "title": "Algiers",
+        "url": "https://en.wikipedia.org/wiki/Algiers"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "american-samoa",
+    "title": "American Samoa",
+    "level": "region",
+    "text": "A small U.S. territory in the South Pacific, east of the Date Line near independent Samoa. Five volcanic islands plus Rose Atoll and remote Swains Island, totalling 77 square miles of land, much of it rainforest, with vast surrounding waters. Most of its roughly 47,000 people live on Tutuila around Pago Pago's deep harbor. Nearly all are ethnic Samoans speaking Samoan and English; life blends island tradition with American administration.",
+    "keywords": [
+      "American Samoa",
+      "Pago Pago",
+      "Tutuila",
+      "Eastern Samoa"
+    ],
+    "ref": "american-samoa",
+    "sources": [
+      {
+        "title": "American Samoa",
+        "url": "https://en.wikipedia.org/wiki/American_Samoa"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "andorra",
+    "title": "Andorra",
+    "level": "region",
+    "text": "A tiny, landlocked principality high in the eastern Pyrenees between France and Spain, roughly 468 square kilometres with around 90,000 people. It is famous for mountain scenery, skiing, duty-free shopping and the roughly eight million tourists who visit each year. Unusually, it has two heads of state: the Bishop of Urgell and the French president. Catalan is official; Spanish, Portuguese and French are widely heard. Not in the EU. Capital: Andorra la Vella, Europe's highest.",
+    "keywords": [
+      "Andorra",
+      "Principality of Andorra",
+      "Principat d'Andorra"
+    ],
+    "ref": "andorra",
+    "sources": [
+      {
+        "title": "Andorra",
+        "url": "https://en.wikipedia.org/wiki/Andorra"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "andorra-la-vella",
+    "title": "Andorra la Vella",
+    "level": "region",
+    "text": "The capital of Andorra, a tiny principality tucked high in the Pyrenees between France and Spain. At over 1,000 metres it is Europe's highest capital, home to roughly 24,000 people, with over 40,000 in the wider urban area including Escaldes–Engordany. Life revolves around tourism and banking; shoppers and skiers fill streets lined with duty-free stores. Catalan is the official language, though Spanish and French are everywhere, and the valley feels compact, steep, and busy.",
+    "keywords": [
+      "Andorra la Vella",
+      "Andorra",
+      "la Vella"
+    ],
+    "ref": "andorra-la-vella",
+    "sources": [
+      {
+        "title": "Andorra la Vella",
+        "url": "https://en.wikipedia.org/wiki/Andorra_la_Vella"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "angola",
+    "title": "Angola",
+    "level": "region",
+    "text": "A large country on southern Africa's Atlantic coast, with the oil-rich Cabinda exclave cut off to the north. Once a Portuguese colony, it endured a long liberation struggle and a brutal civil war before independence-era one-party rule under the MPLA. Portuguese is official, spoken alongside Bantu languages like Umbundu and Kimbundu. Luanda, the capital, is crowded, expensive and oil-dependent, while most of the interior stays rural and poor.",
+    "keywords": [
+      "Angola",
+      "Republic of Angola",
+      "República de Angola"
+    ],
+    "ref": "angola",
+    "sources": [
+      {
+        "title": "Angola",
+        "url": "https://en.wikipedia.org/wiki/Angola"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "huambo",
+    "title": "Huambo",
+    "level": "region",
+    "text": "Huambo sits on Angola's central plateau, roughly 600 km southeast of Luanda, and is the country's third-largest city with about 710,000 residents. It anchors the Benguela Railway, whose tracks link the port of Lobito toward Congo's copper belt, and it has an airport once called Nova Lisboa's airfield. Life moves through markets, rail yards and provincial offices; Portuguese is official, alongside Umbundu and other local tongues, on streets that blend colonial-era buildings with busy modern growth.",
+    "keywords": [
+      "Huambo",
+      "Nova Lisboa",
+      "New Lisbon"
+    ],
+    "ref": "huambo",
+    "sources": [
+      {
+        "title": "Huambo",
+        "url": "https://en.wikipedia.org/wiki/Huambo"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "luanda",
+    "title": "Luanda",
+    "level": "region",
+    "text": "Angola's capital and largest city, on the Atlantic coast; over 8.8 million people, about a third of the country. Founded by the Portuguese in 1576, it later became a hub of the slave trade. Today it's the nation's chief port and business centre—oil, industry, and costly expat living—surrounded by sprawling musseque slums. Most residents are Ambundu, with Bakongo, Ovimbundu and Portuguese minorities; Portuguese dominates daily life. Reconstruction keeps reshaping the skyline.",
+    "keywords": [
+      "Luanda",
+      "São Paulo da Assunção de Loanda",
+      "Loanda",
+      "Leonda"
+    ],
+    "ref": "luanda",
+    "sources": [
+      {
+        "title": "Luanda",
+        "url": "https://en.wikipedia.org/wiki/Luanda"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "anguilla",
+    "title": "Anguilla",
+    "level": "region",
+    "text": "A small British Overseas Territory in the eastern Caribbean, the northernmost of the Leeward Islands, sitting north of Saint Martin. The main island runs about sixteen miles long and three wide, with a few uninhabited cays nearby. The Valley is the capital, and roughly fifteen thousand people live here. Life moves at an island pace: beaches, boats, tourism, close-knit communities where nearly everyone knows each other.",
+    "keywords": [
+      "Anguilla"
+    ],
+    "ref": "anguilla",
+    "sources": [
+      {
+        "title": "Anguilla",
+        "url": "https://en.wikipedia.org/wiki/Anguilla"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "antarctica",
+    "title": "Antarctica",
+    "level": "region",
+    "text": "The icy continent around the South Pole, ringed by the Southern Ocean. Nearly all of it sits under a thick ice sheet on the coldest, driest, windiest land on Earth. No natives, no government of its own: a treaty reserves it for science, tourism and fishing, banning military and mining activity. A few thousand researchers and support staff summer at scattered stations, dwindling to about a thousand in the dark winter. Life runs on schedules, supplies flown or shipped in, and long cohabitation in close quarters.",
+    "keywords": [
+      "Antarctica",
+      "South Pole",
+      "Southern Ocean",
+      "Antarctic"
+    ],
+    "ref": "antarctica",
+    "topics": [
+      "science",
+      "travel"
+    ],
+    "sources": [
+      {
+        "title": "Antarctica",
+        "url": "https://en.wikipedia.org/wiki/Antarctica"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "antigua-and-barbuda",
+    "title": "Antigua and Barbuda",
+    "level": "region",
+    "text": "A small independent Caribbean nation of about 440 square kilometres, made up of Antigua, Barbuda, and many islets in the Leeward Islands. Mostly flat, with a warm tropical climate and beaches on both Atlantic and Caribbean sides. Most people live in the central plain; the capital is St. John's, while Barbuda's sole settlement is Codrington. Once a British colony, independent since 1981. English is spoken, tourism and sailing drive daily life, and rising seas and hurricanes weigh on the islanders' minds.",
+    "keywords": [
+      "Antigua and Barbuda",
+      "Antigua",
+      "Barbuda",
+      "Saint John's",
+      "St. John's",
+      "Codrington",
+      "Leeward Islands"
+    ],
+    "ref": "antigua-and-barbuda",
+    "sources": [
+      {
+        "title": "Antigua and Barbuda",
+        "url": "https://en.wikipedia.org/wiki/Antigua_and_Barbuda"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "phnom-penh",
+    "title": "Phnom Penh",
+    "level": "region",
+    "text": "Cambodia's capital, home to over two million people at the meeting of the Mekong, Tonlé Sap and Bassac rivers. The country's political, economic and cultural heart, seat of the Royal Palace, with traffic-choked boulevards, riverside cafés, markets, pagodas and a mix of colonial, Art Deco and glass towers. Khmer is spoken everywhere; daily life runs on motorbikes, street food and family networks, and the city remembers its Khmer Rouge past.",
+    "keywords": [
+      "Phnom Penh",
+      "Phnom Penh city",
+      "Pearl of Asia",
+      "Wat Phnom",
+      "PP"
+    ],
+    "ref": "phnom-penh",
+    "sources": [
+      {
+        "title": "Phnom Penh",
+        "url": "https://en.wikipedia.org/wiki/Phnom_Penh"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "cameroon",
+    "title": "Cameroon",
+    "level": "region",
+    "text": "A Central African nation of roughly 31 million on the Gulf of Guinea, wedged between Nigeria, Chad, the Central African Republic, Congo, Gabon and Equatorial Guinea. Its position bridging West and Central Africa gives it a mix of rainforest, savanna and coast. People speak English and French officially alongside some 250 local tongues. Yaoundé is the capital; Douala is the commercial hub. Paul Biya has held power since 1982, ruling firmly, and daily life carries on under his long, entrenched grip.",
+    "keywords": [
+      "Cameroon",
+      "Republic of Cameroon",
+      "Cameroun",
+      "Kamerun"
+    ],
+    "ref": "cameroon",
+    "sources": [
+      {
+        "title": "Cameroon",
+        "url": "https://en.wikipedia.org/wiki/Cameroon"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "douala",
+    "title": "Douala",
+    "level": "region",
+    "text": "Douala, Cameroon's largest city and commercial heart, sits on the Wouri River estuary in the Littoral Region. Around four million people live in and around it, and its port and international airport make it the trade hub of Central Africa, moving oil, cocoa, coffee, timber and fruit. The tropical climate is humid and hot. Streets are busy with commerce and traffic; life runs on trade, hustle and family networks.",
+    "keywords": [
+      "Douala",
+      "DLA",
+      "Douala International Airport"
+    ],
+    "ref": "douala",
+    "sources": [
+      {
+        "title": "Douala",
+        "url": "https://en.wikipedia.org/wiki/Douala"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "yaound",
+    "title": "Yaoundé",
+    "level": "region",
+    "text": "Cameroon's capital and second-largest city, home to over 2.8 million people in the hilly Centre Region at about 750 metres elevation. Founded as a German trading post, it became the French colonial capital and remains the seat of government. Life revolves around ministries and administration, with industry in tobacco, beer, dairy and timber. French dominates public life; the city is known for grand monuments like the Presidential Palace and Palais des Congrès.",
+    "keywords": [
+      "Yaoundé",
+      "Yaounde",
+      "Jeundo",
+      "Epsumb"
+    ],
+    "ref": "yaounde",
+    "topics": [
+      "politics",
+      "work"
+    ],
+    "sources": [
+      {
+        "title": "Yaoundé",
+        "url": "https://en.wikipedia.org/wiki/Yaound%C3%A9"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "canada",
+    "title": "Canada",
+    "level": "region",
+    "text": "A vast northern country spanning three oceans, second only to Russia in size, with most of its 41 million people clustered in cities near the American border. Ottawa is the capital; Toronto, Montreal and Vancouver are the biggest hubs. Officially bilingual in English and French, it is a parliamentary democracy under the British Crown, celebrated for multiculturalism, high living standards, and wilderness—mountains, prairies, tundra and the world's longest coastline.",
+    "keywords": [
+      "Canada"
+    ],
+    "ref": "canada",
+    "sources": [
+      {
+        "title": "Canada",
+        "url": "https://en.wikipedia.org/wiki/Canada"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "calgary",
+    "title": "Calgary",
+    "level": "region",
+    "text": "Alberta's biggest city, near where the Bow and Elbow rivers meet at the edge of the Rockies, home to over 1.3 million people. A wealthy energy-and-finance hub with Canada's second-most corporate head offices, glass towers downtown, and stampede-era cowboy pride. Regularly ranked among the world's most livable cities. English-speaking, car-oriented, with booming suburbs and cold chinook-warmed winters; hosted the 1988 Winter Olympics.",
+    "keywords": [
+      "Calgary",
+      "Cowtown",
+      "YYC",
+      "Calgary Alberta"
+    ],
+    "ref": "calgary",
+    "topics": [
+      "work",
+      "business",
+      "sport",
+      "travel"
+    ],
+    "sources": [
+      {
+        "title": "Calgary",
+        "url": "https://en.wikipedia.org/wiki/Calgary"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "edmonton",
+    "title": "Edmonton",
+    "level": "region",
+    "text": "Edmonton is Alberta's capital, sitting on the North Saskatchewan River about 290 km north of Calgary. A city of over a million people, it serves as a supply hub for northern oil sands and diamond projects. It hosts festivals year-round, Canada's biggest mall, and a large living-history museum. Winters are long and cold; the city spreads wide, with a government and university district, and a mix of English-speaking, Indigenous and immigrant communities.",
+    "keywords": [
+      "Edmonton",
+      "Edmontonian",
+      "Gateway to the North",
+      "Festival City",
+      "YEG"
+    ],
+    "ref": "edmonton",
+    "sources": [
+      {
+        "title": "Edmonton",
+        "url": "https://en.wikipedia.org/wiki/Edmonton"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "montreal",
+    "title": "Montreal",
+    "level": "region",
+    "text": "Montreal is Canada's second-biggest city, home to over four million people across the greater area. It sits on an island in Quebec where the St. Lawrence River forks, built around the wooded hill of Mount Royal. Its official language is French, though English is widely heard. Known for festivals, hockey's Canadiens, old stone streets in Vieux-Montréal, aerospace and tech work, and a creative, food-loving, distinctly European-feeling urban culture.",
+    "keywords": [
+      "Montreal",
+      "Montréal",
+      "MTL",
+      "Ville-Marie",
+      "Mount Royal",
+      "Island of Montreal"
+    ],
+    "ref": "montreal",
+    "topics": [
+      "arts",
+      "travel",
+      "sport"
+    ],
+    "sources": [
+      {
+        "title": "Montreal",
+        "url": "https://en.wikipedia.org/wiki/Montreal"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "ottawa",
+    "title": "Ottawa",
+    "level": "region",
+    "text": "Canada's capital, in southeastern Ontario where the Rideau meets the Ottawa River across from Gatineau, Quebec. A bilingual metro area of roughly 1.5 million, second-largest in Ontario. Home to Parliament, the Supreme Court, embassies, and national museums and galleries. Life here feels staid and official, with an unusually well-educated population, government workers setting the daily rhythm, cold winters, and a calm, green, orderly look.",
+    "keywords": [
+      "Ottawa",
+      "Bytown",
+      "National Capital Region",
+      "the capital"
+    ],
+    "ref": "ottawa",
+    "topics": [
+      "politics",
+      "travel",
+      "arts"
+    ],
+    "sources": [
+      {
+        "title": "Ottawa",
+        "url": "https://en.wikipedia.org/wiki/Ottawa"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "toronto",
+    "title": "Toronto",
+    "level": "region",
+    "text": "Canada's largest city, capital of Ontario, sitting on a harbour at Lake Ontario's northwest shore. Over 2.7 million people in the city proper, with the surrounding metro region topping seven million. A hub of finance, business, arts, and sports, and famously multicultural: roughly half its residents were born abroad, speaking more than 160 languages. A sprawling, ravine-cut urban landscape where English dominates daily life and neighbourhoods shift character block by block.",
+    "keywords": [
+      "Toronto",
+      "the 6ix",
+      "GTA",
+      "Greater Toronto Area",
+      "YYZ"
+    ],
+    "ref": "toronto",
+    "sources": [
+      {
+        "title": "Toronto",
+        "url": "https://en.wikipedia.org/wiki/Toronto"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "guernsey",
+    "title": "Guernsey",
+    "level": "region",
+    "text": "A small self-governing Crown Dependency in the English Channel, off the Normandy coast, about 78 square kilometres with roughly 67,000 people. Loyal to the English Crown since Norman times but never part of the UK, it runs its own parliament, the States, under a bailiff and the monarch's lieutenant governor. Life is quiet and insular: granite seafronts, mild weather, finance jobs, English spoken alongside the fading local tongue, Guernésiais.",
+    "keywords": [
+      "Guernsey",
+      "Bailiwick of Guernsey",
+      "Bailliage de Guernési",
+      "Guernésiais",
+      "Channel Islands"
+    ],
+    "ref": "guernsey",
+    "sources": [
+      {
+        "title": "Bailiwick of Guernsey",
+        "url": "https://en.wikipedia.org/wiki/Bailiwick_of_Guernsey"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "guinea",
+    "title": "Guinea",
+    "level": "region",
+    "text": "West African nation on the Atlantic, capital Conakry, home to over 17 million people across coast, Fouta Djallon highlands, savannah northeast and forested south. Known for bauxite, diamonds and gold, and a history of coups; soldiers took power in 2021, and the AU readmitted it in 2026. Mostly Muslim, French-speaking in official life, with Susu, Pular and Maninka dominant regionally.",
+    "keywords": [
+      "Guinea",
+      "Guinea-Conakry",
+      "Republic of Guinea",
+      "French Guinea"
+    ],
+    "ref": "guinea",
+    "sources": [
+      {
+        "title": "Guinea",
+        "url": "https://en.wikipedia.org/wiki/Guinea"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "conakry",
+    "title": "Conakry",
+    "level": "region",
+    "text": "Guinea's capital and largest city, a busy Atlantic port on a narrow peninsula, home to over three million people—about a fifth of the country. It is the nation's economic, financial and cultural heart. Life runs in French, Susu, Fula and other local tongues: crowded markets, harbour traffic, ministries, music and street commerce, with the energy and strain of a fast-growing West African metropolis.",
+    "keywords": [
+      "Conakry",
+      "Kɔnakiri",
+      "Konaakiri"
+    ],
+    "ref": "conakry",
+    "sources": [
+      {
+        "title": "Conakry",
+        "url": "https://en.wikipedia.org/wiki/Conakry"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "guinea-bissau",
+    "title": "Guinea-Bissau",
+    "level": "region",
+    "text": "Small, poor West African country on the Atlantic coast, bordering Senegal and Guinea, home to about two million people. Its capital is Bissau. Formerly Portuguese-ruled, it gained independence in the 1970s but has suffered repeated coups, the latest in 2025 leaving a military junta under transitional president Horta Inta-A Na Man. Most people speak Creole, with Portuguese official but minority; Islam, Christianity and traditional faiths coexist. ECOWAS and African Union membership is suspended.",
+    "keywords": [
+      "Guinea-Bissau",
+      "Republic of Guinea-Bissau",
+      "Portuguese Guinea"
+    ],
+    "ref": "guinea-bissau",
+    "sources": [
+      {
+        "title": "Guinea-Bissau",
+        "url": "https://en.wikipedia.org/wiki/Guinea-Bissau"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "bissau",
+    "title": "Bissau",
+    "level": "region",
+    "text": "Guinea-Bissau's capital and biggest town, home to roughly half a million people, sits where the Geba river meets the Atlantic. It is the country's main port and the seat of government and the army. Streets mix colonial-era buildings with markets and unfinished concrete; Portuguese and Creole fill the air. Daily life moves slowly in the tropical heat, tied to the harbour, small trade, and the rhythms of the estuary.",
+    "keywords": [
+      "Bissau",
+      "capital of Guinea-Bissau"
+    ],
+    "ref": "bissau",
+    "sources": [
+      {
+        "title": "Bissau",
+        "url": "https://en.wikipedia.org/wiki/Bissau"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "guyana",
+    "title": "Guyana",
+    "level": "region",
+    "text": "An English-speaking republic on South America's northern coast, sparsely populated across dense rainforest and many rivers, with capital Georgetown on the Atlantic. Once Dutch then British Guiana, independent since 1966 and a Commonwealth republic. Its people blend Indian, African, Indigenous (nine nations), Chinese and Portuguese roots; most speak English and Guyanese Creole. Caribbean in culture, headquarters of CARICOM, tied to Suriname, Brazil and disputed Venezuela to the west.",
+    "keywords": [
+      "Guyana",
+      "Co-operative Republic of Guyana",
+      "British Guiana",
+      "Guyanese"
+    ],
+    "ref": "guyana",
+    "sources": [
+      {
+        "title": "Guyana",
+        "url": "https://en.wikipedia.org/wiki/Guyana"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "georgetown",
+    "title": "Georgetown",
+    "level": "region",
+    "text": "Guyana's capital and largest city sits on the Atlantic at the Demerara River's mouth. Home to over 125,000 people, it is the country's political and financial heart, hosting the government and CARICOM's headquarters. English-speaking and distinctly Caribbean in feel, it is called the Garden City for its greenery, with Dutch and British colonial timber architecture, the towering St. George's Cathedral and the bustling Stabroek Market shaping daily life.",
+    "keywords": [
+      "Georgetown",
+      "Garden City of the Caribbean",
+      "Demerara"
+    ],
+    "ref": "georgetown",
+    "sources": [
+      {
+        "title": "Georgetown, Guyana",
+        "url": "https://en.wikipedia.org/wiki/Georgetown,_Guyana"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "haiti",
+    "title": "Haiti",
+    "level": "region",
+    "text": "A Caribbean republic of about 11.4 million on the western half of Hispaniola, sharing the island with the Dominican Republic. Born of a slave revolt that won independence from France in 1804, Haiti is Creole- and French-speaking, proud but impoverished. In 2026 it is in near-anarchy: no president since Moïse's 2021 assassination, a defunct parliament and courts, gangs controlling much of the capital, and over a million displaced.",
+    "keywords": [
+      "Haiti",
+      "Republic of Haiti",
+      "Ayiti",
+      "Port-au-Prince"
+    ],
+    "ref": "haiti",
+    "topics": [
+      "politics",
+      "crime"
+    ],
+    "sources": [
+      {
+        "title": "Haiti",
+        "url": "https://en.wikipedia.org/wiki/Haiti"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "port-au-prince",
+    "title": "Port-au-Prince",
+    "level": "region",
+    "text": "Haiti's capital and largest city, home to roughly 3.7 million across its metro area — about a third of the country. It sits on the Gulf of Gonâve like an amphitheater: commerce crowds the harbor, poor neighborhoods climb the hillsides. French and Haitian Creole are spoken. Ravaged by the 2010 earthquake, since 2020 the city has been largely paralyzed by gang violence, kidnappings, and massacres, often with police and political complicity.",
+    "keywords": [
+      "Port-au-Prince",
+      "Pòtoprens",
+      "PAP"
+    ],
+    "ref": "port-au-prince",
+    "topics": [
+      "crime",
+      "politics"
+    ],
+    "sources": [
+      {
+        "title": "Port-au-Prince",
+        "url": "https://en.wikipedia.org/wiki/Port-au-Prince"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "heard-island-and-mcdonald-isla",
+    "title": "Heard Island and McDonald Islands",
+    "level": "region",
+    "text": "A barren Australian territory in the sub-Antarctic Indian Ocean, some 4000 km southwest of the mainland. Uninhabited and among Earth's remotest places, it pairs Heard Island — dominated by the active volcano Big Ben, its Mawson Peak cone, and heavy glaciers — with the tiny McDonald Islands 43 km west. Frigid, wind-lashed, and wet, it teems with penguins, elephant seals, and fur seals; only rare scientific expeditions ever land, under Australian Antarctic Division management.",
+    "keywords": [
+      "Heard Island and McDonald Islands",
+      "Heard Island",
+      "McDonald Islands",
+      "HIMI",
+      "Big Ben",
+      "Mawson Peak"
+    ],
+    "ref": "heard-island-and-mcdonald-isla",
+    "topics": [
+      "science",
+      "travel"
+    ],
+    "sources": [
+      {
+        "title": "Heard Island and McDonald Islands",
+        "url": "https://en.wikipedia.org/wiki/Heard_Island_and_McDonald_Islands"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "sierra-leone",
+    "title": "Sierra Leone",
+    "level": "region",
+    "text": "A small West African nation on the Atlantic coast, bordered by Guinea and Liberia, home to roughly eight and a half million people. Once a British colony and protectorate, it gained independence in 1961 and endured a brutal eleven-year civil war ending in 2002. Freetown, the seaside capital, anchors a presidential republic. Most people are Muslim alongside a Christian minority, living with strong religious tolerance across some eighteen ethnic groups, chiefly Temne and Mende.",
+    "keywords": [
+      "Sierra Leone",
+      "Salone",
+      "Republic of Sierra Leone"
+    ],
+    "ref": "sierra-leone",
+    "sources": [
+      {
+        "title": "Sierra Leone",
+        "url": "https://en.wikipedia.org/wiki/Sierra_Leone"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "freetown",
+    "title": "Freetown",
+    "level": "region",
+    "text": "Sierra Leone's capital and biggest city, a busy Atlantic port of over a million people sitting on one of the finest natural deepwater harbours anywhere. Founded in 1792 by freed slaves at the Cotton Tree, its Creole heritage mixes with people from every Sierra Leonean ethnic group and faith. Krio is the street language. Mayor Yvonne Aki Sawyerr has led the city council since 2018, re-elected in 2022.",
+    "keywords": [
+      "Freetown",
+      "Fritɔun",
+      "Sierra Leone"
+    ],
+    "ref": "freetown",
+    "sources": [
+      {
+        "title": "Freetown",
+        "url": "https://en.wikipedia.org/wiki/Freetown"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "singapore",
+    "title": "Singapore",
+    "level": "region",
+    "text": "A small island city-state at the tip of the Malay Peninsula, one degree north of the equator, guarding the Strait of Malacca. Once the trading port Temasek, then a British entrepôt, it became independent in 1965 and grew into a wealthy global hub for finance, shipping and air travel. Extremely clean, safe, orderly and expensive, with dense high-rise housing, a multicultural population speaking English, Malay, Mandarin and Tamil, and strict everyday laws.",
+    "keywords": [
+      "Singapore",
+      "Republic of Singapore",
+      "Temasek",
+      "Lion City",
+      "SG"
+    ],
+    "ref": "singapore",
+    "sources": [
+      {
+        "title": "Singapore",
+        "url": "https://en.wikipedia.org/wiki/Singapore"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "sint-maarten",
+    "title": "Sint Maarten",
+    "level": "region",
+    "text": "A small Dutch constituent country in the Caribbean, covering the southern part of Saint Martin island, which it shares with French Saint Martin across an open border. Capital Philipsburg; roughly 58,000 people on just 34 km². Tourism drives daily life: cruise ships, beaches, casinos, duty-free shops. English is widely spoken alongside Dutch. Still marked by Hurricane Irma's 2017 devastation, with rebuilding ongoing.",
+    "keywords": [
+      "Sint Maarten",
+      "Saint Martin",
+      "SXM",
+      "Philipsburg",
+      "Dutch side",
+      "Dutch Caribbean"
+    ],
+    "ref": "sint-maarten",
+    "sources": [
+      {
+        "title": "Sint Maarten",
+        "url": "https://en.wikipedia.org/wiki/Sint_Maarten"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "slovakia",
+    "title": "Slovakia",
+    "level": "region",
+    "text": "A small, landlocked Central European country of some 5.4 million, ringed by Poland, Ukraine, Hungary, Austria and Czechia. Much of it is mountain and hill country; the capital Bratislava sits near the Austrian border, with Košice the eastern second city. Slovaks speak Slovak and live much like their Central European neighbours—commuting to work, voting anxiously, holidaying at mountain cottages. Centuries under Hungarian rule ended when Czechoslovakia formed in 1918.",
+    "keywords": [
+      "Slovakia",
+      "Slovak Republic",
+      "Slovensko"
+    ],
+    "ref": "slovakia",
+    "sources": [
+      {
+        "title": "Slovakia",
+        "url": "https://en.wikipedia.org/wiki/Slovakia"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "bratislava",
+    "title": "Bratislava",
+    "level": "region",
+    "text": "Slovakia's capital, home to roughly 479,000 people (over 700,000 in the wider region), sits where the Danube meets the Little Carpathians, its old town crowned by a castle. The only capital bordering two other states—Austria and Hungary—Vienna lies just 50 km away. It hosts the government, courts, and universities, is the country's richest region, and draws over a million tourists yearly. Life feels central European: Slovak spoken, coffeehouses, Danube promenades.",
+    "keywords": [
+      "Bratislava",
+      "Pozsony",
+      "Pressburg",
+      "Bratislava Region"
+    ],
+    "ref": "bratislava",
+    "sources": [
+      {
+        "title": "Bratislava",
+        "url": "https://en.wikipedia.org/wiki/Bratislava"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "slovenia",
+    "title": "Slovenia",
+    "level": "region",
+    "text": "A small, prosperous Central European country of about two million, wedged between Italy, Austria, Hungary, and Croatia, with a short Adriatic coast. Mountainous and heavily forested, it blends Alpine, Pannonian, and Mediterranean landscapes. Slovene is spoken everywhere; Italian and Hungarian have local standing. Life runs on industry, trade, and tourism, centered on the capital Ljubljana. Once part of Yugoslavia, independent since 1991, it feels orderly, green, and quietly modern.",
+    "keywords": [
+      "Slovenia",
+      "Republic of Slovenia",
+      "Slovenija"
+    ],
+    "ref": "slovenia",
+    "sources": [
+      {
+        "title": "Slovenia",
+        "url": "https://en.wikipedia.org/wiki/Slovenia"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "ljubljana",
+    "title": "Ljubljana",
+    "level": "region",
+    "text": "Ljubljana is Slovenia's capital and largest city, sitting on an old trade route between the Adriatic and the Danube basin, north of the country's biggest marsh. It is the nation's political, cultural, economic and university hub. Slovene is spoken everywhere; English is common among the young. The centre mixes Habsburg-era streets, Roman echoes of ancient Emona, a castle hill and a relaxed, café-filled pedestrian core where daily life runs at an unhurried pace.",
+    "keywords": [
+      "Ljubljana",
+      "Lublana",
+      "Emona"
+    ],
+    "ref": "ljubljana",
+    "sources": [
+      {
+        "title": "Ljubljana",
+        "url": "https://en.wikipedia.org/wiki/Ljubljana"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "solomon-islands",
+    "title": "Solomon Islands",
+    "level": "region",
+    "text": "A scattered Melanesian nation of six large islands and over a thousand smaller ones northeast of Australia, capital Honiara on Guadalcanal. Home to roughly 830,000 people, mostly indigenous Solomon Islanders speaking many local languages. A constitutional monarchy under King Charles III, represented by a governor-general. Once a British protectorate and a fierce WWII battleground, life today runs on island time—villages, fishing gardens, and a laid-back but sometimes tense politics.",
+    "keywords": [
+      "Solomon Islands",
+      "Solomons",
+      "Honiara",
+      "Guadalcanal",
+      "Melanesia"
+    ],
+    "ref": "solomon-islands",
+    "sources": [
+      {
+        "title": "Solomon Islands",
+        "url": "https://en.wikipedia.org/wiki/Solomon_Islands"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "honiara",
+    "title": "Honiara",
+    "level": "region",
+    "text": "Honiara, on Guadalcanal's north coast, is the capital and largest town of Solomon Islands, home to roughly 130,000 people. It holds the national parliament, port at Point Cruz, the main airport, and the Kukum Highway. A former British administrative centre, it has a history of ethnic tension and riots, notably anti-Chinese violence in 2006. Life runs on markets, government work and shipping; the city is a mix of concrete offices, coastal suburbs and harbour bustle.",
+    "keywords": [
+      "Honiara"
+    ],
+    "ref": "honiara",
+    "sources": [
+      {
+        "title": "Honiara",
+        "url": "https://en.wikipedia.org/wiki/Honiara"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "somalia",
+    "title": "Somalia",
+    "level": "region",
+    "text": "Horn of Africa nation at the continent's eastern tip, with mainland Africa's longest coastline along the Indian Ocean and Gulf of Aden. It borders Ethiopia, Djibouti and Kenya. Roughly 19 million people, mostly ethnic Somalis and Sunni Muslims; Somali is official, Arabic secondary. Mogadishu, the capital of some 2.7 million, shows both rebuilding and lingering danger. Decades of civil war since 1991, insurgent violence and clan politics shape daily life, though trade and livestock keep cities running.",
+    "keywords": [
+      "Somalia",
+      "Federal Republic of Somalia",
+      "Somali Republic",
+      "Horn of Africa"
+    ],
+    "ref": "somalia",
+    "sources": [
+      {
+        "title": "Somalia",
+        "url": "https://en.wikipedia.org/wiki/Somalia"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "mogadishu",
+    "title": "Mogadishu",
+    "level": "region",
+    "text": "Mogadishu (Xamar), Somalia's capital, sits on the Indian Ocean coast in the Banaadir region. A port for over a thousand years, it was once among East Africa's richest cities, then shattered by decades of civil war; now reconstruction is visibly underway. Its four million residents speak Somali and some Arabic and Italian, and daily life runs through busy markets, beaches, and checkpoints amid a mix of ruins, new buildings, and ongoing security concerns.",
+    "keywords": [
+      "Mogadishu",
+      "Xamar",
+      "Hamar",
+      "Banaadir"
+    ],
+    "ref": "mogadishu",
+    "sources": [
+      {
+        "title": "Mogadishu",
+        "url": "https://en.wikipedia.org/wiki/Mogadishu"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "somaliland",
+    "title": "Somaliland",
+    "level": "region",
+    "text": "A self-governing state on the Horn of Africa's Gulf of Aden coast, about 176,000 km² with some 6 million people, capital Hargeisa. Formerly a British protectorate, it joined Somalia in 1960, broke away in 1991 after war and repression, and has since run its own elections, currency and security. It is arid, livestock-based, and largely Somali-speaking and Muslim. In December 2025 Israel became the first UN state to recognise it.",
+    "keywords": [
+      "Somaliland",
+      "Republic of Somaliland",
+      "Hargeisa"
+    ],
+    "ref": "somaliland",
+    "sources": [
+      {
+        "title": "Somaliland",
+        "url": "https://en.wikipedia.org/wiki/Somaliland"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "hargeisa",
+    "title": "Hargeisa",
+    "level": "region",
+    "text": "Hargeisa is the capital and largest city of Somaliland, a self-governing breakaway state the world still treats as part of Somalia. It sits in a highland valley at over 1,300 metres, home mainly to Isaaq clan families. Rebuilt after near-total destruction in the 1980s war, it thrives on livestock trade, construction, retail, and stone-cutting. Somali and Arabic dominate daily life; streets bustle with commerce despite limited international recognition.",
+    "keywords": [
+      "Hargeisa",
+      "Hargeysa",
+      "Harjisa",
+      "Maroodi Jeex",
+      "Somaliland"
+    ],
+    "ref": "hargeisa",
+    "sources": [
+      {
+        "title": "Hargeisa",
+        "url": "https://en.wikipedia.org/wiki/Hargeisa"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "south-africa",
+    "title": "South Africa",
+    "level": "region",
+    "text": "Africa's southernmost nation, with 63 million people and coastline on two oceans. Its capital is split: Pretoria governs, Cape Town hosts Parliament, Bloemfontein holds the courts. Johannesburg is the largest city. The country carries deep history - ancient hominid sites, Khoisan and Bantu roots, Dutch and British colonisation, and the long shadow of apartheid, which ended in 1994. Life today is multilingual and vibrant, shaped by sharp contrasts between wealth and poverty.",
+    "keywords": [
+      "South Africa",
+      "RSA",
+      "Mzansi",
+      "Republic of South Africa"
+    ],
+    "ref": "south-africa",
+    "sources": [
+      {
+        "title": "South Africa",
+        "url": "https://en.wikipedia.org/wiki/South_Africa"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "bloemfontein",
+    "title": "Bloemfontein",
+    "level": "region",
+    "text": "Bloemfontein, capital of South Africa's Free State, sits high on the central plateau and anchors the Mangaung municipality. It houses the Supreme Court of Appeal, giving it a judicial-capital role. Known poetically as the City of Roses, it hosts a rose festival, game reserve, museums, and the Naval Hill planetarium. Its Sesotho name, Mangaung, means place of cheetahs. Life runs at a calm, mid-sized-city pace across Afrikaans, Sesotho, and English communities.",
+    "keywords": [
+      "Bloemfontein",
+      "Bloem",
+      "Mangaung",
+      "City of Roses"
+    ],
+    "ref": "bloemfontein",
+    "sources": [
+      {
+        "title": "Bloemfontein",
+        "url": "https://en.wikipedia.org/wiki/Bloemfontein"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "cape-town",
+    "title": "Cape Town",
+    "level": "region",
+    "text": "South Africa's legislative capital and second-largest city, set between Table Mountain and the sea where the Atlantic meets Table Bay. The country's oldest city, home to Parliament, famous for its harbour, beaches and fynbos-covered mountain. Prosperous by national standards, with strong tourism and property markets. A cosmopolitan mix of English, Afrikaans and Xhosa speakers; life centres on the City Bowl, coastal suburbs and the False Bay side.",
+    "keywords": [
+      "Cape Town",
+      "Mother City",
+      "Kaapstad",
+      "iKapa",
+      "City Bowl",
+      "Table Mountain",
+      "Cape Point"
+    ],
+    "ref": "cape-town",
+    "topics": [
+      "travel",
+      "politics",
+      "work"
+    ],
+    "sources": [
+      {
+        "title": "Cape Town",
+        "url": "https://en.wikipedia.org/wiki/Cape_Town"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "durban",
+    "title": "Durban",
+    "level": "region",
+    "text": "Durban, called eThekwini in Zulu, sits on South Africa's east coast where Natal Bay meets the Indian Ocean. It is the country's third-biggest city and sub-Saharan Africa's busiest port, capital of KwaZulu-Natal with over four million people in the metro. A humid subtropical climate keeps the Golden Mile beaches busy. Its people are largely Zulu, Indian and white, and life runs between the harbour, the flat centre, the Berea hills and the Bluff.",
+    "keywords": [
+      "Durban",
+      "eThekwini",
+      "Port Natal",
+      "Natal Bay"
+    ],
+    "ref": "durban",
+    "sources": [
+      {
+        "title": "Durban",
+        "url": "https://en.wikipedia.org/wiki/Durban"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "johannesburg",
+    "title": "Johannesburg",
+    "level": "region",
+    "text": "South Africa's largest city and Gauteng's provincial capital, home to nearly five million people in a metro of over fifteen million. Founded on Witwatersrand gold in 1886, it is now Africa's richest city, hosting the Johannesburg Stock Exchange and the Constitutional Court. Its neighbourhoods still mirror apartheid-era divides: Sandton's wealth, Soweto's townships, Lenasia's Indian community. Multilingual—English, Zulu, Xhosa, Sotho, Afrikaans—it is a busy, unequal city of commerce, traffic and hard edges.",
+    "keywords": [
+      "Johannesburg",
+      "Joburg",
+      "Jozi",
+      "eGoli",
+      "iGoli",
+      "City of Gold",
+      "Gauteng"
+    ],
+    "ref": "johannesburg",
+    "sources": [
+      {
+        "title": "Johannesburg",
+        "url": "https://en.wikipedia.org/wiki/Johannesburg"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "port-elizabeth",
+    "title": "Port Elizabeth",
+    "level": "region",
+    "text": "Gqeberha, officially renamed from Port Elizabeth in 2021, is South Africa's sixth-largest city and the Eastern Cape's main port and economic hub, sitting on Algoa Bay facing the Indian Ocean, 770 km east of Cape Town. Founded by British settlers in 1820, it blends English and Xhosa life, with a compact, windy seaside centre, blue-flag beaches, and a relaxed pace. Locals call it the Friendly City; tourism and shipping drive daily life.",
+    "keywords": [
+      "Port Elizabeth",
+      "Gqeberha",
+      "P.E.",
+      "PE",
+      "Algoa Bay",
+      "Nelson Mandela Bay",
+      "Windy City",
+      "Friendly City"
+    ],
+    "ref": "port-elizabeth",
+    "sources": [
+      {
+        "title": "Gqeberha",
+        "url": "https://en.wikipedia.org/wiki/Gqeberha"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "pretoria",
+    "title": "Pretoria",
+    "level": "region",
+    "text": "South Africa's executive capital, in Gauteng at the foot of the Magaliesberg, where the Apies River runs through town. Seat of government and home to over a hundred foreign embassies, plus universities and research councils. Known as the Jacaranda City for its purple-blooming streets in spring. A mix of government offices, students, diplomats and suburbs; Afrikaans, English and other local languages fill its leafy, formal, quietly bureaucratic streets.",
+    "keywords": [
+      "Pretoria",
+      "Tshwane",
+      "Jacaranda City",
+      "Voortstad"
+    ],
+    "ref": "pretoria",
+    "sources": [
+      {
+        "title": "Pretoria",
+        "url": "https://en.wikipedia.org/wiki/Pretoria"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "south-georgia-and-the-islands",
+    "title": "South Georgia and the Islands",
+    "level": "region",
+    "text": "A remote British Overseas Territory in the South Atlantic: South Georgia, a 165 km-long, 35 km-wide island, plus the uninhabited South Sandwich Islands chain some 700 km southeast. Argentina also claims it. No permanent residents, no flights or ferries; only a small rotating staff and a few thousand cruise visitors each summer. Life runs on research stations, wildlife, and harsh subantarctic weather.",
+    "keywords": [
+      "South Georgia and the Islands",
+      "South Georgia",
+      "South Sandwich Islands",
+      "SGSSI"
+    ],
+    "ref": "south-georgia-and-the-islands",
+    "sources": [
+      {
+        "title": "South Georgia and the South Sandwich Islands",
+        "url": "https://en.wikipedia.org/wiki/South_Georgia_and_the_South_Sandwich_Islands"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "south-korea",
+    "title": "South Korea",
+    "level": "region",
+    "text": "A nation of some 52 million on the lower half of the Korean Peninsula, formally still at war with North Korea across the fortified DMZ. Half its people crowd the Seoul metro area; Busan, Daegu and Incheon are the other big cities. Hyper-wired and fast-paced, it blends neon nightlife, cutting-edge tech and fierce schooling with mountains, temples and a deep Confucian respect for elders. Korean is spoken everywhere; daily life runs on smartphones, hierarchy and long work hours.",
+    "keywords": [
+      "South Korea",
+      "Republic of Korea",
+      "ROK",
+      "Korea",
+      "Hanguk"
+    ],
+    "ref": "south-korea",
+    "sources": [
+      {
+        "title": "South Korea",
+        "url": "https://en.wikipedia.org/wiki/South_Korea"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "busan",
+    "title": "Busan",
+    "level": "region",
+    "text": "South Korea's second city, a port metropolis of about 3.3 million on the southeast coast, hub of an industrial region of roughly 8 million. Its harbour is the country's busiest and among the world's largest container ports. The city climbs steep hillsides between the Nakdong and Suyeong rivers, with Haeundae beach as the nation's biggest. Korean is spoken everywhere; life is fast, coastal, and trade-driven, with conventions, film culture, and huge shopping centres shaping the city.",
+    "keywords": [
+      "Busan",
+      "Pusan",
+      "Busan Metropolitan City"
+    ],
+    "ref": "busan",
+    "sources": [
+      {
+        "title": "Busan",
+        "url": "https://en.wikipedia.org/wiki/Busan"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "daejeon",
+    "title": "Daejeon",
+    "level": "region",
+    "text": "South Korea's fifth-largest metropolis, home to about 1.5 million people, sitting in a basin ringed by low mountains where rivers wind toward the Geum. A high-speed rail junction an hour from Seoul, it doubles as an administrative capital and a science hub: KAIST, government labs, and Samsung and LG research campuses cluster in Daedeok Innopolis. It feels studious and orderly, full of students and civil servants, and is preparing to host the 2027 Summer World University Games.",
+    "keywords": [
+      "Daejeon",
+      "Daejeon Metropolitan City",
+      "대전"
+    ],
+    "ref": "daejeon",
+    "topics": [
+      "tech",
+      "science",
+      "travel"
+    ],
+    "sources": [
+      {
+        "title": "Daejeon",
+        "url": "https://en.wikipedia.org/wiki/Daejeon"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "gwangju",
+    "title": "Gwangju",
+    "level": "region",
+    "text": "A metropolis of well over a million in southwestern South Korea, once sixth-largest in the nation and a metropolitan city under the Home Ministry. In July 2026 it was merged with South Jeolla Province into the new provincial-level city of Jeonnam-Gwangju. Heart of the agricultural Jeolla region, famed for rich, varied cuisine. Locals speak Korean with a Jeolla accent and are known for pride, warmth, and a stubborn democratic streak.",
+    "keywords": [
+      "Gwangju",
+      "Kwangju",
+      "Jeonnam-Gwangju"
+    ],
+    "ref": "gwangju",
+    "sources": [
+      {
+        "title": "Gwangju",
+        "url": "https://en.wikipedia.org/wiki/Gwangju"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "incheon",
+    "title": "Incheon",
+    "level": "region",
+    "text": "Incheon is a northwestern port city of about three million, west of Seoul, with which it forms part of the world's fourth-largest metro area. Historic gateway to Korea since opening as an international harbour in 1883, it now thrives on shipping, the country's main international airport, and the Songdo free economic zone, where global firms like Samsung invest in biotech. Korean-speaking, fast-paced, coastal and modern, it blends container terminals, high-rises and conference halls.",
+    "keywords": [
+      "Incheon",
+      "Inchon",
+      "인천"
+    ],
+    "ref": "incheon",
+    "sources": [
+      {
+        "title": "Incheon",
+        "url": "https://en.wikipedia.org/wiki/Incheon"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "seoul",
+    "title": "Seoul",
+    "level": "region",
+    "text": "South Korea's capital and biggest city, home to about 9.6 million people — more than half the country lives in the wider metropolitan area. A dense, fast-paced city of high-rise towers, tech hubs like Gangnam, and corporate giants such as Samsung and Hyundai, with Korean spoken everywhere. Its history stretches back centuries, and the city itself was devastated in the Korean War before rebuilding into a modern metropolis. Some ministries have moved to Sejong, but Seoul remains the capital.",
+    "keywords": [
+      "Seoul",
+      "Seoul Special Metropolitan City",
+      "Soul",
+      "Gyeongseong",
+      "Keijō",
+      "Seoul Capital Area"
+    ],
+    "ref": "seoul",
+    "sources": [
+      {
+        "title": "Seoul",
+        "url": "https://en.wikipedia.org/wiki/Seoul"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "south-sudan",
+    "title": "South Sudan",
+    "level": "region",
+    "text": "The world's newest country, landlocked in East Africa since 2011, with around 13 million people and Juba as its capital. The White Nile and the vast Sudd swamp dominate its floodplains and savannah. Mostly Nilotic ethnic groups, young population, Christian and traditional faiths with a Muslim minority. Still recovering from a brutal 2013–2018 civil war; a fragile coalition government rules amid continuing ethnic violence and hardship.",
+    "keywords": [
+      "South Sudan",
+      "Republic of South Sudan",
+      "RoSS"
+    ],
+    "ref": "south-sudan",
+    "sources": [
+      {
+        "title": "South Sudan",
+        "url": "https://en.wikipedia.org/wiki/South_Sudan"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "spain",
+    "title": "Spain",
+    "level": "region",
+    "text": "A large southern European kingdom covering most of the Iberian Peninsula, plus the Canary and Balearic Islands and the North African enclaves of Ceuta and Melilla. Bordered by France, Andorra and Portugal, with Mediterranean and Atlantic coasts. Madrid is the capital; Barcelona, Valencia and Seville are major cities. Castilian Spanish is official, alongside Catalan, Basque and Galician in their regions. Life runs late: long lunches, evening strolls, lively nightlife, football devotion and strong regional identities.",
+    "keywords": [
+      "Spain",
+      "Kingdom of Spain",
+      "España",
+      "Iberia"
+    ],
+    "ref": "spain",
+    "sources": [
+      {
+        "title": "Spain",
+        "url": "https://en.wikipedia.org/wiki/Spain"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "hanoi",
+    "title": "Hanoi",
+    "level": "region",
+    "text": "Vietnam's capital, home to 8.7 million people on the Red River delta. A thousand-year-old city once called Thăng Long, it layers imperial temples, French colonial facades, and cramped tube houses around landmarks like Hoàn Kiếm Lake and the Ho Chi Minh Mausoleum. It hosts the government, army headquarters, and foreign embassies. Streets hum with motorbikes, street food vendors, and a fast-growing economy second only to Ho Chi Minh City's.",
+    "keywords": [
+      "Hanoi",
+      "Ha Noi",
+      "Thang Long",
+      "Dong Kinh"
+    ],
+    "ref": "hanoi",
+    "sources": [
+      {
+        "title": "Hanoi",
+        "url": "https://en.wikipedia.org/wiki/Hanoi"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "ho-chi-minh-city",
+    "title": "Ho Chi Minh City",
+    "level": "region",
+    "text": "Vietnam's largest city and financial engine, home to over 14 million people since absorbing Bình Dương and Vũng Tàu in 2025. Locals still call it Saigon. A humid sprawl of rivers, canals, alleyways and motorbike traffic, it mixes colonial landmarks and glass towers with rowdy nightlife on Bùi Viện. Vietnamese is the language of daily life; commerce drives everything.",
+    "keywords": [
+      "Ho Chi Minh City",
+      "HCMC",
+      "Saigon",
+      "Sài Gòn",
+      "Thành phố Hồ Chí Minh"
+    ],
+    "ref": "ho-chi-minh-city",
+    "topics": [
+      "business",
+      "nightlife",
+      "travel"
+    ],
+    "sources": [
+      {
+        "title": "Ho Chi Minh City",
+        "url": "https://en.wikipedia.org/wiki/Ho_Chi_Minh_City"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "wallis-and-futuna-islands",
+    "title": "Wallis and Futuna Islands",
+    "level": "region",
+    "text": "A small French overseas collectivity in the South Pacific, between Fiji, Tonga, Samoa and Tuvalu: three volcanic tropical islands plus islets, split into the Wallis (Uvea) group and the distant Hoorn (Futuna) group, with mostly uninhabited Alofi. Only about 142 square kilometres, and shrinking fast—population around 11,000 by 2023, down from nearly 15,000 two decades earlier. The capital, Mata Utu, sits on Wallis. Life runs on French administration, Catholic tradition and customary island kingship; Polynesian languages dominate daily speech, and most young people leave for New Caledonia or France.",
+    "keywords": [
+      "Wallis and Futuna Islands",
+      "Wallis",
+      "Futuna",
+      "Uvea",
+      "Hoorn Islands",
+      "Mata Utu"
+    ],
+    "ref": "wallis-and-futuna-islands",
+    "sources": [
+      {
+        "title": "Wallis and Futuna",
+        "url": "https://en.wikipedia.org/wiki/Wallis_and_Futuna"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "western-sahara",
+    "title": "Western Sahara",
+    "level": "region",
+    "text": "A sparsely populated desert territory in northwest Africa, about 272,000 square kilometres, still disputed since Spain pulled out in 1975. Morocco administers most of it, including the coastal cities and resources; the Polisario Front holds the sparsely settled east behind a long mined sand wall, the Berm. Many Sahrawis live in refugee camps near Tindouf, Algeria. Life runs on phosphate, fishing, nomadic tradition, and a frozen referendum. Hassaniya Arabic and Spanish echo through it.",
+    "keywords": [
+      "Western Sahara",
+      "Sahrawi",
+      "SADR",
+      "Spanish Sahara",
+      "Africa's last colony"
+    ],
+    "ref": "western-sahara",
+    "topics": [
+      "politics",
+      "military",
+      "travel"
+    ],
+    "sources": [
+      {
+        "title": "Western Sahara",
+        "url": "https://en.wikipedia.org/wiki/Western_Sahara"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "yemen",
+    "title": "Yemen",
+    "level": "region",
+    "text": "Yemen sits at the southern tip of the Arabian Peninsula, bordering Saudi Arabia and Oman, with long Red Sea and Arabian Sea coasts and the Socotra islands offshore. About 35 million mostly Muslim Arabs live here; Arabic is spoken everywhere. The constitutional capital is Sanaa, the largest city. Ancient Arabia's trading kingdoms and historic coffee ports shaped its identity, but years of political crisis since 2011 have left daily life strained, fragmented, and resilient.",
+    "keywords": [
+      "Yemen",
+      "Republic of Yemen",
+      "Yemeni",
+      "Sanaa",
+      "Aden",
+      "Yemen Arab Republic",
+      "South Yemen",
+      "North Yemen"
+    ],
+    "ref": "yemen",
+    "sources": [
+      {
+        "title": "Yemen",
+        "url": "https://en.wikipedia.org/wiki/Yemen"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "aden",
+    "title": "Aden",
+    "level": "region",
+    "text": "Aden is Yemen's largest southern city, home to over a million people on the Gulf of Aden coast near the Red Sea's entrance. Since 2014 it has served as the seat of Yemen's internationally recognized government. A deep natural harbour makes it a busy maritime gateway linking Africa, Asia, and the Middle East. Its old colonial districts—Crater, Tawahi, Mualla, Khor Maksar—sit beside the western peninsula of Little Aden, and daily life runs around the port.",
+    "keywords": [
+      "Aden",
+      "Aden Governorate",
+      "Crater",
+      "Little Aden",
+      "Tawahi",
+      "Mualla",
+      "Khor Maksar"
+    ],
+    "ref": "aden",
+    "sources": [
+      {
+        "title": "Aden",
+        "url": "https://en.wikipedia.org/wiki/Aden"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "sanaa",
+    "title": "Sanaa",
+    "level": "region",
+    "text": "Yemen's largest city and capital, high in the mountains at 2,300 metres, home to over three million people. Its old quarter of tall, patterned brick towers is famous, alongside the vast Al-Saleh Mosque. Arabic is spoken everywhere. Since Houthi forces took the city in 2014 it has been ruled by them, while the internationally recognized government sits in Aden. Daily life persists amid scarcity, checkpoints and intermittent war.",
+    "keywords": [
+      "Sanaa",
+      "Sana'a",
+      "San'a",
+      "Sanaa Municipality"
+    ],
+    "ref": "sanaa",
+    "sources": [
+      {
+        "title": "Sanaa",
+        "url": "https://en.wikipedia.org/wiki/Sanaa"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "zambia",
+    "title": "Zambia",
+    "level": "region",
+    "text": "A landlocked country in Southern Africa, capital Lusaka, with much of its people living there and in the northern Copperbelt mining region. Formerly the British colony of Northern Rhodesia, independent since 1964, it has known mostly peaceful changes of government. Its economy rests on copper and other minerals, farmland, and wildlife. Much of the population lives in poverty. Neighbours include the DRC, Tanzania, Malawi, Mozambique, Zimbabwe, Botswana, Namibia's Caprivi, and Angola.",
+    "keywords": [
+      "Zambia",
+      "Republic of Zambia",
+      "Northern Rhodesia"
+    ],
+    "ref": "zambia",
+    "sources": [
+      {
+        "title": "Zambia",
+        "url": "https://en.wikipedia.org/wiki/Zambia"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "lusaka",
+    "title": "Lusaka",
+    "level": "region",
+    "text": "Zambia's capital and largest city, sitting on the central plateau at roughly 1,280 metres, home to over two million people and among southern Africa's fastest-growing cities. It anchors government and commerce, with highways fanning north, south, east and west. Wealthy leafy suburbs like Woodlands contrast with sprawling informal settlements on the western and southern fringes. English serves official business; Bemba, Tonga and Chichewa fill the streets.",
+    "keywords": [
+      "Lusaka"
+    ],
+    "ref": "lusaka",
+    "sources": [
+      {
+        "title": "Lusaka",
+        "url": "https://en.wikipedia.org/wiki/Lusaka"
+      }
+    ],
+    "draft": true
+  },
+  {
+    "id": "zimbabwe",
+    "title": "Zimbabwe",
+    "level": "region",
+    "text": "A landlocked southern African nation between the Zambezi and Limpopo rivers, bordered by South Africa, Botswana, Zambia and Mozambique. Home to about 17 million people, mostly Shona and Ndebele, speaking English, Shona and Ndebele among its sixteen official languages. Harare is the capital, Bulawayo the second city. Its history runs from Great Zimbabwe's stone city through colonial Rhodesia and a liberation war to independence in 1980 and long rule by Mugabe, who fell in a 2017 coup.",
+    "keywords": [
+      "Zimbabwe",
+      "Rhodesia",
+      "ZWE"
+    ],
+    "ref": "zimbabwe",
+    "sources": [
+      {
+        "title": "Zimbabwe",
+        "url": "https://en.wikipedia.org/wiki/Zimbabwe"
+      }
+    ],
+    "draft": true
+  }
+]

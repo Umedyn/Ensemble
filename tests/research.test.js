@@ -271,6 +271,47 @@ test('brief research reads only a page\'s opening, in one call, for one entry; a
   assert.equal(E.Research.lead('Opening one.\n\nOpening two.\n== History ==\nLater.'), 'Opening one.\n\nOpening two.');
 });
 
+test('the wiki saying too many requests: wait as it asks and try again; still refused, the run stops with the rest still to do', async () => {
+  const { main } = await cli();
+  const dir = copyWorld();
+  const q = quiet();
+  await main(['plan', dir, ...PLAN], { fetch: fakeFetch(goodModel).fn, log: q.log });
+  trim(dir);
+  const waits = [];
+  const sleep = async (ms) => { waits.push(ms); };
+  const busy = (f, refusals) => {
+    let n = 0;
+    return async (url, opts) => {
+      if (!String(url).includes('/chat/completions') && (refusals === Infinity || n++ < refusals)) return { ok: false, status: 429, headers: { get: (h) => (h === 'retry-after' ? '7' : null) } };
+      return f.fn(url, opts);
+    };
+  };
+  // Twice refused, then fine: the run goes on.
+  const f = fakeFetch(goodModel);
+  await main(['run', dir], { fetch: busy(f, 2), log: q.log, sleep });
+  assert.deepEqual(waits, [7000, 7000], 'as long as the wiki asked');
+  let job = JSON.parse(fs.readFileSync(path.join(dir, 'research.json'), 'utf8'));
+  assert.deepEqual(job.topics.filter((t) => !t.skip).map((t) => t.status), ['done', 'done', 'no source']);
+  // Refused every time: it stops at the first topic and leaves it and the rest to do.
+  const dir2 = copyWorld();
+  await main(['plan', dir2, ...PLAN], { fetch: fakeFetch(goodModel).fn, log: q.log });
+  trim(dir2);
+  waits.length = 0;
+  const q2 = quiet();
+  const f2 = fakeFetch(goodModel);
+  assert.equal(await main(['run', dir2], { fetch: busy(f2, Infinity), log: q2.log, sleep }), 0);
+  job = JSON.parse(fs.readFileSync(path.join(dir2, 'research.json'), 'utf8'));
+  assert.deepEqual(job.topics.filter((t) => !t.skip).map((t) => t.status), ['todo', 'todo', 'todo']);
+  assert.equal(waits.length, 5, 'tried six times');
+  assert.equal(f2.calls.model.length, 0);
+  assert.match(q2.lines.join('\n'), /Stopped early: en\.wikipedia\.org keeps refusing for too many requests \(HTTP 429, 6 tries\)\. Everything done so far is kept/);
+  // Later, it goes on from there.
+  await main(['run', dir2], { fetch: fakeFetch(goodModel).fn, log: q2.log, sleep });
+  job = JSON.parse(fs.readFileSync(path.join(dir2, 'research.json'), 'utf8'));
+  assert.deepEqual(job.topics.filter((t) => !t.skip).map((t) => t.status), ['done', 'done', 'no source']);
+  assert.equal(job.stopped, undefined);
+});
+
 test('asking the model first skips a topic it already knows', async () => {
   const { main } = await cli();
   const dir = copyWorld();

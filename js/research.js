@@ -84,10 +84,30 @@
   // ---------- sources ----------
   const host = (u) => { try { return new URL(u).host; } catch (e) { return u; } };
   R.apiOf = (wiki) => (/api\.php$/.test(wiki) ? wiki : String(wiki).replace(/\/+$/, '').replace(/\/wiki$/, '') + (/wikipedia\.org/.test(wiki) ? '/w/api.php' : '/api.php'));
+  // Being polite to the wiki: requests at least WIKI.gap ms apart (the
+  // command sets it; 0 by default), and a refusal for too many requests (429,
+  // or 503) waits as the wiki asks (Retry-After) or longer each time, then
+  // tries again. Still refused after WIKI.tries, it throws a "RateLimited"
+  // error, which stops the run (R.run) instead of failing every topic after.
+  R.WIKI = { gap: 0, tries: 6, backoff: 5000, maxWait: 120000 };
+  R.sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
+  let lastWiki = 0;
   R.getJSON = async function (fetchFn, url) {
-    const r = await fetchFn(url, { headers: { 'User-Agent': R.UA, 'Api-User-Agent': R.UA } });
-    if (!r.ok) throw new Error(`${host(url)}: HTTP ${r.status}`);
-    return r.json();
+    for (let tries = 1; ; tries++) {
+      const since = Date.now() - lastWiki;
+      if (R.WIKI.gap && since < R.WIKI.gap) await R.sleep(R.WIKI.gap - since);
+      lastWiki = Date.now();
+      const r = await fetchFn(url, { headers: { 'User-Agent': R.UA, 'Api-User-Agent': R.UA } });
+      if (r.ok) return r.json();
+      if (r.status !== 429 && r.status !== 503) throw new Error(`${host(url)}: HTTP ${r.status}`);
+      if (tries >= R.WIKI.tries) {
+        const err = new Error(`${host(url)} keeps refusing for too many requests (HTTP ${r.status}, ${tries} tries)`);
+        err.name = 'RateLimited';
+        throw err;
+      }
+      const asked = Number(r.headers && typeof r.headers.get === 'function' && r.headers.get('retry-after'));
+      await R.sleep(Math.min(R.WIKI.maxWait, asked > 0 ? asked * 1000 : R.WIKI.backoff * 2 ** (tries - 1)));
+    }
   };
   const q = (params) => Object.entries(Object.assign({ format: 'json', formatversion: 2, origin: '*' }, params)).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
   // The best-matching page title for a search, or null.
@@ -338,6 +358,7 @@
   // goes on; running again retries it. One whose subject has lore of the
   // author's is left alone (checked each run), unless it says "force": true.
   R.run = async function (ctx, deps) {
+    delete ctx.job.stopped;
     for (const topic of ctx.job.topics) {
       if (topic.skip || ['done', 'known', 'no source'].includes(topic.status)) continue;
       const has = !topic.force && ctx.owned && ctx.owned.get(R.loreKey(topic));
@@ -352,6 +373,13 @@
         await R.runTopic(ctx, topic, deps);
         delete topic.error;
       } catch (err) {
+        // The wiki won't take more for now: stop here, this topic still to do.
+        if (err.name === 'RateLimited') {
+          topic.status = 'todo';
+          ctx.job.stopped = String(err.message);
+          deps.save();
+          return ctx.job;
+        }
         topic.status = 'failed';
         topic.error = String(err.message || err);
         deps.save();

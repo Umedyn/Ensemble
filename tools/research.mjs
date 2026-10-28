@@ -15,7 +15,9 @@
 // "text") before "run". "run" researches the topics not done yet (it resumes
 // after a stop or a failure) and writes the drafts; "apply" writes them again
 // without calling the model. An API key comes from ENSEMBLE_API_KEY, never
-// from a file.
+// from a file. Wiki requests go a second apart and wait when the wiki says
+// too many; ENSEMBLE_CONTACT (an email or a page) is added to how the tool
+// introduces itself, as Wikimedia asks of tools.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -103,8 +105,15 @@ export async function main(argv, deps) {
     const which = configure(E, flags, deps.env);
     const b = E.LLM.backendFor('worldbuild');
     log(`Researching with the ${which} backend (${b.model || b.label} at ${b.url}).`);
+    // Polite to the wiki: a second between requests when run for real (the
+    // tests pass their own sleep), and who is asking, with a contact if given.
+    if (deps.sleep) E.Research.sleep = deps.sleep;
+    if (deps.pace) E.Research.WIKI.gap = 1000;
+    const contact = deps.env && deps.env.ENSEMBLE_CONTACT;
+    if (contact) E.Research.UA = `Ensemble-research/1.0 (local world-building tool; ${contact})`;
     const ctx = E.Research.context(loaded, job, files);
     await E.Research.run(ctx, { fetch: deps.fetch, save: () => writeJSON(jobPath, job), onProgress: (m) => log('  ' + m) });
+    if (job.stopped) log(`Stopped early: ${job.stopped}. Everything done so far is kept; run the same command again later (in an hour or so) to go on from here.`);
   }
   // Write the drafts: lore/research.json and world.json's timeline.
   const out = E.Research.apply(files, job);
@@ -134,5 +143,5 @@ export async function main(argv, deps) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  main(process.argv.slice(2), { fetch: globalThis.fetch, env: process.env }).then((code) => process.exit(code), (err) => { console.error(err.message || err); process.exit(1); });
+  main(process.argv.slice(2), { fetch: globalThis.fetch, env: process.env, pace: true }).then((code) => process.exit(code), (err) => { console.error(err.message || err); process.exit(1); });
 }

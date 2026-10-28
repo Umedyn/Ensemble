@@ -114294,5 +114294,8 @@
   "regionLabels": [
     "country",
     "city"
+  ],
+  "lore": [
+    "research"
   ]
 }
