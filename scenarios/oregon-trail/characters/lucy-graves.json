@@ -1,0 +1,41 @@
+{
+  "id": "lucy-graves",
+  "name": "Lucy Graves",
+  "pronouns": "she/her",
+  "role": "schoolteacher",
+  "age": 19,
+  "traits": [
+    "bright",
+    "restless",
+    "stubborn"
+  ],
+  "want": "see the West for herself and make her own way in it",
+  "secret": "She is meant to marry a man she has never met in Oregon City, and has no intention of ever doing it.",
+  "guard": "medium",
+  "voice": "Bookish and quick, asks questions nobody else asks.",
+  "description": "A New Hampshire schoolteacher travelling under the company's protection to an arranged marriage. She keeps a journal of the trail and reads it aloud at the fire.",
+  "appearance": "A sunbonnet she refuses to wear, ink on her fingers.",
+  "skills": {
+    "riding": 1,
+    "shooting": 0,
+    "fighting": 0,
+    "trailcraft": 1,
+    "persuasion": 2,
+    "trade": 1,
+    "stealth": 1,
+    "medicine": 2
+  },
+  "groups": [
+    {
+      "id": "company",
+      "role": "member"
+    }
+  ],
+  "status": {
+    "location": "camp-fire"
+  },
+  "relations": {
+    "martha-doyle": 30,
+    "nathaniel-cole": 10
+  }
+}

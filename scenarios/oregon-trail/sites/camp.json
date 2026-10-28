@@ -1,0 +1,335 @@
+{
+  "id": "camp",
+  "name": "The company camp",
+  "type": "wagon camp",
+  "place": "camp",
+  "tags": [
+    "wagon camp",
+    "emigrant camp",
+    "wagon circle"
+  ],
+  "setting": [
+    "western"
+  ],
+  "credit": "Drawn for Ensemble (The Frontier, 1866–1869)",
+  "license": "PolyForm Noncommercial 1.0.0, with the game",
+  "image": "sites/camp.svg",
+  "width": 1600,
+  "height": 1000,
+  "entry": "camp-circle",
+  "rooms": [
+    {
+      "id": "camp-circle",
+      "name": "The wagon circle",
+      "desc": "The wagons drawn up in a ring with their tongues chained wheel to wheel: inside it the families' tents, the children and, at night, the oxen.",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "wagons chained in a ring",
+        "tents",
+        "washing lines"
+      ],
+      "shape": [
+        [
+          550,
+          200
+        ],
+        [
+          800,
+          200
+        ],
+        [
+          800,
+          800
+        ],
+        [
+          550,
+          800
+        ],
+        [
+          400,
+          500
+        ]
+      ],
+      "links": [
+        {
+          "to": "camp-fire",
+          "kind": "open"
+        },
+        {
+          "to": "camp-captain",
+          "kind": "open"
+        },
+        {
+          "to": "camp-doctor",
+          "kind": "open"
+        },
+        {
+          "to": "camp-edge",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "camp-fire",
+      "name": "The cook fires",
+      "desc": "Three fires inside the ring where the company eats, argues and holds its meetings; buffalo chips when there is no wood.",
+      "size": "medium",
+      "outside": true,
+      "features": [
+        "cook fires",
+        "dutch ovens",
+        "water barrels"
+      ],
+      "shape": [
+        [
+          800,
+          200
+        ],
+        [
+          1050,
+          200
+        ],
+        [
+          1200,
+          500
+        ],
+        [
+          1050,
+          800
+        ],
+        [
+          800,
+          800
+        ]
+      ],
+      "links": [
+        {
+          "to": "camp-smith",
+          "kind": "open"
+        },
+        {
+          "to": "camp-herd",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "camp-captain",
+      "name": "The captain's wagon",
+      "desc": "The lead wagon: the company's papers, the guidebook, a rifle rack, and the captain's cot under the canvas.",
+      "size": "small",
+      "features": [
+        "company ledger",
+        "guidebook",
+        "rifle rack"
+      ],
+      "shape": [
+        [
+          650,
+          120
+        ],
+        [
+          950,
+          120
+        ],
+        [
+          950,
+          200
+        ],
+        [
+          650,
+          200
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "camp-doctor",
+      "name": "The doctor's wagon",
+      "desc": "A wagon fitted with a drop-down table, jars, instruments and a locked medicine chest.",
+      "size": "small",
+      "features": [
+        "medicine chest",
+        "drop-down table",
+        "lantern"
+      ],
+      "shape": [
+        [
+          550,
+          800
+        ],
+        [
+          800,
+          800
+        ],
+        [
+          800,
+          880
+        ],
+        [
+          550,
+          880
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "camp-smith",
+      "name": "The forge wagon",
+      "desc": "A heavy wagon with a portable forge and anvil, where wheels, tyres and shoes are mended every evening.",
+      "size": "small",
+      "features": [
+        "portable forge",
+        "anvil",
+        "spare wheels"
+      ],
+      "shape": [
+        [
+          800,
+          800
+        ],
+        [
+          1050,
+          800
+        ],
+        [
+          1050,
+          880
+        ],
+        [
+          800,
+          880
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "camp-herd",
+      "name": "The herd ground",
+      "desc": "Outside the ring where the oxen, horses and cows graze under the night guard.",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "oxen",
+        "picket line",
+        "night guard"
+      ],
+      "shape": [
+        [
+          1050,
+          200
+        ],
+        [
+          1550,
+          120
+        ],
+        [
+          1550,
+          880
+        ],
+        [
+          1050,
+          880
+        ],
+        [
+          1050,
+          800
+        ],
+        [
+          1200,
+          500
+        ]
+      ],
+      "links": [
+        {
+          "to": "camp-water",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "camp-edge",
+      "name": "Outside the circle",
+      "desc": "The dark beyond the wagons: the sentry line, a lone fire where the hired men sleep, and the prairie going on forever.",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "sentry post",
+        "lone fire",
+        "bedrolls"
+      ],
+      "shape": [
+        [
+          50,
+          120
+        ],
+        [
+          650,
+          120
+        ],
+        [
+          650,
+          200
+        ],
+        [
+          550,
+          200
+        ],
+        [
+          400,
+          500
+        ],
+        [
+          550,
+          800
+        ],
+        [
+          550,
+          880
+        ],
+        [
+          50,
+          880
+        ]
+      ],
+      "links": [
+        {
+          "to": "camp-water",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "camp-water",
+      "name": "The water",
+      "desc": "Wherever the company camps: a river, a creek or a spring, where the stock drink and the women do the washing.",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "riverbank",
+        "water buckets",
+        "willows"
+      ],
+      "shape": [
+        [
+          50,
+          880
+        ],
+        [
+          1550,
+          880
+        ],
+        [
+          1550,
+          980
+        ],
+        [
+          50,
+          980
+        ]
+      ],
+      "links": []
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "id": "martha-doyle",
+  "name": "Martha Doyle",
+  "pronouns": "she/her",
+  "role": "widow travelling with her two sons",
+  "age": 36,
+  "traits": [
+    "determined",
+    "warm",
+    "secretive"
+  ],
+  "want": "reach her brother in the West and give her boys a better life than the Boston mills",
+  "secret": "The letter in her carpetbag is from her brother: he and a partner struck it rich, and she means to steer the captain to them.",
+  "guard": "medium",
+  "voice": "Boston Irish, quick and teasing, until something matters.",
+  "description": "A mill worker's widow from Boston who sold everything for a wagon. She joined this company because it is going the right way, and watches the captain to judge when to ask.",
+  "appearance": "Red hands, a faded green shawl, a battered carpetbag she never lets out of her sight.",
+  "skills": {
+    "riding": 0,
+    "shooting": 1,
+    "fighting": 1,
+    "trailcraft": 1,
+    "persuasion": 3,
+    "trade": 2,
+    "stealth": 1,
+    "medicine": 1
+  },
+  "groups": [
+    {
+      "id": "company",
+      "role": "member"
+    }
+  ],
+  "status": {
+    "location": "camp-circle"
+  },
+  "relations": {
+    "mercer": 25,
+    "lucy-graves": 30,
+    "cyrus-bell": 20
+  },
+  "knows": [
+    "Her brother Michael's letter says the strike is in Poorman's Gulch, a day north of South Pass, and that his partners will trust nobody he hasn't vouched for."
+  ]
+}

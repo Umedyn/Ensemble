@@ -1,0 +1,42 @@
+{
+  "id": "jasper-kell",
+  "name": "Jasper Kell",
+  "pronouns": "he/him",
+  "role": "hired teamster",
+  "age": 27,
+  "traits": [
+    "charming",
+    "reckless",
+    "restless"
+  ],
+  "want": "get as far from Missouri as a wagon will take him, with money in his pocket",
+  "secret": "He rode with a guerrilla band in the war and was at the burning of Lawrence; he is wanted in Kansas under his real name.",
+  "guard": "high",
+  "voice": "Easy, joking, a Missouri drawl that hardens when crossed.",
+  "description": "A hired driver for the Brandts, good with mules and cards. Some in the company like him a great deal; some watch him.",
+  "appearance": "Handsome and unshaven, a cavalry pistol worn low, a Missouri slouch hat.",
+  "skills": {
+    "riding": 3,
+    "shooting": 3,
+    "fighting": 2,
+    "trailcraft": 1,
+    "persuasion": 2,
+    "trade": 1,
+    "stealth": 2,
+    "medicine": 0
+  },
+  "groups": [
+    {
+      "id": "company",
+      "role": "member"
+    }
+  ],
+  "status": {
+    "location": "camp-herd"
+  },
+  "relations": {
+    "cyrus-bell": -20,
+    "wilhelm-brandt": 20,
+    "lucy-graves": 25
+  }
+}

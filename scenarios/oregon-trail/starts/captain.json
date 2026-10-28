@@ -1,0 +1,103 @@
+{
+  "id": "captain",
+  "title": "Council Bluffs, May 1866: the captain",
+  "summary": "You are Elias Mercer, elected captain of thirty-eight wagons bound for Oregon. The grass is up, the company is restless, and every one of them will look to you when things go wrong.",
+  "start": {
+    "day": 1582,
+    "hour": 7
+  },
+  "region": "omaha",
+  "castLabel": "Company",
+  "tactical": true,
+  "player": "mercer",
+  "playerSlot": {
+    "location": "camp-captain",
+    "summary": "You make your own captain of the Mercer company: thirty-eight wagons bound for Oregon from Council Bluffs, who elected you to get them there.",
+    "knows": [
+      "The company is bound for Oregon City by the Platte, South Pass and Fort Hall, and the old hands say a train must pass Independence Rock by the Fourth of July to beat the snow."
+    ],
+    "roles": [
+      {
+        "id": "captain",
+        "label": "Captain of the company",
+        "desc": "Elected to lead the company: the order of march, the night guard, the quarrels.",
+        "skills": {
+          "trailcraft": 2,
+          "persuasion": 2,
+          "shooting": 1
+        },
+        "suggestedTraits": [
+          "steady",
+          "stern",
+          "fair"
+        ]
+      },
+      {
+        "id": "homesteader",
+        "label": "Homesteader",
+        "desc": "Going west for land: a farm in the Willamette valley, or wherever the soil is good.",
+        "skills": {
+          "trailcraft": 2,
+          "fighting": 1,
+          "trade": 1
+        },
+        "suggestedTraits": [
+          "stubborn",
+          "patient",
+          "hopeful"
+        ]
+      },
+      {
+        "id": "veteran",
+        "label": "Veteran",
+        "desc": "Fought in the war, blue or grey, and is going west to forget it or to start again.",
+        "skills": {
+          "shooting": 2,
+          "riding": 1,
+          "fighting": 1
+        },
+        "suggestedTraits": [
+          "haunted",
+          "disciplined",
+          "wry"
+        ]
+      }
+    ],
+    "freeform": true,
+    "skillPoints": 10,
+    "maxSkill": 3,
+    "relationsDefault": 15,
+    "castFeelings": 20,
+    "groups": [
+      {
+        "id": "company",
+        "role": "leader"
+      }
+    ],
+    "reputation": {
+      "company": 45
+    }
+  },
+  "reputation": {
+    "company": 45
+  },
+  "cast": [
+    {
+      "id": "mercer",
+      "knows": [
+        "The company is bound for Oregon City by the Platte, South Pass and Fort Hall, and the old hands say a train must pass Independence Rock by the Fourth of July to beat the snow.",
+        "Joseph Lebeau asked for his pay in gold, half at Fort Laramie and half at Fort Bridger, and wouldn't say why Fort Bridger."
+      ]
+    },
+    "lebeau",
+    "martha-doyle",
+    "cyrus-bell",
+    "wilhelm-brandt",
+    "lucy-graves",
+    "nathaniel-cole",
+    "jasper-kell",
+    "michael-doyle",
+    "elijah-stroud"
+  ],
+  "opening": "Dawn on the Missouri bottoms at Council Bluffs, and thirty-eight wagons are drawn up in a ring on the trampled grass, their canvas grey with dew. Oxen low at the picket line. Somewhere a child is crying and somebody is already arguing about the order of march.\n\nYou have the company's ledger open on your knees in the lead wagon: names, wagons, rifles, flour by the hundredweight. It adds up, nearly.\n\nWilhelm Brandt is at the tailboard, hat in his hands. \"Captain. The Brandts were promised the front of the line this week. Mr. Kell says it is his turn.\" Behind him Jasper Kell leans on a wheel and grins."
+}

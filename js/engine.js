@@ -84,6 +84,8 @@
     (sc.facts || []).forEach((text) => E.Memory.addFact(state, { about: [], text, known_by: ['all'], weight: 2 }));
     // The canon timeline (task 5-2): the past becomes facts and chapter zero.
     E.Timeline.seed(state);
+    // Where the player starts counts as reached (task 7-7).
+    Eng.noteReached(state);
     if (sc.opening) {
       state.recent = [{ turn: 0, action: null, text: sc.opening }];
       state.log.push({ turn: 0, type: 'scene', text: sc.opening });
@@ -305,7 +307,11 @@
   // regions it is inside cost nothing, a route on a region serves everything
   // inside it, and arriving at a region reaches what's inside it. Regions
   // both are inside don't count (Paris to Lyon is not free for being in France).
-  Eng.regionTrip = function (state, from, to) {
+  // opts.kinds: only routes of these kinds (task 7-7: a wagon company), and
+  // the free ways inside a region (borders between its parts); opts.all: the
+  // way as if every route were open (the road a party means to take).
+  Eng.regionTrip = function (state, from, to, opts) {
+    const kinds = opts && Array.isArray(opts.kinds) ? opts.kinds : null;
     const S = E.Scenario;
     const list = state.scenario.regions || [];
     if (!from || !to || from === to) return { legs: [], hours: 0 };
@@ -323,7 +329,7 @@
         const at = best.get(id);
         if (goals.has(id)) return at;
         (edges.get(id) || []).forEach((e) => {
-          if (!open(e)) return;
+          if (!open(e) || (kinds && !kinds.includes(e.kind) && !(e.kind === 'border' && !e.hours))) return;
           const cost = at.cost + e.hours + 1e-6; // fewer legs on a tie
           const seen = best.get(e.to);
           if (seen && seen.cost <= cost) return;
@@ -334,7 +340,7 @@
       return null;
     };
     const sum = (legs) => Math.round(legs.reduce((h, e) => h + e.hours, 0) * 100) / 100;
-    const found = search((e) => legOpen(state, e));
+    const found = search((e) => (opts && opts.all) || legOpen(state, e));
     if (found) return { legs: found.legs, hours: sum(found.legs) };
     const any = search(() => true);
     if (!any) return { blocked: true, legs: null, why: `there is no way from ${(Eng.regionDef(state, from) || {}).name || from} to ${(Eng.regionDef(state, to) || {}).name || to}`, risky: false };
@@ -382,11 +388,28 @@
   // At the start of a turn, and after moves: the player is in it, or knows a
   // fact naming it.
   Eng.revealAround = function (state, res) {
+    Eng.noteReached(state);
     if (!Eng.hiddenRegions(state).size) return;
     const here = Eng.playerRegion(state);
     if (here && !Eng.regionKnown(state, here)) Eng.revealRegion(state, here, res, 'the player is there');
     (state.facts || []).filter((f) => E.Memory.knows(f, state.player)).forEach((f) => Eng.revealNamed(state, f.text, res, 'the player knows a fact about it'));
   };
+  // ---------- where the player has been (task 7-7) ----------
+  // Every region the player has been in, with the regions it is inside;
+  // journeys add the regions their legs went through. Arrival events and the
+  // "reached" condition read it.
+  Eng.noteReached = function (state, region) {
+    const r = region || Eng.playerRegion(state);
+    if (!r || !Eng.regionDef(state, r)) return;
+    const have = new Set(state.reached || []);
+    const before = have.size;
+    E.Scenario.regionChainIn(state.scenario.regions, r).forEach((x) => have.add(x));
+    if (have.size !== before) state.reached = [...have];
+  };
+  Eng.hasReached = (state, id) => (state.reached || []).includes(id);
+  // Lots built on in a place (task 7-7).
+  Eng.builtLots = (state, place) => Object.values(state.locations).filter((l) => l.lot && l.site === place && (state.features || {})[`${l.id}|lot`] === 'built').length;
+
   // Who is present in a region, strongest first, in words; contested when
   // the two strongest are both at least 0.25 and within 0.2 of each other.
   // → { groups: [{ id, name, strength, word }], contested }
@@ -728,6 +751,8 @@
     Object.values(st.locations || {}).forEach((l) => (l.features || []).forEach((f) => {
       if (f && typeof f === 'object' && f.state != null && st.features[`${l.id}|${f.name}`] == null) st.features[`${l.id}|${f.name}`] = String(f.state);
     }));
+    // A lot (task 7-7) starts staked out.
+    Object.values(st.locations || {}).filter((l) => l.lot && st.features[`${l.id}|lot`] == null).forEach((l) => { st.features[`${l.id}|lot`] = 'staked'; });
   };
   // A link between two rooms as it is now: { kind, locked, open, key } or null.
   Eng.linkInfo = function (state, a, b) {
@@ -1582,6 +1607,32 @@
         return `found: ${names.join(', ')}`;
       },
     },
+    // Building on a lot (task 7-7): a room marked "lot" in a place becomes what
+    // is put up there, {room, name, desc, as} ("as": "tent" first, or "built",
+    // the default). Only once someone holds the region (the town is founded),
+    // and never on a lot already built on.
+    build: {
+      list: true, max: 1,
+      apply(state, b) {
+        const l = b && state.locations[b.room];
+        if (!l || !l.lot) return reject(`"${b && b.room}" is not a lot that can be built on`);
+        const key = `${l.id}|lot`;
+        const was = state.features[key] || 'staked';
+        const to = b.as === 'tent' ? 'tent' : 'built';
+        if (was === 'built') return reject(`${l.name} is already built on`);
+        if (was === to) return reject(`${l.name} is already a tent`);
+        const held = l.region && state.regions && state.regions[l.region] && state.regions[l.region].controller;
+        const where = (Eng.regionDef(state, l.region) || {}).name || l.region;
+        if (!held) return reject(`nobody holds ${where} yet: the town isn't founded`);
+        const name = E.shorten(String(b.name || '').replace(/\s+/g, ' ').trim(), 40);
+        if (!name) return reject(`no name for what is built on ${l.name}`);
+        const before = l.name;
+        l.name = name;
+        if (String(b.desc || '').trim()) l.desc = E.shorten(String(b.desc).replace(/\s+/g, ' ').trim(), 240);
+        state.features[key] = to;
+        return `${where}: ${name} ${to === 'tent' ? 'goes up in canvas' : 'is built'} (${before})`;
+      },
+    },
   };
   Eng.PRESENCE_STEP = 0.5;
   // The region an effect item names: { def, now } or a rejection. stamp()
@@ -2264,9 +2315,10 @@
   // Fast-forwards without the model: stops at the first clock to fire, a
   // random major event, or the horizon, whichever comes first; earlier than
   // that, the player's body giving out or someone coming to confront them.
-  Eng.planMajorSkip = function (state, action) {
+  // opts.covered: a routine that covers the body's needs (a camp that travels).
+  Eng.planMajorSkip = function (state, action, opts) {
     const plan = planWorldStop(state);
-    const body = bodyStop(state, action);
+    const body = opts && opts.covered ? null : bodyStop(state, action);
     const reckon = reckoningStop(state);
     if (body && body.hours < plan.hours && (!reckon || body.hours <= reckon.hours)) return { hours: body.hours, reason: 'body', body };
     if (reckon && reckon.hours < plan.hours) return { hours: reckon.hours, reason: 'reckoning', reckoning: reckon };
@@ -2728,6 +2780,7 @@
         const i = String(key || '').indexOf('|');
         const room = String(key).slice(0, i), name = String(key).slice(i + 1);
         if (!state.locations[room] || state.features[`${room}|${name}`] == null) return reject(label, 'no feature with a state there');
+        if (name === 'lot' && state.locations[room].lot) return reject(label, 'a lot is built on by an event ("build"), with a name for what goes up');
         if (s.field !== 'state' || typeof s.value !== 'string' || !s.value.trim()) return reject(label, 'a feature only changes its "state"');
         if (![ctx.startLoc, ctx.endLoc].includes(room)) return reject(label, 'nobody in the scene was there');
         // Only the states it may take, and none held back by what it requires (task 7-3).
@@ -3335,6 +3388,60 @@
     const companions = Eng.present(state).filter((id) => Eng.alive(state, id) && (all || mentions(action, state.characters[id])));
     return { dest, trip, roll, companions };
   };
+  // ---------- a place that travels (task 7-7) ----------
+  // A place whose siteInfo has "travel" ({group, kinds, toward}: a wagon
+  // company's camp) moves as one: its rooms, and everyone and everything in
+  // them, go to another region by routes of its kinds only. The player's
+  // words must set out and speak for the party ("we", "the company", "the
+  // wagons", "roll on"); the destination is a region they name. Its leader
+  // (or a favored member) can take it anywhere; anyone else only along the
+  // way it is already heading ("toward"). → null, { refused }, { failed }, or
+  // a journey: { camp, destRegion, destName, dest (the player's room), trip,
+  // roll, companions: [] }.
+  const PARTY = /\b(we|us|our|everyone|all of us|the (?:company|wagons?|train|outfit|party|camp)|roll (?:out|on)|move on|break camp|hitch up)\b/i;
+  const CAMP_GOES = /\b(roll (?:out|on)|move on|break camp|hitch up|push on|press on|head (?:out|on|west|east|north|south))\b/i;
+  Eng.travelOf = (state, site) => (site && ((state.scenario.siteInfo || {})[site] || {}).travel) || null;
+  Eng.campJourneyFor = function (state, intentObj, action, step) {
+    const site = E.Sites.playerSite(state);
+    const t = Eng.travelOf(state, site);
+    if (!t || !(Eng.setsOut(action) || CAMP_GOES.test(String(action || ''))) || !PARTY.test(String(action || ''))) return null;
+    const from = Eng.playerRegion(state);
+    const chain = E.Scenario.regionChainIn(state.scenario.regions, from);
+    const bare = (n) => String(n).replace(/\s*\(.*\)\s*$/, '');
+    const named = (state.scenario.regions || []).filter((r) => r && !chain.includes(r.id) && Eng.regionKnown(state, r.id) && (mentionsName(action, r.name) || mentionsName(action, bare(r.name))))
+      .sort((a, b) => b.name.length - a.name.length)[0];
+    if (!named) return null;
+    const dest = named.id;
+    const kinds = Array.isArray(t.kinds) ? t.kinds : null;
+    const trip = Eng.regionTrip(state, from, dest, { kinds });
+    if (!trip.blocked && !(trip.hours > 0)) return null;
+    const role = t.group ? E.Standing.roleOf(state, t.group) : 'leader';
+    if (role !== 'leader' && role !== 'favored' && t.toward && dest !== t.toward) {
+      const way = Eng.regionTrip(state, from, t.toward, { kinds, all: true });
+      const onWay = (way.legs || []).some((e) => E.Scenario.regionChainIn(state.scenario.regions, e.to).includes(dest));
+      if (!onWay) return { refused: `${E.Standing.groupName(state, t.group)} is heading for ${(Eng.regionDef(state, t.toward) || {}).name || t.toward}; only its leader can turn it toward ${named.name}` };
+    }
+    const pc = state.characters[state.player];
+    let roll = null;
+    if (trip.blocked) {
+      if (!trip.risky || !trip.closed) return { refused: trip.why };
+      roll = { skill: trip.closed.skill, roll: Eng.roll(pc, trip.closed.skill, 'hard', state.scenario, 0) };
+      if (/failure/.test(roll.roll.result)) return { failed: roll, why: trip.why };
+    }
+    return { camp: site, destRegion: dest, destName: named.name, dest: pc.status.location, trip, roll, companions: [] };
+  };
+  // The camp's rooms move to a region (and its place with them).
+  Eng.moveCamp = function (state, site, region) {
+    Object.values(state.locations).filter((l) => l.site === site).forEach((l) => { l.region = region; });
+    if (state.sites && state.sites[site]) state.sites[site].region = region;
+  };
+  // The regions a journey's legs reached in its first `hours`.
+  Eng.legsPassed = (trip, hours) => {
+    let done = 0;
+    const out = [];
+    for (const e of trip.legs || []) { if (done + e.hours > hours + 1e-6) break; done += e.hours; out.push(e.to); }
+    return out;
+  };
   // The player's words set out somewhere: a move ("I head…") or travel ("I drive…").
   Eng.setsOut = (action) => PLAYER_MOVES.test(String(action || '')) || SETS_OUT.test(String(action || ''));
   const mentionsName = (text, name) => new RegExp(`\\b${String(name).replace(/^the\s+/i, '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(String(text || ''));
@@ -3376,7 +3483,17 @@
   // waits where the trip stopped.
   function endJourney(state, plan, frame, res) {
     const j = plan.journey;
-    const arrived = plan.reason === 'arrive';
+    if (j.camp) {
+      // The camp travels (task 7-7): it stops where its legs got to.
+      const passed = Eng.legsPassed(j.trip, plan.hours);
+      const at = plan.hours >= j.trip.hours ? j.destRegion : passed[passed.length - 1] || Eng.playerRegion(state);
+      Eng.moveCamp(state, j.camp, at);
+      const where = (Eng.regionDef(state, at) || {}).name || at;
+      guard(res, 'resolve', 'journey', at === j.destRegion ? `the camp reached ${j.destName} after ${E.Scenario.sayHours(j.trip.hours)}`
+        : `the camp stopped ${E.Scenario.sayHours(plan.hours) || 'early'} into ${E.Scenario.sayHours(j.trip.hours)} on the way to ${j.destName}, at ${where}`);
+      return;
+    }
+    const arrived = plan.reason === 'arrive' || (plan.stage && plan.stage.hours >= j.trip.hours);
     const to = arrived ? j.dest : transitRoom(state, j, plan.hours, frame.startLoc);
     [state.player].concat(j.companions).filter((id) => Eng.alive(state, id)).forEach((id) => { state.characters[id].status.location = to; });
     const dname = state.locations[j.dest].name;
@@ -3394,13 +3511,20 @@
     const timelineNotes = (opts && opts.notes) || [];
     if (E.Timeline.needsProjection(state)) { phase('Planning the days ahead…'); await E.Timeline.project(state, timelineNotes); }
     const askNotes = checkAsk(state, action);
-    let plan = Eng.planMajorSkip(state, action);
+    let plan = Eng.planMajorSkip(state, action, { covered: !!(journey && journey.camp) });
     // A journey ends on arrival, unless something stops it first.
     if (journey) {
       if (plan.hours >= journey.trip.hours) plan = { hours: journey.trip.hours, reason: 'arrive' };
+      // A stage of the way with an arrival event (task 7-7) stops the journey
+      // there, and the event is what happens.
+      const stage = E.Timeline.stageOnTrip(state, journey.trip.legs);
+      if (stage && stage.hours <= plan.hours) plan = { hours: stage.hours, reason: 'canon', canon: { id: stage.ev.id }, stage };
       plan.journey = journey;
+      Eng.legsPassed(journey.trip, plan.hours).forEach((r) => Eng.noteReached(state, r));
     }
-    const routine = { climb: Eng.unmetNeeds(state, action) };
+    // A camp that travels (task 7-7) eats at its fires and sleeps in its
+    // wagons: its routine covers the body's needs, whatever the words said.
+    const routine = { climb: journey && journey.camp ? [] : Eng.unmetNeeds(state, action) };
     // Skipping while the last scene's emergency is unanswered: it plays out
     // without the player, and it costs something (playtest-coffee-skips).
     plan.crisis = Eng.openCrisis(state);
@@ -3416,11 +3540,15 @@
     const frame = { startTime: E.fmtTime(state), startLoc: state.characters[state.player].status.location, stepId: 'major', stepLabel: 'until something major happens', spanMinutes: Math.round(plan.hours * 60) };
     if (journey) {
       const reg = (loc) => (Eng.regionDef(state, Eng.regionOf(state, loc)) || {}).name;
-      frame.stepLabel = `the journey to ${state.locations[journey.dest].name}`;
-      frame.journey = `travelling from ${reg(frame.startLoc)} to ${state.locations[journey.dest].name} in ${reg(journey.dest)}: ${Eng.sayTrip(state, journey.trip)}, ${E.Scenario.sayHours(journey.trip.hours)} in all${journey.companions.length ? `, with ${journey.companions.map((id) => state.characters[id].name).join(', ')}` : ''}`;
+      // A camp (task 7-7) goes to a region and takes its people with it.
+      const destName = journey.camp ? journey.destName : state.locations[journey.dest].name;
+      const where = journey.camp ? destName : `${destName} in ${reg(journey.dest)}`;
+      frame.stepLabel = `the journey to ${destName}`;
+      frame.journey = `travelling from ${reg(frame.startLoc)} to ${where}: ${Eng.sayTrip(state, journey.trip)}, ${E.Scenario.sayHours(journey.trip.hours)} in all${journey.camp ? `, the whole camp moving together (${E.Standing.groupName(state, Eng.travelOf(state, journey.camp).group)} and everyone in it)` : journey.companions.length ? `, with ${journey.companions.map((id) => state.characters[id].name).join(', ')}` : ''}`;
       if (journey.roll) frame.journey += `; got past although ${journey.trip.why}`;
-      if (plan.reason !== 'arrive') frame.journey += `. It is cut short ${E.Scenario.sayHours(plan.hours) || 'early'} in`;
-      else frame.arrival = state.locations[journey.dest].name;
+      if (plan.stage && plan.stage.hours < journey.trip.hours) frame.journey += `. It stops at ${(Eng.regionDef(state, plan.stage.region) || {}).name || plan.stage.region}, ${E.Scenario.sayHours(plan.hours)} in`;
+      else if (plan.reason !== 'arrive' && !plan.stage) frame.journey += `. It is cut short ${E.Scenario.sayHours(plan.hours) || 'early'} in`;
+      else frame.arrival = destName;
 
     }
     const presentStart = Eng.present(state);
@@ -4009,13 +4137,22 @@
     // A new place the player is heading for (task 4-4), built before the
     // moves are resolved; the start-of-turn copy gets it too.
     const siteNotes = [];
-    // A new region first (R-6), then a place to arrive at inside it.
-    await E.Sites.regionForIntent(state, intentObj, action, pre, phase, siteNotes);
-    await E.Sites.forIntent(state, intentObj, action, pre, phase, siteNotes);
+    // A camp that travels (task 7-7) moves before any place is built: the
+    // party sets out for a region, and nothing is built there for it.
+    const camp = Eng.campJourneyFor(state, intentObj, action, step);
+    if (camp && (camp.refused || camp.failed)) {
+      siteNotes.push({ type: 'camp stays', detail: camp.refused || `turned back: ${camp.why}` });
+      const p = intentObj && intentObj.player;
+      if (p) { p.move_to = null; p.new_place = null; p.new_region = null; }
+    } else if (!camp) {
+      // A new region first (R-6), then a place to arrive at inside it.
+      await E.Sites.regionForIntent(state, intentObj, action, pre, phase, siteNotes);
+      await E.Sites.forIntent(state, intentObj, action, pre, phase, siteNotes);
+    }
     // A trip longer than the step is a journey turn instead (R-2): back to
     // the start of the turn (which has any new place too) and on through the
     // skip machinery, with the destination.
-    const journey = Eng.journeyFor(state, intentObj, action, step);
+    const journey = camp && !camp.refused ? camp : Eng.journeyFor(state, intentObj, action, step);
     if (journey && !journey.failed) {
       const log = state.log;
       replaceState(state, Object.assign(pre, { log }));

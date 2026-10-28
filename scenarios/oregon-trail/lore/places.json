@@ -1,0 +1,187 @@
+[
+  {
+    "id": "the-oregon-trail",
+    "title": "The Oregon and California trails",
+    "level": "topic",
+    "topics": [
+      "trail",
+      "travel"
+    ],
+    "priority": 4,
+    "keywords": [
+      "Oregon Trail",
+      "California Trail",
+      "Mormon Trail",
+      "Platte",
+      "Sweetwater",
+      "Independence Rock",
+      "Chimney Rock"
+    ],
+    "text": "From the Missouri the trails follow the Platte to Fort Kearny and Fort Laramie, the Sweetwater past Independence Rock to South Pass, then split: to Oregon by Fort Hall and the Snake, to California by the Humboldt and the Sierra, to Utah by Fort Bridger. Four to six months to the coast. The grass along the road is grazed bare and the graves are many.",
+    "sources": [
+      {
+        "title": "Oregon Trail (Wikipedia)",
+        "url": "https://en.wikipedia.org/wiki/Oregon_Trail"
+      }
+    ]
+  },
+  {
+    "id": "bozeman-trail",
+    "title": "The Bozeman Trail",
+    "level": "region",
+    "ref": "powder-river",
+    "priority": 4,
+    "keywords": [
+      "Bozeman Trail",
+      "Bozeman road",
+      "Fort Reno",
+      "Piney Creek"
+    ],
+    "text": "A shortcut from the Oregon Trail north to the Montana gold camps, opened in 1863 straight through the Powder River country, the best hunting ground the Lakota and their allies have left. They have attacked travellers on it from the first; the army means to guard it with forts.",
+    "sources": [
+      {
+        "title": "Bozeman Trail (Wikipedia)",
+        "url": "https://en.wikipedia.org/wiki/Bozeman_Trail"
+      }
+    ]
+  },
+  {
+    "id": "santa-fe-trail",
+    "title": "The Santa Fe Trail",
+    "level": "region",
+    "ref": "new-mexico",
+    "priority": 3,
+    "keywords": [
+      "Santa Fe Trail",
+      "Cimarron",
+      "Raton Pass",
+      "Bent's Fort",
+      "Council Grove"
+    ],
+    "text": "The old trade road from Missouri to Santa Fe, eight hundred miles of freight wagons: by Council Grove and the Arkansas, then either the Mountain Route over Raton Pass or the shorter, drier Cimarron Cutoff through Comanche and Kiowa country. Merchants' caravans travel in strength and with armed guards.",
+    "sources": [
+      {
+        "title": "Santa Fe Trail (Wikipedia)",
+        "url": "https://en.wikipedia.org/wiki/Santa_Fe_Trail"
+      }
+    ]
+  },
+  {
+    "id": "haddon-life",
+    "title": "Life in Haddon",
+    "level": "region",
+    "ref": "haddon",
+    "priority": 4,
+    "keywords": [
+      "Haddon",
+      "grading camp",
+      "section house"
+    ],
+    "topics": [
+      "railroad"
+    ],
+    "text": "Haddon lives on the railroad's promise. Grading gangs camp in tents and drink in the Railhead; mule teams scrape the roadbed straight across the bottoms; lot speculators wait on the engineers' plat. The old road ranch on the river serves the stages and the emigrants as it always has, and its owner does not much like the newcomers."
+  },
+  {
+    "id": "julesburg-life",
+    "title": "Life in Julesburg",
+    "level": "region",
+    "ref": "julesburg",
+    "priority": 4,
+    "keywords": [
+      "Julesburg",
+      "Fort Sedgwick",
+      "Overland station",
+      "Upper Crossing"
+    ],
+    "topics": [
+      "travel"
+    ],
+    "text": "Julesburg is a stage station, a telegraph office, a store with a bar and a smithy, rebuilt in sod after the burning, with Fort Sedgwick's soldiers up the road. The Denver stages leave the Overland route here, and emigrants cross the South Platte's quicksand at the ford. The railroad's surveyors have already staked a line across the river.",
+    "sources": [
+      {
+        "title": "Julesburg, Colorado (Wikipedia)",
+        "url": "https://en.wikipedia.org/wiki/Julesburg,_Colorado"
+      }
+    ]
+  },
+  {
+    "id": "poormans-gulch-life",
+    "title": "Poorman's Gulch",
+    "level": "region",
+    "ref": "poormans-gulch",
+    "priority": 4,
+    "keywords": [
+      "Poorman's Gulch",
+      "Poorman",
+      "the gulch"
+    ],
+    "topics": [
+      "mining"
+    ],
+    "text": "A handful of poor prospectors found gold in a gulch north of South Pass and kept quiet: one word in a saloon and a thousand strangers would be on their claims within the month. They have staked a whole town on the flat above the creek, and their supplies are running low."
+  },
+  {
+    "id": "boston-life",
+    "title": "Boston in 1866",
+    "level": "region",
+    "ref": "boston",
+    "priority": 3,
+    "keywords": [
+      "Boston",
+      "Beacon Hill",
+      "North End",
+      "Back Bay",
+      "Brahmin",
+      "the Common"
+    ],
+    "text": "Boston's old families on Beacon Hill finance mills, railroads and Western ventures; Irish immigrants crowd the North End and Fort Hill and do the city's labour. Gravel trains run day and night to fill the Back Bay for new streets of grand houses. The city is proud of its abolitionists, its colleges and its harbour, and prickly about everyone else.",
+    "sources": [
+      {
+        "title": "History of Boston (Wikipedia)",
+        "url": "https://en.wikipedia.org/wiki/History_of_Boston"
+      }
+    ]
+  },
+  {
+    "id": "san-francisco-life",
+    "title": "San Francisco in 1866",
+    "level": "region",
+    "ref": "san-francisco",
+    "priority": 3,
+    "keywords": [
+      "San Francisco",
+      "Barbary Coast",
+      "Montgomery Street",
+      "Chinatown",
+      "Nob Hill",
+      "vigilance committee",
+      "Comstock"
+    ],
+    "text": "A city of about a hundred thousand: silver kings and bankers on Montgomery Street and Rincon Hill, sailors and crimps on the Barbary Coast, Chinatown around Portsmouth Square, sand hills to the west. Ships wait in the bay for crews, and shanghaiing a drunk sailor is a business. Earthquakes, fires and the vigilance committees are all remembered.",
+    "sources": [
+      {
+        "title": "History of San Francisco (Wikipedia)",
+        "url": "https://en.wikipedia.org/wiki/History_of_San_Francisco"
+      }
+    ]
+  },
+  {
+    "id": "fort-laramie-post",
+    "title": "Fort Laramie",
+    "level": "region",
+    "ref": "fort-laramie",
+    "priority": 3,
+    "keywords": [
+      "Fort Laramie",
+      "Laramie"
+    ],
+    "text": "Fort Laramie stands where the Laramie River meets the North Platte: adobe and frame buildings around a parade ground, no walls. Emigrants rest and repair there, Lakota bands trade and camp nearby, and the Indian Office calls its councils there. The sutler's store sells everything at mountain prices.",
+    "sources": [
+      {
+        "title": "Fort Laramie (Wikipedia)",
+        "url": "https://en.wikipedia.org/wiki/Fort_Laramie_National_Historic_Site"
+      }
+    ]
+  }
+]

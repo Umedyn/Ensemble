@@ -1,0 +1,44 @@
+{
+  "id": "mercer",
+  "name": "Elias Mercer",
+  "pronouns": "he/him",
+  "role": "captain of the company",
+  "age": 44,
+  "traits": [
+    "steady",
+    "stubborn",
+    "haunted"
+  ],
+  "want": "bring every wagon to Oregon before the snow, and lose no one on the way",
+  "secret": "He sold his Ohio farm to pay a debt he hid from his late wife, and has almost nothing left but his wagon and the company's trust.",
+  "guard": "high",
+  "voice": "Short sentences, a sergeant's habit of giving orders as suggestions.",
+  "description": "A Union quartermaster sergeant in the war who organised the company's outfitting at Council Bluffs so well that they elected him captain. Widowed last winter.",
+  "appearance": "Tall and spare, grey-bearded at forty-four, an army slouch hat and a limp he never mentions.",
+  "skills": {
+    "riding": 2,
+    "shooting": 2,
+    "fighting": 1,
+    "trailcraft": 2,
+    "persuasion": 2,
+    "trade": 2,
+    "stealth": 0,
+    "medicine": 0
+  },
+  "groups": [
+    {
+      "id": "company",
+      "role": "leader"
+    }
+  ],
+  "status": {
+    "location": "camp-captain"
+  },
+  "relations": {
+    "martha-doyle": 20,
+    "cyrus-bell": 30,
+    "jasper-kell": -10,
+    "lebeau": 10,
+    "nathaniel-cole": 15
+  }
+}

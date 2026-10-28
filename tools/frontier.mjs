@@ -1,7 +1,7 @@
 // The map builder for scenarios/frontier (task 7-4). Build time only:
 // nothing here runs in the game.
 //
-//   node tools/frontier.mjs build     the pictures in maps/, and the regions and maps in world.json
+//   node tools/frontier.mjs build [--world oregon-trail]     the pictures in maps/, and the regions and maps in world.json
 //
 // Sources: Natural Earth (public domain; "Made with Natural Earth"): the base
 // raster, 1:50m countries and 1:10m states, from .cache/basemap/ (run "npm
@@ -34,7 +34,10 @@ const require = createRequire(import.meta.url);
 const { loadEngine } = require(path.join(root, 'tests', 'helpers.js'));
 const E = loadEngine();
 const G = E.Geo;
-const WORLD = path.join(root, 'scenarios', 'frontier');
+// The world folder: scenarios/frontier, or another built on the same map
+// (--world oregon-trail, task 7-7).
+const arg = (k) => { const i = process.argv.indexOf(`--${k}`); return i >= 0 ? process.argv[i + 1] : null; };
+const WORLD = path.join(root, 'scenarios', arg('world') || 'frontier');
 const NE = path.join(root, '.cache', 'basemap');
 const CREDIT_NE = 'Made with Natural Earth (naturalearthdata.com): 1:50m cross-blended hypsometric tints with shaded relief and water; borders of 1866 and the nations\' lands drawn for the game, approximate';
 const CREDIT_CITY = 'Drawn for Ensemble: the shore and streets of 1866 traced by hand from U.S. Coast Survey charts of the 1850s–1860s (public domain); district edges approximate';
@@ -206,7 +209,7 @@ const ROUTES = [
   // The stage lines across the middle.
   ['denver', 'salt-lake-city', 'stage', '6d', PASSES], ['salt-lake-city', 'virginia-city-nv', 'stage', '5d'],
   ['salt-lake-city', 'virginia-city-mt', 'stage', '4d'], ['fort-hall', 'virginia-city-mt', 'wagon', '9d'],
-  ['virginia-city-mt', 'helena', 'stage', '1d'], ['helena', 'fort-benton', 'wagon', '5d'], ['boise', 'virginia-city-mt', 'wagon', '16d'],
+  ['virginia-city-mt', 'helena', 'stage', '1d'], ['helena', 'fort-benton', 'wagon', '5d'], ['boise', 'virginia-city-mt', 'wagon', '30d'],
   // The Bozeman Trail through the Powder River country.
   ['fort-laramie', 'fort-reno', 'wagon', '8d', BOZEMAN], ['fort-reno', 'fort-phil-kearny', 'wagon', '3d', BOZEMAN],
   ['fort-phil-kearny', 'virginia-city-mt', 'wagon', '20d', BOZEMAN],

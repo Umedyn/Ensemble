@@ -1,0 +1,191 @@
+[
+  {
+    "id": "after-the-war",
+    "title": "A year after the war",
+    "level": "world",
+    "priority": 5,
+    "keywords": ["the war", "Union", "Confederate", "Rebel", "Yankee", "veteran"],
+    "text": "The Civil War ended last April. Over six hundred thousand are dead; nearly every family lost someone. Veterans of both sides have gone home, or west to start again, and old enmities ride with them: a Union man and a former Confederate may share a campfire, or settle the war again over cards. Andrew Johnson is president; he and Congress fight over how hard to be on the South.",
+    "sources": [{ "title": "American frontier (Wikipedia)", "url": "https://en.wikipedia.org/wiki/American_frontier" }]
+  },
+  {
+    "id": "freedpeople",
+    "title": "Freedom",
+    "level": "world",
+    "priority": 4,
+    "keywords": ["freedman", "freedmen", "freedwoman", "freed people", "Freedmen's Bureau", "Black Codes", "emancipation"],
+    "topics": ["politics", "law"],
+    "text": "Four million people freed from slavery are making their lives: finding scattered family, working for wages, founding churches and schools, and demanding land and the vote. Southern legislatures answer with Black Codes; the Freedmen's Bureau runs schools and courts. Some freedpeople come west, as soldiers, cowhands, cooks and homesteaders, and meet the same prejudice there.",
+    "sources": [{ "title": "American frontier (Wikipedia)", "url": "https://en.wikipedia.org/wiki/American_frontier" }]
+  },
+  {
+    "id": "railroads-west",
+    "title": "The Pacific railroad",
+    "level": "world",
+    "priority": 4,
+    "keywords": ["Union Pacific", "Central Pacific", "railroad", "end of track", "Casement", "Durant", "Crocker", "Hell on Wheels"],
+    "topics": ["railroad", "business"],
+    "text": "Congress pays the Union Pacific and the Central Pacific in land and bonds for every mile of track. The Union Pacific builds west from Omaha with Irish crews and veterans under the Casement brothers, followed by a moving town of tents, saloons and gamblers the papers call Hell on Wheels. The Central Pacific builds east from Sacramento with Chinese crews, blasting through the Sierra.",
+    "sources": [{ "title": "American frontier (Wikipedia)", "url": "https://en.wikipedia.org/wiki/American_frontier" }]
+  },
+  {
+    "id": "news-and-mail",
+    "title": "News, mail and the telegraph",
+    "level": "world",
+    "priority": 3,
+    "keywords": ["telegraph", "wire", "newspaper", "mail", "letter", "Pony Express"],
+    "topics": ["travel"],
+    "text": "The telegraph runs coast to coast along the Overland route, its offices at stage stations and forts; a message costs dear and the line is often cut. Off the wire, news comes with the stage, a freighter or a passing rider, weeks late and changed in the telling. Mail goes by stage, and a letter East from the Pacific takes three weeks or more.",
+    "sources": [{ "title": "American frontier (Wikipedia)", "url": "https://en.wikipedia.org/wiki/American_frontier" }]
+  },
+  {
+    "id": "money-and-prices",
+    "title": "Money and prices",
+    "level": "world",
+    "priority": 3,
+    "keywords": ["dollar", "dollars", "greenbacks", "gold dust", "price", "wages", "pay"],
+    "topics": ["business"],
+    "text": "Paper greenbacks are worth less than gold, and out West gold coin and dust are preferred. A cowhand or a grader earns a dollar or two a day with board; a skilled tracklayer more. Prices rise with every mile from the railroad: flour, coffee and cartridges cost double or triple at the end of the stage line, and a good horse is worth a month's pay or more.",
+    "sources": [{ "title": "American frontier (Wikipedia)", "url": "https://en.wikipedia.org/wiki/American_frontier" }]
+  },
+  {
+    "id": "homesteading",
+    "title": "Homesteads and claims",
+    "level": "world",
+    "priority": 3,
+    "keywords": ["homestead", "homesteader", "quarter section", "claim", "land office", "sod house", "soddy", "prove up"],
+    "topics": ["family"],
+    "text": "Under the Homestead Act anyone, women and immigrants included, can file on 160 acres of public land and own it after living on it and farming it for five years. On the treeless plains settlers build sod houses or dugouts, dig wells by hand and burn buffalo chips. Speculators, railroad land grants and claim jumpers make the good land go fast.",
+    "sources": [{ "title": "American frontier (Wikipedia)", "url": "https://en.wikipedia.org/wiki/American_frontier" }]
+  },
+  {
+    "id": "wagon-companies",
+    "title": "Going west by wagon",
+    "level": "world",
+    "priority": 4,
+    "keywords": ["wagon train", "wagon company", "emigrant", "emigrants", "prairie schooner", "oxen", "captain"],
+    "topics": ["trail", "travel"],
+    "text": "Emigrants travel in companies of a dozen to a hundred wagons, with an elected captain and rules voted on at the start. Oxen pull most wagons, fifteen miles on a good day; people walk beside them. The season starts when the grass is up in late April and must reach the mountains before the snow. Cholera, drowning at river crossings and accidents kill far more than fights.",
+    "sources": [{ "title": "American frontier (Wikipedia)", "url": "https://en.wikipedia.org/wiki/American_frontier" }]
+  },
+  {
+    "id": "stagecoaches",
+    "title": "Stages and freight",
+    "level": "world",
+    "priority": 3,
+    "keywords": ["stage", "stagecoach", "Concord", "Holladay", "Wells Fargo", "freighter", "bullwhacker", "mule skinner", "station"],
+    "topics": ["travel"],
+    "text": "Concord coaches carry mail and passengers day and night, changing horses at stations every twelve miles or so: about a hundred miles a day, bruising and costly. Freight goes by ox and mule trains of twenty-five wagons, driven by bullwhackers and mule skinners. Stations are sod or log, often attacked, and their keepers are a hard and lonely breed.",
+    "sources": [{ "title": "American frontier (Wikipedia)", "url": "https://en.wikipedia.org/wiki/American_frontier" }]
+  },
+  {
+    "id": "steamboats",
+    "title": "The rivers",
+    "level": "world",
+    "priority": 2,
+    "keywords": ["steamboat", "steamer", "Missouri", "Mississippi", "riverboat", "Fort Benton"],
+    "topics": ["travel"],
+    "text": "Shallow-draught steamboats run up the Missouri from St. Louis past Omaha to Fort Benton in Montana, a two-month voyage of snags and sandbars that works only while the spring rise lasts. On the Mississippi and the lower Missouri they run all year. A boat's captain and pilot are kings aboard, and a boiler explosion is everyone's fear.",
+    "sources": [{ "title": "American frontier (Wikipedia)", "url": "https://en.wikipedia.org/wiki/American_frontier" }]
+  },
+  {
+    "id": "cattle",
+    "title": "Texas cattle",
+    "level": "world",
+    "priority": 3,
+    "keywords": ["longhorn", "longhorns", "drover", "drovers", "trail drive", "Texas fever", "quarantine", "cow town"],
+    "topics": ["cattle", "business"],
+    "text": "Texas came out of the war with millions of half-wild longhorns worth four dollars a head at home and forty in the North, if they can be got to a railroad. Drovers push herds of two or three thousand north for months. Farmers in Missouri and eastern Kansas turn them back with guns, because the longhorns carry a tick fever that kills their own cattle.",
+    "sources": [{ "title": "American frontier (Wikipedia)", "url": "https://en.wikipedia.org/wiki/American_frontier" }]
+  },
+  {
+    "id": "gold-camps",
+    "title": "Gold camps",
+    "level": "world",
+    "priority": 3,
+    "keywords": ["gold", "silver", "placer", "claim", "sluice", "rocker", "prospector", "strike", "diggings", "miners' court"],
+    "topics": ["mining"],
+    "text": "A strike brings hundreds within weeks: tents, then log cabins, saloons and stores along a gulch. Miners make their own rules in a miners' meeting: how big a claim is, how to record it, what happens to a thief. Placer gold is washed out of creek gravel with pans, rockers and sluices; most who come find little, and the storekeepers get rich.",
+    "sources": [{ "title": "American frontier (Wikipedia)", "url": "https://en.wikipedia.org/wiki/American_frontier" }]
+  },
+  {
+    "id": "law-and-order",
+    "title": "Law and order",
+    "level": "world",
+    "priority": 3,
+    "keywords": ["sheriff", "marshal", "vigilante", "vigilance committee", "lynch", "hanging", "judge", "jail"],
+    "topics": ["law", "crime"],
+    "text": "Territories have federal judges and marshals, counties a sheriff, towns maybe a marshal paid by the saloons' licences; between them lies a lot of empty country. Where the law fails or is too slow, citizens form vigilance committees, and a crowd can become a lynch mob in an evening. Road agents rob stages and freighters; horse theft is treated as worse than murder.",
+    "sources": [{ "title": "American frontier (Wikipedia)", "url": "https://en.wikipedia.org/wiki/American_frontier" }]
+  },
+  {
+    "id": "army-in-the-west",
+    "title": "The army in the West",
+    "level": "world",
+    "priority": 3,
+    "keywords": ["army", "soldier", "soldiers", "cavalry", "trooper", "fort", "post", "galvanized Yankees", "deserter"],
+    "topics": ["military"],
+    "text": "The volunteers have gone home, leaving a small regular army to guard thousands of miles of road from sod and log posts. Pay is poor, food worse, and desertion common. Some garrisons are galvanized Yankees, Confederate prisoners who enlisted to get out of the camps. Officers are often war heroes bored and quarrelling in tiny posts; soldiers drink, gamble and dig.",
+    "sources": [{ "title": "American frontier (Wikipedia)", "url": "https://en.wikipedia.org/wiki/American_frontier" }]
+  },
+  {
+    "id": "buffalo",
+    "title": "The buffalo",
+    "level": "world",
+    "priority": 3,
+    "keywords": ["buffalo", "bison", "herd", "hide", "hunt", "robe"],
+    "topics": ["trail"],
+    "text": "Millions of buffalo still graze the plains in herds that take days to pass. For the Plains nations they are food, shelter, clothing and tools, and the centre of life. Emigrants, soldiers and railroad crews shoot them for meat and for sport; the trails' corridors are already empty of them, which the nations who hunt there have noticed.",
+    "sources": [{ "title": "American frontier (Wikipedia)", "url": "https://en.wikipedia.org/wiki/American_frontier" }]
+  },
+  {
+    "id": "chinese-in-the-west",
+    "title": "The Chinese in the West",
+    "level": "world",
+    "priority": 3,
+    "keywords": ["Chinese", "China", "Chinatown", "Six Companies", "Canton"],
+    "topics": ["work"],
+    "text": "Tens of thousands of men from southern China came for the gold rush and stayed: miners, cooks, laundrymen, merchants, and now most of the Central Pacific's crews. They are paid less and given the dangerous work, taxed and barred from testifying against whites in California courts, and organised through district associations, the Six Companies of San Francisco.",
+    "sources": [{ "title": "American frontier (Wikipedia)", "url": "https://en.wikipedia.org/wiki/American_frontier" }]
+  },
+  {
+    "id": "latter-day-saints",
+    "title": "The Latter-day Saints",
+    "level": "world",
+    "priority": 2,
+    "keywords": ["Mormon", "Mormons", "Saints", "Brigham Young", "Zion", "polygamy", "Deseret"],
+    "topics": ["religion"],
+    "text": "The Latter-day Saints came to the Great Salt Lake valley to be left alone and built irrigated towns throughout Utah under Brigham Young. They trade with emigrants and freighters but distrust Washington, which disapproves of their plural marriages; Gentiles, as they call outsiders, find Utah orderly, cooperative and closed.",
+    "sources": [{ "title": "American frontier (Wikipedia)", "url": "https://en.wikipedia.org/wiki/American_frontier" }]
+  },
+  {
+    "id": "women-west",
+    "title": "Women in the West",
+    "level": "world",
+    "priority": 2,
+    "keywords": ["wife", "widow", "laundress", "boarding house", "schoolteacher", "dance hall"],
+    "topics": ["family", "work"],
+    "text": "Women are few in the camps and many on the farms. They run boarding houses, laundries, stores, saloons and claims; they teach school, nurse, homestead in their own names and drive wagons across the continent. In the end-of-track towns many make their living in the dance halls and brothels, often on terms they did not choose.",
+    "sources": [{ "title": "American frontier (Wikipedia)", "url": "https://en.wikipedia.org/wiki/American_frontier" }]
+  },
+  {
+    "id": "medicine",
+    "title": "Sickness and doctoring",
+    "level": "world",
+    "priority": 2,
+    "keywords": ["doctor", "cholera", "fever", "laudanum", "surgeon", "wound", "smallpox", "scurvy"],
+    "topics": ["health"],
+    "text": "Cholera, typhoid, dysentery and smallpox kill more travellers than anything else. Doctors are scarce and often self-taught; army surgeons serve whoever comes. Laudanum and whiskey are the painkillers, amputation the cure for a shattered limb, and a fever in camp means burying someone beside the trail within the week.",
+    "sources": [{ "title": "American frontier (Wikipedia)", "url": "https://en.wikipedia.org/wiki/American_frontier" }]
+  },
+  {
+    "id": "guns",
+    "title": "Guns",
+    "level": "world",
+    "priority": 2,
+    "keywords": ["rifle", "revolver", "pistol", "Colt", "Spencer", "Henry", "shotgun", "carbine", "cartridge"],
+    "topics": ["military", "crime"],
+    "text": "The war left the country full of guns. Cap-and-ball Colt revolvers are everywhere; Spencer and Henry repeating rifles, firing metal cartridges, are prized and costly. Most hunters, emigrants and soldiers still carry single-shot rifles and muzzle-loaders. Many towns ask men to leave their guns at the hotel or the marshal's while they drink.",
+    "sources": [{ "title": "American frontier (Wikipedia)", "url": "https://en.wikipedia.org/wiki/American_frontier" }]
+  }
+]

@@ -34,6 +34,9 @@
   // (the creator's lore test), the shares alone.
   Mem.FLOOR = { facts: 500, story: 400 };
   Mem.BRIEF_CAST_USER = 500;
+  // A player who leads or is favored in a group (task G-6) gets the orders
+  // task and its reply field in every intent call (task 7-7: the captain).
+  Mem.ORDERS_USER = 150;
   Mem.budgets = function (state) {
     const t = E.contextTier();
     const ctx = t.tokens;
@@ -41,7 +44,7 @@
     if (!state || !state.scenario || !E.Prompts) return out;
     // A brief cast (task 7-2) carries each present person's wants and voice,
     // and the background's whereabouts, in the user message instead.
-    const user = t.user + (E.Prompts.castBrief(state) ? Mem.BRIEF_CAST_USER : 0);
+    const user = t.user + (E.Prompts.castBrief(state) ? Mem.BRIEF_CAST_USER : 0) + (E.Prompts.commandable && E.Prompts.commandable(state).length ? Mem.ORDERS_USER : 0);
     const room = ctx - t.reply - user - Mem.fixedHeader(state);
     out.facts = Math.min(out.facts, Math.max(Mem.FLOOR.facts, Math.floor(room * 0.55)));
     out.story = Math.min(out.story, Math.max(Mem.FLOOR.story, Math.floor(room * 0.45)));

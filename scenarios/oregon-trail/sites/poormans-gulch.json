@@ -1,0 +1,547 @@
+{
+  "id": "poormans-gulch",
+  "name": "Poorman's Gulch",
+  "type": "gold camp",
+  "place": "poormans-gulch",
+  "tags": [
+    "gold camp",
+    "mining camp",
+    "diggings"
+  ],
+  "setting": [
+    "western"
+  ],
+  "credit": "Drawn for Ensemble (The Frontier, 1866–1869)",
+  "license": "PolyForm Noncommercial 1.0.0, with the game",
+  "image": "sites/poormans-gulch.svg",
+  "width": 1600,
+  "height": 1000,
+  "entry": "poorman-trail",
+  "rooms": [
+    {
+      "id": "poorman-trail",
+      "name": "The trail down from the pass",
+      "desc": "A faint wagon track off the South Pass road, down through sage and rock into the gulch.",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "sage",
+        "wheel ruts",
+        "cairn"
+      ],
+      "shape": [
+        [
+          1200,
+          40
+        ],
+        [
+          1560,
+          40
+        ],
+        [
+          1560,
+          300
+        ],
+        [
+          1340,
+          300
+        ],
+        [
+          1200,
+          200
+        ]
+      ],
+      "links": [
+        {
+          "to": "poorman-tents",
+          "kind": "open"
+        },
+        {
+          "to": "poorman-ridge",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "poorman-tents",
+      "name": "Tent row",
+      "desc": "A dozen patched tents and brush shelters along the creek, washing hung on the willows.",
+      "size": "medium",
+      "outside": true,
+      "features": [
+        "tents",
+        "brush shelters",
+        "washing line"
+      ],
+      "shape": [
+        [
+          700,
+          260
+        ],
+        [
+          1200,
+          200
+        ],
+        [
+          1340,
+          300
+        ],
+        [
+          1400,
+          520
+        ],
+        [
+          1000,
+          560
+        ],
+        [
+          760,
+          480
+        ]
+      ],
+      "links": [
+        {
+          "to": "poorman-fire",
+          "kind": "open"
+        },
+        {
+          "to": "poorman-creek",
+          "kind": "open"
+        },
+        {
+          "to": "poorman-cabin",
+          "kind": "door"
+        },
+        {
+          "to": "poorman-street",
+          "kind": "open"
+        },
+        {
+          "to": "poorman-street",
+          "kind": "open"
+        },
+        {
+          "to": "poorman-street",
+          "kind": "open"
+        },
+        {
+          "to": "poorman-street",
+          "kind": "open"
+        },
+        {
+          "to": "poorman-street",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "poorman-fire",
+      "name": "The cook fire",
+      "desc": "A stone fire ring under a canvas fly, the camp's one kettle and its very small store of flour and bacon.",
+      "size": "small",
+      "outside": true,
+      "features": [
+        "fire ring",
+        "kettle",
+        "supply crates"
+      ],
+      "shape": [
+        [
+          1000,
+          560
+        ],
+        [
+          1400,
+          520
+        ],
+        [
+          1420,
+          640
+        ],
+        [
+          1060,
+          660
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "poorman-cabin",
+      "name": "The cabin",
+      "desc": "The only log cabin, half roofed, where the camp keeps its gold dust and its arguments.",
+      "size": "small",
+      "features": [
+        "half roof",
+        "strongbox",
+        "bunk"
+      ],
+      "shape": [
+        [
+          760,
+          480
+        ],
+        [
+          1000,
+          560
+        ],
+        [
+          960,
+          640
+        ],
+        [
+          740,
+          600
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "poorman-creek",
+      "name": "The creek and the diggings",
+      "desc": "The creek, dammed and ditched, with rockers and a sluice; gravel heaps along both banks.",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "sluice",
+        "rockers",
+        "gravel heaps"
+      ],
+      "shape": [
+        [
+          260,
+          420
+        ],
+        [
+          700,
+          260
+        ],
+        [
+          760,
+          480
+        ],
+        [
+          740,
+          600
+        ],
+        [
+          420,
+          760
+        ],
+        [
+          260,
+          700
+        ]
+      ],
+      "links": [
+        {
+          "to": "poorman-discovery",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "poorman-discovery",
+      "name": "The discovery claim",
+      "desc": "Upstream, the claim where the first colour was panned, marked with a notice on a post.",
+      "size": "medium",
+      "outside": true,
+      "features": [
+        "claim notice",
+        "prospect hole",
+        "windlass"
+      ],
+      "shape": [
+        [
+          40,
+          520
+        ],
+        [
+          260,
+          420
+        ],
+        [
+          260,
+          700
+        ],
+        [
+          420,
+          760
+        ],
+        [
+          300,
+          920
+        ],
+        [
+          40,
+          920
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "poorman-ridge",
+      "name": "Lookout ridge",
+      "desc": "A rocky rise with a view east along the trail toward the pass, where someone always watches for wagons.",
+      "size": "small",
+      "outside": true,
+      "features": [
+        "rock cairn",
+        "spyglass",
+        "signal fire"
+      ],
+      "shape": [
+        [
+          1340,
+          300
+        ],
+        [
+          1560,
+          300
+        ],
+        [
+          1560,
+          520
+        ],
+        [
+          1400,
+          520
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "poorman-street",
+      "name": "Main Street (staked)",
+      "desc": "A flat above the creek pegged out as a street, with a painted sign board at one end that reads POORMAN'S GULCH and six lots staked along it.",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "painted sign board",
+        "flagpole",
+        "survey stakes"
+      ],
+      "shape": [
+        [
+          600,
+          150
+        ],
+        [
+          1200,
+          150
+        ],
+        [
+          1200,
+          200
+        ],
+        [
+          700,
+          260
+        ],
+        [
+          600,
+          200
+        ]
+      ],
+      "links": [
+        {
+          "to": "poorman-lot-1",
+          "kind": "open"
+        },
+        {
+          "to": "poorman-lot-2",
+          "kind": "open"
+        },
+        {
+          "to": "poorman-lot-3",
+          "kind": "open"
+        },
+        {
+          "to": "poorman-lot-4",
+          "kind": "open"
+        },
+        {
+          "to": "poorman-lot-5",
+          "kind": "open"
+        },
+        {
+          "to": "poorman-lot-6",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "poorman-lot-1",
+      "name": "Lot 1",
+      "desc": "A staked lot at the west end on the flat above the creek, marked out with string, waiting for whatever the camp will build.",
+      "size": "small",
+      "outside": true,
+      "features": [
+        "stakes and string"
+      ],
+      "shape": [
+        [
+          600,
+          40
+        ],
+        [
+          700,
+          40
+        ],
+        [
+          700,
+          150
+        ],
+        [
+          600,
+          150
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "poorman-lot-2",
+      "name": "Lot 2",
+      "desc": "A staked lot beside the first on the flat above the creek, marked out with string, waiting for whatever the camp will build.",
+      "size": "small",
+      "outside": true,
+      "features": [
+        "stakes and string"
+      ],
+      "shape": [
+        [
+          700,
+          40
+        ],
+        [
+          800,
+          40
+        ],
+        [
+          800,
+          150
+        ],
+        [
+          700,
+          150
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "poorman-lot-3",
+      "name": "Lot 3",
+      "desc": "A staked lot in the middle on the flat above the creek, marked out with string, waiting for whatever the camp will build.",
+      "size": "small",
+      "outside": true,
+      "features": [
+        "stakes and string"
+      ],
+      "shape": [
+        [
+          800,
+          40
+        ],
+        [
+          900,
+          40
+        ],
+        [
+          900,
+          150
+        ],
+        [
+          800,
+          150
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "poorman-lot-4",
+      "name": "Lot 4",
+      "desc": "A staked lot in the middle on the flat above the creek, marked out with string, waiting for whatever the camp will build.",
+      "size": "small",
+      "outside": true,
+      "features": [
+        "stakes and string"
+      ],
+      "shape": [
+        [
+          900,
+          40
+        ],
+        [
+          1000,
+          40
+        ],
+        [
+          1000,
+          150
+        ],
+        [
+          900,
+          150
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "poorman-lot-5",
+      "name": "Lot 5",
+      "desc": "A staked lot toward the trail on the flat above the creek, marked out with string, waiting for whatever the camp will build.",
+      "size": "small",
+      "outside": true,
+      "features": [
+        "stakes and string"
+      ],
+      "shape": [
+        [
+          1000,
+          40
+        ],
+        [
+          1100,
+          40
+        ],
+        [
+          1100,
+          150
+        ],
+        [
+          1000,
+          150
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "poorman-lot-6",
+      "name": "Lot 6",
+      "desc": "A staked lot at the east end on the flat above the creek, marked out with string, waiting for whatever the camp will build.",
+      "size": "small",
+      "outside": true,
+      "features": [
+        "stakes and string"
+      ],
+      "shape": [
+        [
+          1100,
+          40
+        ],
+        [
+          1200,
+          40
+        ],
+        [
+          1200,
+          150
+        ],
+        [
+          1100,
+          150
+        ]
+      ],
+      "links": []
+    }
+  ]
+}

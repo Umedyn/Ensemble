@@ -1,6 +1,6 @@
 // The drawn town plans of scenarios/frontier (task 7-4):
 //
-//   node tools/frontier-towns.mjs
+//   node tools/frontier-towns.mjs [--world oregon-trail]
 //
 // Four places laid out the way the West's towns were: a business row of
 // false-fronted buildings facing the street (or the railroad), back lots and
@@ -16,7 +16,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const WORLD = path.join(root, 'scenarios', 'frontier');
+// The world folder: scenarios/frontier, or another built on the same map
+// (--world oregon-trail, task 7-7).
+const arg = (k) => { const i = process.argv.indexOf(`--${k}`); return i >= 0 ? process.argv[i + 1] : null; };
+const WORLD = path.join(root, 'scenarios', arg('world') || 'frontier');
 const W = 1600, H = 1000;
 const box = (x0, y0, x1, y1) => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
 
@@ -71,14 +74,33 @@ const TOWNS = [
       'poorman-trail': [[1200, 40], [1560, 40], [1560, 300], [1340, 300], [1200, 200]],
       'poorman-ridge': [[1340, 300], [1560, 300], [1560, 520], [1400, 520]],
       'poorman-lots': [[600, 40], [1200, 40], [1200, 200], [700, 260], [600, 200]],
+      // The Oregon Trail's gulch (task 7-7): the flat as a staked street and six lots.
+      'poorman-street': [[600, 150], [1200, 150], [1200, 200], [700, 260], [600, 200]],
+      'poorman-lot-1': box(600, 40, 700, 150), 'poorman-lot-2': box(700, 40, 800, 150), 'poorman-lot-3': box(800, 40, 900, 150),
+      'poorman-lot-4': box(900, 40, 1000, 150), 'poorman-lot-5': box(1000, 40, 1100, 150), 'poorman-lot-6': box(1100, 40, 1200, 150),
       'poorman-tents': [[700, 260], [1200, 200], [1340, 300], [1400, 520], [1000, 560], [760, 480]],
       'poorman-fire': [[1000, 560], [1400, 520], [1420, 640], [1060, 660]],
       'poorman-cabin': [[760, 480], [1000, 560], [960, 640], [740, 600]],
       'poorman-creek': [[260, 420], [700, 260], [760, 480], [740, 600], [420, 760], [260, 700]],
       'poorman-discovery': [[40, 520], [260, 420], [260, 700], [420, 760], [300, 920], [40, 920]],
     },
-    kinds: { 'poorman-trail': 'trail', 'poorman-ridge': 'rock', 'poorman-lots': 'stakes', 'poorman-tents': 'camp', 'poorman-fire': 'fire', 'poorman-cabin': 'cabin',
+    kinds: { 'poorman-trail': 'trail', 'poorman-ridge': 'rock', 'poorman-lots': 'stakes', 'poorman-street': 'stakes',
+      'poorman-lot-1': 'lot', 'poorman-lot-2': 'lot', 'poorman-lot-3': 'lot', 'poorman-lot-4': 'lot', 'poorman-lot-5': 'lot', 'poorman-lot-6': 'lot', 'poorman-tents': 'camp', 'poorman-fire': 'fire', 'poorman-cabin': 'cabin',
       'poorman-creek': 'diggings', 'poorman-discovery': 'diggings' },
+    faces: {} },
+  // The Oregon Trail's wagon camp (task 7-7): the same place every night,
+  // wherever the company stops. Only in a world that has its rooms.
+  { id: 'camp', name: 'The company camp', type: 'wagon camp', entry: 'camp-circle', tags: ['wagon camp', 'emigrant camp', 'wagon circle'],
+    shapes: {
+      'camp-captain': box(650, 120, 950, 200),
+      'camp-circle': [[550, 200], [800, 200], [800, 800], [550, 800], [400, 500]],
+      'camp-fire': [[800, 200], [1050, 200], [1200, 500], [1050, 800], [800, 800]],
+      'camp-doctor': box(550, 800, 800, 880), 'camp-smith': box(800, 800, 1050, 880),
+      'camp-herd': [[1050, 200], [1550, 120], [1550, 880], [1050, 880], [1050, 800], [1200, 500]],
+      'camp-edge': [[50, 120], [650, 120], [650, 200], [550, 200], [400, 500], [550, 800], [550, 880], [50, 880]],
+      'camp-water': box(50, 880, 1550, 980),
+    },
+    kinds: { 'camp-captain': 'wagon', 'camp-circle': 'circle', 'camp-fire': 'fires', 'camp-doctor': 'wagon', 'camp-smith': 'wagon', 'camp-herd': 'herd', 'camp-edge': 'prairie-edge', 'camp-water': 'river' },
     faces: {} },
 ];
 
@@ -234,6 +256,39 @@ function picture(t) {
       add(`<rect x="${cx - 60}" y="${cy - 40}" width="120" height="80" fill="#8a6a46" stroke="${C.ink}" stroke-width="4"/>`);
       for (let y = cy - 30; y < cy + 40; y += 12) add(`<line x1="${cx - 60}" y1="${y}" x2="${cx + 60}" y2="${y}" stroke="#6b5034" stroke-width="2"/>`);
       add(`<rect x="${cx - 60}" y="${cy - 40}" width="60" height="80" fill="#c9bb93" opacity="0.5"/>`);
+    } else if (kind === 'lot') {
+      // A staked lot (task 7-7): stakes and string; what is built shows in play by its name.
+      poly('#d2c59d');
+      add(`<rect x="${x0 + 10}" y="${y0 + 10}" width="${x1 - x0 - 20}" height="${y1 - y0 - 20}" fill="none" stroke="#a3463a" stroke-width="2" stroke-dasharray="6 4"/>`);
+      [[x0 + 10, y0 + 10], [x1 - 10, y0 + 10], [x0 + 10, y1 - 10], [x1 - 10, y1 - 10]].forEach(([x, y]) => add(`<rect x="${x - 3}" y="${y - 3}" width="7" height="7" fill="#c0392b"/>`));
+    } else if (kind === 'wagon') {
+      poly(C.prairie);
+      const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+      add(`<rect x="${cx - 70}" y="${cy - 26}" width="140" height="52" rx="22" fill="${C.canvas}" stroke="#7a6a4e" stroke-width="3"/>`);
+      [-40, 0, 40].forEach((d) => add(`<line x1="${cx + d}" y1="${cy - 26}" x2="${cx + d}" y2="${cy + 26}" stroke="#b8ab8c" stroke-width="2"/>`));
+      [[cx - 52, cy + 30], [cx + 52, cy + 30]].forEach(([x, y]) => add(`<circle cx="${x}" cy="${y}" r="9" fill="none" stroke="${C.ink}" stroke-width="3"/>`));
+    } else if (kind === 'circle') {
+      poly('#cfc39a');
+      for (let i = 0; i < 9; i++) {
+        const a = Math.PI / 2 + (i / 8) * Math.PI, x = 800 + Math.cos(a) * 360, y = 500 + Math.sin(a) * 290;
+        add(`<rect x="${(x - 30).toFixed(0)}" y="${(y - 13).toFixed(0)}" width="60" height="26" rx="11" fill="${C.canvas}" stroke="#7a6a4e" stroke-width="2" transform="rotate(${((a * 180) / Math.PI + 90).toFixed(0)} ${x.toFixed(0)} ${y.toFixed(0)})"/>`);
+      }
+      tents(4, 80);
+    } else if (kind === 'fires') {
+      poly('#cfc39a');
+      for (let i = 0; i < 9; i++) {
+        const a = -Math.PI / 2 + (i / 8) * Math.PI, x = 800 + Math.cos(a) * 360, y = 500 + Math.sin(a) * 290;
+        add(`<rect x="${(x - 30).toFixed(0)}" y="${(y - 13).toFixed(0)}" width="60" height="26" rx="11" fill="${C.canvas}" stroke="#7a6a4e" stroke-width="2" transform="rotate(${((a * 180) / Math.PI + 90).toFixed(0)} ${x.toFixed(0)} ${y.toFixed(0)})"/>`);
+      }
+      [[900, 400], [960, 560], [880, 650]].forEach(([x, y]) => add(`<circle cx="${x}" cy="${y}" r="16" fill="#c8693a" stroke="#6b5a48" stroke-width="5"/>`));
+    } else if (kind === 'herd') {
+      poly('#d4cb98');
+      scatter(p, 30, 30).forEach(([x, y]) => add(`<ellipse cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" rx="12" ry="6" fill="#6e5a46"/>`));
+      add(`<line x1="${x1 - 60}" y1="${y0 + 120}" x2="${x1 - 60}" y2="${y1 - 80}" stroke="${C.fence}" stroke-width="3" stroke-dasharray="4 10"/>`);
+    } else if (kind === 'prairie-edge') {
+      poly(C.prairie);
+      [[220, 300], [200, 640]].forEach(([x, y]) => add(`<circle cx="${x}" cy="${y}" r="12" fill="#c8693a" stroke="#6b5a48" stroke-width="4"/>`));
+      add(`<polygon points="160,420 200,380 240,420" fill="${C.canvas}" stroke="#9a8f74" stroke-width="2"/>`);
     } else if (kind === 'diggings') {
       poly('#c2b38a');
       scatter(p, 16, 30).forEach(([x, y]) => add(`<ellipse cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" rx="${(14 + rnd() * 14).toFixed(0)}" ry="${(8 + rnd() * 6).toFixed(0)}" fill="#a69872" stroke="#8a7d5c" stroke-width="2"/>`));
@@ -264,11 +319,14 @@ function writeJSON(f, data) {
 const worldFile = path.join(WORLD, 'world.json');
 const world = readJSON(worldFile);
 fs.mkdirSync(path.join(WORLD, 'sites'), { recursive: true });
-TOWNS.forEach((t) => {
-  const rooms = world.locations.filter((l) => l.site === t.id);
+TOWNS.forEach((town) => {
+  const rooms = world.locations.filter((l) => l.site === town.id);
+  if (!rooms.length) return;
   const ids = new Set(rooms.map((l) => l.id));
-  const missing = rooms.filter((l) => !t.shapes[l.id]).map((l) => l.id).concat(Object.keys(t.shapes).filter((id) => !ids.has(id)));
-  if (missing.length) throw new Error(`${t.name}: rooms and shapes don't match: ${missing.join(', ')}`);
+  const missing = rooms.filter((l) => !town.shapes[l.id]).map((l) => l.id);
+  if (missing.length) throw new Error(`${town.name}: no shape for ${missing.join(', ')}`);
+  // Shapes for rooms this world doesn't have (another world's version of the place) are left out.
+  const t = Object.assign({}, town, { shapes: Object.fromEntries(Object.entries(town.shapes).filter(([id]) => ids.has(id))) });
   const map = {
     id: t.id, name: t.name, type: t.type, place: t.id, tags: t.tags, setting: ['western'],
     credit: 'Drawn for Ensemble (The Frontier, 1866–1869)', license: 'PolyForm Noncommercial 1.0.0, with the game',

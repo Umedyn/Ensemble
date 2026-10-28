@@ -88,7 +88,8 @@
     const by = new Map();
     const placeName = (l) => ((sc.siteInfo || {})[l.site] || {}).name || (rooms.find((r) => r.site === l.site) || l).name;
     rooms.forEach((l) => {
-      const k = l.site ? `${placeName(l)} (${l.region || 'no region'})` : l.region || 'no region';
+      // A place that travels (task 7-7) has no region of its own to name here.
+      const k = l.site ? `${placeName(l)} (${((sc.siteInfo || {})[l.site] || {}).travel ? 'travels with its people' : l.region || 'no region'})` : l.region || 'no region';
       by.set(k, (by.get(k) || []).concat(l));
     });
     // A compact context: one line a group, names only; the user message has
@@ -397,7 +398,12 @@
     const site = E.Sites.enabled(state.scenario) ? ',"new_site":null' : '';
     // Standing (task G-6): how a group's view of the player changes.
     const standing = Object.keys(state.reputation || {}).length ? ',"reputation":[{"group":"group_id","delta":-5,"reason":"why"}]' : '';
-    return `{"world":[{"key":"world_key","value":"new status"}],"groups":[{"id":"group_id","stance":"new stance"}],"clocks":[{"id":"clock_id","delta":2}],"new_clock":null${region}${standing}${site}}`;
+    // Lots (task 7-7): only in a place whose region someone holds, naming its free lots.
+    const here = E.Sites.playerSite(state);
+    const free = Object.values(state.locations).filter((l) => l.lot && l.site === here && (state.features || {})[`${l.id}|lot`] !== 'built'
+      && l.region && state.regions[l.region] && state.regions[l.region].controller).map((l) => l.id);
+    const build = free.length ? `,"build":[{"room":"one of: ${free.join(', ')}","name":"what is put up","desc":"one sentence","as":"tent or built"}]` : '';
+    return `{"world":[{"key":"world_key","value":"new status"}],"groups":[{"id":"group_id","stance":"new stance"}],"clocks":[{"id":"clock_id","delta":2}],"new_clock":null${region}${standing}${site}${build}}`;
   }
   // Valid ids for effects. In a small world every region, not just nearby
   // ones: the world can shift far from the player (their current state stays
@@ -679,6 +685,7 @@ ${intentExample(state, present, action, due)}`;
   // Groups the player leads or is favored in (task G-6): what they may be told
   // to do. Only then is it in the prompt.
   const commandable = (state) => Object.keys(state.reputation || {}).filter((g) => ['leader', 'favored'].includes(E.Standing.roleOf(state, g)));
+  P.commandable = commandable;
   function ordersTask(state) {
     const gs = commandable(state);
     if (!gs.length) return '';

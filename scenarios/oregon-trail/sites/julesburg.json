@@ -1,0 +1,401 @@
+{
+  "id": "julesburg",
+  "name": "Julesburg",
+  "type": "stage station",
+  "place": "julesburg",
+  "tags": [
+    "stage station",
+    "army post",
+    "river crossing"
+  ],
+  "setting": [
+    "western"
+  ],
+  "credit": "Drawn for Ensemble (The Frontier, 1866–1869)",
+  "license": "PolyForm Noncommercial 1.0.0, with the game",
+  "image": "sites/julesburg.svg",
+  "width": 1600,
+  "height": 1000,
+  "entry": "julesburg-road",
+  "rooms": [
+    {
+      "id": "julesburg-road",
+      "name": "The Overland road",
+      "desc": "The stage and emigrant road along the South Platte, deep in dust, the station buildings on its north side.",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "ruts",
+        "telegraph poles",
+        "mile post"
+      ],
+      "shape": [
+        [
+          40,
+          420
+        ],
+        [
+          1480,
+          420
+        ],
+        [
+          1480,
+          500
+        ],
+        [
+          40,
+          500
+        ]
+      ],
+      "links": [
+        {
+          "to": "julesburg-store",
+          "kind": "door"
+        },
+        {
+          "to": "julesburg-telegraph",
+          "kind": "door"
+        },
+        {
+          "to": "julesburg-station",
+          "kind": "door"
+        },
+        {
+          "to": "julesburg-stable",
+          "kind": "open"
+        },
+        {
+          "to": "julesburg-smith",
+          "kind": "open"
+        },
+        {
+          "to": "julesburg-fort",
+          "kind": "open"
+        },
+        {
+          "to": "julesburg-sutler",
+          "kind": "door"
+        },
+        {
+          "to": "julesburg-camp",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "julesburg-station",
+      "name": "The stage station",
+      "desc": "The Overland's home station, rebuilt in sod after the burning of last year: a low long room with a table for passengers.",
+      "size": "medium",
+      "features": [
+        "sod walls",
+        "passengers' table",
+        "loopholes"
+      ],
+      "shape": [
+        [
+          700,
+          240
+        ],
+        [
+          960,
+          240
+        ],
+        [
+          960,
+          420
+        ],
+        [
+          700,
+          420
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "julesburg-telegraph",
+      "name": "Telegraph office",
+      "desc": "A sod office with a key and a sounder: the only fast news for two hundred miles, and the line goes down often.",
+      "size": "small",
+      "features": [
+        "telegraph key",
+        "battery jars",
+        "message hooks"
+      ],
+      "shape": [
+        [
+          560,
+          240
+        ],
+        [
+          700,
+          240
+        ],
+        [
+          700,
+          420
+        ],
+        [
+          560,
+          420
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "julesburg-store",
+      "name": "Store and saloon",
+      "desc": "A warehouse store that sells whiskey at one end and everything else at the other, at prices that make emigrants swear.",
+      "size": "medium",
+      "features": [
+        "bar",
+        "warehouse shelves",
+        "scales"
+      ],
+      "shape": [
+        [
+          380,
+          240
+        ],
+        [
+          560,
+          240
+        ],
+        [
+          560,
+          420
+        ],
+        [
+          380,
+          420
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "julesburg-stable",
+      "name": "Stage stable and corrals",
+      "desc": "A long sod stable and corrals for the stage teams, with a guard on the horses at night.",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "stage teams",
+        "hay",
+        "corral"
+      ],
+      "shape": [
+        [
+          960,
+          240
+        ],
+        [
+          1220,
+          240
+        ],
+        [
+          1220,
+          420
+        ],
+        [
+          960,
+          420
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "julesburg-smith",
+      "name": "Blacksmith",
+      "desc": "A smith who keeps the coaches running: wheels, springs, shoes.",
+      "size": "small",
+      "features": [
+        "forge",
+        "anvil",
+        "coach wheels"
+      ],
+      "shape": [
+        [
+          1220,
+          240
+        ],
+        [
+          1400,
+          240
+        ],
+        [
+          1400,
+          420
+        ],
+        [
+          1220,
+          420
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "julesburg-fort",
+      "name": "Fort Sedgwick",
+      "desc": "The army post up the road: sod barracks, a flagstaff and a parade ground of bare dirt, and cavalry who are rarely all present.",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "flagstaff",
+        "sod barracks",
+        "parade ground"
+      ],
+      "shape": [
+        [
+          40,
+          80
+        ],
+        [
+          380,
+          80
+        ],
+        [
+          380,
+          420
+        ],
+        [
+          40,
+          420
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "julesburg-sutler",
+      "name": "Sutler's store",
+      "desc": "The post sutler's store, where soldiers buy tobacco on credit and officers drink.",
+      "size": "medium",
+      "features": [
+        "counter",
+        "officers' bar",
+        "ledger"
+      ],
+      "shape": [
+        [
+          40,
+          500
+        ],
+        [
+          380,
+          500
+        ],
+        [
+          380,
+          640
+        ],
+        [
+          40,
+          640
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "julesburg-camp",
+      "name": "Emigrant campground",
+      "desc": "Trampled ground between road and river where wagon companies circle for the night.",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "wagon circle",
+        "campfires",
+        "grazing stock"
+      ],
+      "shape": [
+        [
+          700,
+          500
+        ],
+        [
+          1480,
+          500
+        ],
+        [
+          1480,
+          640
+        ],
+        [
+          700,
+          640
+        ]
+      ],
+      "links": [
+        {
+          "to": "julesburg-ford",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "julesburg-ford",
+      "name": "The South Platte crossing",
+      "desc": "A mile of shallow, quicksand-bottomed river, crossed by wagons with doubled teams.",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "quicksand",
+        "sandbars",
+        "ford markers"
+      ],
+      "shape": [
+        [
+          40,
+          640
+        ],
+        [
+          1480,
+          640
+        ],
+        [
+          1480,
+          760
+        ],
+        [
+          40,
+          760
+        ]
+      ],
+      "links": [
+        {
+          "to": "julesburg-townsite",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "julesburg-townsite",
+      "name": "Across the river",
+      "desc": "Empty bottomland across the river where railroad surveyors' stakes run in a line toward the west.",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "survey stakes",
+        "buffalo grass",
+        "old campfire rings"
+      ],
+      "shape": [
+        [
+          40,
+          760
+        ],
+        [
+          1480,
+          760
+        ],
+        [
+          1480,
+          920
+        ],
+        [
+          40,
+          920
+        ]
+      ],
+      "links": []
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "id": "lebeau",
+  "name": "Joseph Lebeau",
+  "pronouns": "he/him",
+  "role": "hired guide",
+  "age": 34,
+  "traits": [
+    "watchful",
+    "dry",
+    "proud"
+  ],
+  "want": "bring the company safely through to Fort Bridger, get paid, and go home to his mother's people on the Wind River",
+  "secret": "His Shoshone cousins sent word that diggers are on their land, and he means to lead no wagons there.",
+  "guard": "high",
+  "voice": "Quiet, exact; switches between English, French and Shoshone mid-sentence when he is tired.",
+  "description": "The son of an Eastern Shoshone mother and a French-Canadian trapper, raised between Fort Bridger and the Wind River valley. He has guided companies up the Platte for six summers and knows every ford and spring.",
+  "appearance": "Lean and weathered, braided hair under a wide hat, a Hudson's Bay coat, a Spencer carbine always within reach.",
+  "skills": {
+    "riding": 3,
+    "shooting": 2,
+    "fighting": 1,
+    "trailcraft": 3,
+    "persuasion": 1,
+    "trade": 1,
+    "stealth": 2,
+    "medicine": 1
+  },
+  "status": {
+    "location": "camp-edge"
+  },
+  "relations": {
+    "mercer": 15,
+    "jasper-kell": -20
+  }
+}

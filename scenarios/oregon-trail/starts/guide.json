@@ -1,0 +1,88 @@
+{
+  "id": "guide",
+  "title": "Council Bluffs, May 1866: the guide",
+  "summary": "You are Joseph Lebeau, hired to guide the Mercer company up the Platte to Fort Bridger. You know the road, its rivers and its peoples. They know nothing, and they are paying you.",
+  "start": {
+    "day": 1582,
+    "hour": 7
+  },
+  "region": "omaha",
+  "castLabel": "Company",
+  "tactical": true,
+  "player": "lebeau",
+  "playerSlot": {
+    "location": "camp-edge",
+    "summary": "You make your own guide, hired by the Mercer company to bring its thirty-eight wagons up the Platte to Fort Bridger. You are not one of them; you are paid to get them there.",
+    "knows": [
+      "The company is bound for Oregon City; your contract ends at Fort Bridger."
+    ],
+    "roles": [
+      {
+        "id": "guide",
+        "label": "Guide",
+        "desc": "Has crossed the plains many times; knows the fords, the springs and the peoples along the way.",
+        "skills": {
+          "trailcraft": 3,
+          "riding": 2,
+          "shooting": 1
+        },
+        "suggestedTraits": [
+          "watchful",
+          "quiet",
+          "independent"
+        ]
+      }
+    ],
+    "peoples": [
+      {
+        "id": "shoshone",
+        "label": "Shoshone",
+        "desc": "Of the Eastern Shoshone, or with family among them."
+      },
+      {
+        "id": "mixed",
+        "label": "Of two peoples",
+        "desc": "A Native mother or father, a trapper's or a trader's other."
+      },
+      {
+        "id": "mountain-man",
+        "label": "An old trapper",
+        "desc": "One of the last of the fur-trade men, married into a Native family."
+      },
+      {
+        "id": "veteran-scout",
+        "label": "An army scout",
+        "desc": "Scouted for the army in the war years on the plains."
+      }
+    ],
+    "freeform": true,
+    "skillPoints": 10,
+    "maxSkill": 3,
+    "relationsDefault": 0,
+    "castFeelings": 5,
+    "reputation": {
+      "company": 10
+    }
+  },
+  "reputation": {
+    "company": 10
+  },
+  "cast": [
+    "mercer",
+    {
+      "id": "lebeau",
+      "knows": [
+        "Your Shoshone cousins sent word in the winter that white men are digging gold in the hills north of South Pass, on your mother's people's land."
+      ]
+    },
+    "martha-doyle",
+    "cyrus-bell",
+    "wilhelm-brandt",
+    "lucy-graves",
+    "nathaniel-cole",
+    "jasper-kell",
+    "michael-doyle",
+    "elijah-stroud"
+  ],
+  "opening": "Dawn on the Missouri bottoms. You slept outside the circle, as you always do, with your horse picketed close and your back to the river, and woke before the company did.\n\nNow the camp is stirring: thirty-eight wagons, too many people, too much furniture, a piano in one of them, God help them. The oxen are poor and the grass is barely up.\n\nCaptain Mercer comes out to your fire with two cups of coffee and holds one out. \"Lebeau. The Doyle woman asked me last night how far South Pass is from Fort Bridger. I told her ask the guide. She will.\""
+}

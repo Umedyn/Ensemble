@@ -1,0 +1,41 @@
+{
+  "id": "wilhelm-brandt",
+  "name": "Wilhelm Brandt",
+  "pronouns": "he/him",
+  "role": "farmer from Missouri",
+  "age": 39,
+  "traits": [
+    "hard-working",
+    "anxious",
+    "proud"
+  ],
+  "want": "a good farm in the Willamette valley for his wife and four children",
+  "secret": "He bought his wagon and oxen on credit from a St. Joseph moneylender under a false name, and a man may be riding after him.",
+  "guard": "medium",
+  "voice": "German-accented English, formal, apologises too much.",
+  "description": "A German farmer whose Missouri farm was burned twice in the border war. He is the hardest worker in the company and the first to argue about the order of march.",
+  "appearance": "Sunburnt, square-built, a good black coat kept for Sundays.",
+  "skills": {
+    "riding": 1,
+    "shooting": 1,
+    "fighting": 1,
+    "trailcraft": 2,
+    "persuasion": 0,
+    "trade": 2,
+    "stealth": 0,
+    "medicine": 1
+  },
+  "groups": [
+    {
+      "id": "company",
+      "role": "member"
+    }
+  ],
+  "status": {
+    "location": "camp-circle"
+  },
+  "relations": {
+    "mercer": 20,
+    "jasper-kell": 10
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "id": "cyrus-bell",
+  "name": "Cyrus Bell",
+  "pronouns": "he/him",
+  "role": "blacksmith",
+  "age": 41,
+  "traits": [
+    "patient",
+    "careful",
+    "strong"
+  ],
+  "want": "a farm of his own in Oregon, on land no one can take from him",
+  "secret": "He killed the overseer who caught him escaping from Missouri in 1862, and still fears someone from home will recognise him.",
+  "guard": "high",
+  "voice": "Slow and deliberate; says a thing once.",
+  "description": "Born enslaved in Missouri, he escaped to Kansas during the war and worked as a blacksmith for the army. His forge wagon keeps the company's wheels turning.",
+  "appearance": "Broad, scarred forearms, a leather apron he wears even at supper.",
+  "skills": {
+    "riding": 1,
+    "shooting": 1,
+    "fighting": 2,
+    "trailcraft": 1,
+    "persuasion": 1,
+    "trade": 2,
+    "stealth": 1,
+    "medicine": 0
+  },
+  "groups": [
+    {
+      "id": "company",
+      "role": "member"
+    }
+  ],
+  "status": {
+    "location": "camp-smith"
+  },
+  "relations": {
+    "mercer": 25,
+    "jasper-kell": -25,
+    "martha-doyle": 15
+  }
+}

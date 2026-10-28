@@ -1,0 +1,42 @@
+{
+  "id": "nathaniel-cole",
+  "name": "Dr. Nathaniel Cole",
+  "pronouns": "he/him",
+  "role": "doctor",
+  "age": 48,
+  "traits": [
+    "skilled",
+    "bitter",
+    "kind"
+  ],
+  "want": "start again where nobody knows what he did in the war",
+  "secret": "Since the field hospitals of Virginia he has been dependent on morphine, and his supply will not last to Oregon.",
+  "guard": "high",
+  "voice": "Virginia drawl, gentle with patients, cutting with everyone else.",
+  "description": "A Confederate army surgeon who came west rather than live under Reconstruction. The company tolerates his politics for his skill.",
+  "appearance": "Thin, careful, a frayed grey frock coat and steady hands most of the day.",
+  "skills": {
+    "riding": 1,
+    "shooting": 1,
+    "fighting": 0,
+    "trailcraft": 0,
+    "persuasion": 1,
+    "trade": 1,
+    "stealth": 0,
+    "medicine": 3
+  },
+  "groups": [
+    {
+      "id": "company",
+      "role": "member"
+    }
+  ],
+  "status": {
+    "location": "camp-doctor"
+  },
+  "relations": {
+    "mercer": 10,
+    "cyrus-bell": 0,
+    "lucy-graves": 15
+  }
+}

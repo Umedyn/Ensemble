@@ -1,0 +1,160 @@
+{
+  "id": "emigrant",
+  "title": "Council Bluffs, May 1866: one wagon among many",
+  "summary": "You are one of the emigrants of the Mercer company, thirty-eight wagons bound for Oregon. You have a wagon, a reason to go west, and a vote in the company's meetings.",
+  "start": {
+    "day": 1582,
+    "hour": 7
+  },
+  "region": "omaha",
+  "castLabel": "Company",
+  "tactical": true,
+  "playerSlot": {
+    "location": "camp-circle",
+    "summary": "You make your own emigrant in the Mercer company: one wagon among thirty-eight, bound for Oregon from Council Bluffs.",
+    "knows": [
+      "The company is bound for Oregon City by the Platte, South Pass and Fort Hall, and the old hands say a train must pass Independence Rock by the Fourth of July to beat the snow."
+    ],
+    "roles": [
+      {
+        "id": "homesteader",
+        "label": "Homesteader",
+        "desc": "Going west for land: a farm in the Willamette valley, or wherever the soil is good.",
+        "skills": {
+          "trailcraft": 2,
+          "fighting": 1,
+          "trade": 1
+        },
+        "suggestedTraits": [
+          "stubborn",
+          "patient",
+          "hopeful"
+        ]
+      },
+      {
+        "id": "veteran",
+        "label": "Veteran",
+        "desc": "Fought in the war, blue or grey, and is going west to forget it or to start again.",
+        "skills": {
+          "shooting": 2,
+          "riding": 1,
+          "fighting": 1
+        },
+        "suggestedTraits": [
+          "haunted",
+          "disciplined",
+          "wry"
+        ]
+      },
+      {
+        "id": "widow",
+        "label": "Widow or widower",
+        "desc": "Lost a spouse to the war or the fever, and is taking what is left of the family west.",
+        "skills": {
+          "persuasion": 1,
+          "trade": 2,
+          "medicine": 1
+        },
+        "suggestedTraits": [
+          "determined",
+          "grieving",
+          "practical"
+        ]
+      },
+      {
+        "id": "freedperson",
+        "label": "Freedman or freedwoman",
+        "desc": "Free since the war, going west for land and a life no one can take away.",
+        "skills": {
+          "fighting": 1,
+          "trailcraft": 1,
+          "trade": 1,
+          "stealth": 1
+        },
+        "suggestedTraits": [
+          "careful",
+          "proud",
+          "patient"
+        ]
+      },
+      {
+        "id": "teamster",
+        "label": "Hired teamster",
+        "desc": "Drives somebody else's wagon for wages and a way west.",
+        "skills": {
+          "riding": 2,
+          "trailcraft": 1,
+          "fighting": 1
+        },
+        "suggestedTraits": [
+          "easygoing",
+          "tough",
+          "restless"
+        ]
+      },
+      {
+        "id": "storekeeper",
+        "label": "Would-be storekeeper",
+        "desc": "Carries a wagon of goods to sell where goods are scarce.",
+        "skills": {
+          "trade": 3,
+          "persuasion": 1
+        },
+        "suggestedTraits": [
+          "shrewd",
+          "sociable",
+          "careful"
+        ]
+      }
+    ],
+    "peoples": [
+      {
+        "id": "ohio",
+        "label": "From Ohio",
+        "desc": "Old farm country, gone crowded and dear."
+      },
+      {
+        "id": "missouri",
+        "label": "From Missouri",
+        "desc": "A border state the war tore apart."
+      },
+      {
+        "id": "immigrant",
+        "label": "From across the sea",
+        "desc": "Germany, Ireland, Norway: arrived in the East, going on west."
+      },
+      {
+        "id": "south",
+        "label": "From the South",
+        "desc": "Leaving what the war left behind."
+      }
+    ],
+    "freeform": true,
+    "skillPoints": 10,
+    "maxSkill": 3,
+    "relationsDefault": 10,
+    "castFeelings": 10,
+    "groups": [
+      {
+        "id": "company",
+        "role": "member"
+      }
+    ],
+    "reputation": {
+      "company": 20
+    }
+  },
+  "cast": [
+    "mercer",
+    "lebeau",
+    "martha-doyle",
+    "cyrus-bell",
+    "wilhelm-brandt",
+    "lucy-graves",
+    "nathaniel-cole",
+    "jasper-kell",
+    "michael-doyle",
+    "elijah-stroud"
+  ],
+  "opening": "Dawn on the Missouri bottoms at Council Bluffs, and the Mercer company is waking inside its ring of wagons. Smoke from the cook fires, oxen lowing at the picket line, children already underfoot.\n\nYour wagon stands with the others, packed and repacked, everything you own under the canvas. Captain Mercer is walking the circle with his ledger, counting rifles and barrels, nodding to each family.\n\nMartha Doyle, the Boston widow two wagons down, catches your eye over her washing line. \"They say we roll at noon,\" she says. \"Have you ever seen anything so big as this sky?\""
+}

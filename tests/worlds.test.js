@@ -225,7 +225,13 @@ test('every bundled world validates, and every start in it starts a game and pla
     assert.deepEqual([...w.warnings], [], `${folder}: no unknown fields`);
     for (const st of w.starts) {
       assert.ok(!st.error, `${folder}/${st.id}: ${st.error}`);
-      const { E, state } = newGame(folder, st.id);
+      // A start with no character of its own (task 7-7: the emigrant) plays with a made one.
+      const { E, state } = st.scenario.player != null ? newGame(folder, st.id) : (() => {
+        const E2 = loadEngine();
+        const loaded = readWorld(folder, E2);
+        const sc = loaded.starts.find((x) => x.id === st.id).scenario;
+        return { E: E2, state: E2.Engine.newGame(E2.Scenario.startScenario(loaded, st.id, E2.CharMaker.sample(sc))) };
+      })();
       assert.ok(state.characters[state.player], `${folder}/${st.id}: player exists`);
       assert.equal(state.scenario.startId, st.id);
       mockLLM(E, ({ kind }) => (kind === 'intent' ? { player: { needs_roll: false }, intents: [], events: [] } : 'You look around.'));

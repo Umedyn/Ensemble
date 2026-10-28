@@ -14,7 +14,7 @@
   TL.SCOPES = ['regional', 'world'];
   TL.VISIBILITY = ['seen', 'heard', 'hidden'];
   TL.ON_BROKEN = ['drop', 'diverge'];
-  TL.PRE_KEYS = ['alive', 'controls', 'clock', 'world', 'feature', 'known', 'reputation', 'role', 'not'];
+  TL.PRE_KEYS = ['alive', 'controls', 'clock', 'world', 'feature', 'known', 'reputation', 'role', 'reached', 'built', 'not'];
   TL.PROJECT = { days: 3, max: 3 };
   TL.TEXT_MAX = 240;
   // Hours between projection attempts, so an empty or failed one isn't
@@ -23,9 +23,15 @@
 
   const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
   const nm = (state, id) => (state.characters[id] ? state.characters[id].name : id);
-  TL.at = (when) => when.day * 24 + when.hour;
+  // An event on a date, or one that happens on arrival (task 7-7: {"reach":
+  // region id}, the first time the player reaches that region): it has no
+  // time until it happens, so it sorts last and never stops a skip by date.
+  TL.arrival = (ev) => !!(ev && isObj(ev.when) && typeof ev.when.reach === 'string');
+  TL.at = (when) => (isObj(when) && Number.isFinite(when.day) ? when.day * 24 + when.hour : Infinity);
   TL.now = (state) => state.time.day * 24 + state.time.hour;
-  TL.fmt = (sc, when) => `${E.dayName(sc, when.day)}, ${String(when.hour).padStart(2, '0')}:00`;
+  TL.fmt = (sc, when) => (isObj(when) && typeof when.reach === 'string'
+    ? `on reaching ${((sc.regions || []).find((r) => r.id === when.reach) || {}).name || when.reach}`
+    : `${E.dayName(sc, when.day)}, ${String(when.hour).padStart(2, '0')}:00`);
 
   // Projection settings, or null when the world turns it off.
   TL.config = (sc) => (sc.projectTimeline === false ? null : Object.assign({}, TL.PROJECT, isObj(sc.projectTimeline) ? sc.projectTimeline : {}));
@@ -83,6 +89,17 @@
     },
     // Standing (task G-6): {"reputation": {group, atLeast}} or {group, below};
     // {"role": {group, is}} (member, favored, leader, or none).
+    // Where the player has been (task 7-7): {"reached": region id}, the region
+    // or anywhere inside it, at any time since the start.
+    reached: {
+      holds: (s, p) => Eng().hasReached(s, p.reached),
+      say: (s, p) => `the player has reached ${(Eng().regionDef(s, p.reached) || {}).name || p.reached}`,
+    },
+    // Lots built on in a place (task 7-7): {"built": {place, atLeast}}.
+    built: {
+      holds: (s, p) => Eng().builtLots(s, p.built.place) >= p.built.atLeast,
+      say: (s, p) => `${p.built.atLeast} or more lots are built on in ${(((s.scenario.siteInfo || {})[p.built.place]) || {}).name || p.built.place}`,
+    },
     reputation: {
       holds: (s, p) => { const v = E.Standing.value(s, p.reputation.group); return p.reputation.atLeast != null ? v >= p.reputation.atLeast : v < p.reputation.below; },
       say: (s, p) => `standing with ${E.Standing.groupName(s, p.reputation.group)} is ${p.reputation.atLeast != null ? `${p.reputation.atLeast} or more` : `below ${p.reputation.below}`}`,
@@ -106,9 +123,24 @@
 
   // Pending events due within `hours`, with what broke: [{ ev, broken }].
   // Checked once, against the state at the start of the turn.
+  // Arrival events are due once the player has reached their region.
   TL.due = (state, hours) => {
     const until = TL.now(state) + hours;
-    return TL.pending(state).filter((ev) => TL.at(ev.when) <= until).map((ev) => ({ ev, broken: TL.broken(state, ev) }));
+    return TL.pending(state).filter((ev) => (TL.arrival(ev) ? Eng().hasReached(state, ev.when.reach) : TL.at(ev.when) <= until)).map((ev) => ({ ev, broken: TL.broken(state, ev) }));
+  };
+  // The first arrival event a trip comes to on the way (a stage of the
+  // trail): the leg it ends and the hours to there, or null.
+  TL.stageOnTrip = function (state, legs) {
+    const waiting = TL.pending(state).filter(TL.arrival);
+    if (!waiting.length) return null;
+    let hours = 0;
+    for (let i = 0; i < (legs || []).length; i++) {
+      hours += legs[i].hours;
+      const chain = E.Scenario.regionChainIn(state.scenario.regions, legs[i].to);
+      const ev = waiting.find((x) => chain.includes(x.when.reach));
+      if (ev) return { ev, leg: i, hours, region: legs[i].to };
+    }
+    return null;
   };
   // Due events whose preconditions broke and that the model rewrites.
   TL.diverging = (due) => (due || []).filter((d) => d.broken.length && d.ev.onBroken === 'diverge');
@@ -154,7 +186,7 @@
     }
     if (fact) fact.canon = ev.id;
     (res.director = res.director || []).push({ scope, text, visibility: vis, who, where: null, region, moved, effects, canon: ev.id });
-    state.canon[ev.id] = { status: how, turn: state.turn, time: E.fmtTime(state), text };
+    state.canon[ev.id] = { status: how, turn: state.turn, time: E.fmtTime(state), at: TL.now(state), text };
     return text;
   };
 
@@ -198,7 +230,7 @@
     state.projection = true;
     const start = TL.now(state);
     const sc = state.scenario;
-    const past = TL.all(state).filter((ev) => TL.at(ev.when) < start).sort(byTime);
+    const past = TL.all(state).filter((ev) => !TL.arrival(ev) && TL.at(ev.when) < start).sort(byTime);
     const lines = [];
     past.forEach((ev) => {
       state.canon[ev.id] = { status: 'past' };
@@ -218,8 +250,13 @@
 
   // ---------- the downtime skip ----------
   // The next pending event, in hours from now (at least 1).
+  // Only world events and those near the player stop a skip or a journey
+  // (task 7-7: weeks on the trail were cut short by a riot in Memphis);
+  // regional news from far away happens at the next turn, heard late.
   TL.next = function (state) {
-    const ev = TL.pending(state)[0];
+    const here = Eng().playerRegion(state);
+    const near = new Set(here ? E.Scenario.regionChainIn(state.scenario.regions, here).concat(Eng().regionNear(state, here)) : []);
+    const ev = TL.pending(state).filter((x) => !TL.arrival(x) && (x.scope === 'world' || !x.region || !here || near.has(x.region)))[0];
     return ev ? { hours: Math.max(1, TL.at(ev.when) - TL.now(state)), id: ev.id } : null;
   };
 
@@ -229,17 +266,21 @@
     if (!cfg || !state.projection) return false;
     const now = TL.now(state);
     if (state.projectTried != null && now - state.projectTried < TL.RETRY_HOURS) return false;
-    return !TL.pending(state).some((ev) => TL.at(ev.when) <= now + cfg.days * 24);
+    return !TL.pending(state).some((ev) => !TL.arrival(ev) && TL.at(ev.when) <= now + cfg.days * 24);
   };
 
   // Resolved events, newest last, for the projection prompt's pacing.
   TL.history = (state) => TL.all(state).filter((ev) => {
     const st = (state.canon || {})[ev.id];
     return st && st.status !== 'dropped' && ev.visibility !== 'hidden';
-  }).sort(byTime).map((ev) => ({ when: ev.when, text: (state.canon[ev.id] && state.canon[ev.id].text) || ev.text }));
+  }).map((ev) => {
+    // An arrival event's time is when it happened.
+    const at = TL.arrival(ev) ? state.canon[ev.id].at : null;
+    return { when: at != null ? { day: Math.floor(at / 24), hour: at % 24 } : ev.when, text: (state.canon[ev.id] && state.canon[ev.id].text) || ev.text };
+  }).filter((x) => Number.isFinite(TL.at(x.when))).sort(byTime);
   // The usual gap between events, in hours (null with fewer than two).
   TL.gap = function (state) {
-    const times = TL.all(state).map((ev) => TL.at(ev.when)).sort((a, b) => a - b);
+    const times = TL.all(state).map((ev) => TL.at(ev.when)).filter(Number.isFinite).sort((a, b) => a - b);
     if (times.length < 2) return null;
     return Math.round((times[times.length - 1] - times[0]) / (times.length - 1));
   };
@@ -323,7 +364,11 @@
       seen.add(ev.id);
       const w = ev.when;
       const okWhen = isObj(w) && Number.isInteger(w.day) && w.day >= 0 && Number.isInteger(w.hour) && w.hour >= 0 && w.hour <= 23;
-      req(okWhen, '"when" must be {day, hour} with whole numbers (hour 0–23)');
+      if (TL.arrival(ev)) {
+        req(Object.keys(w).length === 1, '"when" must be {day, hour} or {"reach": region id}, not both');
+        if (refs.regions) req(refs.regions.has(w.reach), `"when": no region "${w.reach}" to reach`);
+        req(!ev.projected, 'a projected event cannot wait for an arrival');
+      } else req(okWhen, '"when" must be {day, hour} with whole numbers (hour 0–23), or {"reach": region id}');
       req(TL.SCOPES.includes(ev.scope), '"scope" must be regional or world');
       req(typeof ev.text === 'string' && ev.text.trim() && ev.text.length <= TL.TEXT_MAX, `"text" must be text of at most ${TL.TEXT_MAX} characters`);
       req(ev.visibility == null || TL.VISIBILITY.includes(ev.visibility), '"visibility" must be seen, heard or hidden');
@@ -389,6 +434,12 @@
       const r = p.role;
       if (!isObj(r) || typeof r.group !== 'string' || !E.Standing.ROLES.concat('none').includes(r.is)) return no(`"role" must be {group, is: ${E.Standing.ROLES.join('|')}|none}`);
       if (refs.groups && !refs.groups.has(r.group)) no(`"role": unknown group "${r.group}"`);
+    }
+    if (k === 'reached' && !(typeof p.reached === 'string' && (!refs.regions || refs.regions.has(p.reached)))) no(`"reached": unknown region "${p.reached}"`);
+    if (k === 'built') {
+      const b = p.built;
+      if (!isObj(b) || typeof b.place !== 'string' || !Number.isInteger(b.atLeast) || b.atLeast < 1) return no('"built" must be {place, atLeast} (a whole number from 1)');
+      if (refs.places && !refs.places.has(b.place)) no(`"built": no place "${b.place}" (a room's "site")`);
     }
     if (k === 'not') preProblems(p.not, at, refs, problems, warnings);
   }

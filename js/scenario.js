@@ -826,7 +826,8 @@
     const addClocks = (cs) => (cs || []).forEach((c) => { if (c && c.id) { clocks.add(c.id); addClocks(c.then); } });
     addClocks(sc.clocks);
     const events = new Set((Array.isArray(sc.timeline) ? sc.timeline : []).map((ev) => ev && ev.id));
-    const refs = Object.assign({ regions: new Set((sc.regions || []).map((r) => r && r.id)), groups: new Set((sc.factions || []).map((f) => f && f.id)), clocks, characters: new Set(sc.characters || []) }, S.trackedFeatures(sc));
+    const refs = Object.assign({ regions: new Set((sc.regions || []).map((r) => r && r.id)), groups: new Set((sc.factions || []).map((f) => f && f.id)), clocks, characters: new Set(sc.characters || []),
+      places: new Set((sc.locations || []).map((l) => l && l.site).filter(Boolean)) }, S.trackedFeatures(sc));
     list.forEach((e) => {
       if (!isObj(e)) return problems.push('each ending must be {id, title, kind, when, if, epilogue}');
       const at = `ending "${e.id || '?'}"`;
@@ -1046,6 +1047,14 @@
         req(placeIds.has(id), `siteInfo: no room is in the place "${id}"`);
         req(isObj(v) && typeof v.name === 'string' && v.name.trim() && v.name.length <= 60 && (v.kind == null || (typeof v.kind === 'string' && v.kind.length <= 30))
           && (v.layout == null || S.SITE_TYPES.includes(v.layout)), `siteInfo "${id}": needs a "name" (up to 60 characters), and optionally a "kind", a "layout" (${S.SITE_TYPES.join(', ')}) and a "map"`);
+        // A place that travels (task 7-7): {group, kinds, toward}.
+        if (isObj(v) && v.travel != null) {
+          const t = v.travel;
+          const ok = isObj(t) && (t.group == null || (sc.factions || []).some((f) => f && f.id === t.group))
+            && (t.kinds == null || (Array.isArray(t.kinds) && t.kinds.length && t.kinds.every((k) => typeof k === 'string' && k.trim())))
+            && (t.toward == null || (sc.regions || []).some((r) => r && r.id === t.toward));
+          req(ok, `siteInfo "${id}": "travel" must be {group (a group id), kinds (route kinds it can take), toward (a region id)}, each optional`);
+        }
         // A place drawn on a picture: one of the world's site maps, with a
         // shape for each of the place's rooms and for nothing else.
         if (!isObj(v) || v.map == null) return;
@@ -1062,6 +1071,8 @@
     locs.forEach((l) => {
       const where = `location "${l.id}"`;
       req(l.size == null || S.ROOM_SIZES.includes(l.size), `${where}: "size" must be small, medium or large`);
+      // A lot to build on (task 7-7), in a place.
+      req(l.lot == null || (l.lot === true && typeof l.site === 'string'), `${where}: "lot" must be true, on a room in a place (its "site")`);
       req(l.level == null || (Number.isInteger(l.level) && l.level >= -3 && l.level <= 5), `${where}: "level" must be a whole number from -3 to 5 (0 is the ground floor)`);
       req(l.outside == null || typeof l.outside === 'boolean', `${where}: "outside" must be true or false`);
       req(l.secure == null || typeof l.secure === 'boolean', `${where}: "secure" must be true or false`);
@@ -1288,6 +1299,7 @@
     // across the whole world in validateWorld.
     problems.push(...E.Timeline.problems(sc.timeline, 'scenario', {
       regions: new Set((sc.regions || []).map((r) => r && r.id)), groups: new Set((sc.factions || []).map((f) => f && f.id)), effectKeys: Object.keys(E.Engine.EFFECTS),
+      places: new Set((sc.locations || []).map((l) => l && l.site).filter(Boolean)),
     }, []));
     problems.push(...projectProblems(sc.projectTimeline));
     problems.push(...E.Lore.topicProblems(sc.loreTopics, ''));

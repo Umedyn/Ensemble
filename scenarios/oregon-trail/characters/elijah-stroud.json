@@ -1,0 +1,35 @@
+{
+  "id": "elijah-stroud",
+  "name": "Elijah Stroud",
+  "pronouns": "he/him",
+  "role": "prospector, the gulch's other discoverer",
+  "age": 55,
+  "traits": [
+    "suspicious",
+    "shrewd",
+    "tired"
+  ],
+  "want": "hold on to the discovery claim and see the town built on terms he sets",
+  "secret": "He sold a share in the gulch to a Fort Bridger trader last winter to buy flour, and the trader will come to collect.",
+  "guard": "high",
+  "voice": "Few words, most of them doubtful.",
+  "description": "A prospector who has been in every rush since California in '49 and has nothing to show for it but this gulch.",
+  "appearance": "Bent, leathery, a patched miner's coat and a rifle he cleans while he talks.",
+  "skills": {
+    "riding": 1,
+    "shooting": 2,
+    "fighting": 1,
+    "trailcraft": 3,
+    "persuasion": 0,
+    "trade": 2,
+    "stealth": 1,
+    "medicine": 1
+  },
+  "status": {
+    "location": "poorman-discovery"
+  },
+  "joins": "gulch-reached",
+  "relations": {
+    "michael-doyle": 30
+  }
+}

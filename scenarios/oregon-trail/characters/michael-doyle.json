@@ -1,0 +1,36 @@
+{
+  "id": "michael-doyle",
+  "name": "Michael Doyle",
+  "pronouns": "he/him",
+  "role": "prospector, one of the gulch's discoverers",
+  "age": 32,
+  "traits": [
+    "hopeful",
+    "reckless",
+    "loyal"
+  ],
+  "want": "see his sister and her boys safe, and turn the gulch into a town before anyone else finds it",
+  "secret": "The gold in the creek is thinning; the rich ground may be the quartz up the ridge, and he hasn't told his partner.",
+  "guard": "medium",
+  "voice": "Boston Irish like his sister, louder.",
+  "description": "Martha's younger brother, who came west for the Montana gold and drifted south with a partner. He wrote to his sister because she is the one person he trusts.",
+  "appearance": "Ragged, sunburnt, a beard full of gravel dust, a grin that hasn't changed since he was ten.",
+  "skills": {
+    "riding": 1,
+    "shooting": 1,
+    "fighting": 2,
+    "trailcraft": 2,
+    "persuasion": 1,
+    "trade": 1,
+    "stealth": 1,
+    "medicine": 0
+  },
+  "status": {
+    "location": "poorman-tents"
+  },
+  "joins": "gulch-reached",
+  "relations": {
+    "martha-doyle": 60,
+    "elijah-stroud": 30
+  }
+}
