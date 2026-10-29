@@ -139,8 +139,35 @@
     return t.trim();
   }
 
+  // A reply that is a list ("[{...}]") is read as the list, when it parses
+  // whole; LLM.pickShape then finds the object in it.
   LLM.extractJSON = function (text) {
-    let t = String(text || '').replace(/```(?:json)?/gi, '');
+    const t = String(text || '').replace(/```(?:json)?/gi, '');
+    const arr = t.indexOf('[');
+    if (arr >= 0 && arr < t.indexOf('{') && !t.slice(0, arr).trim()) {
+      try { return JSON.parse(t.slice(arr, t.lastIndexOf(']') + 1)); } catch (e) {}
+      try { return JSON.parse(t.slice(arr, t.lastIndexOf(']') + 1).replace(/,\s*([}\]])/g, '$1')); } catch (e) {}
+    }
+    return firstObject(t);
+  };
+  // The object a step asked for, inside whatever came back: a list around it,
+  // a wrapper object ({"response": {...}}), or JSON written into a string (a
+  // chat log's "value"). expect: its top-level keys, any one of which will do;
+  // without it, the first object. → the object or null.
+  LLM.pickShape = function (v, expect, depth) {
+    depth = depth || 0;
+    if (v == null || depth > 4) return null;
+    if (typeof v === 'string') return depth && /[{[]/.test(v) ? LLM.pickShape(LLM.extractJSON(v), expect, depth + 1) : null;
+    if (Array.isArray(v)) {
+      for (const x of v) { const hit = LLM.pickShape(x, expect, depth + 1); if (hit) return hit; }
+      return null;
+    }
+    if (typeof v !== 'object') return null;
+    if (!expect || !expect.length || expect.some((k) => k in v)) return v;
+    for (const x of Object.values(v)) { const hit = LLM.pickShape(x, expect, depth + 1); if (hit) return hit; }
+    return null;
+  };
+  function firstObject(t) {
     const start = t.indexOf('{');
     if (start < 0) return null;
     let depth = 0, inStr = false, esc = false, end = -1;
@@ -166,7 +193,7 @@
       try { return JSON.parse(a); } catch (e) {}
     }
     return null;
-  };
+  }
 
   // Last resort for JSON cut off at the token cap: keep everything up to the
   // last complete item (cut at the last comma outside a string) and close the
@@ -291,8 +318,13 @@
     // for (DeepSeek overran even double), and only generated tokens are billed,
     // so they get a flat, generous limit.
     if (!LLM.backendFor(opts.kind).kobold) opts = Object.assign({}, opts, { maxTokens: Math.max(opts.maxTokens || 400, LLM.hostedJSONTokens) });
+    // opts.expect: the reply's top-level keys (any one will do). A reply in
+    // another shape (a list of chat turns, an event log) is retried, not taken
+    // half-read (playtest-seiryo-goes-to-school: the update came back as a list).
+    const expect = Array.isArray(opts.expect) && opts.expect.length ? opts.expect : null;
+    const read = (t) => LLM.pickShape(LLM.extractJSON(t), expect);
     let text = await LLM.chat(opts);
-    let obj = LLM.extractJSON(text);
+    let obj = read(text);
     if (!obj) {
       // cut off mid-JSON: the same limit would fail the same way
       const cutOff = LLM.lastFinish === 'length';
@@ -301,11 +333,11 @@
         temperature: 0.3,
         maxTokens: cutOff ? (opts.maxTokens || 400) * LLM.moreRoom(LLM.backendFor(opts.kind)) : opts.maxTokens,
         moreRoom: cutOff || opts.moreRoom,
-        user: opts.user + '\n\nIMPORTANT: Reply with ONLY the JSON object. No prose, no code fences.',
+        user: opts.user + `\n\nIMPORTANT: Reply with ONLY the JSON object${expect ? `, starting with {"${expect[0]}":` : ''}. No prose, no code fences, no list around it.`,
       }));
-      obj = LLM.extractJSON(text);
+      obj = read(text);
       if (!obj && LLM.lastFinish === 'length') {
-        obj = LLM.salvageJSON(text);
+        obj = LLM.pickShape(LLM.salvageJSON(text), expect);
         const last = LLM.calls[LLM.calls.length - 1];
         if (obj && last) last.salvaged = true;
       }

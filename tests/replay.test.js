@@ -374,3 +374,40 @@ test('playtest: coffee instead of sleep catches up with Kit: their fatigue climb
   assert.ok(last.result.res.guards.some((g) => g.type === 'body gives out' && /left no room for sleep/.test(g.detail)));
   assert.equal(last.state.ignored.length, 3, 'the storm sat out, Teo turned away, and the collapse all count');
 });
+
+// Impish_Bloodmoon at 8K (playtest-seiryo-goes-to-school): "I go to Seiryo
+// High" came back as the region "mito-senba" both turns, so Sora never left the
+// living room, and the update step sent Mom to the school gate while the
+// scene had her kneading dough at home. The update's reply was a list with
+// "char:" ids and facts without a subject.
+test('playtest: "I go to Seiryo High" takes Sora to the school gate, and Mom and Dad stay home', async () => {
+  const r = await replay('playtest-seiryo-goes-to-school');
+  r.steps.forEach((s) => assert.equal(s.error, null, s.error && s.error.message));
+  const [one, two] = r.steps;
+  assert.equal(one.state.characters.sora.status.location, 'gate');
+  assert.ok(one.result.res.guards.some((g) => g.type === 'move resolved' && /"mito-senba" → School gate/.test(g.detail)));
+  assert.equal(two.state.characters.sora.status.location, 'gate', 'already there: no second trip');
+  assert.equal(two.state.characters.yumiko.status.location, 'hayakawa-living');
+  assert.equal(two.state.characters.kenji.status.location, 'hayakawa-living');
+  const t1 = two.state.facts.filter((f) => f.turn === 1);
+  assert.ok(t1.some((f) => f.text.startsWith('Yumiko Hayakawa takes photos') && [...f.about].includes('yumiko')), 'the subject named, "char:" taken off the ids');
+});
+
+// The rerun (playtest-seiryo-goes-downtown): the intent said "mito-downtown"
+// for "I go to Seiryo High", so Sora stopped in the shopping arcade; its
+// summary had him go "with his family" while the frame kept them home, so the
+// narrator walked them up the hill twice; the update step made the weather a
+// sentence of prose and opened the coffee shop's door, which no scene named.
+test('playtest: the words "Seiryo High" beat the model\'s "mito-downtown", and the family walks Sora there', async () => {
+  const r = await replay('playtest-seiryo-goes-downtown');
+  r.steps.forEach((s) => assert.equal(s.error, null, s.error && s.error.message));
+  const [one, two] = r.steps;
+  assert.equal(one.state.characters.sora.status.location, 'gate');
+  assert.ok(one.result.res.guards.some((g) => g.type === 'move resolved' && /"mito-downtown" → School gate/.test(g.detail)));
+  assert.equal(one.state.characters.yumiko.status.location, 'gate', 'with his family: Mom comes along');
+  assert.equal(one.state.characters.kenji.status.location, 'gate');
+  assert.equal(one.state.characters.momo.status.location, 'hayakawa-entry', 'not present, so not taken along');
+  assert.equal(two.state.characters.sora.status.location, 'gate');
+  assert.equal(two.state.world.weather, 'cherry blossoms at their peak', 'a sentence of scenery is no status');
+  assert.equal(two.state.links['cafe|shopping-street'].open, false);
+});

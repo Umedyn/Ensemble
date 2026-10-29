@@ -1307,6 +1307,74 @@
     if (allowCharacter && state.characters[key]) return state.characters[key].status.location;
     return null;
   };
+  // Whether text names a room: a word of its name that says which room it is
+  // ("Lantern", "garage"), not "room" or "the".
+  const ROOM_WORDS_SKIP = new Set(['the', 'and', 'room', 'rooms', 'your', 'with', 'from', 'floor', 'side', 'area', 'front', 'back', 'first', 'second', 'third']);
+  Eng.namesRoom = function (text, loc) {
+    const t = String(text || '').toLowerCase();
+    return String(loc && loc.name || '').toLowerCase().split(/[^a-z0-9']+/).filter((w) => w.length > 3 && !ROOM_WORDS_SKIP.has(w))
+      .some((w) => new RegExp(`\\b${w.replace(/'/g, "'?")}(?:s|es)?\\b`).test(t));
+  };
+  // Where the player means to go, as a room (playtest-seiryo-goes-to-school:
+  // "I go to Seiryo High" came back as the region "mito-senba", twice, and
+  // the player never left the living room): a room or character as above, a
+  // place's id or name (its way in), or a region (the place in it the words
+  // name, else its only place). → room id or null.
+  Eng.resolvePlace = function (state, v, words) {
+    const room = Eng.resolveLocation(state, v, true);
+    if (room) return room;
+    const key = String(v || '').trim().toLowerCase();
+    if (!key) return null;
+    const places = Object.values(state.sites || {}).filter((s) => s && s.entry && state.locations[s.entry]);
+    const site = places.find((s) => s.id.toLowerCase() === key || String(s.name || '').toLowerCase() === key);
+    if (site) return site.entry;
+    const region = (state.scenario.regions || []).find((r) => r && (r.id.toLowerCase() === key || String(r.name || '').toLowerCase() === key));
+    if (!region || !Eng.regionKnown(state, region.id)) return null;
+    const inside = places.filter((s) => s.region && E.Scenario.regionChainIn(state.scenario.regions, s.region).includes(region.id));
+    const named = inside.filter((s) => s.name && mentionsName(words, s.name)).sort((a, b) => b.name.length - a.name.length);
+    if (named.length) return named[0].entry;
+    return inside.length === 1 ? inside[0].entry : null;
+  };
+  // A place the player's own words go to ("I go to Seiryo High", "head over
+  // to the cafe"): a place's name (its way in) or a room's, the player's own
+  // place first, then the longest name. → room id or null.
+  const GO_TO = '\\b(?:go|goes|going|head|heads|heading|walk|walks|run|runs|hurry|return|cycle|make (?:my|our) way|set (?:out|off)|leave)\\b[^.!?]{0,30}?\\b(?:to|into|for|toward|towards)\\s+(?:the\\s+)?';
+  Eng.placeInWords = function (state, text) {
+    const t = String(text || '');
+    const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const mine = E.Sites ? E.Sites.playerSite(state) : null;
+    const cands = Object.values(state.sites || {}).filter((s) => s && s.entry && state.locations[s.entry] && s.name).map((s) => ({ name: s.name, room: s.entry, site: s.id }))
+      .concat(Object.values(state.locations).map((l) => ({ name: l.name, room: l.id, site: l.site })))
+      .map((c) => Object.assign(c, { name: String(c.name).replace(/^the\s+/i, '').trim() }))
+      .filter((c) => c.name.length > 2 && new RegExp(GO_TO + esc(c.name) + '(?![\\w])', 'i').test(t));
+    cands.sort((a, b) => (b.site === mine) - (a.site === mine) || b.name.length - a.name.length);
+    return cands.length ? cands[0].room : null;
+  };
+  // The player's move as a room before anything else reads it: a place or
+  // region the intent named, or one the player's words go to. → a note, or null.
+  // The place the words name wins over the model's guess at another one
+  // (playtest-seiryo-goes-downtown: "I go to Seiryo High" came back as
+  // "mito-downtown", and the player ended up in the shopping arcade).
+  Eng.placeMove = function (state, intentObj, action) {
+    const p = intentObj && intentObj.player;
+    if (!p || typeof p !== 'object') return null;
+    const said = Eng.placeInWords(state, action);
+    const room = typeof p.move_to === 'string' ? Eng.resolveLocation(state, p.move_to, true) : null;
+    if (room && (!said || E.Sites.siteOf(state, said) === E.Sites.siteOf(state, room))) return null;
+    const here = state.characters[state.player].status.location;
+    const to = said || Eng.resolvePlace(state, p.move_to, action);
+    if (!to) return null;
+    const was = p.move_to;
+    p.new_place = null;
+    p.new_region = null;
+    if (to === here || E.Sites.siteOf(state, to) === E.Sites.siteOf(state, here) && !said) {
+      // Already there: "I go to Seiryo High" from its gate.
+      p.move_to = null;
+      return was ? { type: 'move dropped', detail: `"${was}": the player is already at ${state.locations[here].name}` } : null;
+    }
+    p.move_to = to;
+    return { type: 'move resolved', detail: `${was ? `"${was}"` : "the player's words"} → ${state.locations[to].name}` };
+  };
 
   // Words that say someone goes with the player ("comes along", "rides with
   // you", "follows Rook"), unless negated ("refuses to come along").
@@ -1317,6 +1385,24 @@
     const m = re.exec(String(text || ''));
     if (!m) return false;
     return !/\b(?:refus\w*|won't|will not|doesn't|does not|not|never|instead of)\b[^.!?]{0,25}$/i.test(String(text).slice(0, m.index));
+  };
+  // The player's move taking someone present along: "with Aoi", "with his
+  // family" (those who share the player's family name), "with everyone"
+  // (playtest-seiryo-goes-downtown: the family walked Sora to the ceremony
+  // while the frame kept them home).
+  Eng.takesAlong = function (state, text, c) {
+    const pc = state.characters[state.player];
+    const family = (x) => String(x.name || '').trim().split(/\s+/).pop().toLowerCase();
+    const re = /\b(?:talk\w*|speak\w*|chat\w*|argu\w*|meet\w*|deal\w*|fight\w*|break\w*)?\s*\bwith\s+([^.!?;:]{1,60})/gi;
+    let m;
+    while ((m = re.exec(String(text || '')))) {
+      if (/^\s*(?:talk|speak|chat|argu|meet|deal|fight|break)/i.test(m[0])) continue;
+      const g = m[1];
+      if (mentions(g, c)) return true;
+      if (/\b(?:everyone|everybody|all of them|the others)\b/i.test(g)) return true;
+      if (/\b(?:family|parents)\b/i.test(g) && family(c).length > 1 && family(c) === family(pc)) return true;
+    }
+    return false;
   };
   function cleanIntent(state, raw, id) {
     const sc = state.scenario;
@@ -1962,7 +2048,8 @@
       // along" with no move, so the frame kept her home and the narrator took
       // her anyway): someone present who says they go with the player, and
       // sets no move of their own, goes where the player went.
-      if (it.id !== state.player && !it.moveTo && outcomes[0] && outcomes[0].moved && Eng.comesAlong(state, `${it.action} ${it.says || ''}`)) {
+      if (it.id !== state.player && !it.moveTo && outcomes[0] && outcomes[0].moved
+        && (Eng.comesAlong(state, `${it.action} ${it.says || ''}`) || Eng.takesAlong(state, outcomes[0].action, c))) {
         it.moveTo = outcomes[0].moved;
         guard(res, 'resolve', 'came along', `${c.name} goes with ${state.characters[state.player].name}`);
       }
@@ -2635,11 +2722,26 @@
     // in other rooms.
     const couldKnow = new Set(witnesses.concat(ctx.involved || [], ctx.extrasPresent || []));
     const named = (x) => ids.has(x) || extraIds.has(x);
+    // Ids written the way targets are ("char:yumiko") in lists that want them
+    // bare (playtest-seiryo-goes-to-school: every fact lost its "about").
+    const bare = (x) => (typeof x === 'string' ? x.replace(/^\s*(?:char|character|standee)\s*:\s*/i, '').trim() : x);
+    const idList = (v) => (Array.isArray(v) ? v : typeof v === 'string' && v ? [v] : []).map(bare);
+    (Array.isArray(upd.relations) ? upd.relations : []).forEach((r) => { if (r && typeof r === 'object') { r.from = bare(r.from); r.to = bare(r.to); } });
+    (Array.isArray(upd.player_attitude) ? upd.player_attitude : []).forEach((a) => { if (a && typeof a === 'object') a.to = bare(a.to); });
 
     (Array.isArray(upd.facts) ? upd.facts : []).slice(0, 6).forEach((f) => {
       if (!f || !f.text) return reject('fact', 'no text');
+      f.about = idList(f.about);
+      f.known_by = idList(f.known_by);
       // Facts may be about a group (task 3-2), though a group knows nothing.
-      const about = (f.about || []).filter((x) => named(x) || isStandee(state, x));
+      const about = f.about.filter((x) => named(x) || isStandee(state, x));
+      // A fact written as a bare verb phrase ("takes photos of Sora at the
+      // gate") gets its one subject's name in front.
+      const people = about.filter(named);
+      if (people.length === 1 && /^[a-z]/.test(String(f.text).trim()) && !/^(?:the|a|an|it|its|there|this|that|everyone|someone|nobody|no one|all)\b/.test(String(f.text).trim())) {
+        const who = state.characters[people[0]] || state.extras[people[0]];
+        f.text = `${who.name} ${String(f.text).trim()}`;
+      }
       let known = (f.known_by || []).filter((x) => x === 'all' || named(x));
       if (!known.includes('all')) {
         const absent = known.filter((x) => !couldKnow.has(x));
@@ -2672,6 +2774,14 @@
       report.applied.push(`fact: ${fact.text} (w${fact.weight}, known by ${fact.known_by.join('/')}${addedPlayer ? '; the player added: it is about their own action' : ''})`);
     });
 
+    // Someone in the scene only goes elsewhere if the scene shows them leaving,
+    // or going along with the player (playtest-seiryo-goes-to-school: Mom
+    // moved to the school gate while the scene had her kneading dough). After
+    // a step-in, a planned exit only happened if the kept scene shows it.
+    const scene = ctx.prose != null ? ctx.prose : ctx.keptProse;
+    const shownMoving = (who, from, dest) => scene == null || dest === from || ![ctx.startLoc, ctx.endLoc].includes(from)
+      || Eng.seenLeaving(scene, who) || (dest === ctx.endLoc && ctx.startLoc !== ctx.endLoc && Eng.seenGoingAlong(state, scene, who));
+    const notShown = ctx.keptProse != null ? 'the player stepped in before they left' : 'the scene never shows them leaving';
     (Array.isArray(upd.state) ? upd.state : []).forEach((s) => {
       if (!s || typeof s.target !== 'string') return reject('state', 'no target');
       const [kind, key] = s.target.split(':');
@@ -2683,7 +2793,7 @@
         const dest = Eng.resolveLocation(state, s.value, false);
         if (!dest) return reject(label, 'unknown location');
         if (![ctx.startLoc, ctx.endLoc].includes(x.location) && dest !== ctx.endLoc) return reject(label, 'nobody in the scene could have seen that move');
-        if (ctx.keptProse != null && !Eng.seenLeaving(ctx.keptProse, x)) return reject(label, 'the player stepped in before they left');
+        if (!shownMoving(x, x.location, dest)) return reject(label, notShown);
         const blocked = x.location && Eng.moveProblem(state, key, x.location, dest);
         if (blocked) return reject(label, blocked);
         x.location = dest;
@@ -2718,8 +2828,7 @@
           if (!dest) return reject(label, 'unknown location');
           const inScene = [ctx.startLoc, ctx.endLoc].includes(c.status.location) || dest === ctx.endLoc;
           if (!inScene) return reject(label, 'nobody in the scene could have seen that move');
-          // After a step-in, a planned exit only happened if the kept scene shows it.
-          if (ctx.keptProse != null && !Eng.seenLeaving(ctx.keptProse, c)) return reject(label, 'the player stepped in before they left');
+          if (!shownMoving(c, c.status.location, dest)) return reject(label, notShown);
           const blocked = Eng.moveProblem(state, key, c.status.location, dest);
           if (blocked) return reject(label, blocked);
           c.status.location = dest;
@@ -2775,6 +2884,10 @@
         if (s.field !== 'open' || typeof s.value !== 'boolean') return reject(label, 'a way can only be opened or shut ("open": true or false)');
         if (![ctx.startLoc, ctx.endLoc].some((r) => r === a || r === b)) return reject(label, 'nobody in the scene was there');
         if (s.value && k.locked) return reject(label, 'it is locked');
+        // Only a way the scene goes near (playtest-seiryo-goes-downtown: the
+        // arcade's coffee-shop door "opened" in a scene that never named it).
+        const far = [a, b].filter((r) => r !== ctx.startLoc && r !== ctx.endLoc);
+        if (scene != null && far.length && !far.some((r) => Eng.namesRoom(scene, state.locations[r]))) return reject(label, 'the scene never names the room on the other side');
         state.links[Eng.linkKey(a, b)].open = s.value;
       } else if (kind === 'feature') {
         const i = String(key || '').indexOf('|');
@@ -2804,6 +2917,9 @@
         // the holdout's barricades became "degraded, about 70% output").
         const v = String(s.value || '').trim().toLowerCase();
         if (Eng.PROMPT_EXAMPLES.includes(v) && String(state.world[key]).toLowerCase() !== v) return reject(label, "copied the prompt's example");
+        // A status, not scenery (playtest-seiryo-goes-downtown: the weather
+        // became a sentence of the scene's prose).
+        if (v.split(/\s+/).length > 14) return reject(label, 'too long for a status (14 words at most)');
         state.world[key] = String(s.value || '').slice(0, 120);
       } else if (kind === 'faction') {
         const f = (state.factions || []).find((x) => x.id === key);
@@ -2856,9 +2972,13 @@
 
   // True when a paragraph naming the character also shows someone leaving
   // ("She's gone toward Ops", "He's backing toward the corridor").
-  const LEAVING = /\b(?:leaves|left|leaving|exits|disappears|(?:is|'s|was)\s+gone|heads?\s+(?:out|off|for|to|toward|towards|back)|heading\s+(?:out|off|for|to|toward|towards)|goes\s+(?:out|off|to|back)|(?:walks|slips|steps|ducks|hurries)\s+(?:out|off|away)|backing\s+(?:out|away|toward|towards))\b/i;
+  const LEAVING = /\b(?:leaves|left|leaving|exits|disappears|(?:storms|stomps|runs|rushes|marches|stalks)\s+(?:out|off|away)|slams\s+the\s+door\s+behind|out\s+the\s+door|(?:is|'s|was)\s+gone|heads?\s+(?:out|off|for|to|toward|towards|back)|heading\s+(?:out|off|for|to|toward|towards)|goes\s+(?:out|off|to|back)|(?:walks|slips|steps|ducks|hurries)\s+(?:out|off|away)|backing\s+(?:out|away|toward|towards))\b/i;
   Eng.seenLeaving = (prose, c) =>
     String(prose || '').split(/\n\s*\n/).some((p) => mentions(p, c) && LEAVING.test(p.replace(/[‘’]/g, "'")));
+  // True when a paragraph naming the character has them go with the player
+  // ("Mom walks with you to the station", "Kenji tags along").
+  Eng.seenGoingAlong = (state, prose, c) =>
+    String(prose || '').split(/\n\s*\n/).some((p) => mentions(p, c) && Eng.comesAlong(state, p));
 
   // Removes repeated paragraphs (a common small-model loop), ignoring quotes and spacing.
   // If generation hit the token cap mid-sentence, cut back to the last full sentence.
@@ -3042,9 +3162,32 @@
       const w = [...contentWords(para.replace(MARK, ''))];
       return w.length >= 8 && w.filter((x) => prev.has(x)).length / w.length >= 0.8;
     };
-    const kept = paras.filter((para) => !retold(para));
-    if (kept.length === paras.length || !kept.length) return text;
-    guard(res, 'scene', 'retold last scene', `dropped ${paras.length - kept.length} of ${paras.length} paragraphs`);
+    let kept = paras.filter((para) => !retold(para));
+    if (!kept.length) return text;
+    if (kept.length < paras.length) guard(res, 'scene', 'retold last scene', `dropped ${paras.length - kept.length} of ${paras.length} paragraphs`);
+    // Sentences copied word for word from the last scene, or said twice here
+    // (playtest-seiryo-goes-downtown: "The gate's wide open and the cherry
+    // trees frame it like a painting." ended three scenes running).
+    const norm = (s) => s.toLowerCase().replace(/[^a-z0-9' ]+/g, ' ').replace(/\s+/g, ' ').trim();
+    const before = ' ' + norm(last.text) + ' ';
+    const said = new Set();
+    let cut = 0;
+    kept = kept.map((para) => {
+      const lead = (/^\s*\[\s*\+\s*\d[^\]]*\]\s*/.exec(para) || [''])[0];
+      const parts = para.slice(lead.length).split(/(?<=[.!?]["”’']?)\s+(?=["“‘'(]?[A-Z])/);
+      const out = parts.filter((s) => {
+        const n = norm(s.replace(MARK, ''));
+        if (n.split(' ').length < 6) return true;
+        const copy = before.includes(' ' + n + ' ') || said.has(n);
+        said.add(n);
+        if (copy) cut++;
+        return !copy;
+      });
+      if (out.length === parts.length) return para;
+      return out.length ? lead + out.join(' ') : '';
+    }).filter((para) => para.replace(MARK, '').trim());
+    if (!kept.length || !cut && kept.length === paras.length) return text;
+    if (cut) guard(res, 'scene', 'copied sentence dropped', `${cut} sentence${cut > 1 ? 's' : ''} copied from the last scene or repeated`);
     return kept.join('\n\n');
   };
 
@@ -3198,7 +3341,7 @@
     let report;
     try {
       const upd = await E.LLM.chatJSON({
-        kind: 'update', system: E.Prompts.header(state), user: E.Prompts.update(state, p.action, p.res, prose, p.present, !!cut),
+        kind: 'update', expect: ['facts', 'state', 'relations', 'player_attitude'], system: E.Prompts.header(state), user: E.Prompts.update(state, p.action, p.res, prose, p.present, !!cut),
         maxTokens: 520, temperature: 0.3,
       });
       // A judged ending the scene shows (taken out before the update is applied).
@@ -4129,7 +4272,7 @@
     due.canon = E.Timeline.diverging(canonDue);
     phase(due.world ? 'The wider world stirs…' : due.regional ? 'Something stirs nearby…' : 'Characters deciding…');
     const intentObj = await E.LLM.chatJSON({
-      kind: 'intent', system, user: E.Prompts.intent(state, present, action, step.label, step.id, due, front),
+      kind: 'intent', expect: ['player', 'intents'], system, user: E.Prompts.intent(state, present, action, step.label, step.id, due, front),
       maxTokens: 260 + 150 * front.length + 60 * Eng.standeesAt(state, state.characters[state.player].status.location).length + 80 * Eng.agendasDue(state).length + (due.regional ? 120 : 0) + (due.world ? 140 : 0) + 120 * due.canon.length, temperature: 0.7,
     });
 
@@ -4137,6 +4280,8 @@
     // A new place the player is heading for (task 4-4), built before the
     // moves are resolved; the start-of-turn copy gets it too.
     const siteNotes = [];
+    const placed = Eng.placeMove(state, intentObj, action);
+    if (placed) siteNotes.push(placed);
     // A camp that travels (task 7-7) moves before any place is built: the
     // party sets out for a region, and nothing is built there for it.
     const camp = Eng.campJourneyFor(state, intentObj, action, step);

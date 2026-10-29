@@ -979,3 +979,131 @@ test('only real coming and going places a move in a beat: stepping closer or sha
   await E.Engine.runTurn(state, 'Talk with Teo.', 'hour');
   assert.equal([...E.Engine.sceneMoves(state)].find((m) => m.id === 'bauer').beat, 1);
 });
+
+// playtest-seiryo-goes-to-school: the intent named a region ("mito-senba")
+// where a room was asked for, and the player's move was dropped.
+test('a move to a region or a place by name goes to the place the words name, at its way in', () => {
+  const { E, state } = newGame('seiryo-high', 'hayakawa');
+  const Eng = E.Engine;
+  assert.equal(Eng.resolvePlace(state, 'mito-senba', 'I go to Seiryo High.'), 'gate');
+  assert.equal(Eng.resolvePlace(state, 'mito-senba', 'I go to the lake.'), null, 'a region with three places and none named');
+  assert.equal(Eng.resolvePlace(state, 'Seiryo High', ''), 'gate');
+  assert.equal(Eng.resolvePlace(state, 'dorm', ''), 'dorm-entrance');
+  assert.equal(Eng.resolvePlace(state, 'mito-downtown', 'Walk downtown.'), 'shopping-street', 'a region with one place: that place');
+  assert.equal(Eng.resolvePlace(state, 'cafe', ''), 'cafe', 'rooms as before');
+  assert.equal(Eng.placeInWords(state, 'I head over to the Coffee shop Lantern.'), 'cafe');
+  assert.equal(Eng.placeInWords(state, 'I go to Seiryo High.'), 'gate');
+  assert.equal(Eng.placeInWords(state, 'I ask Mom about Seiryo High.'), null, 'naming a place is not going there');
+  const intent = { player: { move_to: 'mito-senba', new_place: { name: 'Seiryo High' } } };
+  assert.match(Eng.placeMove(state, intent, 'I go to Seiryo High.').detail, /"mito-senba" → School gate/);
+  assert.equal(intent.player.move_to, 'gate');
+  assert.equal(intent.player.new_place, null, 'not built again');
+  const words = { player: { move_to: null } };
+  Eng.placeMove(state, words, 'I go to Seiryo High.');
+  assert.equal(words.player.move_to, 'gate', "from the player's own words when the intent gave nothing");
+  state.characters.sora.status.location = 'gate';
+  const again = { player: { move_to: 'mito-senba' } };
+  assert.match(Eng.placeMove(state, again, 'I go to Seiryo High.').detail, /already at School gate/);
+  assert.equal(again.player.move_to, null);
+});
+
+test('the update step only moves someone out of the scene when the scene shows them leaving or going along', () => {
+  const { E, state } = newGame();
+  const move = (id, to) => ({ state: [{ target: `char:${id}`, field: 'location', value: to }] });
+  const stay = E.Engine.applyUpdate(state, move('bauer', 'ops'), PRESENT, { startLoc: 'commons', endLoc: 'commons', prose: 'Teo keeps kneading the sealant into the panel seam.' });
+  assert.equal(state.characters.bauer.status.location, 'commons');
+  assert.match(stay.rejected[0], /never shows them leaving/);
+  E.Engine.applyUpdate(state, move('bauer', 'ops'), PRESENT, { startLoc: 'commons', endLoc: 'commons', prose: 'Teo grabs his kit and storms out toward Ops.' });
+  assert.equal(state.characters.bauer.status.location, 'ops');
+  const along = E.Engine.route(state, 'commons', 'ops').length ? 'ops' : null;
+  state.characters.okafor.status.location = 'commons';
+  E.Engine.applyUpdate(state, move('okafor', along), PRESENT, { startLoc: 'commons', endLoc: along, prose: 'Okafor comes along, tablet under her arm.' });
+  assert.equal(state.characters.okafor.status.location, along);
+});
+
+test('update ids written as targets ("char:okafor") count, and a fact without a subject gets its name', () => {
+  const { E, state } = newGame();
+  E.Engine.applyUpdate(state, { facts: [{ about: ['char:okafor'], text: 'pockets the incubator log without a word.', known_by: ['char:navarro', 'char:okafor'], weight: 2 }],
+    relations: [{ from: 'char:okafor', to: 'char:bauer', delta: 5, reason: 'help' }] }, PRESENT, { startLoc: 'commons', endLoc: 'commons' });
+  const f = state.facts[state.facts.length - 1];
+  assert.equal(f.text, 'Dr. Imani Okafor pockets the incubator log without a word.');
+  assert.deepEqual([...f.about], ['okafor']);
+  assert.ok(f.known_by.includes('navarro') && f.known_by.includes('okafor'));
+});
+
+test('a JSON reply in another shape is looked through for the object asked for, and retried when it is not there', async () => {
+  const { E } = newGame();
+  const L = E.LLM;
+  assert.deepEqual(JSON.parse(JSON.stringify(L.pickShape(L.extractJSON('```json\n[{"facts":[],"state":[]}]\n```'), ['facts']))), { facts: [], state: [] });
+  assert.equal(L.pickShape(L.extractJSON('{"response":{"player":{"summary":"x"}}}'), ['player']).player.summary, 'x');
+  const chat = JSON.stringify({ conversations: [{ from: 'human', value: 'hi' }, { from: 'gpt', value: '{"player":{"summary":"waits"},"intents":[]}' }] });
+  assert.equal(L.pickShape(L.extractJSON(chat), ['player', 'intents']).player.summary, 'waits');
+  assert.equal(L.pickShape(L.extractJSON('[{"time":"07:00","event":"Mom takes a photo"}]'), ['player', 'intents']), null);
+  const seen = [];
+  L.transport = async (url, body, kind) => {
+    seen.push({ kind, user: body.messages[1].content });
+    return { text: kind === 'intent' ? '[{"time":"07:00","event":"Mom takes a photo"}]' : '{"player":{"summary":"goes"},"intents":[]}', finish: 'stop' };
+  };
+  const out = await L.chatJSON({ kind: 'intent', expect: ['player', 'intents'], system: 's', user: 'u', maxTokens: 100 });
+  assert.equal(out.player.summary, 'goes');
+  assert.deepEqual(seen.map((s) => s.kind), ['intent', 'intent (retry)']);
+  assert.match(seen[1].user, /starting with \{"player":/);
+});
+
+// playtest-seiryo-goes-downtown: the intent said "mito-downtown" for "I go to
+// Seiryo High"; the player's words win over a guess at another place, but not
+// over a room in the place they name.
+test('the place the player names beats a model move to somewhere else', () => {
+  const { E, state } = newGame('seiryo-high', 'hayakawa');
+  const Eng = E.Engine;
+  const region = { player: { move_to: 'mito-downtown' } };
+  assert.match(Eng.placeMove(state, region, 'I go to Seiryo High.').detail, /"mito-downtown" → School gate/);
+  assert.equal(region.player.move_to, 'gate');
+  const room = { player: { move_to: 'shopping-street' } };
+  Eng.placeMove(state, room, 'I go to Seiryo High.');
+  assert.equal(room.player.move_to, 'gate', 'a room in another place');
+  const inside = { player: { move_to: 'classroom-1b' } };
+  assert.equal(Eng.placeMove(state, inside, 'I go to Seiryo High.'), null);
+  assert.equal(inside.player.move_to, 'classroom-1b', 'a room inside the place named stays');
+});
+
+test('a move "with his family" takes along those present who share the family name, "with Aoi" takes Aoi', () => {
+  const { E, state } = newGame('seiryo-high', 'hayakawa');
+  const Eng = E.Engine, c = state.characters;
+  const s = 'Sora goes to Seiryo High for the entrance ceremony with his family.';
+  assert.ok(Eng.takesAlong(state, s, c.yumiko) && Eng.takesAlong(state, s, c.kenji));
+  assert.ok(!Eng.takesAlong(state, s, c.aoi));
+  assert.ok(Eng.takesAlong(state, 'Sora heads to school with Aoi.', c.aoi));
+  assert.ok(!Eng.takesAlong(state, 'Sora goes to the cafe to talk with Yumiko.', c.yumiko), 'talking with someone is not taking them');
+  assert.ok(!Eng.takesAlong(state, 'Sora leaves without his family.', c.yumiko));
+});
+
+test('the update step opens a door only when the scene names the room on the other side', () => {
+  const { E, state } = newGame('seiryo-high', 'hayakawa');
+  state.characters.sora.status.location = 'shopping-street';
+  const open = { state: [{ target: 'link:cafe|shopping-street', field: 'open', value: true }] };
+  const ctx = (prose) => ({ startLoc: 'shopping-street', endLoc: 'shopping-street', prose });
+  const no = E.Engine.applyUpdate(state, open, ['sora'], ctx('Cherry petals drift across the arcade roof.'));
+  assert.equal(state.links['cafe|shopping-street'].open, false);
+  assert.match(no.rejected[0], /never names the room/);
+  E.Engine.applyUpdate(state, open, ['sora'], ctx('The door of Lantern swings open on a smell of siphon coffee.'));
+  assert.equal(state.links['cafe|shopping-street'].open, true);
+});
+
+test('a world status written as a sentence of scenery is turned down', () => {
+  const { E, state } = newGame('seiryo-high', 'hayakawa');
+  const set = (v) => E.Engine.applyUpdate(state, { state: [{ target: 'world:weather', value: v }] }, ['sora'], { startLoc: 'hayakawa-living', endLoc: 'hayakawa-living' });
+  assert.match(set('Cherry blossoms drift down like snow across the pink roof of the shopping arcade; the sky is so bright it hurts.').rejected[0], /too long for a status/);
+  assert.equal(state.world.weather, 'cherry blossoms at their peak');
+  set('sudden spring rain');
+  assert.equal(state.world.weather, 'sudden spring rain');
+});
+
+test('sentences copied word for word from the last scene, or said twice, are dropped; the beat marker stays', () => {
+  const { E, state } = newGame('seiryo-high', 'hayakawa');
+  state.recent.push({ turn: 1, text: 'Everyone walks up the hill together, a river of uniforms and nervous energy. The gate is wide open and the cherry trees frame it like a painting.' });
+  const res = { guards: [] };
+  const out = E.Engine.dropRetold(state, '[+10m] The gate is wide open and the cherry trees frame it like a painting. Ozaki steps out from behind a pillar with his ruler.\n\n[+40m] He measures a first-year\'s skirt with grim care. He measures a first-year\'s skirt with grim care. "YOU THERE!" he booms.', res);
+  assert.equal(out, '[+10m] Ozaki steps out from behind a pillar with his ruler.\n\n[+40m] He measures a first-year\'s skirt with grim care. "YOU THERE!" he booms.');
+  assert.ok(guardTypes(res).includes('copied sentence dropped'));
+});
