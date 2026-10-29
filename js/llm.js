@@ -15,8 +15,15 @@
     const preset = E.backendPresets[b.preset] || {};
     let url = String(b.url || preset.url || '').trim().replace(/\/+$/, '');
     if (preset.kobold && url && !/\/v\d+$/.test(url)) url += '/v1';
-    return { id, preset: b.preset, kobold: !!preset.kobold, url, key: String(b.key || '').trim(), model: String(b.model || preset.model || '').trim(), label: preset.label || b.preset, context: b.context || 0 };
+    // Constrain JSON (task L-1): KoboldCpp samples under a grammar; a hosted
+    // API whose preset knows a JSON mode gets response_format.
+    const constrain = (b.constrainJSON != null ? !!b.constrainJSON : LLM.constrainDefault(b.preset)) && (!!preset.kobold || !!preset.jsonMode);
+    return { id, preset: b.preset, kobold: !!preset.kobold, url, key: String(b.key || '').trim(), model: String(b.model || preset.model || '').trim(), label: preset.label || b.preset, context: b.context || 0, constrain };
   };
+  // On by default for KoboldCpp and for APIs with a known JSON mode.
+  LLM.constrainDefault = (presetId) => { const p = E.backendPresets[presetId] || {}; return !!(p.kobold || p.jsonMode); };
+  // APIs that refused response_format this session (HTTP 400): url + model.
+  LLM.noJsonMode = new Set();
   // Steps without their own routing setting go with another step's backend.
   LLM.ROUTE_AS = { suggest: 'intent' };
   LLM.backendFor = (kind) => {
@@ -281,10 +288,19 @@
     };
     // Keep OpenRouter's reasoning models from spending the budget thinking.
     if (b.preset === 'openrouter') body.reasoning = { effort: 'low', exclude: true };
+    // The reply's shape (task L-1): KoboldCpp takes a GBNF grammar on its chat
+    // endpoint and allows nothing outside it; other APIs get their JSON mode.
+    const jsonKey = b.url + ' ' + b.model;
+    if (opts.shape && b.constrain) {
+      if (b.kobold) body.grammar = E.Shape.gbnf(opts.shape);
+      else if (!LLM.noJsonMode.has(jsonKey)) body.response_format = { type: 'json_object' };
+    }
     const est = E.estTokens(system) + E.estTokens(user) + body.max_tokens;
     const t0 = Date.now();
     const entry = { kind, step: LLM.stepOf(kind), backend: `${b.id}: ${b.model || b.label}`, system, user, raw: '', ms: 0, estTokens: est, overBudget: !!b.context && est > b.context, squeezed,
       retry: /\((retry|more room)\)/.test(kind) };
+    if (body.grammar) entry.grammar = body.grammar.length;
+    if (body.response_format) entry.jsonMode = true;
     try {
       const out = await LLM.transport(b.url + '/chat/completions', body, kind, b);
       const r = typeof out === 'string' ? { text: out, finish: '' } : out;
@@ -304,6 +320,12 @@
       entry.ms = Date.now() - t0;
       entry.error = String(err.message || err);
       record(entry);
+      // An API that doesn't take response_format: once more without it, and
+      // not again this session.
+      if (body.response_format && /HTTP 400/.test(entry.error)) {
+        LLM.noJsonMode.add(jsonKey);
+        return LLM.chat(Object.assign({}, opts, { kind: kind + ' (no JSON mode)' }));
+      }
       if (err && err.name === 'TypeError') { // network failure (fetch throws TypeError)
         throw new Error(b.kobold
           ? `Couldn't reach KoboldCpp at ${host(b.url)}. Is it running, and is the URL right?`
@@ -318,10 +340,15 @@
     // for (DeepSeek overran even double), and only generated tokens are billed,
     // so they get a flat, generous limit.
     if (!LLM.backendFor(opts.kind).kobold) opts = Object.assign({}, opts, { maxTokens: Math.max(opts.maxTokens || 400, LLM.hostedJSONTokens) });
+    // opts.shape (task L-1): the reply's shape, or the one the prompt was
+    // built with (E.Prompts.shapeFor). It gives the grammar and the keys.
+    const shape = opts.shape || (E.Prompts && E.Prompts.shapeFor ? E.Prompts.shapeFor(opts.user) : null);
+    if (shape) opts = Object.assign({}, opts, { shape });
     // opts.expect: the reply's top-level keys (any one will do). A reply in
     // another shape (a list of chat turns, an event log) is retried, not taken
     // half-read (playtest-seiryo-goes-to-school: the update came back as a list).
-    const expect = Array.isArray(opts.expect) && opts.expect.length ? opts.expect : null;
+    const keys = Array.isArray(opts.expect) && opts.expect.length ? opts.expect : shape ? E.Shape.keys(shape) : [];
+    const expect = keys.length ? keys : null;
     const read = (t) => LLM.pickShape(LLM.extractJSON(t), expect);
     let text = await LLM.chat(opts);
     let obj = read(text);

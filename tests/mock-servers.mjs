@@ -98,7 +98,7 @@ function handler(requireKey) {
     req.on('end', () => {
       if (!authed) return json(res, 401, { error: { message: 'bad key' } });
       const b = JSON.parse(body || '{}');
-      handler.log.push({ port: requireKey ? 5002 : 5001, model: b.model, user: b.messages[1].content });
+      handler.log.push({ port: requireKey ? 5002 : 5001, model: b.model, user: b.messages[1].content, grammar: !!b.grammar, jsonMode: !!b.response_format });
       reply(res, answer(b.messages[1].content), b.messages[0].content + b.messages[1].content);
     });
   };

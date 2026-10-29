@@ -28,6 +28,8 @@ Under **Which model does what**, each step (characters & events, narration, memo
 
 API keys are stored only in your browser and are never written into save files.
 
+**Constrain JSON** (on by default for KoboldCpp) gives the model a grammar that allows only the reply each step expects, with this game's ids and nothing around it. Small local models then stop wrapping replies in code fences or lists and stop inventing ids, which used to cost a retry. On OpenRouter the same box turns on the API's JSON mode. If a provider refuses it, the call is sent again without it.
+
 ## Playing on a phone, or sharing a prototype
 
 Ensemble is plain HTML and JavaScript, so it can be hosted as-is on any static host (GitHub Pages, itch.io as an HTML game, Netlify). Open the link on a phone; the crew and situation panel slides up from the 👥 button.

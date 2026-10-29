@@ -311,6 +311,9 @@ await check('settings: API key errors and hybrid routing', async (page) => {
   await page.fill(`${ext} .bKey`, 'sk-test');
   await page.click(`${ext} .bTest`);
   await page.waitForFunction((s) => /✓/.test(document.querySelector(s).textContent), `${ext} .bStatus`);
+  // Constrain JSON (task L-1): on for KoboldCpp; no JSON mode known for another API.
+  assert.ok(await page.isChecked('fieldset[data-backend="local"] .bConstrain'), 'on for KoboldCpp');
+  assert.ok(await page.locator(`${ext} .constrainRow`).evaluate((r) => r.classList.contains('hidden')), 'not offered for another API');
   await page.click('button[data-route="hybrid"]');
   await page.click('button[value="save"]');
   await newGame(page);
@@ -320,6 +323,8 @@ await check('settings: API key errors and hybrid routing', async (page) => {
   assert.ok(where(/Judge the player/).every((p) => p === 5002), 'characters & events go to the API');
   assert.ok(where(/Write the next scene/).every((p) => p === 5002), 'narration goes to the API');
   assert.deepEqual(where(/Record what changed/), [5001], 'memory updates stay local');
+  const json = mocks.log.filter((c) => /Judge the player|Record what changed/.test(c.user));
+  assert.deepEqual(json.map((c) => [c.port, c.grammar, c.jsonMode]), json.map((c) => [c.port, c.port === 5001, false]), 'a grammar for KoboldCpp only');
   const save = await page.evaluate(() => localStorage.getItem('ensemble.autosave'));
   assert.ok(!save.includes('sk-test'), 'API key never lands in the save');
 });

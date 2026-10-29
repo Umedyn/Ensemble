@@ -27,14 +27,52 @@
   P.layouts = {};
   P.LIVE_HEADER = ['regionsFound', 'newcomers', 'chapters', 'facts'];
   P.build = function (layout, ctx) {
+    const outer = pendingShape;
+    pendingShape = null;
     const parts = [];
     P.layouts[layout].forEach((id) => {
       const out = B[id](ctx, layout);
       if (out == null) return;
       if (Array.isArray(out)) parts.push(...out); else parts.push(out);
     });
-    return parts.join('\n');
+    const text = parts.join('\n');
+    if (pendingShape) P.remember(text, pendingShape);
+    pendingShape = outer;
+    return text;
   };
+
+  // ---------- reply shapes (task L-1) ----------
+  // A JSON task shows its example with reply(shape); the prompt it ends up in
+  // is remembered with that shape, so LLM.chatJSON finds the grammar and the
+  // keys from the prompt text alone (P.shapeFor; a retry adds to its end).
+  const S = E.Shape;
+  let pendingShape = null;
+  const shapeLog = [];
+  P.SHAPES_KEPT = 24;
+  const reply = (shape) => { pendingShape = shape; return S.example(shape); };
+  P.remember = (text, shape) => {
+    shapeLog.push([text, shape]);
+    if (shapeLog.length > P.SHAPES_KEPT) shapeLog.shift();
+    return text;
+  };
+  P.shapeFor = (text) => {
+    const t = String(text || '');
+    for (let i = shapeLog.length - 1; i >= 0; i--) if (t.startsWith(shapeLog[i][0])) return shapeLog[i][1];
+    // A prompt cut down to fit (LLM.squeeze) still ends with its task.
+    for (let i = shapeLog.length - 1; i >= 0; i--) if (t.includes(S.example(shapeLog[i][1]))) return shapeLog[i][1];
+    return null;
+  };
+  P.shapes = {};
+  // Lists of ids longer than this are left free in the grammar (a world of
+  // every country); the engine's checks still apply.
+  P.GRAMMAR_IDS_MAX = 400;
+  const ids = (values, ex) => (values.length > P.GRAMMAR_IDS_MAX ? S.str(ex) : S.oneOf(values, ex));
+  const HEALTH = ['ok', 'hurt', 'badly_hurt', 'dead'];
+  const GUARD = S.oneOf(['low', 'medium', 'high'], 'low|medium|high');
+  const TRAITS = S.show(S.list(S.str(), { max: 6 }), '["three","short","traits"]');
+  const skillsShape = (skills, n) => S.obj(Object.fromEntries((skills || []).map((k) => [k, S.int(0, 4, n)])));
+  const SCOPES = ['local', 'regional', 'world'];
+  const VIS = ['seen', 'heard', 'hidden'];
 
   P.layouts.header = ['intro', 'setting', 'genre', 'rules', 'places', 'regions', 'groups', 'loreAlways', 'cast', 'regionsFound', 'newcomers', 'chapters', 'facts'];
   P.header = (state) => P.build('header', { state, sc: state.scenario, pc: state.characters[state.player] });
@@ -387,36 +425,55 @@
     }).filter(Boolean);
   }
   // The JSON shape of an event's effects; region effects only when the world has regions.
-  function effectShape(state) {
+  // Every key after "world" may be left out (task L-1); the example shows them all.
+  P.shapes.effects = function (state) {
     const has = Object.keys(state.regions || {}).length;
-    const region = has
-      ? ',"control":[{"region":"region_id","to":"group_id or null"}],"add_tag":[{"region":"region_id","tag":"short tag"}],"remove_tag":[{"region":"region_id","tag":"existing tag"}],"region_status":[{"region":"region_id","status":"new status"}]'
-        // Presence (R-5): only for worlds that use it; reveal only while something is hidden.
-        + (Object.keys(state.presence || {}).length ? ',"presence":[{"group":"group_id","region":"region_id","to":0.5}]' : '')
-        + (Eng().hiddenRegions(state).size ? ',"reveal":[{"region":"hidden_region_id"}]' : '')
-      : '';
-    const site = E.Sites.enabled(state.scenario) ? ',"new_site":null' : '';
+    const groups = ids(groupIds(state), 'group_id');
+    const region = ids(effectRegions(state), 'region_id');
+    const p = {
+      world: S.list(S.obj({ key: ids(Object.keys(state.world), 'world_key'), value: S.str('new status') }), { max: 3 }),
+      groups: S.opt(S.list(S.obj({ id: groups, stance: S.str('new stance') }), { max: 2 })),
+      clocks: S.opt(S.list(S.obj({ id: ids(clockIds(state), 'clock_id'), delta: S.int(-12, 12, 2) }), { max: 2 })),
+      new_clock: S.opt(S.maybe(S.obj({ name: S.str('short name'), max: S.int(4, 12, 8), perHour: S.num(0.2), fireText: S.str('what happens when it runs out') }))),
+    };
+    if (has) {
+      p.control = S.opt(S.list(S.obj({ region, to: S.show(S.maybe(groups), '"group_id or null"') }), { max: 1 }));
+      p.add_tag = S.opt(S.list(S.obj({ region, tag: S.str('short tag') }), { max: 2 }));
+      p.remove_tag = S.opt(S.list(S.obj({ region, tag: S.str('existing tag') }), { max: 2 }));
+      p.region_status = S.opt(S.list(S.obj({ region, status: S.str('new status') }), { max: 2 }));
+      // Presence (R-5): only for worlds that use it; reveal only while something is hidden.
+      if (Object.keys(state.presence || {}).length) p.presence = S.opt(S.list(S.obj({ group: groups, region, to: S.num(0.5) }), { max: 2 }));
+      const hidden = [...Eng().hiddenRegions(state)];
+      if (hidden.length) p.reveal = S.opt(S.list(S.obj({ region: ids(hidden, 'hidden_region_id') }), { max: 1 }));
+    }
     // Standing (task G-6): how a group's view of the player changes.
-    const standing = Object.keys(state.reputation || {}).length ? ',"reputation":[{"group":"group_id","delta":-5,"reason":"why"}]' : '';
+    if (Object.keys(state.reputation || {}).length) p.reputation = S.opt(S.list(S.obj({ group: ids(Object.keys(state.reputation), 'group_id'), delta: S.int(-10, 10, -5), reason: S.str('why') }), { max: 2 }));
+    if (E.Sites.enabled(state.scenario)) p.new_site = S.opt(S.maybe(S.obj({ name: S.str('the place'), kind: S.str('what kind of place'), region: has ? region : S.nul, why: S.str('why it matters') })));
     // Lots (task 7-7): only in a place whose region someone holds, naming its free lots.
     const here = E.Sites.playerSite(state);
     const free = Object.values(state.locations).filter((l) => l.lot && l.site === here && (state.features || {})[`${l.id}|lot`] !== 'built'
       && l.region && state.regions[l.region] && state.regions[l.region].controller).map((l) => l.id);
-    const build = free.length ? `,"build":[{"room":"one of: ${free.join(', ')}","name":"what is put up","desc":"one sentence","as":"tent or built"}]` : '';
-    return `{"world":[{"key":"world_key","value":"new status"}],"groups":[{"id":"group_id","stance":"new stance"}],"clocks":[{"id":"clock_id","delta":2}],"new_clock":null${region}${standing}${site}${build}}`;
-  }
+    if (free.length) p.build = S.opt(S.list(S.obj({ room: S.oneOf(free, `one of: ${free.join(', ')}`), name: S.str('what is put up'), desc: S.str('one sentence'), as: S.oneOf(['tent', 'built'], 'tent or built') }), { max: 1 }));
+    return S.obj(p);
+  };
+  const effectShape = (state) => S.example(P.shapes.effects(state));
+  const groupIds = (state) => (state.factions || []).map((f) => f.id);
+  const clockIds = (state) => state.clocks.filter((c) => !c.fired).map((c) => c.id);
   // Valid ids for effects. In a small world every region, not just nearby
   // ones: the world can shift far from the player (their current state stays
   // nearby-only). In a big one (an outline), the regions the header shows in
   // full and what's around the player: the whole tree cost 650 tokens in
   // Occupied France (task G-4). The engine still takes any real region.
-  function effectIds(state) {
+  function effectRegions(state) {
     // Hidden regions (R-5) are listed apart, in the hidden places block.
     const hidden = Eng().hiddenRegions(state);
     const outline = P.regionOutline(state.scenario);
     const shown = outline.chain ? new Set(outline.full.map((r) => r.id).concat(Eng().regionsAround(state))) : null;
-    const regions = Object.keys(state.regions || {}).filter((id) => !hidden.has(id) && (!shown || shown.has(id)));
-    return `world keys: ${Object.keys(state.world).join(', ')}; groups: ${(state.factions || []).map((f) => f.id).join(', ') || 'none'}; clocks: ${state.clocks.filter((c) => !c.fired).map((c) => c.id).join(', ') || 'none'}${regions.length ? `; regions: ${regions.join(', ')}` : ''}`;
+    return Object.keys(state.regions || {}).filter((id) => !hidden.has(id) && (!shown || shown.has(id)));
+  }
+  function effectIds(state) {
+    const regions = effectRegions(state);
+    return `world keys: ${Object.keys(state.world).join(', ')}; groups: ${groupIds(state).join(', ') || 'none'}; clocks: ${clockIds(state).join(', ') || 'none'}${regions.length ? `; regions: ${regions.join(', ')}` : ''}`;
   }
 
   function needsText(state, c, onlyNotable) {
@@ -644,7 +701,7 @@
       const st = Eng().agendaStep(c);
       const how = st.contact ? `comes to ${pc.name} with it; "visibility":"seen"` : c.agenda.visibility === 'heard' ? '"visibility":"heard"' : '"visibility":"hidden", the player has no idea';
       return `- ${id} (${c.name}), working toward "${c.agenda.goal}": ${st.text} (${how})`;
-    }), `   Shape: {"text":"one sentence, with names","agenda":"${ids[0]}","scope":"local","who":["${ids[0]}"],"where":"location_id","visibility":"hidden","moves":[]}. These are in addition to the other events.`);
+    }), `   Shape: {"text":"one sentence, with names","scope":"local","who":["${ids[0]}"],"where":"location_id","visibility":"hidden","moves":[],"agenda":"${ids[0]}"}. These are in addition to the other events.`);
   };
   // The emergency the last scene ended on (playtest-coffee-skips): it plays out
   // this span whatever the player does.
@@ -679,7 +736,7 @@
    - "scope": "local" for these.
 ${groupTask(state, action)}${siteTask(state)}${inventLine(sc)}${ordersTask(state)}${tierTask(state, due)}${canonTask(state, due)}
 Reply with JSON only, exactly in this shape:
-${intentExample(state, present, action, due)}`;
+${reply(P.shapes.intent(state, present, action, due, stepId))}`;
   };
 
   // Groups the player leads or is favored in (task G-6): what they may be told
@@ -719,19 +776,62 @@ ${intentExample(state, present, action, due)}`;
     return lines.join('\n');
   }
 
-  // The example is pre-filled with the real ids so small models don't drop anyone.
-  function intentExample(state, present, action, due) {
-    const canon = due && due.canon && due.canon.length ? `,\n "canon":[${due.canon.map((d) => `{"id":"${d.ev.id}","text":"one sentence","effects":null}`).join(',')}]` : '';
-    const intents = present.map((id) =>
-      `  {"id":"${id}","action":"one sentence","says":null,"reveals":null,"visible":true,"needs_roll":false,"skill":null,"difficulty":"normal","move_to":null}`
-    );
-    const groups = groupsHere(state, action).map((g) => `  {"id":"${g.id}","action":"one sentence","visible":true,"move_to":null}`);
-    const anyGroups = Eng().engagedStandees(state, action).length;
-    const site = hasSite(state) ? `${lockedHere(state).length ? ',"unlock":null' : ''},"new_feature":null` : '';
-    return `{"player":{"summary":"the player's action restated as a concrete attempt","needs_roll":false,"skill":null,"difficulty":"normal","move_to":null${anyGroups ? ',"against":null,"single_out":null' : ''}${site}${due && due.crisis ? ',"crisis_answered":false' : ''}${commandable(state).length ? ',"orders":null' : ''}},
- "intents":[${intents.length ? '\n' + intents.join(',\n') + '\n ' : ''}],${groups.length ? `\n "group_intents":[\n${groups.join(',\n')}\n ],` : ''}
- "events":[{"text":"one sentence","scope":"local","who":["character_id"],"where":"location_id","visibility":"heard","moves":[]}]${state.scenario.inventExtras ? ',\n "new_extras":[]' : ''}${canon}}`.replace('"move_to":null', E.Sites.enabled(state.scenario) ? `"move_to":null,"new_place":null${E.Sites.regionsEnabled(state.scenario) ? ',"new_region":null' : ''}` : '"move_to":null');
-  }
+  // The example is pre-filled with the real ids so small models don't drop
+  // anyone, and the grammar holds exactly those people, in order (task L-1).
+  const LOOSE = (state) => Eng().cast(state, { includePlayer: false });
+  const eventWho = (state) => LOOSE(state).concat(Object.keys(state.extras || {}), Object.keys(state.standees || {}));
+  const regionField = (state) => S.maybe(ids([...new Set(effectRegions(state).concat(Eng().regionsAround(state)))], 'region_id'));
+  const newExtras = (state) => S.list(S.obj({ name: S.str('short name'), role: S.str('short role'), location: S.maybe(ids(Object.keys(state.locations), 'location_id')), group: S.bool(false) }), { max: 1, n: 0 });
+  P.shapes.intent = function (state, present, action, due, stepId) {
+    const sc = state.scenario;
+    due = due || {};
+    const locs = Object.keys(state.locations);
+    // The player may also name a place or a known region (Eng.resolvePlace).
+    const sites = Object.values(state.sites || {}).filter((s) => s && s.entry && state.locations[s.entry]).map((s) => s.id);
+    const moveTo = S.maybe(ids(locs.concat(LOOSE(state), sites, Object.keys(state.regions || {}).length ? effectRegions(state).concat(Eng().regionsAround(state)) : []), 'location_id'));
+    const skill = S.maybe(S.oneOf(sc.skills));
+    const difficulty = S.oneOf(['easy', 'normal', 'hard'], 'normal');
+    const player = { summary: S.str("the player's action restated as a concrete attempt"), needs_roll: S.bool(false), skill, difficulty, move_to: moveTo };
+    if (E.Sites.enabled(sc)) {
+      const regions = (sc.regions || []).map((r) => r.id).filter((id) => Eng().regionKnown(state, id));
+      player.new_place = S.maybe(S.obj({ name: S.str('the place in the player\'s own words'), kind: S.str('what kind of place'), region: regions.length ? ids(regions, 'region_id') : S.maybe(S.str()) }));
+      if (E.Sites.regionsEnabled(sc)) player.new_region = S.maybe(S.obj({ name: S.str('in the player\'s own words'), label: S.str('town'), parent: S.maybe(ids(regions, 'region_id')) }));
+    }
+    const engaged = Eng().engagedStandees(state, action);
+    if (engaged.length) {
+      player.against = S.maybe(S.oneOf(engaged.map((g) => g.id)));
+      player.single_out = S.maybe(S.obj({ standee: S.oneOf(engaged.map((g) => g.id)), name: S.str('short name or description'), role: S.str('short role') }));
+    }
+    if (hasSite(state)) {
+      if (lockedHere(state).length) player.unlock = S.maybe(S.oneOf(lockedHere(state)));
+      player.new_feature = S.maybe(S.obj({ name: S.str('short name'), to: S.maybe(ids(locs, 'room_id')) }));
+    }
+    if (due.crisis) player.crisis_answered = S.bool(false);
+    if (commandable(state).length) player.orders = S.maybe(S.obj({ group: S.oneOf(commandable(state)), order: S.str('what they asked') }));
+    const shape = {
+      player: S.obj(player),
+      intents: S.tuple(present.map((id) => S.obj({ id: S.lit(id), action: S.str('one sentence'), says: S.maybe(S.str()), reveals: S.maybe(S.str()), visible: S.bool(true), needs_roll: S.bool(false), skill, difficulty, move_to: S.maybe(ids(locs.concat(LOOSE(state)), 'location_id')) }))),
+    };
+    const groups = groupsHere(state, action);
+    if (groups.length) shape.group_intents = S.tuple(groups.map((g) => S.obj({ id: S.lit(g.id), action: S.str('one sentence'), visible: S.bool(true), move_to: S.maybe(ids(locs, 'location_id')) })));
+    // Events: the step's cap, plus the tiers due, agenda steps due and a
+    // group answering orders. Extra keys only when the task asks for them.
+    const agendas = Eng().agendasDue(state);
+    const ordered = commandable(state);
+    const event = {
+      text: S.str('one sentence'), scope: S.oneOf(SCOPES, 'local'), who: S.list(ids(eventWho(state), 'character_id'), { max: 6 }),
+      where: ids(locs, 'location_id'), visibility: S.oneOf(VIS, 'heard'), moves: S.list(S.obj({ id: ids(LOOSE(state), 'character_id'), to: ids(locs, 'location_id') }), { n: 0, max: 4 }),
+    };
+    if (due.regional || due.world) event.region = S.opt(regionField(state), false);
+    if (due.regional || due.world || ordered.length) event.effects = S.opt(S.maybe(P.shapes.effects(state)), false);
+    if (agendas.length) event.agenda = S.opt(S.oneOf(agendas), false);
+    if (ordered.length) event.faction = S.opt(S.oneOf(ordered), false);
+    const max = (Eng().EVENT_CAP[stepId] ?? 1) + (due.regional ? 1 : 0) + (due.world ? 1 : 0) + agendas.length + (ordered.length ? 1 : 0);
+    shape.events = S.list(S.obj(event), { max });
+    if (sc.inventExtras) shape.new_extras = newExtras(state);
+    if (due.canon && due.canon.length) shape.canon = S.tuple(due.canon.map((d) => S.obj({ id: S.lit(d.ev.id), text: S.str('one sentence'), effects: S.maybe(P.shapes.effects(state)) })));
+    return S.obj(shape);
+  };
 
   function outcomeLines(state, res, forNarrator) {
     const lines = [];
@@ -976,19 +1076,13 @@ ${worldLines(state)}`;
     // A player who keeps sitting things out is in this one (playtest-coffee-bystander).
     const here = state.characters[state.player].status.location;
     const onPlayer = plan.onPlayer ? ` ${pc.name} has sat things out long enough: this one happens where they are (${here}) and to them, so they can't stay out of it; "where" is ${here}, and they may be among those it hurts.` : '';
-    const reg = Eng().nearbyRegions(state).length ? '"region":"region_id",' : '';
     const climb = Eng().unmetNeeds(state, action);
     const writesMajor = plan.reason === 'random' || (plan.reason === 'canon' && plan.canonMode === 'diverge');
-    const harmShape = '[{"id":"character_id","health":"hurt|badly_hurt|dead"}]';
     return `
 === TASK ===
 ${frame.days >= 1 ? 'This covers a long stretch of downtime.' : 'This covers a short stretch of time.'} ${plan.crisis ? `It starts with an emergency ${pc.name}'s plan ignores: the last scene ended on "${plan.crisis.text}" ` : ''}${ends}${onPlayer}
 Reply with JSON only:
-{${plan.crisis ? `"crisis":{"outcome":"one or two sentences","harm":${harmShape}},\n ` : ''}${rk ? `"reckoning":"one sentence: what ${rk.name} demands, decides or takes away",\n ` : ''}"montage":[{"after":"2d","text":"one or two sentences"}],
- "events":[{"text":"one sentence","scope":"local|regional|world","who":["character_id"],"where":"location_id",${reg}"visibility":"heard","moves":[],"effects":null}],
- "major_event":{"text":"one or two sentences","scope":"local|regional|world","who":["character_id"],"where":"location_id",${reg}${writesMajor ? `"harm":${harmShape},` : ''}"effects":${effectShape(state)}},
- "positions":[{"id":"character_id","where":"location_id","doing":"what they are doing when it hits"}],
- "player_where":"location_id"}
+${reply(P.shapes.skip(state, plan, rk, writesMajor))}
 Guidelines:${plan.crisis ? `
 - crisis: how that emergency plays out first, without ${pc.name}, in "outcome", and what it costs: ignored emergencies cost something real. List anyone it hurts in "harm" (only people who were there), or [] if the cost is something else.` : ''}
 - montage: 2 to 4 moments in order, spread across the downtime ("after" = time since it began, like "3d" or "10h"), all after the last scene (never retell it). How people pass the time, relationships shifting, small incidents, secrets being worked on. ${pc.name} does only what their plan says ("${action || 'keep to routine'}"): no repairs, decisions or leading anyone that the plan doesn't name. Others deal with what comes up, or fail to.${climb.length ? ` The plan leaves out ${climb.map((id) => Eng().needLimit(state, id).missing).filter((w, i, a) => a.indexOf(w) === i).join(' and ')}: show it wearing on ${pc.name}.` : ''}${writesMajor ? `
@@ -996,6 +1090,28 @@ Guidelines:${plan.crisis ? `
 - events: 0 to 2 newsworthy things during the downtime, with concrete effects for regional/world ones (use only existing ids/keys: ${effectIds(state)}).
 - positions: one entry for EVERY other character: ${skipFull(state).join(', ') || '(none)'}${P.castBrief(state) ? ' (the people in the background stay where they are)' : ''}. Locations: ${Object.keys(state.locations).join(', ')}.
 - player_where: where ${pc.name} is when it hits, consistent with their plan.`;
+  };
+
+  P.shapes.skip = function (state, plan, rk, writesMajor) {
+    const locs = Object.keys(state.locations);
+    const living = Eng().cast(state, { alive: true });
+    const harm = S.list(S.obj({ id: ids(living, 'character_id'), health: S.oneOf(['hurt', 'badly_hurt', 'dead'], 'hurt|badly_hurt|dead') }), { max: 6 });
+    const scope = S.oneOf(SCOPES, 'local|regional|world');
+    // A downtime's events may happen to the player too.
+    const who = S.list(ids([state.player].concat(eventWho(state)), 'character_id'), { max: 6 });
+    const where = ids(locs, 'location_id');
+    const region = Eng().nearbyRegions(state).length ? { region: S.show(regionField(state), '"region_id"') } : {};
+    const shape = {};
+    if (plan.crisis) shape.crisis = S.obj({ outcome: S.str('one or two sentences'), harm });
+    if (rk) shape.reckoning = S.str(`one sentence: what ${rk.name} demands, decides or takes away`);
+    shape.montage = S.list(S.obj({ after: S.str('2d'), text: S.str('one or two sentences') }), { max: 4 });
+    shape.events = S.list(S.obj(Object.assign({ text: S.str('one sentence'), scope, who, where }, region, {
+      visibility: S.oneOf(VIS, 'heard'), moves: S.list(S.obj({ id: ids(LOOSE(state), 'character_id'), to: where }), { n: 0, max: 4 }), effects: S.maybe(P.shapes.effects(state)),
+    })), { max: 2 });
+    shape.major_event = S.or(S.obj(Object.assign({ text: S.str('one or two sentences'), scope, who, where }, region, writesMajor ? { harm } : {}, { effects: S.or(P.shapes.effects(state), S.nul) })), S.nul);
+    shape.positions = S.list(S.obj({ id: ids(Eng().cast(state, { alive: true, includePlayer: false }), 'character_id'), where, doing: S.str('what they are doing when it hits') }), { max: Math.max(1, Eng().cast(state, { alive: true, includePlayer: false }).length) });
+    shape.player_where = where;
+    return S.obj(shape);
   };
 
   P.layouts.narrateSkip = ['downtimeFrame', 'status', 'lore', 'lastScene', 'montage', 'alsoDuring', 'endsIt', 'whereEveryone', 'worn', 'narrateSkipTask', 'endingClose'];
@@ -1076,6 +1192,15 @@ groups: ${(state.factions || []).map((f) => f.id).join(', ') || '(none)'}
 clocks (higher = closer to going off; a negative delta puts it off): ${state.clocks.filter((c) => !c.fired).map((c) => `${c.id} ("${c.name}")`).join(', ') || '(none)'}
 ${updateSiteIds(state)}${Object.keys(state.standees || {}).length ? `unnamed groups (count, state, location only): ${Object.values(state.standees).map((g) => `${g.id} (${g.count}, ${g.state}) in ${g.location}`).join(', ')}\n` : ''}${Object.keys(state.extras || {}).length ? `minor people (facts and location only): ${Object.values(state.extras).map((x) => `${x.id}${x.location ? ' in ' + x.location : ''}`).join(', ')}\n` : ''}${sc.needs.length ? `needs: ${sc.needs.map((n) => n.id).join(', ')}\n` : ''}present this turn: ${[state.player].concat(present).join(', ')}`;
   // Doors next to the player, features with a state there, and unknown rooms (task 3-6).
+  // The same things as ids for the update's grammar (task L-1).
+  function updateSiteKeys(state) {
+    const here = state.characters[state.player].status.location;
+    return {
+      ways: Eng().linkedRooms(state, here).filter((o) => { const k = Eng().linkInfo(state, here, o); return k && k.kind !== 'open'; }).map((o) => [here, o].sort().join('|')),
+      feats: Eng().features(state, here).filter((f) => f.state).map((f) => `${here}|${f.name}`),
+      unseen: Object.keys(state.locations).filter((r) => !(state.seenRooms || []).includes(r)),
+    };
+  }
   function updateSiteParts(state) {
     const here = state.characters[state.player].status.location;
     const ways = Eng().linkedRooms(state, here).filter((o) => { const k = Eng().linkInfo(state, here, o); return k && k.kind !== 'open'; })
@@ -1087,12 +1212,6 @@ ${updateSiteIds(state)}${Object.keys(state.standees || {}).length ? `unnamed gro
     });
     const unseen = Object.keys(state.locations).filter((r) => !(state.seenRooms || []).includes(r));
     return { ways, feats, unseen };
-  }
-  function updateSiteShape(state) {
-    const { ways, feats, unseen } = updateSiteParts(state);
-    return (ways.length ? '          {"target":"link:room_a|room_b","field":"open","value":true},\n' : '') +
-      (feats.length ? '          {"target":"feature:room_id|name","field":"state","value":"new state"},\n' : '') +
-      (unseen.length ? '          {"target":"room:room_id","field":"seen","value":true},\n' : '');
   }
   function siteGuide(state) {
     const { ways, feats, unseen } = updateSiteParts(state);
@@ -1116,32 +1235,59 @@ ${updateSiteIds(state)}${Object.keys(state.standees || {}).length ? `unnamed gro
     const labels = sc.needs.map((n) => (n.label || n.id).toLowerCase());
     return labels.length > 1 ? `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]} are` : `${labels[0]} is`;
   };
-  // Standing (task G-6): how a group's view of the player changed, and a role
-  // the scene gives them. Only in worlds with groups.
-  const standingShape = (state) => (Object.keys(state.reputation || {}).length ? `,
- "reputation":[{"group":"group_id","delta":5,"reason":"what they heard or saw"}],
- "group_role":null` : '');
   const standingGuide = (state) => (Object.keys(state.reputation || {}).length ? `- reputation: how a group's view of ${name(state, state.player)} changed this turn, from what its people saw or what became public (delta between -10 and 10, with a reason). Leave empty if nothing reached them.
 - group_role: only if the scene clearly gives ${name(state, state.player)} a new place in a group (elected, made leader, trusted with its affairs, thrown out): {"group":"group_id","role":"member|favored|leader|none","quote":"4+ words from the scene that show it"}. Else null.
 ` : '');
+  // The update's reply (task L-1): ids only from this game, targets spelled
+  // out per kind, and a kind left out when there is nothing it could name.
+  P.shapes.update = function (state) {
+    const sc = state.scenario;
+    const people = Eng().cast(state).concat(Object.keys(state.extras || {}));
+    const locs = Object.keys(state.locations);
+    const char = S.oneOf(Eng().cast(state).map((id) => 'char:' + id), 'char:character_id');
+    const prefixed = (pre, list, ex) => S.oneOf(list.map((id) => pre + id), ex);
+    const kinds = [
+      S.obj({ target: char, field: S.lit('health'), value: S.oneOf(HEALTH, HEALTH.join('|')) }),
+      // Minor people may change location too.
+      S.obj({ target: S.oneOf(people.map((id) => 'char:' + id), 'char:character_id'), field: S.lit('location'), value: ids(locs, 'location_id') }),
+      S.obj({ target: char, field: S.lit('add_tag'), value: S.str('short visible state'), turns: S.int(1, 99, 6), reason: S.str('why') }),
+      S.obj({ target: char, field: S.lit('remove_tag'), value: S.str('existing tag') }),
+      S.obj({ target: char, field: S.lit('mood'), value: S.str('how they come across now'), reason: S.str('why') }),
+    ];
+    if (sc.needs.length) kinds.push(S.obj({ target: char, field: S.lit('need'), need: S.oneOf(sc.needs.map((n) => n.id), 'need_id'), delta: S.num(-0.5) }));
+    const standees = Object.keys(state.standees || {});
+    if (standees.length) {
+      kinds.push(S.obj({ target: prefixed('standee:', standees, 'standee:group_id'), field: S.lit('count'), delta: S.int(-99, 99, -1) }));
+      kinds.push(S.obj({ target: prefixed('standee:', standees, 'standee:group_id'), field: S.lit('state'), value: S.oneOf(['calm', 'alert', 'hostile', 'fled', 'down'], 'calm|alert|hostile|fled|down') }));
+    }
+    const { ways, feats, unseen } = updateSiteKeys(state);
+    if (ways.length) kinds.push(S.obj({ target: prefixed('link:', ways, 'link:room_a|room_b'), field: S.lit('open'), value: S.bool(true) }));
+    if (feats.length) kinds.push(S.obj({ target: prefixed('feature:', feats, 'feature:room_id|name'), field: S.lit('state'), value: S.str('new state') }));
+    if (unseen.length) kinds.push(S.obj({ target: prefixed('room:', unseen, 'room:room_id'), field: S.lit('seen'), value: S.bool(true) }));
+    if (Object.keys(state.world).length) kinds.push(S.obj({ target: prefixed('world:', Object.keys(state.world), 'world:key'), value: S.str('new short description') }));
+    if (groupIds(state).length) kinds.push(S.obj({ target: prefixed('faction:', groupIds(state), 'faction:group_id'), value: S.str('new short stance') }));
+    if (clockIds(state).length) kinds.push(S.obj({ target: prefixed('clock:', clockIds(state), 'clock:clock_id'), delta: S.int(-12, 12, -2) }));
+    const others = ids(Eng().cast(state, { includePlayer: false }), 'character_id');
+    const shape = {
+      facts: S.list(S.obj({ about: S.list(ids(people, 'character_id'), { max: 6 }), text: S.str('one short sentence using names, not pronouns'), known_by: S.list(ids(people.concat('all'), 'character_id'), { max: 12 }), weight: S.int(1, 3, 2) }), { max: 5 }),
+      state: S.list(S.or(...kinds), { all: true, max: 16 }),
+      relations: S.list(S.obj({ from: others, to: ids(Eng().cast(state), 'character_id'), delta: S.int(-15, 15, 5), reason: S.str('short reason') }), { max: 8 }),
+      player_attitude: S.list(S.obj({ to: others, delta: S.int(-10, 10, -5), reason: S.str('short reason in past tense') }), { max: 4 }),
+    };
+    // Standing (task G-6): how a group's view of the player changed, and a
+    // role the scene gives them. Only in worlds with groups.
+    const rep = Object.keys(state.reputation || {});
+    if (rep.length) {
+      shape.reputation = S.list(S.obj({ group: S.oneOf(rep, 'group_id'), delta: S.int(-10, 10, 5), reason: S.str('what they heard or saw') }), { max: 2 });
+      shape.group_role = S.maybe(S.obj({ group: S.oneOf(rep, 'group_id'), role: S.oneOf(['member', 'favored', 'leader', 'none'], 'member|favored|leader|none'), quote: S.str('4+ words from the scene that show it') }));
+    }
+    if (sc.inventExtras) shape.new_extras = newExtras(state);
+    return S.obj(shape);
+  };
   B.updateTask = ({ state, sc }) => `
 === TASK ===
 Record what changed this turn. Reply with JSON only, exactly in this shape:
-{"facts":[{"about":["character_id"],"text":"one short sentence using names, not pronouns","known_by":["character_id"],"weight":2}],
- "state":[{"target":"char:character_id","field":"health","value":"ok|hurt|badly_hurt|dead"},
-          {"target":"char:character_id","field":"location","value":"location_id"},
-          {"target":"char:character_id","field":"add_tag","value":"short visible state","turns":6,"reason":"why"},
-          {"target":"char:character_id","field":"remove_tag","value":"existing tag"},
-          {"target":"char:character_id","field":"mood","value":"how they come across now","reason":"why"},${sc.needs.length ? `
-          {"target":"char:character_id","field":"need","need":"need_id","delta":-0.5},` : ''}
-${Object.keys(state.standees || {}).length ? `          {"target":"standee:group_id","field":"count","delta":-1},
-          {"target":"standee:group_id","field":"state","value":"calm|alert|hostile|fled|down"},
-` : ''}${updateSiteShape(state)}          {"target":"world:key","value":"new short description"},
-          {"target":"faction:group_id","value":"new short stance"},
-          {"target":"clock:clock_id","delta":-2}],
- "relations":[{"from":"character_id","to":"character_id","delta":5,"reason":"short reason"}],
- "player_attitude":[{"to":"character_id","delta":-5,"reason":"short reason in past tense"}]${standingShape(state)}${sc.inventExtras ? `,
- "new_extras":[]` : ''}}
+${reply(P.shapes.update(state))}
 Guidelines:
 - 1 to 5 facts. Only things that actually happened or were revealed. Skip trivia.
 - known_by lists who witnessed or was told. Use ["all"] only when everyone at the location would know. Hidden actions are known only by the actor and anyone who caught them.
@@ -1176,7 +1322,7 @@ Use [] for any list with nothing to record.`;
 Suggest 4 different things ${pc.name} could do next, written the way the player would type them (like "Ask Teo where he was last night."), one short sentence each, under 15 words.${pc.want ? ` ${pc.name}'s own goal: ${pc.want}.` : ''}
 Make them different: one that talks to someone here, one practical task, one that pursues ${pc.name}'s goal or a pressure above, and one bolder or riskier.
 Use only people, places and things from the scene and the lists above. Say what ${pc.name} tries, never how it turns out.
-Reply with JSON only: {"suggestions":["...","...","...","..."]}`;
+Reply with JSON only: ${reply(S.obj({ suggestions: S.list(S.str(), { n: 4, min: 1, max: 4 }) }))}`;
 
   // ---------- agenda proposal (task 2-2) ----------
   // One person in the background gets a goal of their own. Like the intent
@@ -1193,6 +1339,7 @@ Reply with JSON only: {"suggestions":["...","...","...","..."]}`;
     if (previous) lines.push(`Just finished working toward: ${previous}.`);
     return lines;
   };
+  const agendaShape = () => S.obj({ goal: S.str(), steps: S.list(S.str(), { n: 2, max: 4 }), hours: S.int(1, 99, 12), contact_step: S.maybe(S.int(0, 3)) });
   B.agendaTask = ({ state, c, previous }) => `
 === TASK ===
 Give ${c.name} an agenda: what ${c.pronouns && /^she/.test(c.pronouns) ? 'she' : c.pronouns && /^he/.test(c.pronouns) ? 'he' : 'they'} quietly works toward over the next few days while ${state.characters[state.player].name} is elsewhere, driven by ${previous ? 'what comes next after that goal' : 'their want and secret'}.
@@ -1201,7 +1348,7 @@ Give ${c.name} an agenda: what ${c.pronouns && /^she/.test(c.pronouns) ? 'she' :
 - hours: how long each step takes, 4 to 48.
 - contact_step: the index (0-based) of a step that brings ${c.name} to find ${state.characters[state.player].name}, or null.
 If ${c.name} would simply keep to routine, reply {"routine":true}.
-Reply with JSON only: {"goal":"...","steps":["...","..."],"hours":12,"contact_step":null}`;
+Reply with JSON only: ${reply(S.or(agendaShape(), S.obj({ routine: S.lit(true) })))}`;
 
   // ---------- promoting an extra (task 2-3) ----------
   // Turns a minor person into a full character. Sees everything known about
@@ -1225,7 +1372,12 @@ Reply with JSON only: {"goal":"...","steps":["...","..."],"hours":12,"contact_st
 === TASK ===
 ${x.name} has come to matter in the story. Write their character sheet. Keep the name and the role. Stay consistent with how the story has shown them: their looks, voice and what they said or did, and the note above.
 Reply with JSON only:
-{"pronouns":"she/her","age":40,"role":"${x.role}","traits":["three","short","traits"],"want":"what they want, one phrase","secret":"something they hide, or null","guard":"low|medium|high","voice":"how they talk, one sentence","appearance":"one or two sentences, the first a good one-line look","description":"who they are, one or two sentences","skills":{${state.scenario.skills.map((k) => `"${k}":1`).join(',')}},"relations":{"character_id":10},"agenda":{"goal":"what they work toward next","steps":["verb phrase","verb phrase"],"hours":12,"contact_step":null}}
+${reply(S.obj({
+    pronouns: S.str('she/her'), age: S.int(0, 999, 40), role: S.str(x.role), traits: TRAITS, want: S.str('what they want, one phrase'), secret: S.or(S.str('something they hide, or null'), S.nul), guard: GUARD,
+    voice: S.str('how they talk, one sentence'), appearance: S.str('one or two sentences, the first a good one-line look'), description: S.str('who they are, one or two sentences'),
+    skills: skillsShape(state.scenario.skills, 1), relations: S.map(Eng().cast(state), S.int(-30, 30, 10), ['character_id']),
+    agenda: S.or(S.obj({ goal: S.str('what they work toward next'), steps: S.list(S.str('verb phrase'), { n: 2, max: 4 }), hours: S.int(1, 99, 12), contact_step: S.maybe(S.int(0, 3)) }), S.nul),
+  }))}
 - skills from 0 to 4. relations: how they feel about cast members they have met, from -30 to 30 (ids: ${Eng().cast(state).join(', ')}).`;
 
   // ---------- character creator (task 4-1) ----------
@@ -1257,14 +1409,14 @@ Reply with JSON only:
     return lines;
   };
   const CHAR_ASK = {
-    traits: ['Suggest 4 short personality traits (one or two words each) that fit this character and differ from the ones they already have.', '{"traits":["...","...","...","..."]}'],
-    voice: ['Suggest how this character talks: one sentence, under 25 words, like "Few words, dry humor, calm under pressure."', '{"voice":"..."}'],
-    description: ['Suggest a short description of who this character is: two sentences, under 60 words, about their past and their place here. No secrets, nothing about the future.', '{"description":"..."}'],
+    traits: ['Suggest 4 short personality traits (one or two words each) that fit this character and differ from the ones they already have.', S.obj({ traits: S.list(S.str(), { n: 4, min: 1, max: 6 }) })],
+    voice: ['Suggest how this character talks: one sentence, under 25 words, like "Few words, dry humor, calm under pressure."', S.obj({ voice: S.str() })],
+    description: ['Suggest a short description of who this character is: two sentences, under 60 words, about their past and their place here. No secrets, nothing about the future.', S.obj({ description: S.str() })],
   };
   B.charSuggestTask = ({ field }) => `
 === TASK ===
 ${CHAR_ASK[field][0]} Keep to the setting and to what the player has filled in.
-Reply with JSON only: ${CHAR_ASK[field][1]}`;
+Reply with JSON only: ${reply(CHAR_ASK[field][1])}`;
 
   // ---------- character cards (task 6-2) ----------
   // A Tavern card turned into a sheet for this world. System: the generated
@@ -1275,6 +1427,11 @@ Reply with JSON only: ${CHAR_ASK[field][1]}`;
     const names = (sc.characterData || []).map((c) => c.name).filter((n) => n !== card.name);
     const u = E.Cards.used(card);
     const lines = ['=== A CHARACTER CARD ===', `Name: ${card.name}`];
+    const shape = S.obj({
+      pronouns: S.str('she/her'), age: S.int(0, 999, 30), role: S.str('their place in this world, a few words'), people: S.or(S.str('a people or origin, or null'), S.nul), traits: TRAITS,
+      want: S.str('what they want, one phrase'), voice: S.str('how they talk, one sentence'), appearance: S.str('one or two sentences, the first a good one-line look'),
+      description: S.str('who they are here, one or two sentences'), secret: S.or(S.str('something they hide, only if the card implies one, or null'), S.nul), guard: GUARD, skills: skillsShape(sc.skills, 1),
+    });
     if (u.description) lines.push(`Description:\n${u.description}`);
     if (u.personality) lines.push(`Personality:\n${u.personality}`);
     if (u.examples) lines.push(`How they talk (examples):\n${u.examples}`);
@@ -1282,9 +1439,9 @@ Reply with JSON only: ${CHAR_ASK[field][1]}`;
 === TASK ===
 Turn this character into a person who lives in the world above. Keep their personality, manner and voice; give them a role, a want and a past that fit this world. Leave out whatever the card says about a scene, a meeting or a relationship with the reader: they haven't met the player. Write about them in the third person, never to "you".
 Reply with JSON only:
-{"pronouns":"she/her","age":30,"role":"their place in this world, a few words","people":"a people or origin, or null","traits":["three","short","traits"],"want":"what they want, one phrase","voice":"how they talk, one sentence","appearance":"one or two sentences, the first a good one-line look","description":"who they are here, one or two sentences","secret":"something they hide, only if the card implies one, or null","guard":"low|medium|high","skills":{${(sc.skills || []).map((k) => `"${k}":1`).join(',')}}}
+${S.example(shape)}
 - skills from 0 to 4.`);
-    return { system: P.genHeader(sc, { names: new Set(names) }), user: lines.join('\n') };
+    return { system: P.genHeader(sc, { names: new Set(names) }), user: P.remember(lines.join('\n'), shape), shape };
   };
 
   // ---------- generated starts (task 4-2) ----------
@@ -1365,40 +1522,53 @@ Reply with JSON only:
   };
   B.genTask = (ctx) => '\n' + GEN_TASKS[ctx.step](ctx);
 
-  const skillJson = (sc, n) => `{${sc.skills.map((k) => `"${k}":${n}`).join(',')}}`;
+  // Ids a generated start's steps may name (task L-1): its rooms and people so far.
+  const genRooms = (job) => ((job.steps.rooms && job.steps.rooms.rooms) || []).map((r) => r.id);
+  const genPeople = (job) => [E.StartGen.player(job)].concat(E.StartGen.people(job)).filter(Boolean).map((c) => c.id);
   // A world the player describes (customSetting): its setting comes first,
   // and every later step's header uses it.
   GEN_TASKS.setting = ({ job }) => `=== TASK: THE WORLD ===
 The player describes the world they want this story set in: "${job.worldText}"
 Write the setting the storyteller will keep to for the whole story: 3 to 5 sentences on where and when it is, what daily life is like, who holds power, and what is at stake or dangerous. Keep everything the player said (names, places, era) and fill in the rest so it fits. Write about the world in the third person; no characters yet, no plot and no secrets.
 Also give up to ${E.StartGen.SETTING.tags} genre tags, most important first (known ones: ${Object.keys(E.Genres.table).join(', ')}; others are fine) and a one-sentence tone note.
-Reply with JSON only: {"setting":"3 to 5 sentences","tags":["slice-of-life"],"toneNote":"one sentence"}`;
+Reply with JSON only: ${reply(S.obj({ setting: S.str('3 to 5 sentences'), tags: S.list(S.str('slice-of-life'), { min: 1, max: E.StartGen.SETTING.tags }), toneNote: S.str('one sentence') }))}`;
   GEN_TASKS.player = ({ sc, job, loaded }) => {
     const g = E.StartGen.slot(loaded.bundle.world);
     const roles = g.roles.map((r) => r.label);
     return `=== TASK: THE PLAYER'S CHARACTER ===
 The player describes the character they want to play: "${job.line}"
 Write their character sheet. Keep to what they said and fill in the rest so it fits the setting.${roles.length ? ` Roles that fit here: ${roles.join(', ')} (or another).` : ''} Skills: up to ${g.skillPoints} points in all, each from 0 to ${g.maxSkill}.
-Reply with JSON only: {"name":"Full Name","pronouns":"she/her","age":30,"role":"short role","traits":["three","short","traits"],"want":"what they want, one phrase","secret":"something they hide, or null","guard":"low|medium|high","voice":"how they talk, one sentence","appearance":"one or two sentences, the first a good one-line look","description":"who they are, one or two sentences","skills":${skillJson(sc, 1)}}`;
+Reply with JSON only: ${reply(S.obj({
+      name: S.str('Full Name'), pronouns: S.str('she/her'), age: S.int(0, 999, 30), role: S.str('short role'), traits: TRAITS, want: S.str('what they want, one phrase'),
+      secret: S.or(S.str('something they hide, or null'), S.nul), guard: GUARD, voice: S.str('how they talk, one sentence'), appearance: S.str('one or two sentences, the first a good one-line look'),
+      description: S.str('who they are, one or two sentences'), skills: skillsShape(sc.skills, 1),
+    }))}`;
   };
   GEN_TASKS.rooms = ({ sc, job }) => {
     const r = (sc.regions || []).find((x) => x.id === job.region);
     return `=== TASK: THE PLACE ===
 Invent where the story starts${job.place ? `, at ${job.place}` : r ? `, somewhere in ${r.name}` : ''}: 3 to 6 rooms or areas the player can walk between (inside one building, or a few spots close together outdoors). Each needs a short id (lowercase, dashes), a name, one sentence of description and the rooms it connects to. Every room must be reachable. Pick the room the player starts in.
-Reply with JSON only: {"rooms":[{"id":"back-room","name":"Back Room","desc":"One sentence.","connects":["shop-floor"],"outside":false}],"player_room":"back-room"}`;
+Reply with JSON only: ${reply(S.obj({
+      rooms: S.list(S.obj({ id: S.str('back-room'), name: S.str('Back Room'), desc: S.str('One sentence.'), connects: S.list(S.str('shop-floor'), { max: 6 }), outside: S.bool(false) }), { min: 3, max: 6 }),
+      player_room: S.str('back-room'),
+    }))}`;
   };
   GEN_TASKS.plan = ({ loaded }) => {
     const [min, max] = E.StartGen.castSize(loaded.bundle.world);
     return `=== TASK: WHO IS HERE ===
 Plan the ${min} to ${max} people (not counting the player) who are in or around these rooms when the story starts. Make them different from each other in age, background, temperament and what they want, and give each a hook: something about them that will cause trouble. Someone may be the player's family or an old friend when that fits the player's description or the story they asked for; otherwise they are people the player is only now getting to know. One line each.
-Reply with JSON only: {"people":[{"name":"Full Name","role":"short role","hook":"one line"}]}`;
+Reply with JSON only: ${reply(S.obj({ people: S.list(S.obj({ name: S.str('Full Name'), role: S.str('short role'), hook: S.str('one line') }), { min: 1, max }) }))}`;
   };
-  const SHEET = (sc) => `"pronouns":"she/her","age":40,"traits":["three","short","traits"],"want":"what they want, one phrase","secret":"something they hide from the others","guard":"low|medium|high","voice":"how they talk, one sentence","appearance":"one or two sentences, the first a good one-line look","description":"who they are, one or two sentences","skills":${skillJson(sc, 1)},"room":"room-id"`;
+  const SHEET = (sc, job, name) => S.obj(Object.assign(name ? { name } : {}, {
+    pronouns: S.str('she/her'), age: S.int(0, 999, 40), traits: TRAITS, want: S.str('what they want, one phrase'), secret: S.str('something they hide from the others'), guard: GUARD,
+    voice: S.str('how they talk, one sentence'), appearance: S.str('one or two sentences, the first a good one-line look'), description: S.str('who they are, one or two sentences'),
+    skills: skillsShape(sc.skills, 1), room: ids(genRooms(job), 'room-id'),
+  }));
   GEN_TASKS.person = ({ sc, job, index, reroll }) => {
     const p = job.steps.plan.people[index];
     return `=== TASK: WRITE ONE PERSON ===
 Write the character sheet for ${p.name}, ${p.role}${p.hook ? ` (${p.hook})` : ''}. Keep the name and the role. Give them a want, and a secret they hide from the others (and how well they guard it: low, medium or high). Pick the room they are in at the start. Make them different from the people already written.${reroll ? ' This replaces an earlier sheet the player didn\'t like: write a fresh take on the same name and role.' : ''}
-Reply with JSON only: {${SHEET(sc)}}
+Reply with JSON only: ${reply(SHEET(sc, job))}
 - skills from 0 to 4.`;
   };
   GEN_TASKS.room = ({ job, index }) => {
@@ -1407,30 +1577,43 @@ Reply with JSON only: {${SHEET(sc)}}
     const names = room.connects.map((id) => rooms.find((r) => r.id === id).name);
     return `=== TASK: REWRITE ONE ROOM ===
 The player wants a different take on ${room.name} (connects to ${names.join(', ') || 'nothing'}). Keep where it is and what it connects to; give it a new name and one sentence of description that fit with the other rooms.
-Reply with JSON only: {"name":"...","desc":"One sentence.","outside":false}`;
+Reply with JSON only: ${reply(S.obj({ name: S.str(), desc: S.str('One sentence.'), outside: S.bool(false) }))}`;
   };
   GEN_TASKS.cast = ({ sc, job }) => `=== TASK: WRITE THE PEOPLE ===
 People planned:
 ${job.steps.plan.people.map((p) => `- ${p.name}, ${p.role}${p.hook ? `: ${p.hook}` : ''}`).join('\n')}
 Write a character sheet for each of them. Keep each name and role. Give each a want, and a secret they hide from the others (and how well they guard it: low, medium or high). Pick the room each is in at the start.
-Reply with JSON only: {"people":[{"name":"Full Name",${SHEET(sc)}}]}
+Reply with JSON only: ${reply(S.obj({ people: S.list(SHEET(sc, job, S.oneOf(job.steps.plan.people.map((p) => p.name), 'Full Name')), { min: 1, max: job.steps.plan.people.length }) }))}
 - skills from 0 to 4.`;
+  const tiesShape = (job) => {
+    const who = ids(genPeople(job), 'id');
+    const pressure = (max, perHour) => ({ name: S.str(), max: S.int(1, 99, max), perHour: S.num(perHour), fireText: S.str() });
+    return S.obj({
+      relations: S.list(S.obj({ from: who, to: who, value: S.int(-50, 50, 20) })),
+      knows: S.list(S.obj({ id: who, text: S.str() })),
+      pressures: S.list(S.obj(Object.assign(pressure(8, 0.1), { then: S.opt(S.or(S.obj(pressure(6, 0.2)), S.nul)) })), { max: 2 }),
+      events: S.list(S.str(), { max: 3 }),
+    });
+  };
   GEN_TASKS.ties = ({ job }) => `=== TASK: TIES AND PRESSURES ===
 1. relations: how these people feel about each other and about the player at the start, from -50 (hostile) to 50 (close). Use the ids above ("${job.steps.player.character.id}" is the player). The player has only just met them unless the player's description or note says otherwise, so feelings toward the player are mild (-25 to 25). Only pairs that matter; leave out how the player feels.
 2. knows: one private thing each person knows that the others don't (about someone else, the place or the situation; not their own secret).
 3. pressures: 1 or 2 things getting worse over time that will force choices, like food running out or a deadline. "max" is how many steps until it comes to a head and "perHour" how many steps it grows each hour (max 8 with perHour 0.1 is about 80 hours); "fireText" is what happens then. Pressures are public: never about a secret. Optionally "then": the next pressure that starts once this one comes to a head (the power dies, then the cold sets in), in the same shape.
 4. events: up to 3 short ideas for things that could happen around this place later (weather, neighbours, a supply run going wrong). Public too.
-Reply with JSON only: {"relations":[{"from":"id","to":"id","value":20}],"knows":[{"id":"id","text":"..."}],"pressures":[{"name":"...","max":8,"perHour":0.1,"fireText":"...","then":{"name":"...","max":6,"perHour":0.2,"fireText":"..."}}],"events":["..."]}`;
-  GEN_TASKS.extras = () => `=== TASK: MINOR PEOPLE AND GROUPS ===
+Reply with JSON only: ${reply(tiesShape(job))}`;
+  GEN_TASKS.extras = ({ job }) => `=== TASK: MINOR PEOPLE AND GROUPS ===
 Add up to 4 minor people (neighbours, passers-by, a voice on the radio) and up to 2 unnamed groups (guards, a crowd, a few of the dead) that fit this place. Put each in one of the rooms, or "room": null for a minor person who is nowhere in particular. Notes are for the story engine and never shown to the player. Adding none is fine.
-Reply with JSON only: {"extras":[{"name":"...","role":"...","pronouns":"he/him","room":"room-id","note":"..."}],"groups":[{"label":"...","count":5,"room":"room-id","state":"calm|alert|hostile","note":"..."}]}`;
+Reply with JSON only: ${reply(S.obj({
+    extras: S.list(S.obj({ name: S.str(), role: S.str(), pronouns: S.str('he/him'), room: S.or(ids(genRooms(job), 'room-id'), S.nul), note: S.str() }), { max: 4 }),
+    groups: S.list(S.obj({ label: S.str(), count: S.int(1, 999, 5), room: ids(genRooms(job), 'room-id'), state: S.oneOf(['calm', 'alert', 'hostile'], 'calm|alert|hostile'), note: S.str() }), { max: 2 }),
+  }))}`;
   GEN_TASKS.opening = ({ job }) => {
     const here = job.steps.rooms.rooms.find((r) => r.id === job.steps.rooms.playerRoom);
     return `=== TASK: THE OPENING ===
 Write the opening scene the player reads first: 2 to 4 short paragraphs in second person ("you"), present tense, in ${here.name}, showing who is there and what is going on, and ending on someone else's move or line. Never decide what the player does, says or feels. Don't reveal anyone's secret.
 List in "with_you" the ids of the people who are in ${here.name} with the player when it opens; they start there, whatever room their sheet gave them. People elsewhere can be heard or glimpsed at most.
 Also give the start a short title, a one-sentence summary for the player (second person: who they are and what's going on) and up to 3 public facts everyone here knows.
-Reply with JSON only: {"title":"...","summary":"You are ...","opening":"...","with_you":["id"],"facts":["..."]}`;
+Reply with JSON only: ${reply(S.obj({ title: S.str(), summary: S.str('You are ...'), opening: S.str(), with_you: S.list(ids(E.StartGen.people(job).map((c) => c.id), 'id')), facts: S.list(S.str(), { max: 3 }) }))}`;
   };
 
   // Local lore (task 5-6): a few public entries about this start's places.
@@ -1445,7 +1628,10 @@ Write ${L.min} to ${L.max} short notes on local things this story will come back
 - "about": "location" with "ref" one of the room ids above${regions.length ? `, or "region" with "ref" ${regions.map((r) => `"${r.id}" (${r.name})`).join(' or ')}` : ''}.
 - "keywords": the words someone would use for it, with nicknames. "topics": up to ${E.Lore.LIMITS.topics} of ${E.Lore.topicIds(ctx.sc).join(', ')}, or [].
 - Never anyone's secret, nothing that hasn't happened yet, nothing about the player's past, and never "you".${covered.length ? ` The world's lore already covers ${covered.join('; ')}: don't repeat it.` : ''}
-Reply with JSON only: {"entries":[{"title":"short title","about":"location","ref":"room-id","keywords":["name"],"topics":[],"text":"40–80 words"}]}`;
+Reply with JSON only: ${reply(S.obj({ entries: S.list(S.obj({
+    title: S.str('short title'), about: S.oneOf(regions.length ? ['location', 'region'] : ['location']), ref: ids(genRooms(ctx.job).concat(regions.map((r) => r.id)), 'room-id'),
+    keywords: S.list(S.str('name'), { max: 8 }), topics: S.list(S.oneOf(E.Lore.topicIds(ctx.sc)), { n: 0, max: E.Lore.LIMITS.topics }), text: S.str('40–80 words'),
+  }), { min: 1, max: L.max }) }))}`;
   };
 
   // ---------- generated sites (task 4-4) ----------
@@ -1462,7 +1648,7 @@ Reply with JSON only: {"entries":[{"title":"short title","about":"location","ref
     return `=== TASK: A NEW REGION ===
 The story heads to ${req.name}, ${label} ${parent ? `in ${parent.name}` : 'in this world'}, which isn't on the map yet.${req.stub && req.stub.summary ? ` The player has been there before (${req.stub.summary}).` : ''}
 Write what everyone here knows about it, in one or two sentences: what kind of place it is, who lives there and how things are there now. Public knowledge only: no one's secrets, nothing that hasn't happened yet, and none of the story's people by name.
-Reply with JSON only: {"lore":"one or two sentences"}`;
+Reply with JSON only: ${reply(S.obj({ lore: S.str('one or two sentences') }))}`;
   };
   // A flavour place (R-8): rooms and who is there in one call, small and
   // without guards on posts or patrols.
@@ -1471,7 +1657,13 @@ Reply with JSON only: {"lore":"one or two sentences"}`;
   B.siteFlavourTask = () => `
 === TASK: THE PLACE AND WHO IS THERE ===
 Describe this place in 1 to 3 rooms or areas (one is fine for a café or a room), one short sentence each, with an id (lowercase, dashes), the rooms it links to, up to 3 features that matter, and "outside": true for open ground. Name the room the player arrives in. Then who is there when the player arrives: up to 2 named people (with a role, the room and a note for the story engine) and up to 2 unnamed groups (a crowd, regulars) with how many and the room. Add a short note of what there is to find or do here (never shown to the player). An empty place is fine.
-Reply with JSON only: {"rooms":[{"id":"cafe","name":"Café","desc":"One sentence.","links":[],"features":["counter"],"outside":false}],"entry":"cafe","people":[{"name":"...","role":"...","pronouns":"she/her","room":"cafe","note":"..."}],"groups":[{"label":"regulars","count":4,"room":"cafe","state":"calm"}],"note":"..."}`;
+Reply with JSON only: ${reply(S.obj({
+    rooms: S.list(S.obj({ id: S.str('cafe'), name: S.str('Café'), desc: S.str('One sentence.'), links: S.list(S.str(), { n: 0, max: 3 }), features: S.list(S.str('counter'), { max: 3 }), outside: S.bool(false) }), { min: 1, max: 3 }),
+    entry: S.str('cafe'),
+    people: S.list(S.obj({ name: S.str(), role: S.str(), pronouns: S.str('she/her'), room: S.str('cafe'), note: S.str() }), { max: 2 }),
+    groups: S.list(S.obj({ label: S.str('regulars'), count: S.int(1, 999, 4), room: S.str('cafe'), state: S.oneOf(['calm', 'alert', 'hostile'], 'calm') }), { max: 2 }),
+    note: S.str(),
+  }))}`;
   // A flavour place turning tactical (R-8): more rooms around the ones it
   // has, which never move.
   P.layouts.siteGrow = ['siteRequest', 'siteRooms', 'siteGrowTask'];
@@ -1479,7 +1671,10 @@ Reply with JSON only: {"rooms":[{"id":"cafe","name":"Café","desc":"One sentence
   B.siteGrowTask = ({ layout }) => `
 === TASK: MORE OF THIS PLACE ===
 Things have turned dangerous here, so the place needs more of its layout: add 2 to 4 rooms or areas around the ones above (a back room, a stairwell, a yard, the way out the back). Keep the rooms above exactly as they are; only add new ones, each linked to a room above or to another new one, with a kind (open, door, locked door, vent, hatch, window, stairs), up to 3 features, "outside": true for open ground and "secure": true for a vault or cell (one way in only).
-Reply with JSON only: {"rooms":[{"id":"stairwell","name":"Stairwell","desc":"One sentence.","links":[{"to":"${layout.rooms[0] ? layout.rooms[0].id : 'room-id'}","kind":"door"}],"features":[],"outside":false,"secure":false}]}`;
+Reply with JSON only: ${reply(S.obj({ rooms: S.list(S.obj({
+    id: S.str('stairwell'), name: S.str('Stairwell'), desc: S.str('One sentence.'), links: S.list(S.obj({ to: S.str(layout.rooms[0] ? layout.rooms[0].id : 'room-id'), kind: LINK_KIND }), { min: 1, max: 4 }),
+    features: S.list(S.str(), { n: 0, max: 3 }), outside: S.bool(false), secure: S.bool(false),
+  }), { min: 1, max: 4 }) }))}`;
   P.layouts.siteLayout = ['siteRequest', 'siteLayoutTask'];
   P.siteLayout = (state, req) => P.build('siteLayout', { state, req });
   P.layouts.siteOccupants = ['siteRequest', 'siteRooms', 'siteOccupantsTask'];
@@ -1497,10 +1692,15 @@ Reply with JSON only: {"rooms":[{"id":"stairwell","name":"Stairwell","desc":"One
     if (req.stub && req.stub.summary) lines.push(`The player has been here before: ${req.stub.summary}.`);
     return lines;
   };
+  const LINK_KIND = S.oneOf(['open', 'door', 'locked door', 'vent', 'hatch', 'window', 'stairs'], 'door');
   B.siteLayoutTask = () => `
 === TASK: THE LAYOUT ===
 Lay out this place: 2 to 6 rooms or areas, with one short sentence each. Give each room an id (lowercase, dashes), its links to other rooms with a kind (open, door, locked door, vent, hatch, window, stairs), up to 3 features (things that matter: "camera", "crates", "ledger terminal"), "outside": true for open ground, and "secure": true for a vault, cell or armory (one way in only). Name the entry room the player arrives in, and the ways in from outside ("entrances", "watched": true if guarded or covered by a camera).
-Reply with JSON only: {"rooms":[{"id":"loading-bay","name":"Loading Bay","desc":"One sentence.","links":[{"to":"office","kind":"door"}],"features":["camera"],"outside":false,"secure":false}],"entry":"loading-bay","entrances":[{"room":"loading-bay","kind":"roller door","watched":true}]}`;
+Reply with JSON only: ${reply(S.obj({
+    rooms: S.list(S.obj({ id: S.str('loading-bay'), name: S.str('Loading Bay'), desc: S.str('One sentence.'), links: S.list(S.obj({ to: S.str('office'), kind: LINK_KIND }), { max: 5 }), features: S.list(S.str('camera'), { max: 3 }), outside: S.bool(false), secure: S.bool(false) }), { min: 1, max: 6 }),
+    entry: S.str('loading-bay'),
+    entrances: S.list(S.obj({ room: S.str('loading-bay'), kind: S.str('roller door'), watched: S.bool(true) }), { max: 4 }),
+  }))}`;
   B.siteRooms = ({ state, layout }) => ['\n=== ROOMS ==='].concat(layout.rooms.map((r) => {
     // Each link's kind from whichever side declared it (playtest-api-kessler-lobby).
     const kindTo = (c) => ((r.links || []).find((k) => k.to === c) || ((layout.rooms.find((o) => o.id === c) || {}).links || []).find((k) => k.to === r.id) || { kind: 'open' }).kind;
@@ -1508,12 +1708,17 @@ Reply with JSON only: {"rooms":[{"id":"loading-bay","name":"Loading Bay","desc":
     const feats = (r.features || []).map((f) => (typeof f === 'string' ? f : f.name));
     return `- ${r.id}: ${r.name} — ${r.desc}${links.length ? ` (${links.join(', ')})` : ''}${feats.length ? ` [${feats.join(', ')}]` : ''}${r.id === layout.entry ? ' (the way in)' : ''}`;
   }));
-  B.siteOccupantsTask = ({ state, library }) => {
+  B.siteOccupantsTask = ({ state, layout, library }) => {
     const groups = (state.scenario.factions || []).map((f) => f.id).join(', ');
+    const room = ids(layout.rooms.map((r) => r.id), 'room-id');
     return `
 === TASK: WHO AND WHAT IS HERE ===
 Who is in this place when the player arrives: up to 2 named people (with a role, the room they're in and a note for the story engine: what they want here, what they know) and up to 3 unnamed groups (guards, a crowd, a few of the dead) with how many, the room, their state (calm, alert, hostile)${groups ? `, the group they belong to (${groups}) if any` : ''}, and "post": true if they hold that room or "patrol": a loop of linked room ids. Add a short note of what there is to find or do here (never shown to the player). An empty place is fine.${library ? ' The rooms come from a map: you may rename them to fit ("rooms": [{"id","name","desc"}]); keep the ids.' : ''}
-Reply with JSON only: {"people":[{"name":"...","role":"...","pronouns":"she/her","room":"room-id","note":"..."}],"groups":[{"label":"...","count":3,"room":"room-id","state":"alert","faction":null,"post":true}],"note":"..."${library ? ',"rooms":[]' : ''}}`;
+Reply with JSON only: ${reply(S.obj(Object.assign({
+    people: S.list(S.obj({ name: S.str(), role: S.str(), pronouns: S.str('she/her'), room: room, note: S.str() }), { max: 2 }),
+    groups: S.list(S.obj({ label: S.str(), count: S.int(1, 999, 3), room: room, state: S.oneOf(['calm', 'alert', 'hostile'], 'alert'), faction: S.maybe(ids(groupIds(state), 'group_id')), post: S.bool(true), patrol: S.opt(S.list(room, { max: 6 }), false) }), { max: 3 }),
+    note: S.str(),
+  }, library ? { rooms: S.list(S.obj({ id: room, name: S.str(), desc: S.str() }), { n: 0, max: layout.rooms.length }) } : {})))}`;
   };
 
   // ---------- chapter ----------
@@ -1548,7 +1753,11 @@ Plan what is most likely to happen in this world over the next ${cfg.days} days,
 - "when" is {"day": number, "hour": 0-23}. "scope": "regional" (nearby) or "world" (far away, broad).${regions.length ? ` "region": one of ${regions.join(', ')}, or null for a world event.` : ''}
 - "effects" only if the event clearly changes something: ${effectShape(state)}, with existing ids only (${effectIds(state)}); otherwise null.
 Reply with JSON only:
-{"events":[{"when":{"day":${Math.floor((now + 24) / 24)},"hour":9},"scope":"regional",${regions.length ? '"region":"region_id",' : ''}"text":"one sentence","visibility":"heard","effects":null}]}`;
+${reply(S.obj({ events: S.list(S.obj(Object.assign(
+    { when: S.obj({ day: S.int(0, 999999, Math.floor((now + 24) / 24)), hour: S.int(0, 23, 9) }), scope: S.oneOf(['regional', 'world'], 'regional') },
+    regions.length ? { region: S.or(ids(regions, 'region_id'), S.nul) } : {},
+    { text: S.str('one sentence'), visibility: S.oneOf(VIS, 'heard'), effects: S.maybe(P.shapes.effects(state)) },
+  )), { min: 1, max: cfg.max }) }))}`;
   };
 
   // ---------- research (build time, tools/research.mjs) ----------
@@ -1583,6 +1792,21 @@ Reply with JSON only:
     return `\n=== IN THIS WORLD ===\nregions: ${list(regions)}${more > 0 ? ` (and ${more} more)` : ''}\nplaces: ${list(r.rooms)}\npeople: ${list(r.characters)}\ngroups: ${list(r.groups)}`;
   };
   B.researchSource = ({ src, chunk, i, n }) => `\n=== SOURCE: ${src.title}${n > 1 ? ` (part ${i + 1} of ${n})` : ''} ===\n${chunk}`;
+  // A research reply (task L-1): refs only from IN THIS WORLD; o sets what the example shows.
+  function researchShape(ctx, topic, o) {
+    const r = ctx.refs;
+    const refs = [].concat(r.regions, r.rooms, r.characters, r.groups).map((x) => x.id);
+    const regions = r.regions.map((x) => x.id);
+    return S.obj({
+      entries: S.list(S.obj({
+        title: S.str(o.title), about: S.oneOf(['world', 'region', 'location', 'character', 'topic'], topic.level),
+        ref: topic.ref ? S.or(ids(refs, topic.ref), S.nul) : S.or(S.nul, ids(refs)),
+        keywords: S.show(S.list(S.str(), { max: 10 }), JSON.stringify(o.keywords)), topics: S.list(S.oneOf(E.Lore.topicIds(ctx.loaded.bundle.world)), { n: 0, max: E.Lore.LIMITS.topics }), text: S.str('40–80 words'),
+      }), { min: 1, max: o.max }),
+      later: S.list(S.obj({ date: S.or(S.nul, S.str('YYYY-MM-DD')), text: S.str('one sentence'), scope: S.oneOf(['regional', 'world'], 'regional'), region: S.or(S.nul, ids(regions, 'region_id')) }), { n: o.later, max: 6 }),
+      secrets: S.list(S.obj({ who: S.str('person'), text: S.str('what they hide') }), { n: o.secrets, max: 6 }),
+    });
+  }
   B.researchTask = ({ ctx, topic }) => `
 === TASK ===
 Turn what in the source matters for stories set in this world into lore: short notes the narrator can draw on.
@@ -1595,9 +1819,7 @@ Turn what in the source matters for stories set in this world into lore: short n
 - "keywords": the words a player would use for it, with nicknames, titles and other spellings.
 - "topics": up to ${E.Lore.LIMITS.topics} of ${E.Lore.topicIds(ctx.loaded.bundle.world).join(', ')}: the kinds of life it matters most to (school for the schools, business for the companies), or [] when it matters to everyone.
 Reply with JSON only:
-{"entries":[{"title":"short title","about":"${topic.level}","ref":${topic.ref ? `"${topic.ref}"` : 'null'},"keywords":["name","alias"],"topics":[],"text":"40–80 words"}],
- "later":[{"date":null,"text":"one sentence","scope":"regional","region":null}],
- "secrets":[{"who":"person","text":"what they hide"}]}`;
+${reply(researchShape(ctx, topic, { title: 'short title', keywords: ['name', 'alias'], max: ctx.job.perTopic || 4, later: 1, secrets: 1 }))}`;
   B.researchBriefTask = ({ ctx, topic }) => `
 === TASK ===
 Summarise ${topic.name} as one lore note the narrator can draw on when a scene is set there.
@@ -1608,9 +1830,7 @@ Summarise ${topic.name} as one lore note the narrator can draw on when a scene i
 - "keywords": the names a player would use for it, with other spellings and nicknames.
 - "topics": up to ${E.Lore.LIMITS.topics} of ${E.Lore.topicIds(ctx.loaded.bundle.world).join(', ')}, or [] when it matters to everyone (usual for a place).
 Reply with JSON only:
-{"entries":[{"title":${JSON.stringify(topic.name)},"about":"${topic.level}","ref":${topic.ref ? `"${topic.ref}"` : 'null'},"keywords":[${JSON.stringify(topic.name)}],"topics":[],"text":"40–80 words"}],
- "later":[],
- "secrets":[]}`;
+${reply(researchShape(ctx, topic, { title: topic.name, keywords: [topic.name], max: 1, later: 0, secrets: 0 }))}`;
   P.layouts.researchKnown = ['researchTopic', 'researchKnownTask'];
   P.researchKnown = (ctx, topic) => P.build('researchKnown', { ctx, topic });
   B.researchKnownTask = ({ topic }) => `\n=== TASK ===\nIn two or three sentences, say what you know about ${topic.name}: names, places, dates. If you don't know it, say "I don't know." Plain text, no lists.`;
@@ -1626,5 +1846,5 @@ ${facts}`;
   B.chapterTask = ({ pc }) => `
 === TASK ===
 Write a short journal entry summarizing this chapter for ${pc.name}'s story. Use only the events listed. Third person, past tense, 2 to 4 sentences, keep names and the most important consequences. Also give the chapter a short evocative title.
-Reply with JSON only: {"title":"...","summary":"..."}`;
+Reply with JSON only: ${reply(S.obj({ title: S.str(), summary: S.str() }))}`;
 })(typeof window !== 'undefined' ? window : globalThis);

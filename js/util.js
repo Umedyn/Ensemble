@@ -4,11 +4,12 @@
 
   // Backend presets. Every backend speaks the OpenAI-style chat API; KoboldCpp
   // also gets its native model/context endpoints for the Test button.
+  // jsonMode: the API takes response_format {type: "json_object"} (task L-1).
   E.backendPresets = {
     'kobold-local': { label: 'KoboldCpp on this computer', url: 'http://localhost:5001/v1', model: 'koboldcpp', kobold: true, key: false },
     'kobold-remote': { label: 'KoboldCpp on my machine (remote)', url: '', model: 'koboldcpp', kobold: true, key: 'optional',
       hint: 'Paste the public URL KoboldCpp prints when started with its remote tunnel option (ends in trycloudflare.com), or your PC\'s address on your home Wi-Fi.' },
-    openrouter: { label: 'OpenRouter', url: 'https://openrouter.ai/api/v1', model: '', key: true,
+    openrouter: { label: 'OpenRouter', url: 'https://openrouter.ai/api/v1', model: '', key: true, jsonMode: true,
       hint: 'Create a key at openrouter.ai, then paste a model name from its model list (vendor/model-name).' },
     custom: { label: 'Other OpenAI-compatible API', url: '', model: '', key: true,
       hint: 'Base URL ending in /v1 (or the provider\'s documented base), plus key and model name.' },

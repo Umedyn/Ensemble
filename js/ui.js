@@ -2302,6 +2302,8 @@
     box.querySelector('.hint').textContent = p.hint || '';
     box.querySelector('.keyRow').classList.toggle('hidden', p.key === false);
     box.querySelector('.modelRow').classList.toggle('hidden', !!p.kobold);
+    // Constrain JSON (task L-1): a grammar for KoboldCpp, JSON mode where the API has one.
+    box.querySelector('.constrainRow').classList.toggle('hidden', !p.kobold && !p.jsonMode);
   }
 
   function fillBackend(id) {
@@ -2314,12 +2316,14 @@
     box.querySelector('.bKey').value = b.key || '';
     box.querySelector('.bModel').value = b.model || '';
     box.querySelector('.bContext').value = b.context || E.defaults.backends[id].context;
+    box.querySelector('.bConstrain').checked = b.constrainJSON != null ? !!b.constrainJSON : E.LLM.constrainDefault(b.preset);
     box.querySelector('.bStatus').textContent = '';
     showPreset(box, b.preset);
     sel.onchange = () => {
       const p = E.backendPresets[sel.value] || {};
       box.querySelector('.bUrl').value = p.url || '';
       box.querySelector('.bModel').value = p.model || '';
+      box.querySelector('.bConstrain').checked = E.LLM.constrainDefault(sel.value);
       showPreset(box, sel.value);
     };
     box.querySelector('.bTest').onclick = async () => {
@@ -2344,6 +2348,7 @@
       key: box.querySelector('.bKey').value.trim(),
       model: box.querySelector('.bModel').value.trim(),
       context: Math.max(2048, parseInt(box.querySelector('.bContext').value, 10) || E.defaults.backends[id].context),
+      constrainJSON: box.querySelector('.bConstrain').checked,
     };
   }
 

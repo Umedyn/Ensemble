@@ -20,6 +20,7 @@
     Object.keys(s.backends || {}).forEach((id) => {
       const b = s.backends[id] || {};
       backends[id] = { preset: b.preset, model: b.model || '', context: b.context || null };
+      if (b.constrainJSON != null) backends[id].constrainJSON = !!b.constrainJSON;
     });
     return {
       narrateTokens: s.narrateTokens, temperature: s.temperature, chapterLength: s.chapterLength, chapterRule: s.chapterRule,
@@ -47,6 +48,9 @@
         kind, backend: b ? b.id : null,
         request: { system: body.messages[0].content, user: body.messages[1].content, max_tokens: body.max_tokens, temperature: body.temperature },
       };
+      // The reply's grammar (task L-1) as its size and a hash: it follows from the prompt.
+      if (body.grammar) call.request.grammar = { chars: body.grammar.length, hash: E.Shape.hash(body.grammar) };
+      if (body.response_format) call.request.response_format = body.response_format;
       if (rec && rec.current && rec.current.calls) rec.current.calls.push(call);
       try {
         const out = await innerTransport(url, body, kind, b);

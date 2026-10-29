@@ -50,9 +50,10 @@ function oldChapterRule(E) {
   };
 }
 
-// replay(fixtureOrName, { until, setup }) → { E, state, steps: [{ index, action, state, result, error }] }
+// replay(fixtureOrName, { until, setup, onCall }) → { E, state, steps: [{ index, action, state, result, error }] }
 // until: stop after this many actions (default: all). setup(E): runs before the
 // first action, to turn engine behaviour the recording predates off. Each step's state is a copy.
+// onCall({ E, body, kind, recorded }): sees each request and its recorded call.
 async function replay(fixture, opts = {}) {
   if (typeof fixture === 'string') fixture = loadFixture(fixture);
   const E = loadEngine();
@@ -77,6 +78,7 @@ async function replay(fixture, opts = {}) {
     if (!rc) throw new ReplayError(`${label}, call ${calls + 1}: the engine made a "${kind}" call, but the recording has only ${cur && cur.calls ? cur.calls.length : 0}`);
     if (rc.kind !== kind) throw new ReplayError(`Replay mismatch at ${label}, call ${calls + 1}: engine made "${kind}", recording has "${rc.kind}"`);
     calls++;
+    if (opts.onCall) opts.onCall({ E, body, kind, recorded: rc });
     if (rc.error) {
       const err = new Error(rc.error.message);
       err.name = rc.error.name || 'Error';

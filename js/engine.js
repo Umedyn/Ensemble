@@ -1471,6 +1471,7 @@
 
 
   const EVENT_CAP = { minute: 1, moment: 1, hour: 1, hours: 2, morning: 3 };
+  Eng.EVENT_CAP = EVENT_CAP;
 
   // Director events: things that happen during the span outside the player's
   // control. Seen/heard ones reach the narrator; hidden ones become private facts.
@@ -4182,6 +4183,8 @@
       const extra = [];
       if (c.cachedTokens != null) extra.push(`${c.cachedTokens} cached`);
       if (c.perf) extra.push(`prompt ${c.perf.processSec.toFixed(1)} s, gen ${c.perf.evalSec.toFixed(1)} s`);
+      if (c.grammar) extra.push(`grammar ${c.grammar} chars`);
+      if (c.jsonMode) extra.push('JSON mode');
       if (c.finish === 'length') extra.push('cut off');
       if (c.salvaged) extra.push('salvaged');
       if (c.error) extra.push('error: ' + c.error);

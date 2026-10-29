@@ -168,7 +168,7 @@
   // the world (its header and skills).
   C.convert = async function (sc, card) {
     const p = E.Prompts.cardConvert(sc, card);
-    const raw = await E.LLM.chatJSON({ kind: 'worldbuild (character)', system: p.system, user: p.user, maxTokens: 500, temperature: 0.7 });
+    const raw = await E.LLM.chatJSON({ kind: 'worldbuild (character)', system: p.system, user: p.user, shape: p.shape, maxTokens: 500, temperature: 0.7 });
     return C.clean(raw, card, sc);
   };
 })(typeof window !== 'undefined' ? window : globalThis);

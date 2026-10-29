@@ -304,6 +304,34 @@ Build time only (`tools/research.mjs`, logic in `js/research.js`): play never fe
 
 Two backends (local and external), each a preset: KoboldCpp on this computer, KoboldCpp remote (tunnel URL), OpenRouter, or any OpenAI-compatible API. Each pipeline step (characters & events, narration, memory updates, chapter summaries, world building) is routed to one of them; "Hybrid" sends the judgment, prose and world-building steps external and keeps bookkeeping local. Keys live in browser settings, never in saves.
 
+### Constrained JSON
+
+Task L-1. In the Seiryo High playtests (2026-10-29), half the JSON calls went wrong in their shape rather than their content. The replies came back fenced, wrapped in a list, indented 2–8 spaces (so the update hit its cap twice), with intents for people who weren't there, and with ids like `char:yumiko` and `aio`. Each one cost a 30–60 second retry or lost part of the reply.
+
+**One shape per call.** `js/jsonshape.js` (`E.Shape`) describes a reply: strings, literals, ids from a list, bounded ints, numbers, booleans, alternatives, capped lists, tuples (exactly these people, in order), objects with keys in a fixed order (`S.opt` marks the few a prompt describes as sometimes there), and maps keyed by ids. From one shape come three things that can't drift apart:
+
+- **The prompt's example** (`S.example`): one compact line, with hints like `"character_id"` standing for the allowed values.
+- **The GBNF grammar** (`S.gbnf`): compact, with an optional single space after `:` and `,` and nothing before or after the object. Repeats are written out as nested optionals, and identical rules are written once.
+- **The keys the repair path looks for** (`S.keys`).
+
+Every JSON prompt builds its example with `reply(shape)` in `js/prompts.js`. `P.build` remembers the finished prompt with its shape, and `LLM.chatJSON` finds it with `P.shapeFor(user)`. That works on the prompt text alone, still finds the prompt after a retry appends to it or `LLM.squeeze` shortens it, and needs no change at the call sites. `P.shapes.intent`, `.update`, `.skip` and `.effects` are the big ones:
+
+- **Intent:** `intents` is a tuple of exactly the people present. The player's `move_to` also takes places and known regions (`Engine.resolvePlace`), and the people's `move_to` takes only rooms or people. Events are capped at the step's cap plus the tiers due, the agenda steps due and an orders answer.
+- **Update:** the `state` targets are spelled out per kind (`char:` + a cast id, with minor people only for `location`), and a kind with nothing to name is left out.
+- **Effects:** every key after `world` may be left out.
+
+Id lists longer than `P.GRAMMAR_IDS_MAX` (400) stay free strings, and the engine's checks still apply. The bundled worlds' grammars run 4–11K characters; the frontier and Seiryo intents are the largest.
+
+**KoboldCpp (checked in its source, v1.123.1).** `/v1/chat/completions` turns the request into the native generate call's parameters, which read `grammar` as a GBNF string (a JSON schema there is converted too). So the local preset stays on the chat endpoint and its chat template, and adds `grammar`. `response_format: {type: "json_schema"}` is converted to GBNF as well, but a schema can't say "these ids, in this order" as tightly. Once the grammar's root is complete, only end-of-text is allowed: no fences and no trailing prose. *To confirm on the 1.122 build used for playtests (task L-1's real-model check).*
+
+**Hosted APIs.** A preset with `jsonMode` (OpenRouter) gets `response_format: {type: "json_object"}`, and other presets get nothing. An HTTP 400 while it is set retries the call once without it (`(no JSON mode)` in the kind) and doesn't send it to that URL and model again this session (`LLM.noJsonMode`).
+
+**The setting.** "Constrain JSON" is per backend (`constrainJSON`), on by default for the KoboldCpp presets and OpenRouter (`LLM.constrainDefault`), and not offered for other APIs. The repair path (`extractJSON`, `pickShape`, the retry, salvage) stays for every backend, and a grammar never replaces an engine guard: it stops the wrong shape, not the wrong content.
+
+**Recordings and reports.** A recorded request keeps `grammar: {chars, hash}` (FNV-1a) and any `response_format`. The grammar follows from the prompt, so replays still match on call kinds. The turn report adds `grammar N chars` or `JSON mode` to a call.
+
+**Tests.** `tests/gbnf.js` is a small GBNF reader and matcher (no dependency). `tests/jsonshape.test.js` checks that every JSON prompt in every bundled world (and every generated-start step) takes its own example and refuses fences, a list around the object, indents and prose. It also checks that recorded good replies pass once written compactly in the shape's order (`tests/shapecanon.js`), and that the Seiryo replies fail on their shape and on their made-up ids.
+
 ## Decision log
 
 | log | what went wrong | what fixed it |

@@ -109,7 +109,7 @@ test('group intents and the against/single_out fields are asked for only when a 
   const { E, state } = inLot();
   const intent = E.Prompts.intent(state, [], 'Look.', 'a few minutes', 'moment', {});
   assert.match(intent, /=== UNNAMED GROUPS[^\n]*\n- here: stragglers: stragglers \(5, calm\) — Slow dead/);
-  assert.match(intent, /"group_intents":\[\n {2}\{"id":"stragglers","action":"one sentence","visible":true,"move_to":null\}\n \]/);
+  assert.match(intent, /"group_intents":\[\{"id":"stragglers","action":"one sentence","visible":true,"move_to":null\}\]/);
   assert.match(intent, /"against":null,"single_out":null/);
   assert.match(intent, /\nUnnamed groups here: stragglers \(5, calm\)\n/);
   assert.doesNotMatch(E.Prompts.header(state), /stragglers \(/);
@@ -280,7 +280,7 @@ test('a group next door that the player names can be dealt with: an intent, a ro
   state.characters.pike.status.location = 'dock';
   const intent = E.Prompts.intent(state, [], 'Sneak past the stragglers.', 'a few minutes', 'moment', {});
   assert.match(intent, /- next door in Parking Lot \(named in the action\): stragglers: stragglers \(5, calm\)/);
-  assert.match(intent, /"group_intents":\[\n {2}\{"id":"stragglers"/);
+  assert.match(intent, /"group_intents":\[\{"id":"stragglers"/);
   assert.doesNotMatch(E.Prompts.intent(state, [], 'Check the forklift.', 'a few minutes', 'moment', {}), /group_intents/, 'not named: not engaged');
   fixedRng(E, [0.5]);
   const res = resolve(E, state, { player: { summary: 'sneak', needs_roll: true, skill: 'stealth', difficulty: 'normal', against: 'stragglers' },
