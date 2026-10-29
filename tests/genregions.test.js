@@ -53,7 +53,7 @@ test('built: a region with checked lore and a route from here, a place to arrive
   assert.match(guards(out, 'region built')[0], /^Kessa \(town\), a road from Old Town: A market town/);
   assert.equal(E.Engine.regionOf(state, state.characters.you.status.location), r.id, 'arrived at a place inside it');
   assert.ok(Object.values(state.sites).some((s) => s.region === r.id && !s.stub));
-  assert.match(out.res.outcomes[0].action, /\(the way: by road to Kessa \(2h\)\)/);
+  assert.match(out.res.outcomes[0].action, /\(the way, planned by the engine: by road to Kessa \(2h\); leaves \+0m; arrives at .* \+120m\)/);
   assert.deepEqual(calls.map((c) => c.kind).filter((k) => /worldbuild/.test(k)), ['worldbuild (region: Kessa)', 'worldbuild (site: Kessa)'], 'the city template is region-focused (R-8): the place is flavour, one call');
   const now = E.Prompts.header(state);
   const tail = header.indexOf('\n=== STORY SO FAR');
@@ -62,12 +62,18 @@ test('built: a region with checked lore and a route from here, a place to arrive
   assert.ok(!/\n- kessa:/.test(now.slice(0, now.indexOf('=== PLACES FOUND'))), 'never in the static outline');
 });
 
-test('a trip longer than the step: the new region is reached as a journey', async () => {
+test('a trip longer than the step: as far as the hour goes, then the rest as a journey on the major step', async () => {
   const { E, state } = cityGame();
   heading(E, KESSA);
   const out = await E.Engine.runTurn(state, 'I take the bus out to Kessa.', 'hour');
-  assert.ok(guards(out, 'journey').some((d) => /arrived at .* after 2h/.test(d)), out.res.guards.map((g) => g.type).join(', '));
+  assert.ok(guards(out, 'travel').some((d) => /the step ends on the way, 1h short/.test(d)), out.res.guards.map((g) => g.type).join(', '));
+  assert.match(state.characters.you.status.location, /^on-the-way/);
+  assert.ok(state.travel && state.travel.dest, 'the trip still to go');
+  heading(E, KESSA);
+  const on = await E.Engine.runTurn(state, 'Keep going.', 'major');
+  assert.ok(guards(on, 'journey').some((d) => /arrived at .* after 1h/.test(d)), on.res.guards.map((g) => g.type).join(', '));
   assert.equal(E.Engine.regionOf(state, state.characters.you.status.location), 'kessa');
+  assert.equal(state.travel, undefined);
 });
 
 test('refused, with no call: not in the player\'s words, an unknown or hidden parent, no way there, at the cap, or the world doesn\'t build regions', async () => {

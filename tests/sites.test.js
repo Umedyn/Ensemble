@@ -286,11 +286,12 @@ test('playtest-r2-ridge: a place named after a region is in that region, so the 
   assert.equal(site.region, 'ridge-town', 'not the player\'s own region');
   assert.ok(hour.out.res.guards.some((g) => g.type === 'site region' && /"Ridge" is Ridge, not The highway strip/.test(g.detail)));
   assert.equal(hour.E.Engine.regionOf(hour.state, hour.state.characters.pike.status.location), 'ridge-town');
-  assert.match(hour.out.res.outcomes[0].action, /\(the way: by road to Ridge \(45m\)\)/);
-  // Shorter than the trip: the turn is the journey, and it gets there.
+  assert.match(hour.out.res.outcomes[0].action, /\(the way, planned by the engine: by road to Ridge \(45m\); leaves \+0m; arrives at .* \+\d+m\)/);
+  // Shorter than the trip (R-10): as far as the step goes, and the rest is still to go.
   const moment = await go('moment');
-  assert.ok(moment.out.res.guards.some((g) => g.type === 'journey' && /arrived at .* after 45m/.test(g.detail)), moment.out.res.guards.map((g) => g.type).join(', '));
-  assert.ok(moment.calls.some((c) => /The downtime is a journey: travelling from The highway strip to .* in Ridge: .*by road to Ridge \(45m\)/.test(c.user)));
+  assert.ok(moment.out.res.guards.some((g) => g.type === 'travel' && /the step ends on the way/.test(g.detail)), moment.out.res.guards.map((g) => g.type).join(', '));
+  assert.match(moment.state.characters.pike.status.location, /^on-the-way/);
+  assert.equal(moment.state.travel.destName, Object.values(moment.state.sites)[0].name === 'Ridge' ? moment.state.locations[moment.state.travel.dest].name : moment.state.travel.destName);
 });
 
 test('playtest-house-home: the player names a new place in other words (house for home, the bar for a pub, plurals, "my place" for their own), never by saying nothing about it', () => {

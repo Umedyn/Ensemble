@@ -220,7 +220,8 @@
       "links": [
         {
           "to": "roof",
-          "kind": "hatch"
+          "kind": "hatch",
+          "time": "2m"
         }
       ]
     },

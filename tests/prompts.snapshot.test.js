@@ -65,6 +65,9 @@ function promptsFor(folder, context) {
   // The player walks to where the moved NPC is: the frame shows who stayed and who's there.
   state.characters[state.player].status.location = away;
   out.narrateMoved = P.narrate(state, present, 'Go next door.', frame, res);
+  // A trip the engine planned (R-10): the stops and the arrival in the scene setup.
+  const way = { dest: away, destName: state.locations[away].name, stops: [{ room: away, name: state.locations[away].name, at: 12 }], arriveAt: 12 };
+  out.narrateTravel = P.narrate(state, present, 'Go next door.', frame, Object.assign({}, res, { travel: way }));
 
   const skipFrame = { startLoc: away, startTime: frame.startTime, endTime: 'later', days: 3 };
   const skipRes = { outcomes: [], events: ['A supply drop lands nearby.', '[major] An alarm sounds.'], major: { text: '[major] An alarm sounds.' } };

@@ -1420,6 +1420,7 @@
       skill,
       difficulty: DC[raw && raw.difficulty] ? raw.difficulty : 'normal',
       moveTo: raw ? Eng.resolveLocation(state, raw.move_to, true) : null,
+      resumed: !!(raw && raw.resumed), // an unfinished trip going on (R-10)
       against: id === state.player && raw && typeof raw.against === 'string' ? raw.against : null,
       singleOut: id === state.player && raw && raw.single_out && typeof raw.single_out === 'object' ? raw.single_out : null,
       unlock: raw && raw.unlock ? Eng.resolveLocation(state, raw.unlock, false) || String(raw.unlock) : null,
@@ -1949,7 +1950,9 @@
         Object.assign(p, { needsRoll: true, skill: t.closed.skill, difficulty: 'hard' });
         guard(res, 'resolve', 'roll required', `crossing: ${t.why}; the player tries anyway`);
       }
-      if (t && !t.blocked && t.hours > E.stepHours(state, stepId).hours) {
+      // A longer trip the player's words set out on goes as far as the step
+      // allows (R-10, the travel plan below).
+      if (t && !t.blocked && t.hours > E.stepHours(state, stepId).hours && !p.resumed && !Eng.travelWanted(state, actionText, p.moveTo)) {
         guard(res, 'resolve', 'move cancelled', `a trip of ${E.Scenario.sayHours(t.hours)} to ${state.locations[p.moveTo].name} the player's words don't set out on`);
         p.moveTo = null;
         p.trip = null;
@@ -1963,7 +1966,8 @@
       const about = present.filter((id) => mentions(actionText, state.characters[id]));
       // Someone named who is heading the same way this turn counts as being there.
       const goingThere = (id) => (list.find((it) => it.id === id) || {}).moveTo === p.moveTo;
-      const statesMove = PLAYER_MOVES.test(String(actionText || '')) || about.some(goingThere) ||
+      // A trip the words set out on (R-10: "Jo and I take the train to the city square") or go on with.
+      const statesMove = PLAYER_MOVES.test(String(actionText || '')) || about.some(goingThere) || p.resumed || (SETS_OUT.test(String(actionText || '')) && Eng.travelWanted(state, actionText, p.moveTo)) ||
         Eng.cast(state, { includePlayer: false }).some((id) => !present.includes(id) && state.characters[id].status.location === p.moveTo && mentions(actionText, state.characters[id]));
       if (about.length && !statesMove && about.every((id) => state.characters[id].status.location !== p.moveTo)) {
         guard(res, 'resolve', 'move cancelled', `model moved the player to ${p.moveTo}; the action is about ${about.map((id) => state.characters[id].name).join(', ')}, who is here`);
@@ -2053,6 +2057,13 @@
         && (Eng.comesAlong(state, `${it.action} ${it.says || ''}`) || Eng.takesAlong(state, outcomes[0].action, c))) {
         it.moveTo = outcomes[0].moved;
         guard(res, 'resolve', 'came along', `${c.name} goes with ${state.characters[state.player].name}`);
+      }
+      // The player's own move follows a travel plan (R-10): as far as the
+      // step goes, stopping before a locked door or a closed route.
+      if (it.id === state.player && it.moveTo && it.moveTo !== c.status.location && !failed && !it.viaRoom) {
+        travelMove(state, it, o, res, stepId);
+        outcomes.push(o);
+        return;
       }
       if (it.moveTo && it.moveTo !== c.status.location && !failed) {
         // Movement follows links (task 3-6): no way through, no move. Between
@@ -2335,7 +2346,7 @@
     return lim;
   };
   // Does an action rest or seek care? (Sleep, rest, or treatment by someone.)
-  const CARE = /(treat|medic|doctor|bandage|stitch|heal|patch me|first aid|med ?bay|infirmary|hospital)/;
+  const CARE = /\b(treat|medic|doctor|bandage|stitch|heal|patch me|first aid|med ?bay|infirmary|hospital)/;
   Eng.restsOrHeals = function (state, action) {
     const t = String(action || '').toLowerCase();
     if (CARE.test(t)) return true;
@@ -3113,6 +3124,244 @@
     return [];
   };
 
+  // ---------- travel plans (R-10) ----------
+  // The model says where the player wants to go; the engine finds the way and
+  // how long each part takes. A link's own "time" first; a trip link takes
+  // the region legs between its rooms (a timed route its hours, a free border
+  // the time for the label of the region it enters); else the kind's default
+  // (Scenario.LINK_MINUTES, BORDER_MINUTES, a world's travelTimes).
+  const linkOf = (state, a, b) => (state.locations[a].links || []).find((x) => x.to === b) || (state.locations[b].links || []).find((x) => x.to === a) || { kind: 'open' };
+  Eng.legMinutes = function (state, e) {
+    if (e.hours > 0) return e.hours * 60;
+    if (e.kind !== 'border') return 0;
+    const r = Eng.regionDef(state, e.to) || {};
+    return E.Scenario.borderMinutes(state.scenario, r.id ? E.Scenario.regionLabel(state.scenario, r.id) : null);
+  };
+  Eng.linkMinutes = function (state, a, b) {
+    const k = linkOf(state, a, b);
+    const own = E.Scenario.linkTime(k);
+    if (own != null) return own;
+    const base = E.Scenario.linkMinutes(state.scenario, k.kind);
+    // Between regions: the region legs. A timed route counts (the author's
+    // times are the whole way: R-2's numbers stand, whatever the link). Only
+    // a trip link that crosses nothing but free borders takes the border
+    // defaults (Seiryo: home to school was zero minutes); a door or an
+    // airlock onto the next region is the step through it.
+    const legs = (Eng.tripBetween(state, a, b) || {}).legs || [];
+    const timed = legs.some((e) => e.hours > 0);
+    const m = timed ? legs.reduce((sum, e) => sum + e.hours * 60, 0) : k.kind === 'trip' ? legs.reduce((sum, e) => sum + Eng.legMinutes(state, e), 0) : 0;
+    return Math.max(m, base);
+  };
+  // → { from, to, steps: [{ from, to, kind, minutes, at (minutes when it
+  // ends) }], minutes, blocked: null | { index, why, risky, closed } }, or
+  // null when there is no way at all. A blocked plan lists the whole way; its
+  // steps from `index` on can't be taken (a locked door, a closed route).
+  Eng.travelPlan = function (state, from, to, who) {
+    if (!state.locations[from] || !state.locations[to]) return null;
+    if (from === to) return { from, to, steps: [], minutes: 0, blocked: null };
+    const tripClosed = (a, b) => !!(Eng.tripBetween(state, a, b) || {}).blocked;
+    const search = (open) => {
+      const best = new Map([[from, 0]]);
+      const prev = new Map();
+      const queue = [from];
+      while (queue.length) {
+        queue.sort((x, y) => best.get(x) - best.get(y));
+        const id = queue.shift();
+        if (id === to) break;
+        Eng.linkedRooms(state, id).forEach((next) => {
+          if (!state.locations[next] || !open(id, next)) return;
+          const cost = best.get(id) + Eng.linkMinutes(state, id, next) + 1e-6; // fewer links on a tie
+          if (best.has(next) && best.get(next) <= cost) return;
+          best.set(next, cost);
+          prev.set(next, id);
+          if (!queue.includes(next)) queue.push(next);
+        });
+      }
+      if (!best.has(to)) return null;
+      const path = [to];
+      for (let at = to; prev.has(at); at = prev.get(at)) path.unshift(prev.get(at));
+      return path;
+    };
+    let path = search((a, b) => Eng.passable(state, a, b, who) && !tripClosed(a, b));
+    let blocked = null;
+    if (!path) {
+      path = search(() => true);
+      if (!path) return null;
+      for (let i = 0; i + 1 < path.length && !blocked; i++) {
+        if (!Eng.passable(state, path[i], path[i + 1], who)) blocked = { index: i, why: blockText(state, { a: path[i], b: path[i + 1] }), risky: false };
+        else if (tripClosed(path[i], path[i + 1])) {
+          const t = Eng.tripBetween(state, path[i], path[i + 1]);
+          blocked = { index: i, why: t.why, risky: !!t.risky, closed: t.closed };
+        }
+      }
+    }
+    let at = 0;
+    const steps = [];
+    for (let i = 0; i + 1 < path.length; i++) {
+      const minutes = Math.round(Eng.linkMinutes(state, path[i], path[i + 1]) * 10) / 10;
+      at += minutes;
+      steps.push({ from: path[i], to: path[i + 1], kind: linkOf(state, path[i], path[i + 1]).kind, minutes, at: Math.round(at * 10) / 10 });
+    }
+    return { from, to, steps, minutes: Math.round(at * 10) / 10, blocked };
+  };
+  // Where a plan has someone after so many minutes. → { room (the last room
+  // reached), at (when they got there), arrived, step (the one under way, or
+  // null), into (minutes into it), left (minutes still to go), blockedHere }.
+  // A blocked plan stops at the room before the block.
+  Eng.TRANSIT_MIN = 10; // further than this into a link, they are on the way, not in the last room
+  Eng.travelReach = function (plan, minutes) {
+    const open = plan.blocked ? plan.steps.slice(0, plan.blocked.index) : plan.steps;
+    let room = plan.from, at = 0, i = 0;
+    for (; i < open.length; i++) {
+      if (open[i].at > minutes + 1e-6) break;
+      room = open[i].to;
+      at = open[i].at;
+    }
+    if (i === open.length) return { room, at, arrived: !plan.blocked, step: null, into: 0, left: plan.blocked ? null : 0, blockedHere: !!plan.blocked };
+    const into = minutes - at;
+    return { room, at, arrived: false, step: open[i], into, left: Math.max(0, plan.minutes - minutes), blockedHere: false };
+  };
+  // Puts the people on a plan where it has them after so many minutes: the
+  // last room reached, or an "On the way to …" room past TRANSIT_MIN into a
+  // link (its links carry the time left each way). → { room, reach }.
+  Eng.placeOnPlan = function (state, plan, minutes, ids) {
+    const reach = Eng.travelReach(plan, minutes);
+    let room = reach.room;
+    if (!reach.arrived && reach.step && reach.into > Eng.TRANSIT_MIN) {
+      const st = reach.step;
+      const trip = Eng.tripBetween(state, st.from, st.to);
+      const hoursIn = reach.into / 60;
+      let region = Eng.regionOf(state, st.from);
+      let done = 0;
+      for (const e of (trip && trip.legs) || []) { const h = Eng.legMinutes(state, e) / 60; if (done + h > hoursIn) break; done += h; region = e.to; }
+      room = transitAt(state, { region, toward: plan.to, next: st.to, nextMinutes: Math.round(st.minutes - reach.into), back: st.from, backMinutes: Math.round(reach.into) });
+    }
+    (ids || []).filter((id) => state.characters[id]).forEach((id) => { state.characters[id].status.location = room; });
+    return { room, reach };
+  };
+  // "the School gate is still about 1h 05m away"
+  Eng.sayLeft = (minutes) => E.Scenario.sayHours(Math.max(1, Math.round(minutes)) / 60);
+  // The stops worth naming on a plan: where each trip ends, and the end.
+  const planStops = (state, plan, upTo) => plan.steps.filter((s, i) => (s.kind === 'trip' || i === plan.steps.length - 1) && s.at <= upTo + 1e-6)
+    .map((s) => ({ room: s.to, name: state.locations[s.to].name, at: Math.round(s.at) }));
+
+  // The player's move in resolve (R-10). Sets o.moved, o.via, o.travel and
+  // res.travel ({ dest, destName, plan, arriveAt, stops, left, stopName,
+  // blocked }), and state.travel while the trip is unfinished.
+  function travelMove(state, it, o, res, stepId) {
+    const c = state.characters[it.id];
+    const from = c.status.location;
+    const plan = Eng.travelPlan(state, from, it.moveTo, it.id);
+    const dest = state.locations[it.moveTo];
+    if (!plan) {
+      const why = Eng.moveProblem(state, it.id, from, it.moveTo) || `there is no way to ${dest.name}`;
+      guard(res, 'resolve', 'move blocked', `${c.name} → ${it.moveTo}: ${why}`);
+      o.action += ` (but ${why}, so you stay in ${state.locations[from].name})`;
+      return;
+    }
+    // A risky closed route the roll got past counts as open (R-2).
+    if (plan.blocked && plan.blocked.risky && o.roll) {
+      guard(res, 'resolve', 'crossed', `${c.name}: ${plan.blocked.why}, and gets through anyway`);
+      plan.crossed = plan.blocked.why;
+      plan.blocked = null;
+    }
+    const span = Math.round(E.stepHours(state, stepId).hours * 60);
+    const { room, reach } = Eng.placeOnPlan(state, plan, span, [it.id]);
+    const t = { dest: it.moveTo, destName: dest.name, plan, from, stops: planStops(state, plan, reach.arrived ? plan.minutes : span) };
+    if (plan.blocked) {
+      t.blocked = plan.blocked.why;
+      guard(res, 'resolve', 'move blocked', `${c.name} → ${it.moveTo}: ${plan.blocked.why}${room !== from ? `; stops at ${state.locations[room].name}` : ''}`);
+      delete state.travel;
+    }
+    if (reach.arrived) {
+      t.arriveAt = Math.round(plan.minutes);
+      delete state.travel;
+    } else if (!plan.blocked) {
+      t.left = reach.left;
+      t.stopName = state.locations[room].name;
+      state.travel = { dest: it.moveTo, destName: dest.name, turn: state.turn };
+      guard(res, 'resolve', 'travel', `${dest.name} is ${Eng.sayLeft(plan.minutes)} away; the step ends ${state.locations[room].transit ? 'on the way' : `at ${state.locations[room].name}`}, ${Eng.sayLeft(reach.left)} short`);
+    }
+    if (room === from) {
+      o.action += ` (but ${plan.blocked ? plan.blocked.why : 'there is no time to get anywhere'}, so you stay in ${state.locations[from].name})`;
+      return;
+    }
+    const path = [from].concat(plan.steps.map((s) => s.to));
+    const upTo = path.indexOf(room);
+    if (upTo > 1) o.via = path.slice(1, upTo);
+    o.moved = room;
+    o.travel = t;
+    res.travel = t;
+    const trip = Eng.tripBetween(state, from, room);
+    if (trip && trip.legs && trip.hours > 0) o.trip = Eng.sayTrip(state, trip);
+    o.action += ` (the way, planned by the engine: ${o.trip ? `${o.trip}; ` : ''}${Eng.sayPlan(t)}${plan.crossed ? `; gets past although ${plan.crossed}` : ''})`;
+  }
+  // The line under a scene (outside the prose): what is still to go.
+  Eng.travelNote = (t) => (t.blocked ? `The way to ${t.destName} is blocked: ${t.blocked}.` : t.left != null ? `${t.destName} is still about ${Eng.sayLeft(t.left)} away.` : null);
+  // "leaves +0m; Mito Station plaza +12m; arrives at the School gate +43m"
+  Eng.sayPlan = (t) => ['leaves +0m'].concat(t.stops.filter((s) => s.room !== t.dest).map((s) => `${s.name} +${s.at}m`))
+    .concat(t.arriveAt != null ? [`arrives at ${t.destName} +${t.arriveAt}m`] : t.blocked ? [`stopped: ${t.blocked}`] : [`still ${Eng.sayLeft(t.left)} from ${t.destName} when the time runs out`]).join('; ');
+
+  // The journey a "until something major happens" step makes (R-10): an
+  // unfinished trip the words go on with (or the Travel there button), or a
+  // place the words go to an hour or more away. → a journey for skipTurn, or null.
+  Eng.JOURNEY_MIN = 60;
+  // A place or room the words name ("take the train to the city square"):
+  // the player's own place first, then the longest name. → room id or null.
+  Eng.placeNamed = function (state, text) {
+    const mine = E.Sites ? E.Sites.playerSite(state) : null;
+    const cands = Object.values(state.sites || {}).filter((s) => s && s.entry && state.locations[s.entry] && s.name).map((s) => ({ name: s.name, room: s.entry, site: s.id }))
+      .concat(Object.values(state.locations).filter((l) => !l.transit).map((l) => ({ name: l.name, room: l.id, site: l.site })))
+      .map((c) => Object.assign(c, { name: String(c.name).replace(/^the\s+/i, '').trim() }))
+      .filter((c) => c.name.length > 2 && mentionsName(text, c.name));
+    cands.sort((x, y) => (y.site === mine) - (x.site === mine) || y.name.length - x.name.length);
+    if (cands.length) return cands[0].room;
+    // A region the words name ("the train to Tokyo"): its place, when it has one.
+    const here = Eng.playerRegion(state);
+    const region = (state.scenario.regions || []).filter((r) => r && r.name && r.id !== here && Eng.regionKnown(state, r.id) && mentionsName(text, r.name))
+      .sort((x, y) => y.name.length - x.name.length)[0];
+    return region ? Eng.resolvePlace(state, region.id, text) : null;
+  };
+  Eng.majorJourney = function (state, action) {
+    const here = state.characters[state.player].status.location;
+    const t = state.travel;
+    const going = t && state.locations[t.dest] && (KEEP_GOING.test(String(action || '')) || mentionsName(action, t.destName));
+    const dest = going ? t.dest : Eng.placeInWords(state, action) || (Eng.setsOut(action) ? Eng.placeNamed(state, action) : null);
+    if (!dest || dest === here) return null;
+    const plan = Eng.travelPlan(state, here, dest, state.player);
+    if (!plan || plan.blocked || !(going || plan.minutes >= Eng.JOURNEY_MIN)) return null;
+    const trip = Eng.tripBetween(state, here, dest) || { legs: [] };
+    const all = /\b(we|us|everyone|all of us|together)\b/i.test(String(action || ''));
+    const companions = Eng.present(state).filter((id) => Eng.alive(state, id) && (all || mentions(action, state.characters[id])));
+    // A journey is told in hours and days: its time to the nearest 5 minutes.
+    return { dest, trip: { legs: trip.legs || [], hours: Math.max(5, Math.round(plan.minutes / 5) * 5) / 60 }, roll: null, companions, plan };
+  };
+
+  // The player's words want this trip (rule 3): they set out, or name the
+  // place, its room or its region.
+  Eng.travelWanted = function (state, action, dest) {
+    if (Eng.setsOut(action) || planNames(state, action, dest)) return true;
+    const site = (state.sites || {})[E.Sites.siteOf(state, dest)];
+    return [site && site.name, (Eng.regionDef(state, Eng.regionOf(state, dest)) || {}).name].filter(Boolean).some((n) => mentionsName(action, n));
+  };
+  // An unfinished trip (R-10) goes on when the player's words say so ("keep
+  // going", "carry on") or name where it goes; the engine sets the move, with
+  // no model choice of the way. A move anywhere else drops it. → a guard, or null.
+  const KEEP_GOING = /\b(keep (?:going|walking|driving|riding|on)|carry on|go on|press on|push on|continue(?: on)?(?: the (?:trip|journey|way))?|on (?:we|I) go)\b/i;
+  Eng.travelResume = function (state, intentObj, action) {
+    const t = state.travel;
+    if (!t) return null;
+    const p = intentObj && intentObj.player;
+    if (!state.locations[t.dest]) { delete state.travel; return null; }
+    if (KEEP_GOING.test(String(action || '')) || mentionsName(action, t.destName)) {
+      if (p && typeof p === 'object') Object.assign(p, { move_to: t.dest, new_place: null, new_region: null, resumed: true });
+      return { type: 'travel resumed', detail: `on to ${t.destName}` };
+    }
+    const to = p && typeof p.move_to === 'string' ? Eng.resolvePlace(state, p.move_to, action) : null;
+    if (to && to !== t.dest) { delete state.travel; return { type: 'travel dropped', detail: `heading for ${state.locations[to].name} instead of ${t.destName}` }; }
+    return null;
+  };
+
   // Drops trailing paragraphs that are the player character's own action or
   // thoughts ("You turn back to…"), so the scene ends on someone else's move.
   // A beat that is only the player's action goes too. But once a paragraph
@@ -3331,6 +3580,17 @@
       Object.assign(state, pre);
       state.log = keepLog; state.turn = keepTurn; state.chapters = keepChapters;
       if (p.playerMovedTo) state.characters[state.player].status.location = p.playerMovedTo;
+      // A trip (R-10): where the plan has the travellers at the cut.
+      if (p.travel) {
+        const { room, reach } = Eng.placeOnPlan(state, p.travel.plan, minutes, [state.player].concat(p.travel.companions));
+        const dest = state.locations[p.travel.plan.to];
+        if (reach.arrived || p.travel.plan.blocked) delete state.travel;
+        else state.travel = { dest: p.travel.plan.to, destName: dest.name, turn: p.turn };
+        const entry = state.log.find((e) => e.turn === p.turn && e.type === 'scene');
+        const note = !reach.arrived && !p.travel.plan.blocked ? `${dest.name} is still about ${Eng.sayLeft(reach.left)} away.` : null;
+        if (entry) { if (note) entry.travel = note; else if (reach.arrived) delete entry.travel; }
+        if (room !== p.playerMovedTo) guard(p.res, 'memory', 'travel', `stepped in on the way: at ${state.locations[room].name}`);
+      }
       // Corrections the player made while this turn was pending still stand.
       (p.corrections || []).forEach((c) => applyCorrection(state, c));
       (p.pins || []).forEach((x) => applyPin(state, x));
@@ -3603,13 +3863,21 @@
       done += e.hours;
       region = e.to;
     }
-    const dest = state.locations[journey.dest];
+    const left = Math.round(Math.max(0, journey.trip.hours - hoursDone) * 60);
+    return transitAt(state, { region, toward: journey.dest, next: journey.dest, nextMinutes: left || null, back: origin, backMinutes: Math.round(hoursDone * 60) || null });
+  }
+  // A room on the way (R-10): toward is where the trip goes (for its name),
+  // next and back the rooms it links to, with the minutes each way (null:
+  // the usual time for a trip link).
+  function transitAt(state, o) {
+    const dest = state.locations[o.toward];
     let id = 'on-the-way';
     for (let n = 2; state.locations[id]; n++) id = `on-the-way-${n}`;
-    const rname = (Eng.regionDef(state, region) || {}).name || region;
+    const rname = (Eng.regionDef(state, o.region) || {}).name || o.region;
+    const link = (to, m) => Object.assign({ to, kind: 'trip' }, m ? { time: `${m}m` } : {});
     state.locations[id] = {
-      id, name: E.shorten(`On the way to ${dest.name}`, 40), desc: `Somewhere on the way to ${dest.name}, in ${rname}.`, outside: true, region, site: id, transit: true,
-      connects: [journey.dest, origin], links: [{ to: journey.dest, kind: 'trip' }, { to: origin, kind: 'trip' }],
+      id, name: E.shorten(`On the way to ${dest.name}`, 40), desc: `Somewhere on the way to ${dest.name}${rname ? `, in ${rname}` : ''}.`, outside: true, region: o.region, site: id, transit: true,
+      connects: [o.next, o.back], links: [link(o.next, o.nextMinutes), link(o.back, o.backMinutes)],
     };
     state.seenRooms = [...new Set((state.seenRooms || []).concat(id))];
     return id;
@@ -3643,6 +3911,9 @@
     const arrived = plan.reason === 'arrive' || (plan.stage && plan.stage.hours >= j.trip.hours);
     const to = arrived ? j.dest : transitRoom(state, j, plan.hours, frame.startLoc);
     [state.player].concat(j.companions).filter((id) => Eng.alive(state, id)).forEach((id) => { state.characters[id].status.location = to; });
+    // The trip still to go (R-10), for "keep going" and Travel there.
+    if (arrived) delete state.travel;
+    else state.travel = { dest: j.dest, destName: state.locations[j.dest].name, turn: state.turn };
     const dname = state.locations[j.dest].name;
     guard(res, 'resolve', 'journey', arrived ? `arrived at ${dname} after ${E.Scenario.sayHours(j.trip.hours)}`
       : `stopped ${E.Scenario.sayHours(plan.hours) || 'early'} into ${E.Scenario.sayHours(j.trip.hours)} on the way to ${dname}; waiting in ${state.locations[to].name}`);
@@ -4390,7 +4661,9 @@
     // A flavour place where danger has come grows into a tactical one (R-8).
     (await E.Sites.growIfDanger(state, phase)).forEach((t) => guard(early, 'resolve', 'site grown', t));
     if (stepId === 'major') {
-      const out = await skipTurn(state, action, phase);
+      // A trip on this step is the whole journey (R-10), interrupted the way a skip is.
+      const journey = Eng.majorJourney(state, action);
+      const out = await skipTurn(state, action, phase, journey ? { journey, notes: [{ type: 'journey', detail: `${Eng.sayLeft(journey.trip.hours * 60)} to ${state.locations[journey.dest].name}: the turn is the journey` }] } : undefined);
       out.report = report || { applied: [], rejected: [] };
       return out;
     }
@@ -4437,6 +4710,9 @@
     // A new place the player is heading for (task 4-4), built before the
     // moves are resolved; the start-of-turn copy gets it too.
     const siteNotes = [];
+    // An unfinished trip going on, or dropped (R-10).
+    const resumed = Eng.travelResume(state, intentObj, action);
+    if (resumed) siteNotes.push(resumed);
     const placed = Eng.placeMove(state, intentObj, action);
     if (placed) siteNotes.push(placed);
     // A camp that travels (task 7-7) moves before any place is built: the
@@ -4451,10 +4727,11 @@
       await E.Sites.regionForIntent(state, intentObj, action, pre, phase, siteNotes);
       await E.Sites.forIntent(state, intentObj, action, pre, phase, siteNotes);
     }
-    // A trip longer than the step is a journey turn instead (R-2): back to
-    // the start of the turn (which has any new place too) and on through the
-    // skip machinery, with the destination.
-    const journey = camp && !camp.refused ? camp : Eng.journeyFor(state, intentObj, action, step);
+    // A camp's trip is a journey turn (task 7-7): back to the start of the
+    // turn and on through the skip machinery, with the destination. Anyone
+    // else's trip follows a travel plan as far as the step goes (R-10); the
+    // whole journey is the "until something major happens" step.
+    const journey = camp && !camp.refused ? camp : null;
     if (journey && !journey.failed) {
       const log = state.log;
       replaceState(state, Object.assign(pre, { log }));
@@ -4499,7 +4776,7 @@
     const startMinutes = Math.round(pre.time.hour * 60);
     state.log.push({ turn: state.turn, type: 'action', text: action, time: frame.startTime, until });
     state.log.push({ turn: state.turn, type: 'resolve', outcomes: res.outcomes, events: res.events });
-    state.log.push({ turn: state.turn, type: 'scene', text, beats, startDay: pre.time.day, startMinutes });
+    state.log.push(Object.assign({ turn: state.turn, type: 'scene', text, beats, startDay: pre.time.day, startMinutes }, res.travel && Eng.travelNote(res.travel) ? { travel: Eng.travelNote(res.travel) } : {}));
     if (res.ending) state.log.push({ turn: state.turn, type: 'ending', id: res.ending.id, title: res.ending.title, kind: res.ending.kind });
     state.recent = [{ turn: state.turn, action, text }];
 
@@ -4507,7 +4784,10 @@
     // much of this scene the player let play out.
     const playerOut = res.outcomes.find((o) => o.id === state.player);
     Eng.noteSeen(state, res, state.turn);
-    state.pending = { turn: state.turn, action, res, frame, present, extrasPresent, beats, pre, playerMovedTo: playerOut && playerOut.moved, narration };
+    // A trip (R-10): its plan, who went along and the trip still to go, so a
+    // step-in puts them where the plan has them at that minute.
+    const travel = res.travel ? { plan: res.travel.plan, companions: res.outcomes.filter((o) => o.id !== state.player && o.moved && o.moved === playerOut.moved).map((o) => o.id), keep: state.travel ? E.clone(state.travel) : null } : null;
+    state.pending = { turn: state.turn, action, res, frame, present, extrasPresent, beats, pre, playerMovedTo: playerOut && playerOut.moved, narration, travel };
 
     phase('');
     return { prose: text, beats, res, report: report || { applied: [], rejected: [] } };

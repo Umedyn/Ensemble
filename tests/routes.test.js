@@ -179,12 +179,25 @@ test('a long trip the player did not ask for is cancelled (rule 3)', async () =>
 
 // ---------- journeys ----------
 
-test('a trip longer than the step is a journey turn: the skip machinery, time per leg, arrival', async () => {
+test('a trip longer than the step goes as far as the step, with the time left; Jo comes along', async () => {
+  const { E, state } = routeGame();
+  state.characters.jo.status.location = 'living';
+  travelMock(E, 'city-square', [{ id: 'jo', action: 'comes along with Sam', move_to: null }]);
+  const out = await E.Engine.runTurn(state, 'Jo and I take the train to the city square.', 'hour');
+  const here = state.characters.sam.status.location;
+  assert.match(here, /^on-the-way/, 'past the station, on the train');
+  assert.equal(state.characters.jo.status.location, here, 'she comes along');
+  assert.ok(guards(out, 'travel').some((d) => /City Square is 3h 1m away; the step ends on the way, 2h 1m short/.test(d)));
+  assert.equal(state.log.filter((e) => e.type === 'scene').pop().travel, 'City Square is still about 2h 1m away.');
+  assert.deepEqual({ ...state.travel }, { dest: 'city-square', destName: 'City Square', turn: 1 });
+});
+
+test('the major step is the journey: the skip machinery, time per leg, arrival', async () => {
   const { E, state } = routeGame();
   state.characters.jo.status.location = 'living';
   const t0 = state.time.hour;
   const calls = travelMock(E, 'city-square');
-  const out = await E.Engine.runTurn(state, 'Jo and I take the train to the city square.', 'hour');
+  const out = await E.Engine.runTurn(state, 'Jo and I take the train to the city square.', 'major');
   assert.equal(state.characters.sam.status.location, 'city-square');
   assert.equal(state.characters.jo.status.location, 'city-square', 'named, so she comes along');
   assert.equal(state.time.hour, t0 + 3);
@@ -203,16 +216,16 @@ test('a journey stops on the way when a pressure comes to a head, and goes on fr
   state.clocks.forEach((c) => { c.perHour = 0; });
   state.clocks[0].perHour = 20; // the landlord, within the hour
   travelMock(E, 'city-square');
-  const out = await E.Engine.runTurn(state, 'I take the train to the city square.', 'hour');
+  const out = await E.Engine.runTurn(state, 'I take the train to the city square.', 'major');
   const here = state.characters.sam.status.location;
   assert.match(here, /^on-the-way/);
   const room = state.locations[here];
   assert.deepEqual([room.region, room.transit, [...room.connects]], ['town', true, ['city-square', 'living']]);
   assert.match(guards(out, 'journey').join(' '), /stopped 1h into 3h on the way to City Square/);
   assert.ok(!E.Prompts.header(state).includes(here), 'never in the header');
-  // Going on: the rest of the trip, from where it stopped.
-  travelMock(E, 'city-square');
-  await E.Engine.runTurn(state, 'I keep going to the city square.', 'hour');
+  // Going on: the rest of the trip, from where it stopped (R-10: no model choice of the way).
+  travelMock(E, null);
+  await E.Engine.runTurn(state, 'I keep going.', 'major');
   assert.equal(state.characters.sam.status.location, 'city-square');
   E.Engine.clearTransit(state);
   assert.equal(state.locations[here], undefined, 'gone once nobody is there');
@@ -285,7 +298,7 @@ test('playtest-r2-drive-to-ridge: setting out for a region by name goes there, e
   assert.equal(state.sites['ridge-2'].region, 'ridge-town');
   assert.equal(state.characters.pike.status.location, 'ridge-barricade');
   assert.equal(state.characters.coleman.status.location, 'ridge-barricade', 'Dex said he was coming');
-  assert.match(res.outcomes[0].action, /\(the way: by road to Ridge \(45m\)\)/);
+  assert.match(res.outcomes[0].action, /\(the way, planned by the engine: by road to Ridge \(45m\); leaves \+0m; arrives at Ridge Road Barricade \+47m\)/);
 });
 
 test('heading for a region by name: only when the words set out, and not when the move already goes there', () => {

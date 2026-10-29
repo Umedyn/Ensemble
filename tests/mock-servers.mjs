@@ -94,6 +94,8 @@ function answer(user) {
     // Generated sites (task 4-4): heading for the pharmacy asks for a new place.
     // Task 6-3: a site map drawn in the creator fits a tavern.
     if (/=== PLAYER ACTION[^\n]*\n"[^"\n]*tavern/i.test(user)) Object.assign(out.player, { summary: 'go to the tavern', needs_roll: false, move_to: null, new_place: { name: 'the tavern', kind: 'tavern', region: 'main-street' } });
+    // Task R-10: Ridge is 45 minutes down the road from the holdout.
+    if (/=== PLAYER ACTION[^\n]*\n"[^"\n]*drive to Ridge/i.test(user)) Object.assign(out.player, { summary: 'drive to Ridge', needs_roll: false, move_to: null, new_place: { name: 'Ridge', kind: 'town', region: 'ridge-town' } });
     if (/=== PLAYER ACTION[^\n]*\n"[^"\n]*pharmacy/i.test(user)) Object.assign(out.player, { summary: 'go to the pharmacy', needs_roll: false, move_to: null, new_place: { name: 'the pharmacy', kind: 'pharmacy', region: 'main-street' } });
     if (user.includes('WORLD event is due')) out.events.push({ text: 'Halvorsen Aerospace announces emergency cost cuts.', scope: 'world', visibility: 'heard',
       effects: { groups: [{ id: 'sponsor', stance: 'cutting costs; reviewing every crewed mission' }], new_clock: { name: 'Funding review', max: 8, perHour: 0.1, fireText: 'The board votes.' } } });

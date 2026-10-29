@@ -578,7 +578,7 @@
     const lines = ['\n=== PLACES ==='];
     const here = ST.playerSite(state);
     // An authored place's rooms are in the header already (task 7-2).
-    if (here !== ST.HOME && !state.sites[here].authored) lines.push(`${state.sites[here].name} has these rooms: ${ST.rooms(state, here).map((l) => `${l.id} (${l.name})`).join(', ')}.`);
+    if (here !== ST.HOME && state.sites[here] && !state.sites[here].authored) lines.push(`${state.sites[here].name} has these rooms: ${ST.rooms(state, here).map((l) => `${l.id} (${l.name})`).join(', ')}.`);
     // Authored places are in the header's rooms already (task 7-2).
     const known = Object.values(state.sites || {}).filter((s) => s.id !== here && !s.authored);
     lines.push(known.length ? `Places the story knows of: ${known.map((s) => `${s.name} (${s.kind}${s.region ? `, ${s.region}` : ''}${s.stub ? s.summary ? `; ${s.summary}` : '; not visited yet' : ''})`).join('; ')}.` : 'No other places yet beyond these rooms.');
@@ -1021,8 +1021,19 @@ Ends: ${E.fmtTime(state)}, ${pc.name} ${moved ? `now in ${endLoc.name}` : `still
         : `${name(state, id)} leaves for ${state.locations[state.characters[id].status.location].name}`).join('; ')}.` : '') +
       (arrived.length ? `\n${arrived.map((id) => name(state, id)).join(', ')} ${arrived.length > 1 ? 'are' : 'is'} there at the end.` : '') +
       ((back || []).length ? `\nIn the background (there, but with no part of their own this scene: at most a glance or a murmur): ${back.map((id) => name(state, id)).join(', ')}.` : '') +
+      travelLines(state, pc, res && res.travel) +
       minorLine(state, [frame.startLoc, state.characters[state.player].status.location], res && res.engaged) +
       `\n${worldLines(state)}`;
+  // The trip the engine planned (R-10): when the player arrives, or where the
+  // time runs out; the beats keep to it.
+  function travelLines(state, pc, t) {
+    if (!t) return '';
+    const way = `\nThe way (planned by the engine): ${Eng().sayPlan(t)}.`;
+    if (t.arriveAt != null) return `${way} Tell the trip briefly in the beats before [+${t.arriveAt}m]; from [+${t.arriveAt}m] the scene is at ${t.destName}, and the people there appear only from then.`;
+    const at = state.locations[pc.status.location];
+    if (t.blocked) return `${way} ${pc.name} gets as far as ${at.name} and no further.`;
+    return `${way} The time runs out on the way: at the end ${pc.name} is ${at && at.transit ? 'still travelling' : `at ${t.stopName}`}, about ${Eng().sayLeft(t.left)} from ${t.destName}, and does not arrive.`;
+  }
   // Narrator-side status (no secrets, notable needs only) for the player and statusIds.
   B.status = ({ state, statusIds }) => ['\n=== STATUS ===', statusLine(state, state.player, true, statusIds)]
     .concat(statusIds.map((id) => statusLine(state, id, true)));

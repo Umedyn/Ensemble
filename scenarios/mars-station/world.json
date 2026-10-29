@@ -164,7 +164,8 @@
       "links": [
         {
           "to": "surface",
-          "kind": "door"
+          "kind": "door",
+          "time": "10m"
         }
       ]
     },
@@ -184,7 +185,8 @@
       "links": [
         {
           "to": "surface",
-          "kind": "door"
+          "kind": "door",
+          "time": "10m"
         }
       ]
     },

@@ -322,11 +322,13 @@
         },
         {
           "to": "dorm-entrance",
-          "kind": "trip"
+          "kind": "trip",
+          "time": "3m"
         },
         {
           "to": "lake-senba",
-          "kind": "trip"
+          "kind": "trip",
+          "time": "10m"
         }
       ],
       "outside": true,
@@ -1140,7 +1142,8 @@
         },
         {
           "to": "shopping-street",
-          "kind": "trip"
+          "kind": "trip",
+          "time": "15m"
         }
       ],
       "outside": true,
@@ -1237,11 +1240,13 @@
       "links": [
         {
           "to": "ramen-stall",
-          "kind": "trip"
+          "kind": "trip",
+          "time": "8m"
         },
         {
           "to": "tokyo-campus",
-          "kind": "trip"
+          "kind": "trip",
+          "time": "1h35m"
         },
         {
           "to": "inn-front",

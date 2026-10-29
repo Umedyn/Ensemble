@@ -16,7 +16,7 @@
   const START_OWN = ['id', 'title', 'summary', 'start', 'player', 'cast', 'opening', 'castLabel', 'region', 'playerSlot', 'playable', 'generated'];
   // World fields a start may override (merge rules below).
   const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'tagThresholds', 'portraitSet', 'factions', 'world',
-    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'regionLabels', 'routeKinds', 'presence', 'reputation', 'mapFocus', 'tactical', 'standees', 'site', 'siteInfo', 'localMap', 'map', 'entrances', 'lore', 'loreTopics', 'timeline', 'projectTimeline', 'endings'];
+    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'regionLabels', 'routeKinds', 'travelTimes', 'presence', 'reputation', 'mapFocus', 'tactical', 'standees', 'site', 'siteInfo', 'localMap', 'map', 'entrances', 'lore', 'loreTopics', 'timeline', 'projectTimeline', 'endings'];
   const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'date', 'calendar', 'characters', 'starts', 'generatedStarts', 'generatedSites', 'generatedRegions', 'sites', 'lorePacks', ...OVERRIDABLE];
   const WORLD_RESERVED = [];
   const START_RESERVED = [];
@@ -25,7 +25,7 @@
   // unioned, plain objects merge shallowly; anything else is replaced.
   const ID_LISTS = ['locations', 'clocks', 'factions', 'extras', 'regions', 'standees', 'lore', 'timeline', 'endings'];
   const STRING_LISTS = ['rules', 'facts', 'tags'];
-  const OBJECTS = ['world', 'eventRates', 'eventSeeds', 'tiers', 'routeKinds', 'presence', 'loreTopics', 'reputation', 'siteInfo'];
+  const OBJECTS = ['world', 'eventRates', 'eventSeeds', 'tiers', 'routeKinds', 'travelTimes', 'presence', 'loreTopics', 'reputation', 'siteInfo'];
 
   const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
   const castId = (entry) => (typeof entry === 'string' ? entry : entry && entry.id);
@@ -795,6 +795,24 @@
       skill: pick('skill') || (skills.includes('stealth') ? 'stealth' : skills[0]),
     };
   };
+  // Travel times (R-10), in minutes: a room link of each kind, and a border
+  // with no time of its own by the label of the region it enters. A link's
+  // own "time" wins; a world's travelTimes overrides these.
+  S.LINK_MINUTES = { open: 1, door: 1, 'locked door': 1, stairs: 1, hatch: 1, window: 1, vent: 2, trip: 10 };
+  S.BORDER_MINUTES = { area: 10, neighbourhood: 15, neighborhood: 15, quarter: 15, district: 20, town: 30, city: 45, county: 60, prefecture: 120, state: 180, province: 180, country: 360 };
+  S.BORDER_OTHER = 30;
+  S.linkMinutes = (sc, kind) => {
+    const own = isObj(sc.travelTimes) && isObj(sc.travelTimes.links) ? sc.travelTimes.links[kind] : null;
+    return typeof own === 'number' ? own : S.LINK_MINUTES[kind] ?? 1;
+  };
+  S.borderMinutes = (sc, label) => {
+    const key = String(label || '').toLowerCase();
+    const own = isObj(sc.travelTimes) && isObj(sc.travelTimes.borders) ? sc.travelTimes.borders[key] : null;
+    return typeof own === 'number' ? own : S.BORDER_MINUTES[key] ?? S.BORDER_OTHER;
+  };
+  // A link's own time in minutes, or null.
+  S.linkTime = (k) => { const h = k && k.time != null ? S.parseHours(k.time) : null; return h == null ? null : h * 60; };
+
   // Problems in one route or route-kind setting, in words.
   // Endings (a world's or a start's): how the story can end, in words.
   S.ENDING_FIELDS = ['id', 'title', 'kind', 'when', 'if', 'epilogue'];
@@ -928,6 +946,19 @@
         Object.keys(v).filter((f) => !['time', 'requires', 'risky', 'skill', 'failHarm'].includes(f)).forEach((f) => problems.push(`routeKinds.${k}: unknown field "${f}"`));
         problems.push(...routeProblems(sc, v, `routeKinds.${k}`, routeRefs, null));
       });
+    }
+    if (sc.travelTimes != null) {
+      const t = sc.travelTimes;
+      if (!isObj(t)) problems.push('"travelTimes" must be an object: {links: {kind: minutes}, borders: {region label: minutes}}');
+      else {
+        Object.keys(t).filter((f) => !['links', 'borders'].includes(f)).forEach((f) => problems.push(`travelTimes: unknown field "${f}" (it has "links" and "borders")`));
+        ['links', 'borders'].forEach((f) => {
+          if (t[f] == null) return;
+          if (!isObj(t[f])) return problems.push(`travelTimes.${f} must be an object of minutes, like {"${f === 'links' ? 'door' : 'city'}": ${f === 'links' ? 1 : 45}}`);
+          Object.entries(t[f]).forEach(([k, v]) => req(typeof v === 'number' && v >= 0 && Number.isFinite(v), `travelTimes.${f}.${k} must be a number of minutes (got ${JSON.stringify(v)})`));
+          if (f === 'links') Object.keys(t.links).filter((k) => !S.LINK_KINDS.includes(k) && k !== 'trip').forEach((k) => problems.push(`travelTimes.links: "${k}" is not a kind of link (${S.LINK_KINDS.join(', ')}, trip)`));
+        });
+      }
     }
     req(sc.regionLabels == null || (Array.isArray(sc.regionLabels) && sc.regionLabels.length <= S.REGION_DEPTH && sc.regionLabels.every((t) => typeof t === 'string' && t.trim() && t.length <= 30)),
       `"regionLabels" must be a list of at most ${S.REGION_DEPTH} short words, one per level from the top (such as ["nation", "province", "city"])`);
@@ -1134,6 +1165,8 @@
           const apart = (l.site || null) !== (byId[k.to].site || null);
           req(apart === (k.kind === 'trip'), apart ? `${where}: "${k.to}" is in another place, so the way there is a "trip"` : `${where}: "${k.to}" is in the same place, so the way there can't be a "trip"`);
         }
+        // How long the way takes (R-10), like a route's time.
+        req(!k || k.time == null || S.parseHours(k.time) != null, `${where}: link to "${k && k.to}": "time" must be like "1m", "15m" or "1h20m" (got ${JSON.stringify(k && k.time)})`);
         // Who holds the key to a locked door (task 3-6): characters in this start.
         req(!k || k.key == null || (Array.isArray(k.key) && k.key.every((id) => (sc.characters || []).includes(id))), `${where}: link to "${k && k.to}" has a "key" for someone not in the cast`);
         if (ok) { l.connects = l.connects || []; if (!l.connects.includes(k.to)) l.connects.push(k.to); }

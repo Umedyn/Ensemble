@@ -909,6 +909,11 @@
     $('btnUndo').disabled = busy || !E.Engine.canUndo(state);
     $('btnReroll').disabled = busy || !E.Engine.canReroll(state);
     $('btnSuggest').disabled = busy || !state || blocked || state.flags.gameOver;
+    // An unfinished trip (R-10): the rest of it as one journey.
+    const trip = state && !state.flags.gameOver && state.travel;
+    $('btnTravel').classList.toggle('hidden', !trip);
+    $('btnTravel').disabled = busy || blocked || !trip;
+    if (trip) $('btnTravel').title = `Go on to ${trip.destName} until you arrive, or something major happens`;
     renderSuggestions();
   }
 
@@ -923,6 +928,12 @@
     el.innerHTML = list.map((t, i) => `<button type="button" class="suggestion" data-suggest="${i}">${esc(t)}</button>`).join('');
     el.classList.toggle('hidden', !list.length);
   }
+  $('btnTravel').addEventListener('click', () => {
+    if (!state || !state.travel) return;
+    $('timeStep').value = 'major';
+    $('actionInput').value = `Keep going to ${state.travel.destName}.`;
+    $('btnAct').click();
+  });
   $('btnSuggest').addEventListener('click', async () => {
     if (busy || !state || !canAct()) return;
     const live = liveScene();
@@ -1126,8 +1137,10 @@
   // player either steps in or moves on; moving on settles that beat for good.
   // Beats after a step-in never happened, so they are never shown.
   function renderScene(e) {
-    if (!e.beats || e.beats.length < 2) return `<div class="entry scene">${esc(e.text)}</div>`;
+    // What is still to go on a trip (R-10): the engine's line, outside the prose.
+    const travel = (read) => (e.travel && read ? `<div class="beat-note travel-note">${esc(e.travel)}</div>` : '');
     const live = state.pending && state.pending.turn === e.turn;
+    if (!e.beats || e.beats.length < 2) return `<div class="entry scene">${esc(e.text)}</div>${travel(true)}`;
     const shown = live ? Math.min(uiShown, e.beats.length) : (e.cutAt || e.beats.length);
     let h = e.beats.slice(0, shown).map((b, i) =>
       `<div class="beat" data-beat="${i}"><div class="beat-time">${beatClock(e, b)}</div><div class="entry scene">${esc(b.text)}</div></div>`
@@ -1139,7 +1152,7 @@
     } else if (!live && e.cutAt) {
       h += '<div class="beat-note">You stepped in here; the rest didn\'t happen.</div>';
     }
-    return h;
+    return h + travel(!live || shown >= e.beats.length);
   }
 
   function actionPlaceholder() {

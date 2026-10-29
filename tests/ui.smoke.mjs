@@ -270,6 +270,23 @@ await check('a scene that runs long stops at a paragraph, and KoboldCpp is told 
   assert.match(await page.locator('#debugBody details.telemetry[open]').textContent(), /stopped at a paragraph/);
 });
 
+// Task R-10: a trip longer than the step stops on the way, says what is left,
+// and Travel there goes on with it.
+await check('a trip longer than the step stops on the way, and Travel there goes on', async (page) => {
+  await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+  await newGame(page);
+  assert.ok(await page.locator('#btnTravel').evaluate((b) => b.classList.contains('hidden')), 'no trip, no button');
+  await act(page, 'I drive to Ridge.', 'moment');
+  while (await page.locator('button[data-next]').count()) await page.click('button[data-next]');
+  assert.match(await page.locator('.turn-current .travel-note').textContent(), /^.+ is still about \d+m away\.$/);
+  assert.ok(!(await page.locator('#btnTravel').evaluate((b) => b.classList.contains('hidden'))), 'the button shows while the trip is unfinished');
+  await page.click('#btnTravel');
+  await turnDone(page);
+  while (await page.locator('button[data-next]').count()) await page.click('button[data-next]');
+  assert.ok(await page.locator('#btnTravel').evaluate((b) => b.classList.contains('hidden')), 'arrived: no more trip');
+  assert.equal(await page.locator('.turn-current .travel-note').count(), 0);
+});
+
 // Also writes the sample fixture when run as `npm run fixture:mock`.
 await check('record a session and export it as a fixture', async (page) => {
   // A key and a private URL that must never reach the recording.
