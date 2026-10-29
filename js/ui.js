@@ -2250,8 +2250,21 @@
     return reports.map((t, i) => {
       const tot = E.Engine.reportTotals(t);
       const cache = anyCache(t), perf = anyPerf(t);
-      const rows = t.calls.map((c) =>
-        `<tr${c.error ? ' class="fail"' : ''}><td>${esc(c.kind)}${c.salvaged ? ' <span class="fail">salvaged</span>' : ''}${c.finish === 'length' ? ' <span class="fail">cut off</span>' : ''}${c.finish === 'stopped' ? ` <span class="muted" title="${esc(c.stopped || '')}">stopped at a paragraph</span>` : ''}</td><td>${esc(c.backend || '')}</td>` +
+      // Smaller calls (task L-3): a step's parts under one row with their sums.
+      const stepOf = (c) => (/^[a-z]+:/.test(c.kind) ? c.kind.split(':')[0] : null);
+      const groupRow = (i) => {
+        const s = stepOf(t.calls[i]);
+        if (!s || (i > 0 && stepOf(t.calls[i - 1]) === s)) return '';
+        let j = i;
+        while (j < t.calls.length && stepOf(t.calls[j]) === s) j++;
+        const part = t.calls.slice(i, j);
+        const sum = (f) => part.reduce((a, c) => a + (Number(c[f]) || 0), 0);
+        const est = part.some((c) => c.estimated !== false) ? '~' : '';
+        return `<tr class="call-group"><td>${esc(s)} · ${part.length} call${part.length === 1 ? '' : 's'}</td><td></td><td class="num">${est}${sum('promptTokens').toLocaleString()}</td><td class="num">${est}${sum('completionTokens').toLocaleString()}</td>` +
+          (cache ? '<td></td>' : '') + (perf ? '<td></td>' : '') + `<td class="num">${sec(sum('ms'))}</td></tr>`;
+      };
+      const rows = t.calls.map((c, i) => groupRow(i) +
+        `<tr class="${[c.error ? 'fail' : '', stepOf(c) ? 'call-part' : ''].filter(Boolean).join(' ')}"><td>${esc(c.kind)}${c.salvaged ? ' <span class="fail">salvaged</span>' : ''}${c.finish === 'length' ? ' <span class="fail">cut off</span>' : ''}${c.finish === 'stopped' ? ` <span class="muted" title="${esc(c.stopped || '')}">stopped at a paragraph</span>` : ''}</td><td>${esc(c.backend || '')}</td>` +
         `<td class="num">${tok(c, 'promptTokens')}</td><td class="num">${tok(c, 'completionTokens')}</td>` +
         (cache ? `<td class="num">${c.cachedTokens != null ? c.cachedTokens.toLocaleString() : ''}</td>` : '') +
         (perf ? `<td class="num">${c.perf ? sec(c.perf.processSec * 1000) : ''}</td>` : '') +
@@ -2317,6 +2330,7 @@
     box.querySelector('.bModel').value = b.model || '';
     box.querySelector('.bContext').value = b.context || E.defaults.backends[id].context;
     box.querySelector('.bConstrain').checked = b.constrainJSON != null ? !!b.constrainJSON : E.LLM.constrainDefault(b.preset);
+    box.querySelector('.bSmaller').checked = b.smallerCalls != null ? !!b.smallerCalls : E.LLM.smallerDefault(b.preset, b.context);
     box.querySelector('.bStatus').textContent = '';
     showPreset(box, b.preset);
     sel.onchange = () => {
@@ -2324,6 +2338,7 @@
       box.querySelector('.bUrl').value = p.url || '';
       box.querySelector('.bModel').value = p.model || '';
       box.querySelector('.bConstrain').checked = E.LLM.constrainDefault(sel.value);
+      box.querySelector('.bSmaller').checked = E.LLM.smallerDefault(sel.value, parseInt(box.querySelector('.bContext').value, 10) || 0);
       showPreset(box, sel.value);
     };
     box.querySelector('.bTest').onclick = async () => {
@@ -2349,6 +2364,7 @@
       model: box.querySelector('.bModel').value.trim(),
       context: Math.max(2048, parseInt(box.querySelector('.bContext').value, 10) || E.defaults.backends[id].context),
       constrainJSON: box.querySelector('.bConstrain').checked,
+      smallerCalls: box.querySelector('.bSmaller').checked,
     };
   }
 

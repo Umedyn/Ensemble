@@ -9,7 +9,8 @@
   LLM.onCall = null; // UI hook
 
   // ---------- backends ----------
-  LLM.stepOf = (kind) => String(kind || '').split(' ')[0];
+  // A split call's kind names its part after a colon ("intent:char", task L-3).
+  LLM.stepOf = (kind) => String(kind || '').split(/[ :]/)[0];
   LLM.backend = function (id) {
     const b = E.settings.backends[id] || E.settings.backends.local;
     const preset = E.backendPresets[b.preset] || {};
@@ -18,8 +19,13 @@
     // Constrain JSON (task L-1): KoboldCpp samples under a grammar; a hosted
     // API whose preset knows a JSON mode gets response_format.
     const constrain = (b.constrainJSON != null ? !!b.constrainJSON : LLM.constrainDefault(b.preset)) && (!!preset.kobold || !!preset.jsonMode);
-    return { id, preset: b.preset, kobold: !!preset.kobold, url, key: String(b.key || '').trim(), model: String(b.model || preset.model || '').trim(), label: preset.label || b.preset, context: b.context || 0, constrain };
+    // Smaller calls (task L-3): the intent and the update in short parts.
+    const smaller = b.smallerCalls != null ? !!b.smallerCalls : LLM.smallerDefault(b.preset, b.context);
+    return { id, preset: b.preset, kobold: !!preset.kobold, url, key: String(b.key || '').trim(), model: String(b.model || preset.model || '').trim(), label: preset.label || b.preset, context: b.context || 0, constrain, smaller };
   };
+  // On by default for KoboldCpp and for any backend at 16K context or less.
+  LLM.SMALLER_UP_TO = 16384;
+  LLM.smallerDefault = (presetId, context) => !!(E.backendPresets[presetId] || {}).kobold || (!!context && context <= LLM.SMALLER_UP_TO);
   // On by default for KoboldCpp and for APIs with a known JSON mode.
   LLM.constrainDefault = (presetId) => { const p = E.backendPresets[presetId] || {}; return !!(p.kobold || p.jsonMode); };
   // APIs that refused response_format this session (HTTP 400): url + model.

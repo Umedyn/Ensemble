@@ -26,6 +26,8 @@ function applySettings(E, s) {
   if (s.routing) E.settings.routing = Object.assign({}, E.defaults.routing, s.routing);
   Object.entries(s.backends || {}).forEach(([id, b]) => {
     E.settings.backends[id] = Object.assign({}, E.defaults.backends[id] || E.defaults.backends.local, b, { url: 'http://replay.invalid/v1', key: '' });
+    // Recordings made before smaller calls (task L-3) replay with single calls.
+    E.settings.backends[id].smallerCalls = !!b.smallerCalls;
   });
 }
 

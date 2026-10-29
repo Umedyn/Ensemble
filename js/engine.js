@@ -3347,10 +3347,7 @@
     const prose = beatsText(kept);
     let report;
     try {
-      const upd = await E.LLM.chatJSON({
-        kind: 'update', expect: ['facts', 'state', 'relations', 'player_attitude'], system: E.Prompts.header(state), user: E.Prompts.update(state, p.action, p.res, prose, p.present, !!cut),
-        maxTokens: Eng.updateTokens(state, p.present, p.frame && p.frame.stepId), temperature: 0.3,
-      });
+      const upd = await Eng.updateCalls(state, { system: E.Prompts.header(state), action: p.action, res: p.res, prose, present: p.present, cut: !!cut, stepId: p.frame && p.frame.stepId });
       // A judged ending the scene shows (taken out before the update is applied).
       if (upd && typeof upd === 'object' && 'ending' in upd) { Eng.judgeEnding(state, upd.ending, prose, p.res); delete upd.ending; }
       const expired = Eng.expireTags(state, p.turn);
@@ -4052,6 +4049,89 @@
     return Math.min(E.contextTier().reply, U.base + U.perPerson * Math.min(others, U.people) + (U.step[stepId] ?? U.step.hour));
   };
 
+  // ---------- smaller calls (task L-3) ----------
+  // On the local model the intent and the update are several short calls,
+  // each asking for one thing; their replies merge into the object the single
+  // call returns, so everything after them is the same. A part that fails
+  // costs that part (a guard), not the turn; only the player's part failing
+  // fails the turn, as the single intent does.
+  Eng.smallerCalls = (step) => !!E.LLM.backendFor(step).smaller;
+  Eng.PAIR_ABOVE = 4; // more people than this in the scene: two to a call
+  Eng.SPLIT_TOKENS = { player: 200, person: 170, pair: 300, facts: 220, statePerPerson: 50, state: 120, feelings: 100, feelingsPerPerson: 40 };
+  // The events call is skipped for a minute or a few minutes when nothing is
+  // due: the single prompt already asks for none there.
+  Eng.eventsDue = (state, stepId, due, action) => !['minute', 'moment'].includes(stepId) || !!(due.regional || due.world || (due.canon || []).length || due.crisis || due.reckoning)
+    || Eng.agendasDue(state).length > 0 || E.Prompts.commandable(state).length > 0 || E.Prompts.groupsHere(state, action).length > 0;
+
+  // → the intent object. o: { system, present, front, action, step, due, phase, early (guards) }.
+  Eng.intentCalls = async function (state, o) {
+    const { system, present, front, action, step, due } = o;
+    const P = E.Prompts;
+    if (!Eng.smallerCalls('intent')) {
+      return E.LLM.chatJSON({ kind: 'intent', expect: ['player', 'intents'], system, user: P.intent(state, present, action, step.label, step.id, due, front), maxTokens: Eng.intentTokens(state, front, due), temperature: 0.7 });
+    }
+    const T = Eng.SPLIT_TOKENS;
+    const args = [state, present, action, step.label, step.id, due, front];
+    o.phase('Judging your action…');
+    const mine = await E.LLM.chatJSON({ kind: 'intent:player', system, user: P.intentPart(...args, { part: 'player' }), maxTokens: T.player, temperature: 0.7 });
+    const player = mine && typeof mine.player === 'object' ? mine.player : mine;
+    const out = { player, intents: [] };
+    const groups = [];
+    for (let i = 0; i < front.length; i += front.length > Eng.PAIR_ABOVE ? 2 : 1) groups.push(front.slice(i, i + (front.length > Eng.PAIR_ABOVE ? 2 : 1)));
+    for (const who of groups) {
+      o.phase(`${who.map((id) => state.characters[id].name).join(' and ')} deciding…`);
+      try {
+        const r = await E.LLM.chatJSON({ kind: 'intent:char', system, user: P.intentPart(...args, { part: 'chars', who, player }), maxTokens: who.length > 1 ? T.pair : T.person, temperature: 0.7 });
+        const got = (Array.isArray(r && r.intents) ? r.intents : [r]).filter((x) => x && typeof x === 'object' && who.includes(x.id));
+        who.forEach((id) => out.intents.push(got.find((x) => x.id === id) || { id, action: 'stays where they are, watching', visible: true }));
+      } catch (err) {
+        who.forEach((id) => out.intents.push({ id, action: 'stays where they are, watching', visible: true }));
+        guard(o.early, 'resolve', 'intent part failed', `${who.join(', ')}: ${err.message}`);
+      }
+    }
+    if (Eng.eventsDue(state, step.id, due, action)) {
+      o.phase(due.world ? 'The wider world stirs…' : due.regional ? 'Something stirs nearby…' : 'The world moves…');
+      try {
+        const ev = await E.LLM.chatJSON({ kind: 'intent:events', system, user: P.intentPart(...args, { part: 'events', player, intents: out.intents }),
+          maxTokens: Eng.intentTokens(state, [], due) - Eng.INTENT_ALONE + 260, temperature: 0.7 });
+        P.INTENT_PARTS.events.forEach((k) => { if (ev && ev[k] !== undefined) out[k] = ev[k]; });
+      } catch (err) {
+        guard(o.early, 'resolve', 'intent part failed', `events: ${err.message}`);
+      }
+    }
+    return out;
+  };
+
+  // → the update object. o: { system, action, res, prose, present, cut, stepId }.
+  Eng.updateCalls = async function (state, o) {
+    const P = E.Prompts;
+    const args = [state, o.action, o.res, o.prose, o.present, o.cut];
+    if (!Eng.smallerCalls('update')) {
+      return E.LLM.chatJSON({ kind: 'update', expect: ['facts', 'state', 'relations', 'player_attitude'], system: o.system, user: P.update(...args), maxTokens: Eng.updateTokens(state, o.present, o.stepId), temperature: 0.3 });
+    }
+    const T = Eng.SPLIT_TOKENS;
+    const others = Math.min((o.present || []).filter((id) => id !== state.player).length, Eng.UPDATE_TOKENS.people);
+    const cap = (n) => Math.min(E.contextTier().reply, n);
+    const tokens = {
+      facts: cap(T.facts),
+      state: cap(T.state + T.statePerPerson * others + (Eng.UPDATE_TOKENS.step[o.stepId] ?? Eng.UPDATE_TOKENS.step.hour)),
+      feelings: cap(T.feelings + T.feelingsPerPerson * others),
+    };
+    const out = {};
+    const failed = [];
+    for (const part of Object.keys(P.UPDATE_PARTS)) {
+      try {
+        const r = await E.LLM.chatJSON({ kind: `update:${part}`, system: o.system, user: P.updatePart(...args, part), maxTokens: tokens[part], temperature: 0.3 });
+        P.UPDATE_PARTS[part].keys.forEach((k) => { if (r && r[k] !== undefined) out[k] = r[k]; });
+      } catch (err) {
+        failed.push(part);
+        guard(o.res, 'memory', 'update part failed', `${part}: ${err.message}`);
+      }
+    }
+    if (failed.length === Object.keys(P.UPDATE_PARTS).length) throw new Error('every part of the update failed');
+    return out;
+  };
+
   // The soft stop (task L-2): a streamed scene ends at the first paragraph
   // break where it has said enough, instead of running on to the token cap
   // mid-sentence (the Seiryo rerun: 500 words and 9 beats for 100–200 and 3,
@@ -4351,10 +4431,7 @@
     const canonDue = E.Timeline.due(state, step.hours);
     due.canon = E.Timeline.diverging(canonDue);
     phase(due.world ? 'The wider world stirs…' : due.regional ? 'Something stirs nearby…' : 'Characters deciding…');
-    const intentObj = await E.LLM.chatJSON({
-      kind: 'intent', expect: ['player', 'intents'], system, user: E.Prompts.intent(state, present, action, step.label, step.id, due, front),
-      maxTokens: Eng.intentTokens(state, front, due), temperature: 0.7,
-    });
+    const intentObj = await Eng.intentCalls(state, { system, present, front, action, step, due, phase, early });
 
     const frame = { startTime: E.fmtTime(state), startLoc: state.characters[state.player].status.location, stepId: step.id, stepLabel: step.label, words: step.words, spanMinutes: Math.round(step.hours * 60) };
     // A new place the player is heading for (task 4-4), built before the

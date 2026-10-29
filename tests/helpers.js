@@ -13,6 +13,9 @@ function loadEngine(extraGlobals = {}) {
   for (const f of ENGINE_FILES) {
     vm.runInContext(fs.readFileSync(path.join(ROOT, 'js', f + '.js'), 'utf8'), ctx, { filename: `js/${f}.js` });
   }
+  // Tests answer the single intent and update calls; the split ones (task
+  // L-3, on by default for KoboldCpp) have their own tests.
+  ctx.Ensemble.settings.backends.local.smallerCalls = false;
   return ctx.Ensemble;
 }
 

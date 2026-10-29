@@ -492,6 +492,8 @@ details.rolls li { margin: 2px 0; }
 .telemetry th, .telemetry td { text-align: left; padding: 2px 14px 2px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
 .telemetry th { color: var(--muted); font-weight: normal; }
 .telemetry .num { text-align: right; font-variant-numeric: tabular-nums; }
+.telemetry tr.call-group td { font-weight: 600; }
+.telemetry tr.call-part td:first-child { padding-left: 1rem; color: var(--muted); }
 .telemetry .guards { margin: 4px 0 8px; padding-left: 18px; }
 .telemetry { overflow-x: auto; }
 #btnRecord.recording { color: var(--bad); border-color: var(--bad); }

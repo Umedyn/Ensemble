@@ -236,9 +236,15 @@ await check('debug shows a turn report with tokens, prompt time and guards', asy
   assert.equal(await report.count(), 1, 'the newest turn is open');
   // The mock's three beats run past the one a moment asks for: that scene is
   // stopped at a paragraph (task L-2), and a stopped stream has no usage to report.
-  assert.match(await report.locator('summary').textContent(), /^Turn 2 · [\d.]+ s · 3 calls · ~\d[\d,]* in/, 'the stopped scene is estimated');
+  assert.match(await report.locator('summary').textContent(), /^Turn 2 · [\d.]+ s · \d+ calls · ~\d[\d,]* in/, 'the stopped scene is estimated');
   assert.match(await report.textContent(), /stopped at a paragraph/);
-  assert.deepEqual(await report.locator('tbody td:first-child').allTextContents(), ['update', 'intent', 'narrate stopped at a paragraph']);
+  // Smaller calls (task L-3), on by default for KoboldCpp: each step's parts under one row.
+  const steps = await report.locator('tbody td:first-child').allTextContents();
+  assert.deepEqual(steps.slice(0, 4), ['update · 3 calls', 'update:facts', 'update:state', 'update:feelings']);
+  assert.match(steps[4], /^intent · \d+ calls$/);
+  assert.equal(steps[5], 'intent:player');
+  assert.ok(steps.slice(6, -1).every((s) => s === 'intent:char'), 'one call per person; no events call on a quiet moment');
+  assert.equal(steps[steps.length - 1], 'narrate stopped at a paragraph');
   assert.equal(await report.locator('th', { hasText: 'prompt' }).count(), 1, 'KoboldCpp perf column shown');
   assert.equal(await report.locator('th', { hasText: 'cached' }).count(), 0, 'no cache column when nobody reports it');
   assert.match(await report.textContent(), /update rejected|tags & mood|No guards fired/);
@@ -340,7 +346,8 @@ await check('settings: API key errors and hybrid routing', async (page) => {
   const where = (kind) => mocks.log.filter((c) => kind.test(c.user)).map((c) => c.port);
   assert.ok(where(/Judge the player/).every((p) => p === 5002), 'characters & events go to the API');
   assert.ok(where(/Write the next scene/).every((p) => p === 5002), 'narration goes to the API');
-  assert.deepEqual(where(/Record what changed/), [5001], 'memory updates stay local');
+  assert.deepEqual(where(/\nRecord (the facts|what changed|how feelings)/), [5001, 5001, 5001], 'memory updates stay local, in three smaller calls (task L-3)');
+  assert.ok(where(/Judge only/).length === 0, 'the 32K API keeps the single intent call');
   const json = mocks.log.filter((c) => /Judge the player|Record what changed/.test(c.user));
   assert.deepEqual(json.map((c) => [c.port, c.grammar, c.jsonMode]), json.map((c) => [c.port, c.port === 5001, false]), 'a grammar for KoboldCpp only');
   const save = await page.evaluate(() => localStorage.getItem('ensemble.autosave'));

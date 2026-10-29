@@ -42,7 +42,34 @@ One hard line holds in every mode: no sexual content involving minors. When matu
 7b. **Fill a short scene, then settle the clock** (about an hour, a few hours only): if the last beat is before half the step, one continuation call asks for 1–2 closing beats (same cleanup; dropped if it relocates the player). Then time is wound back to the last beat plus 10% of the step, unless a pressure clock fired during the step. The other steps keep their full span.
 8. **Store as pending** with beats, the starting snapshot, everything the update step will need, and `narration` (the turn's system prompt, step, and the time state before and after the step) for Reroll.
 
-A normal turn is three model calls (intent, narrate, update), plus an occasional chapter summary or narration retry.
+A normal turn is three model calls (intent, narrate, update), plus an occasional chapter summary or narration retry. With **smaller calls** (task L-3) the intent and the update are several short calls each; see below.
+
+**Smaller calls** (task L-3; the "Smaller calls" setting per backend, on by default for KoboldCpp and for any backend at 16K context or less, `LLM.smallerDefault`). A small model follows a short, focused task far more reliably than one long reply in six parts. `Engine.intentCalls` and `Engine.updateCalls` merge the parts' replies into the object the single call returns, so `placeMove`, sites, journeys, `resolve` and `applyUpdate` are unchanged. The same replies, whole or in parts, give the same game (`tests/smallercalls.test.js`).
+
+The intent's parts:
+- **`intent:player`** judges the action: the roll, `move_to`, places and regions, `against`/`single_out`, `unlock`/`new_feature`, `crisis_answered`, `orders`. It sees no secrets.
+- **`intent:char`** runs for each person in the foreground, two to a call above `Engine.PAIR_ABOVE` (4). Each call sees only that person's private block, and what the player is doing (the player part's summary and move). It doesn't see the roll, which is drawn later in `resolve`, so the dice come in the same order either way.
+- **`intent:events`** sees the offstage and background people, the agenda steps due, the groups, tiers, canon events, orders and new minor people, plus what everyone here does this span. It writes `events`, `group_intents`, `new_extras` and `canon`. It is skipped on a minute or a moment when nothing is due (`Engine.eventsDue`).
+
+The update's parts:
+- **`update:facts`**: facts and `known_by`.
+- **`update:state`**: the `state` targets, `new_extras` and a judged `ending`.
+- **`update:feelings`**: relations, `player_attitude`, reputation, `group_role`, and the emergency note.
+
+Each part gets only its own guidelines (`updateGuides` tags each line; the single prompt has them all, unchanged), and each has its own shape and grammar (L-1). Caps are in `Engine.SPLIT_TOKENS`.
+
+**Rule 7 holds.** Every call of a turn has the same header, and each intent part opens its user message with the same blocks (`now`, `castHere`, `lore`, `knownPlaces`, `lastScene`, `intentAction`). Each update part opens with `validIds`, `whatHappened` and `sceneNarrated`. So KoboldCpp reprocesses only the task; the "prompt" time column in Debug shows it.
+
+**A part that fails costs that part, not the turn.**
+- A person stays where they are, watching.
+- No events happen.
+- The update loses that part.
+
+Each records `intent part failed` or `update part failed`. Only the player's part failing, or all three update parts, fails as the single call would.
+
+**Recording and Debug.** The kinds are `intent:player`, `intent:char`, `intent:events`, `update:facts`, `update:state` and `update:feelings`; routing reads the step before the colon (`LLM.stepOf`). Debug groups a step's parts under one row with their sums. Recordings keep `smallerCalls` as the calls were made. Old recordings, which don't have it, replay with single calls, and the engine tests run single calls unless they turn it on.
+
+The downtime skip's intent stays one call: its montage needs everyone at once.
 
 **Suggested actions** (`Eng.suggestActions`, outside the turn): one call with the shared header and a user message of the narrator-side `now` block (no secrets, no one else's feelings), the scene up to the player's step-in point, and the player character's own `want`. The engine keeps at most 4 short distinct strings (`cleanSuggestions`) and changes no state; the page shows them as buttons that fill the action box. It routes with the intent step (`LLM.ROUTE_AS`), and isn't recorded, since it never changes the game.
 

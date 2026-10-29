@@ -40,6 +40,7 @@ Recordings of real (or mock) play sessions, replayed by `tests/replay.js` withou
 ```
 
 - `settings`: only what changes prompts, call limits or memory budgets. Never API keys or URLs; replay uses placeholder URLs.
+- With smaller calls (task L-3), a turn's intent and update calls are their parts (`intent:player`, `intent:char`, `intent:events`, `update:facts`, `update:state`, `update:feelings`), and `settings.backends.<id>.smallerCalls` says so. A recording without it (everything before L-3) replays with single calls.
 - A streamed narration call (task L-2) is recorded as its finished text; one the engine stopped at a paragraph has `"finish": "stopped"` and `response.stopped` (why, like `"3 beats, all that was asked"`). Replays return that text whole and don't stream.
 - `request.grammar` (task L-1): `{ "chars": 4585, "hash": "1a2b3c4d" }` when the call sent a GBNF grammar (its size and FNV-1a hash; the grammar follows from the prompt), and `request.response_format` when it asked for an API's JSON mode. Replays don't compare them.
 - `start`: the scenario travels inside the state, so a fixture keeps working when scenario files change.

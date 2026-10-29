@@ -43,6 +43,13 @@ function promptsFor(folder, context) {
     narrateMore: P.narrateMore(state, present, 'Ask what happened.', frame, res, '[+0m] You ask.', 10),
     update: P.update(state, 'Ask what happened.', res, 'You ask. They shrug.', present, false),
     updateCut: P.update(state, 'Ask what happened.', res, 'You ask.', present, true),
+    // Smaller calls (task L-3): the intent and the update in parts.
+    intentPlayer: P.intentPart(state, present, 'Ask what happened.', 'about an hour', 'hour', { regional: true }, present, { part: 'player' }),
+    intentChars: present.length ? P.intentPart(state, present, 'Ask what happened.', 'about an hour', 'hour', { regional: true }, present, { part: 'chars', who: present.slice(0, 1), player: { summary: 'ask what happened', needs_roll: false } }) : '',
+    intentEvents: P.intentPart(state, present, 'Ask what happened.', 'about an hour', 'hour', { regional: true }, present, { part: 'events', player: { summary: 'ask what happened' }, intents: present.map((id) => ({ id, action: 'answers vaguely', says: 'Not now.', visible: true })) }),
+    updateFacts: P.updatePart(state, 'Ask what happened.', res, 'You ask. They shrug.', present, false, 'facts'),
+    updateState: P.updatePart(state, 'Ask what happened.', res, 'You ask. They shrug.', present, false, 'state'),
+    updateFeelings: P.updatePart(state, 'Ask what happened.', res, 'You ask. They shrug.', present, false, 'feelings'),
     suggest: P.suggest(state),
     agenda: npcs[1] ? P.agenda(state, npcs[1], null) : '',
     fleshOut: ((x) => (x ? P.fleshOut(state, x.id) : ''))(Object.values(state.extras || {}).find((e) => !e.group)),

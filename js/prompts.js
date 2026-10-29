@@ -705,10 +705,10 @@
   };
   // The emergency the last scene ended on (playtest-coffee-skips): it plays out
   // this span whatever the player does.
-  B.crisisNow = ({ state, due }) => {
+  B.crisisNow = ({ state, due, part }) => {
     if (!due.crisis) return null;
     const pc = state.characters[state.player].name;
-    return `\n=== STILL HAPPENING ===\nThe last scene ended on an emergency: "${due.crisis.text}" It is still happening as this span starts and plays out during it whatever ${pc} does. If ${pc}'s action doesn't deal with it, the others act on it without ${pc} (in their intents and the events), and it costs something real. Set "player"."crisis_answered" to true only if ${pc}'s action deals with it (helps, goes to it, answers what they were asked), else false.`;
+    return `\n=== STILL HAPPENING ===\nThe last scene ended on an emergency: "${due.crisis.text}" It is still happening as this span starts and plays out during it whatever ${pc} does. If ${pc}'s action doesn't deal with it, the others act on it without ${pc} (in their intents and the events), and it costs something real.${part && part !== 'player' ? '' : ` Set "player"."crisis_answered" to true only if ${pc}'s action deals with it (helps, goes to it, answers what they were asked), else false.`}`;
   };
   // Someone who has had enough of the player sitting emergencies out walks in
   // (playtest-coffee-bystander); the engine has already brought them here.
@@ -737,6 +737,79 @@
 ${groupTask(state, action)}${siteTask(state)}${inventLine(sc)}${ordersTask(state)}${tierTask(state, due)}${canonTask(state, due)}
 Reply with JSON only, exactly in this shape:
 ${reply(P.shapes.intent(state, present, action, due, stepId))}`;
+  };
+
+  // ---------- the intent in parts (task L-3) ----------
+  // On the local model the intent is three kinds of short calls: the player's
+  // action, each person here (two to a call in a big scene), and the events.
+  // They share the header and the user message's opening (where things stand,
+  // lore, places, the last scene, the action), so KoboldCpp reprocesses only
+  // what differs. Engine.intentCalls merges their replies into the single
+  // call's object, so nothing after it changes.
+  const INTENT_SHARED = ['now', 'castHere', 'lore', 'knownPlaces', 'lastScene', 'intentAction'];
+  P.layouts.intentPlayer = INTENT_SHARED.concat(['crisisNow', 'intentPlayerTask']);
+  P.layouts.intentChars = INTENT_SHARED.concat(['privateFor', 'playerDoing', 'crisisNow', 'reckoningNow', 'intentCharsTask']);
+  P.layouts.intentEvents = INTENT_SHARED.concat(['hiddenPlaces', 'extrasHere', 'standees', 'offstage', 'background', 'agendaDue', 'crisisNow', 'reckoningNow', 'intentsSoFar', 'intentEventsTask']);
+  P.INTENT_PARTS = { player: ['player'], chars: ['intents'], events: ['group_intents', 'events', 'new_extras', 'canon'] };
+  // o: { part: 'player' | 'chars' | 'events', who: the people a chars call is
+  // for, player: the player's part, intents: the people's parts so far }.
+  P.intentPart = (state, present, action, stepLabel, stepId, due, front, o) =>
+    P.build({ player: 'intentPlayer', chars: 'intentChars', events: 'intentEvents' }[o.part], Object.assign({ state, sc: state.scenario, present: front || present, everyone: present, forNarrator: false, action, stepLabel, stepId, due: due || {} }, o));
+  P.shapes.intentPart = function (state, present, action, due, stepId, part, who) {
+    const full = P.shapes.intent(state, part === 'chars' ? who : present, action, due, stepId);
+    return S.obj(Object.fromEntries(P.INTENT_PARTS[part].filter((k) => full.props[k]).map((k) => [k, full.props[k]])));
+  };
+  P.groupsHere = (state, action) => groupsHere(state, action);
+  B.privateFor = ({ state, who }) => B.private({ state, present: who });
+  B.playerDoing = ({ state, player }) => {
+    const p = player || {};
+    const to = typeof p.move_to === 'string' && (state.locations[p.move_to] || state.characters[p.move_to]);
+    return `\n=== WHAT ${name(state, state.player).toUpperCase()} IS DOING ===\n${p.summary || 'what the action says'}${to ? ` (heading to ${to.name})` : ''}${p.needs_roll ? ' (it is not sure to work)' : ''}`;
+  };
+  B.intentsSoFar = ({ state, player, intents }) => {
+    const lines = ['\n=== WHAT THE PEOPLE HERE DO THIS SPAN ==='];
+    lines.push(`- ${name(state, state.player)}: ${(player && player.summary) || 'the action above'}`);
+    (intents || []).forEach((i) => lines.push(`- ${name(state, i.id)}: ${i.action || '?'}${i.says ? ` (says: ${i.says})` : ''}${i.move_to ? ` [goes to ${i.move_to}]` : ''}${i.visible === false ? ' [HIDDEN from player]' : ''}`));
+    return lines;
+  };
+  B.intentPlayerTask = ({ state, sc, present, stepId, due, action }) => {
+    const pc = name(state, state.player);
+    const groups = Eng().engagedStandees(state, action).length
+      ? `If the player's action is aimed at an unnamed group, set the player's "against" to that group id. If the player singles out one member of one, set "single_out": {"standee":"group_id","name":"short name or description","role":"short role"}.\n` : '';
+    const gs = commandable(state);
+    const orders = gs.length ? `If ${pc}'s action orders or asks one of their groups to do something (${gs.join(', ')}), set "orders" to {"group":"group_id","order":"what they asked"}; otherwise null.\n` : '';
+    return `
+=== TASK ===
+Judge only ${pc}'s action; the other people and events are decided separately. If it is risky, contested or depends on skill, set needs_roll to true and choose a skill (one of: ${sc.skills.join(', ')}) and a difficulty (easy, normal, hard). Talking, looking around and simple tasks need no roll. Everyone listed as present is in the same room as ${pc} right now, so an action about them needs no move. Only if the action clearly takes ${pc} somewhere else, set move_to to that location id (or to a character id to go where that character is).
+${groups}${siteTask(state).replace(/^ {3}/gm, '')}${orders}Reply with JSON only, exactly in this shape:
+${reply(P.shapes.intentPart(state, present, action, due, stepId, 'player'))}`;
+  };
+  B.intentCharsTask = ({ state, present, stepId, due, action, who }) => `
+=== TASK ===
+Decide what ${who.map((id) => name(state, id)).join(' and ')} actually ${who.length > 1 ? 'each try' : 'tries'} to do during this time, driven by ${who.length > 1 ? 'their' : 'their own'} personality, wants, needs, secrets and feelings, and by what ${name(state, state.player)} is doing. They may help, argue, refuse, lie, deflect, pursue their own goals, or leave (move_to). Set visible to false if they act covertly so the player would not notice.
+- "says": the gist of anything they say aloud this turn (or null).
+- "reveals": almost always null. Only fill it if the character deliberately says their secret or private knowledge out loud this turn, and that matches their "says". Being asked once, or being nervous, is not enough: people deflect, make excuses or lie first.
+Reply with JSON only, exactly in this shape:
+${reply(P.shapes.intentPart(state, present, action, due, stepId, 'chars', who))}`;
+  B.intentEventsTask = ({ state, sc, present, stepId, due, action }) => {
+    const pc = name(state, state.player);
+    const here = groupsHere(state, action);
+    const links = Eng().linkedRooms(state, state.characters[state.player].status.location).join(', ') || 'none';
+    const groups = here.length ? `Unnamed groups the player can deal with (${here.map((g) => g.id).join(', ')}): give each exactly one entry in "group_intents": what the group does as a group this span ("move_to" only to a room linked to where the group is; the player's room links to: ${links}; a group on guard holds its post unless hostile).\n` : '';
+    const gs = commandable(state);
+    const orders = gs.length ? `If ${pc}'s action above orders or asks one of their groups (${gs.join(', ')}) to do something, add one event with "faction":"group_id" for what the group does about it: it may obey, drag its feet, or refuse a request; its people keep their own wills. Give it "effects" like a regional event if it changes something.\n` : '';
+    return `
+=== TASK ===
+"events": things that happen during this span outside the player's control, to keep the world moving: offstage characters pursuing their wants and secrets, groups making moves that affect the people here, someone arriving, a call or message, something breaking down, the pressures above getting closer. How many: ${EVENT_GUIDE[stepId] || EVENT_GUIDE.hour} Each event has:
+- "text": one sentence, with names.
+- "who": character ids involved (not the player).
+- "where": location id where it happens.
+- "visibility": "seen" (happens in the player's room), "heard" (the player gets a sound, call or message about it) or "hidden" (the player has no idea).
+- "moves": [{"id":"character_id","to":"location_id"}] for offstage characters who go somewhere because of it, else [].
+- "scope": "local" for these.
+${groups}${inventLine(sc).replace(/^ {3}/gm, '')}${orders}${tierTask(state, due)}${canonTask(state, due)}
+Reply with JSON only, exactly in this shape:
+${reply(P.shapes.intentPart(state, present, action, due, stepId, 'events'))}`;
   };
 
   // Groups the player leads or is favored in (task G-6): what they may be told
@@ -1168,8 +1241,8 @@ Reply with the beats only.`;
   P.layouts.update = ['validIds', 'whatHappened', 'sceneNarrated', 'updateCrisis', 'updateTask', 'updateEndings'];
   // Endings the model rules on (judged): only those on offer now, with a
   // quote the engine looks for in the scene.
-  B.updateEndings = ({ state }) => {
-    const list = Eng().judgedEndings(state);
+  B.updateEndings = ({ state, part }) => {
+    const list = part && part !== 'state' ? [] : Eng().judgedEndings(state);
     return list.length
       ? ['\n=== ENDINGS ===', 'The story ends if the scene above SHOWS one of these happening (not planned, hoped for, attempted or nearly):']
         .concat(list.map((e) => `- ${e.id}: ${e.when.judged}`))
@@ -1188,7 +1261,7 @@ Reply with the beats only.`;
 That scene ended the story: "${ending.title}" (${ENDING_TONE[ending.kind] || ENDING_TONE.neutral}). ${ending.judged ? `It happened: ${ending.judged}.` : ending.why ? `It happened: ${ending.why}.` : ''}${ending.epilogue ? ` ${ending.epilogue}` : ''}
 Write the closing in second person, present tense ("you" is ${pc.name}): 2 or 3 short paragraphs (${P.LENGTH.closing.words} words). Pick up right after the last scene, show the ending settle, then a brief look at what it means for the people in this story. Use only what has happened; invent no new turns. Close on it: no question, no choice left open.
 Reply with the closing text only.`;
-  B.updateCrisis = ({ state, res }) => (res && res.crisisText
+  B.updateCrisis = ({ state, res, part }) => (res && res.crisisText && (!part || part === 'feelings')
     ? `\n=== AN EMERGENCY WAS STILL HAPPENING ===\nThe scene began with an emergency still unanswered: "${res.crisisText}" If ${state.characters[state.player].name}'s action ignored it, the people who needed ${state.characters[state.player].name} may think less of them: record that in relations, with the reason.`
     : null);
   P.update = (state, action, res, prose, present, cut) =>
@@ -1292,28 +1365,67 @@ ${updateSiteIds(state)}${Object.keys(state.standees || {}).length ? `unnamed gro
       shape.group_role = S.maybe(S.obj({ group: S.oneOf(rep, 'group_id'), role: S.oneOf(['member', 'favored', 'leader', 'none'], 'member|favored|leader|none'), quote: S.str('4+ words from the scene that show it') }));
     }
     if (sc.inventExtras) shape.new_extras = newExtras(state);
+    // A judged ending the scene shows (B.updateEndings asks for it outside the example).
+    const endings = Eng().judgedEndings(state).map((e) => e.id);
+    if (endings.length) shape.ending = S.opt(S.obj({ id: S.oneOf(endings), quote: S.str('the exact words from the scene that show it') }), false);
     return S.obj(shape);
   };
+  // The update's guidelines, each tagged with the part of a split update
+  // (task L-3) it belongs to; the single call has them all, in this order.
+  function updateGuides(state, sc) {
+    const pc = name(state, state.player);
+    const g = [
+      ['facts', '- 1 to 5 facts. Only things that actually happened or were revealed. Skip trivia.'],
+      ['facts', '- known_by lists who witnessed or was told. Use ["all"] only when everyone at the location would know. Hidden actions are known only by the actor and anyone who caught them.'],
+      ['facts', `- What ${pc} knows is limited to what they could see or hear in the narrated scene. Other characters' motives, plans and secrets are NOT known by ${pc} unless explicitly revealed; record those as known only by that character.`],
+      ['facts', '- weight: 1 minor detail, 2 notable, 3 major turning point (injury, death, betrayal, discovery, confession).'],
+      ['facts', '- Anything listed under REVEALS should become a fact known by the revealer and whoever was told.'],
+      ['state', `- state: only real changes.${sc.needs.length ? ' Eating or resting lowers needs (negative delta).' : ''} Repairs or sabotage can move clocks (negative delta delays, positive hastens). location: only for other characters who were seen leaving or arriving in the scene (where they went or came from). Never for ${pc}.`],
+      ['state', "- groups: update a group's stance only when this turn's events would realistically change how that group sees things."],
+      ['state', '- world values are short factual status (e.g. "degraded, about 70% output"). Only change one when that status actually changed this turn.'],
+      ['state', `- tags: short visible states or situations (e.g. "sprained ankle", "covered in dust", "on night shift"), at most 5 words, with "turns" for how long they last (default 6). Remove tags that no longer fit. Not feelings${sc.needs.length ? `; ${needsList(sc)} tracked as needs` : ''}.`],
+      ['state', `- mood: for each non-player character present, at most one short line on how they come across right now, as others could read it (e.g. "short with everyone, avoiding Okafor"). Only when it changed. Never for ${pc}, and never hint at anyone's secret.`],
+      ['feelings', `- relations: how this turn changed how non-player characters feel about others (never ${pc}'s own feelings), delta between -15 and 15. Leave empty if nothing changed.`],
+    ];
+    standingGuide(state).split('\n').filter(Boolean).forEach((line) => g.push(['feelings', line]));
+    g.push(['feelings', `- player_attitude: how ${pc}'s own feelings toward someone shifted, judged ONLY from the player action as quoted above (their words and tone), never from how the narrator embellished it. Snapping, mocking or threatening lowers it; thanking, helping, joking warmly or confiding raises it. Delta between -10 and 10. Leave empty if the action was neutral.`]);
+    if (Object.keys(state.extras || {}).length) g.push(['facts state', '- minor people: may be in facts (about, known_by) and may change location; no relations, moods, tags or needs.']);
+    if (Object.keys(state.standees || {}).length) g.push(['state', '- unnamed groups: count goes down for members killed, captured or gone (it only goes up if an event brought more); state when the scene shows them change (fled: they leave for good); location only one linked room, when seen leaving.']);
+    const site = siteGuide(state).replace(/^\n/, '');
+    if (site) g.push(['state', site]);
+    if (sc.inventExtras) g.push(['state', '- new_extras: only if the scene clearly brought in a new minor person or group not listed above: {"name","role","location","group":false}. At most 1.']);
+    return g;
+  }
   B.updateTask = ({ state, sc }) => `
 === TASK ===
 Record what changed this turn. Reply with JSON only, exactly in this shape:
 ${reply(P.shapes.update(state))}
 Guidelines:
-- 1 to 5 facts. Only things that actually happened or were revealed. Skip trivia.
-- known_by lists who witnessed or was told. Use ["all"] only when everyone at the location would know. Hidden actions are known only by the actor and anyone who caught them.
-- What ${name(state, state.player)} knows is limited to what they could see or hear in the narrated scene. Other characters' motives, plans and secrets are NOT known by ${name(state, state.player)} unless explicitly revealed; record those as known only by that character.
-- weight: 1 minor detail, 2 notable, 3 major turning point (injury, death, betrayal, discovery, confession).
-- Anything listed under REVEALS should become a fact known by the revealer and whoever was told.
-- state: only real changes.${sc.needs.length ? ' Eating or resting lowers needs (negative delta).' : ''} Repairs or sabotage can move clocks (negative delta delays, positive hastens). location: only for other characters who were seen leaving or arriving in the scene (where they went or came from). Never for ${name(state, state.player)}.
-- groups: update a group's stance only when this turn's events would realistically change how that group sees things.
-- world values are short factual status (e.g. "degraded, about 70% output"). Only change one when that status actually changed this turn.
-- tags: short visible states or situations (e.g. "sprained ankle", "covered in dust", "on night shift"), at most 5 words, with "turns" for how long they last (default 6). Remove tags that no longer fit. Not feelings${sc.needs.length ? `; ${needsList(sc)} tracked as needs` : ''}.
-- mood: for each non-player character present, at most one short line on how they come across right now, as others could read it (e.g. "short with everyone, avoiding Okafor"). Only when it changed. Never for ${name(state, state.player)}, and never hint at anyone's secret.
-- relations: how this turn changed how non-player characters feel about others (never ${name(state, state.player)}'s own feelings), delta between -15 and 15. Leave empty if nothing changed.
-${standingGuide(state)}- player_attitude: how ${name(state, state.player)}'s own feelings toward someone shifted, judged ONLY from the player action as quoted above (their words and tone), never from how the narrator embellished it. Snapping, mocking or threatening lowers it; thanking, helping, joking warmly or confiding raises it. Delta between -10 and 10. Leave empty if the action was neutral.${Object.keys(state.extras || {}).length ? `
-- minor people: may be in facts (about, known_by) and may change location; no relations, moods, tags or needs.` : ''}${Object.keys(state.standees || {}).length ? `
-- unnamed groups: count goes down for members killed, captured or gone (it only goes up if an event brought more); state when the scene shows them change (fled: they leave for good); location only one linked room, when seen leaving.` : ''}${siteGuide(state)}${sc.inventExtras ? `
-- new_extras: only if the scene clearly brought in a new minor person or group not listed above: {"name","role","location","group":false}. At most 1.` : ''}
+${updateGuides(state, sc).map(([, t]) => t).join('\n')}
+Use [] for any list with nothing to record.`;
+
+  // ---------- the update in parts (task L-3) ----------
+  // Three short calls instead of one: facts, state, feelings. They share the
+  // header and the user message's opening (ids, what happened, the scene), so
+  // KoboldCpp reprocesses only the task; each gets only its own guidelines.
+  P.UPDATE_PARTS = {
+    facts: { keys: ['facts'], what: 'the facts this turn established: what happened or came out, and who knows it' },
+    state: { keys: ['state', 'new_extras', 'ending'], what: "what changed this turn in people's state, the place and the world" },
+    feelings: { keys: ['relations', 'player_attitude', 'reputation', 'group_role'], what: 'how feelings changed this turn' },
+  };
+  P.shapes.updatePart = function (state, part) {
+    const full = P.shapes.update(state);
+    return S.obj(Object.fromEntries(P.UPDATE_PARTS[part].keys.filter((k) => full.props[k]).map((k) => [k, full.props[k]])));
+  };
+  P.layouts.updatePart = ['validIds', 'whatHappened', 'sceneNarrated', 'updateCrisis', 'updatePartTask', 'updateEndings'];
+  P.updatePart = (state, action, res, prose, present, cut, part) =>
+    P.build('updatePart', { state, sc: state.scenario, action, res, prose, present, cut, part });
+  B.updatePartTask = ({ state, sc, part }) => `
+=== TASK ===
+Record ${P.UPDATE_PARTS[part].what}. Reply with JSON only, exactly in this shape:
+${reply(P.shapes.updatePart(state, part))}
+Guidelines:
+${updateGuides(state, sc).filter(([p]) => p.split(' ').includes(part)).map(([, t]) => t).join('\n')}
 Use [] for any list with nothing to record.`;
 
   // ---------- suggested actions ----------

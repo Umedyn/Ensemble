@@ -21,6 +21,8 @@
       const b = s.backends[id] || {};
       backends[id] = { preset: b.preset, model: b.model || '', context: b.context || null };
       if (b.constrainJSON != null) backends[id].constrainJSON = !!b.constrainJSON;
+      // As the calls were made (task L-3), so a replay splits them the same way.
+      backends[id].smallerCalls = E.LLM.backend(id).smaller;
     });
     return {
       narrateTokens: s.narrateTokens, temperature: s.temperature, chapterLength: s.chapterLength, chapterRule: s.chapterRule,

@@ -85,7 +85,9 @@ function answer(user) {
   if (user.includes('=== DOWNTIME FRAME ===')) {
     return '[+0d] The days settle into a rhythm of fans and checklists.\n\n[+2d] Priya teaches everyone a card game with rules she keeps changing.\n\n[+3d] The alarm cuts through the commons. Priya drops her cards. "Tell me that is a sensor fault."';
   }
-  if (user.includes('Judge the player')) {
+  // The intent in parts (task L-3): each part of the same reply.
+  const intentPart = /Judge only [^\n]*'s action/.test(user) ? 'player' : user.includes('=== WHAT THE PEOPLE HERE DO THIS SPAN ===') ? 'events' : /\n=== WHAT [^\n]* IS DOING ===\n/.test(user) ? 'chars' : null;
+  if (user.includes('Judge the player') || intentPart) {
     const out = { player: { summary: 'inspect the recycler', needs_roll: true, skill: 'tech', difficulty: 'normal', move_to: null },
       intents: [{ id: 'bauer', action: 'hovers nervously near the log panel', says: 'Probably just a sensor issue.', visible: true },
         { id: 'okafor', action: 'heads to Ops to draft a storm plan', visible: true, move_to: 'ops' }], events: [] };
@@ -95,6 +97,9 @@ function answer(user) {
     if (/=== PLAYER ACTION[^\n]*\n"[^"\n]*pharmacy/i.test(user)) Object.assign(out.player, { summary: 'go to the pharmacy', needs_roll: false, move_to: null, new_place: { name: 'the pharmacy', kind: 'pharmacy', region: 'main-street' } });
     if (user.includes('WORLD event is due')) out.events.push({ text: 'Halvorsen Aerospace announces emergency cost cuts.', scope: 'world', visibility: 'heard',
       effects: { groups: [{ id: 'sponsor', stance: 'cutting costs; reviewing every crewed mission' }], new_clock: { name: 'Funding review', max: 8, perHour: 0.1, fireText: 'The board votes.' } } });
+    if (intentPart === 'player') return JSON.stringify({ player: out.player });
+    if (intentPart === 'chars') return JSON.stringify({ intents: out.intents });
+    if (intentPart === 'events') return JSON.stringify({ events: out.events });
     return JSON.stringify(out);
   }
   if (user.includes('Write the next scene')) {
@@ -109,11 +114,16 @@ function answer(user) {
   if (user.includes('things Kit Navarro could do next')) {
     return JSON.stringify({ suggestions: ['Ask Teo when the rattle started.', '1. Check the recycler logs myself.', 'Ask Teo when the rattle started.', 'Tell Okafor about the storm plan.'] });
   }
-  if (user.includes('Record what changed')) {
-    return JSON.stringify({ facts: [{ about: ['bauer'], text: 'Teo blamed the rattle on a sensor issue.', known_by: ['navarro', 'bauer'], weight: 1 }],
+  // The update in parts (task L-3): "Record the facts…", "Record what changed
+  // this turn in people's state…", "Record how feelings changed…".
+  const updatePart = /\nRecord the facts this turn/.test(user) ? ['facts'] : /\nRecord what changed this turn in people's state/.test(user) ? ['state'] : /\nRecord how feelings changed/.test(user) ? ['relations', 'player_attitude'] : null;
+  if (user.includes('Record what changed') || updatePart) {
+    const all = {
+      facts: [{ about: ['bauer'], text: 'Teo blamed the rattle on a sensor issue.', known_by: ['navarro', 'bauer'], weight: 1 }],
       state: [{ target: 'char:bauer', field: 'mood', value: 'jumpy, talking too fast', reason: 'the rattle questions' },
         { target: 'char:bauer', field: 'add_tag', value: 'grease on his sleeves', turns: 6, reason: 'handled the spanner' }],
-      relations: [{ from: 'bauer', to: 'navarro', delta: -2, reason: 'nervous' }], player_attitude: [] });
+      relations: [{ from: 'bauer', to: 'navarro', delta: -2, reason: 'nervous' }], player_attitude: [] };
+    return JSON.stringify(updatePart ? Object.fromEntries(updatePart.map((k) => [k, all[k]])) : all);
   }
   return JSON.stringify({ title: 'The Rattle', summary: 'Kit looked into the failing recycler while Teo hovered nervously.' });
 }
