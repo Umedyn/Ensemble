@@ -310,6 +310,41 @@ test('speaker labels come off the start of a paragraph; other colons stay (playt
   assert.ok(E.stepHours(state, 'moment').lengthMult >= 1, 'a moment scene gets room for the ~200 words the 12B writes');
 });
 
+// playtest-seiryo-bad-model: "+0m] You (Sora Hayakawa): I join the others in
+// the gym." and "[+22m] You: For the next half hour…" stayed in the prose, and
+// the "You:" beat was trimmed as the player's own, losing its time.
+test('a marker missing its bracket is mended; "You:" labels and the action copied after them go', () => {
+  const { E, state } = newGame();
+  const res = {};
+  const out = E.Engine.cleanScene('+0m] You (Kit Navarro): I check the recycler. Teo looks up from the pump.\n\n[+22m] You: For the next half hour, you work beside Teo while he hums.', res, state);
+  assert.equal(out, '[+0m] Teo looks up from the pump.\n\n[+22m] For the next half hour, you work beside Teo while he hums.');
+  assert.deepEqual(guardTypes(res), ['speaker label removed']);
+  assert.equal(E.Engine.parseBeats(out, 60).pop().at, 22);
+  assert.equal(E.Engine.repairMarkers('Sol 214 +5 m] stays mid-line.'), 'Sol 214 +5 m] stays mid-line.');
+});
+
+// playtest-seiryo-bad-model: the rewrite after a relocation walked the player
+// off too, and was kept.
+test('a rewrite that still moves the player keeps only the scene before the move', async () => {
+  const { E, state } = newGame();
+  const drafts = [
+    'Teo glances up from the pump.\n\nYou head to hydroponics, the clattering growing louder. Raman waves from the racks.',
+    '[+0m] Teo wipes his hands and grins at you.\n\n[+5m] Okafor nods a greeting.\n\n[+10m] You push open the hydroponics door. Raman waves from the racks.',
+  ];
+  let n = 0;
+  mockLLM(E, ({ kind }) => {
+    if (kind === 'intent') return { player: { summary: 'Kit chats with Teo', move_to: null }, intents: [], events: [] };
+    if (kind.startsWith('narrate')) return drafts[Math.min(n++, 1)];
+    if (kind === 'update') return { facts: [], state: [], relations: [] };
+    return { title: 'T', summary: 'S' };
+  });
+  const out = await E.Engine.runTurn(state, 'Chat with Teo.', 'moment');
+  assert.deepEqual(guardTypes(out.res).filter((t) => /relocation/.test(t)), ['relocation regenerated', 'relocation cut']);
+  assert.equal(out.beats.map((b) => b.text).join('\n\n'), 'Teo wipes his hands and grins at you.\n\nOkafor nods a greeting.');
+  assert.equal(state.characters.navarro.status.location, 'commons');
+  assert.equal(E.Engine.untilRelocation(state, 'You head to hydroponics.', 'commons', null), '', 'nothing before the move: nothing kept');
+});
+
 test('prose cleanup: id tags become names, time markers stay, a cut line of dialogue is closed (playtest-id-tags-in-prose)', () => {
   const { E, state } = newGame();
   const res = {};

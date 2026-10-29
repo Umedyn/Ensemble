@@ -600,6 +600,10 @@ dialog { max-height: 90dvh; overflow-y: auto; }
 .mk-option input[type=radio] { margin-top: 4px; }
 .mk-option .muted { font-size: 0.75rem; }
 .mk-option input[type=text] { margin-top: 4px; width: 100%; }
+.mk-hint { display: block; font-weight: normal; line-height: 1.35; }
+.mk-skills > .mk-hint { grid-column: 1 / -1; }
+.mk-pics > .mk-hint { flex-basis: 100%; }
+.maker-body > .mk-hint { margin-top: -6px; }
 .mk-field { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
 .mk-field > label { align-self: stretch; }
 .mk-offer { font-size: 0.8125rem; border: 1px dashed var(--line-strong); border-radius: 6px; padding: 4px 8px; align-self: stretch; }

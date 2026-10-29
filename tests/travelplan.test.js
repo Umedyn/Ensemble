@@ -86,6 +86,59 @@ test('home to the School gate arrives partway through the hour, and the scene se
   assert.equal(state.log.filter((e) => e.type === 'scene').pop().travel, undefined);
 });
 
+// playtest-seiryo-bad-model: "I take the bus to Seiryo High" and "I join the
+// others in the gym" came back with no move, and nothing in the engine knew
+// them as going somewhere; "I go to Seiryo High" did.
+test('a ride or joining people somewhere goes there: the bus to Seiryo High, the others in the gym', async () => {
+  const g = seiryo();
+  const { E, state } = g;
+  const Eng = E.Engine;
+  assert.equal(Eng.placeInWords(state, 'I take the bus to Seiryo High.'), 'gate');
+  assert.equal(Eng.placeInWords(state, 'I catch the train to Tokyo campus.'), Eng.placeInWords(state, 'I go to Tokyo campus.'));
+  assert.equal(Eng.placeInWords(state, 'I join the others in the gym.'), 'gym', 'the room id is a name too (the Gymnasium)');
+  assert.equal(Eng.placeInWords(state, 'I take the photo for Mom.'), null, 'a ride needs a place');
+  travelMock(E, { to: null });
+  await Eng.runTurn(state, 'I take the bus to Seiryo High.', 'hour');
+  assert.equal(g.pc.status.location, 'gate');
+});
+
+// playtest-seiryo-bad-model: "I go to class" went to Class 1-A, and Sora is in 1-B.
+test('going to class or to my room goes to the player\'s own, over the model\'s guess next door', async () => {
+  const g = seiryo();
+  const { E, state } = g;
+  const Eng = E.Engine;
+  assert.deepEqual([...Eng.ownRooms(state).map((l) => l.id)].sort(), ['classroom-1b', 'sora-room', 'street-south'], 'the role names Class 1-B; "Your room" and "Your street" are his');
+  assert.equal(Eng.ownPlaceInWords(state, 'I go to class.'), 'classroom-1b');
+  assert.equal(Eng.ownPlaceInWords(state, 'I head up to my room.'), 'sora-room');
+  assert.equal(Eng.ownPlaceInWords(state, 'I go to the classroom.'), null, 'only the own room\'s words');
+  assert.equal(Eng.placeInWords(state, 'I go to Class 1-A.'), 'classroom-1a', 'a room named in full still wins');
+  g.pc.status.location = 'gate';
+  travelMock(E, { to: 'classroom-1a' });
+  const out = await Eng.runTurn(state, 'I go to class', 'hour');
+  assert.equal(g.pc.status.location, 'classroom-1b');
+  assert.match(guards(out, 'move resolved')[0], /"classroom-1a" → Class 1-B/);
+});
+
+// playtest-seiryo-bad-model: the scene had no time markers, so the hour
+// settled at +6m and Sora stood at the gate at 07:09, half an hour before
+// the plan could get him there.
+test('a scene with no time markers does not settle a planned trip before it arrives', async () => {
+  const g = seiryo();
+  const { E, state } = g;
+  const start = state.time.day * 1440 + state.time.hour * 60;
+  travelMock(E, { to: 'gate', scene: 'You walk down to the station and up the lake path. The gate is still shut.' });
+  const out = await E.Engine.runTurn(state, 'I go to Seiryo High.', 'hour');
+  assert.equal(out.res.travel.arriveAt, 36);
+  const now = state.time.day * 1440 + state.time.hour * 60;
+  assert.equal(Math.round(now - start), 42, 'the arrival, and a little for the scene there');
+  // A trip the step can't finish takes the whole step.
+  const h = seiryo();
+  const t0 = h.state.time.day * 1440 + h.state.time.hour * 60;
+  travelMock(h.E, { to: 'tokyo-campus', scene: 'You ride the train south.' });
+  await h.E.Engine.runTurn(h.state, 'I go to Tokyo.', 'hour');
+  assert.equal(Math.round(h.state.time.day * 1440 + h.state.time.hour * 60 - t0), 60);
+});
+
 test('stepping in before the arrival puts the player where the plan has them then', async () => {
   const g = seiryo();
   const { E, state } = g;

@@ -35,13 +35,34 @@
       const val = (k) => esc(form[k] == null ? '' : String(form[k]));
       const suggestBtn = (field) => `<button type="button" class="small mk-suggest" data-suggest="${field}" data-fk="sg-${field}"${m.pending ? ' disabled' : ''} title="Ask the model for an idea; nothing changes until you pick it">${m.pending === field ? 'Thinking…' : '💡 Suggest'}</button>`;
       const offerBox = (field) => (offers[field] ? `<div class="mk-offer"><span class="muted">Suggestion:</span> ${esc(offers[field])} <button type="button" class="small" data-offer-use="${field}" data-fk="use-${field}">Use</button> <button type="button" class="small ghost" data-offer-dismiss="${field}">Dismiss</button></div>` : '');
-      const text = (k, label, max, rows) => `<label>${label}${rows ? `<textarea data-f="${k}" data-fk="f-${k}" maxlength="${max}" rows="${rows}">${val(k)}</textarea>` : `<input type="text" data-f="${k}" data-fk="f-${k}" maxlength="${max}" value="${val(k)}">`}</label>`;
+      // A line under each part of the player's form saying what it does
+      // (for new players; the creator's author form goes without).
+      const hint = (s) => (author ? '' : `<span class="muted small mk-hint">${s}</span>`);
+      const HINT = {
+        role: 'What you do here: your job, rank or place among these people. It fills in your first skills and trait ideas, and it is how the others see you.',
+        roleText: 'What you do here: your job, rank or place among these people. It is how the others see you.',
+        people: 'Where you come from: your people, homeland or background. It brings trait ideas, and the others take it into account.',
+        peopleText: 'Where you come from: your people, homeland or background. Leave it empty if it doesn\'t matter here.',
+        description: 'A few sentences of background: where you\'re from, what you\'ve been through, what you\'re like. The story keeps you to it.',
+        appearance: 'What people notice when they look at you.',
+        traits: 'A word or a few for each side of you ("stubborn", "kind", "a light sleeper"). The story plays your small gestures and the others read you by them.',
+        voice: 'The story uses it for the lines it writes for you.',
+        want: 'What you\'re after. It steers your story; nothing makes you follow it.',
+        secret: 'Something you hide. The others can find it out the way you find out theirs: pushing, trust or a slip. Low guard gives it away easily, high hardly ever.',
+        skills: 'When something you try is risky or contested, a die decides it, and the skill it uses helps. 0 is untrained.',
+        portrait: 'Only the picture on your card; it changes nothing in the story.',
+        feelings: 'From −100 (hate) to +100 (love). In play they change only through what you say and do, or when you correct them on a card.',
+        needs: 'The others rise with time and have to be looked after. Tick one your character never has.',
+      };
+      const text = (k, label, max, rows, tip) => `<label>${label}${tip ? hint(tip) : ''}${rows ? `<textarea data-f="${k}" data-fk="f-${k}" maxlength="${max}" rows="${rows}">${val(k)}</textarea>` : `<input type="text" data-f="${k}" data-fk="f-${k}" maxlength="${max}" value="${val(k)}">`}</label>`;
       const choices = (key, list, title, freeText) => {
         if (author) return text(freeText, key === 'role' ? 'Role' : 'People or origin (optional)', key === 'role' ? L.role : L.people);
         if (!(list || []).length && !slot.freeform) return '';
+        // Nothing to pick from: just the box to write in.
+        if (!(list || []).length) return text(freeText, key === 'role' ? title : `${title} (optional)`, key === 'role' ? L.role : L.people, 0, HINT[freeText]);
         const listed = (list || []).some((r) => r.id === form[key]);
         const own = slot.freeform ? `<label class="mk-option"><input type="radio" name="mk-${key}" value="" data-choice="${key}"${listed ? '' : ' checked'}> <span><b>Something else</b> <input type="text" data-f="${freeText}" maxlength="60" value="${val(freeText)}" placeholder="Write your own" aria-label="Your own ${title.toLowerCase()}"></span></label>` : '';
-        return `<fieldset class="mk-choices"><legend>${title}</legend>${(list || []).map((r) => `<label class="mk-option"><input type="radio" name="mk-${key}" value="${esc(r.id)}" data-choice="${key}"${form[key] === r.id ? ' checked' : ''}> <span><b>${esc(r.label)}</b>${r.desc ? ` <span class="muted">${esc(r.desc)}</span>` : ''}</span></label>`).join('')}${own}</fieldset>`;
+        return `<fieldset class="mk-choices"><legend>${title}</legend>${hint(HINT[key])}${(list || []).map((r) => `<label class="mk-option"><input type="radio" name="mk-${key}" value="${esc(r.id)}" data-choice="${key}"${form[key] === r.id ? ' checked' : ''}> <span><b>${esc(r.label)}</b>${r.desc ? ` <span class="muted">${esc(r.desc)}</span>` : ''}</span></label>`).join('')}${own}</fieldset>`;
       };
       const traitIdeas = [...new Set(CM.suggestedTraits(sc, form).concat(offers.traits || []))].filter((t) => !form.traits.some((x) => x.toLowerCase() === t.toLowerCase()));
       const left = CM.pointsLeft(sc, form.skills);
@@ -72,20 +93,20 @@
           `<label class="mk-age">Age<input type="number" data-f="age" data-fk="f-age" min="1" max="129" value="${val('age')}"></label>` +
         '</div><datalist id="mkPronouns"><option value="she/her"><option value="he/him"><option value="they/them"></datalist>' +
         (author ? `<div class="mk-row">${choices('role', null, 'Role', 'roleText')}${choices('people', null, 'People', 'peopleText')}</div>` : choices('role', slot.roles, 'Role', 'roleText') + choices('people', slot.peoples, 'People', 'peopleText')) +
-        `<div class="mk-field">${text('description', you.who, L.description, 3)}${suggestBtn('description')}${offerBox('description')}</div>` +
-        text('appearance', you.appearance, L.appearance, 2) +
-        `<fieldset class="mk-traits"><legend>Traits</legend><div>${form.traits.map((t, i) => `<span class="tag mk-chip">${esc(t)} <button type="button" class="ghost" data-trait-remove="${i}" aria-label="Remove ${esc(t)}">×</button></span>`).join('') || '<span class="muted small">None yet.</span>'}</div>` +
+        `<div class="mk-field">${text('description', you.who, L.description, 3, HINT.description)}${suggestBtn('description')}${offerBox('description')}</div>` +
+        text('appearance', you.appearance, L.appearance, 2, HINT.appearance) +
+        `<fieldset class="mk-traits"><legend>Traits</legend>${hint(HINT.traits)}<div>${form.traits.map((t, i) => `<span class="tag mk-chip">${esc(t)} <button type="button" class="ghost" data-trait-remove="${i}" aria-label="Remove ${esc(t)}">×</button></span>`).join('') || '<span class="muted small">None yet.</span>'}</div>` +
           `<div class="row"><input type="text" id="mkTrait" maxlength="${L.trait}" placeholder="Add a trait" aria-label="Add a trait" data-fk="trait-in"><button type="button" class="small" id="mkTraitAdd">Add</button>${suggestBtn('traits')}</div>` +
           (traitIdeas.length ? `<div class="mk-ideas"><span class="muted small">Ideas:</span> ${traitIdeas.map((t) => `<button type="button" class="small mk-idea" data-trait-add="${esc(t)}">+ ${esc(t)}</button>`).join('')}</div>` : '') +
         '</fieldset>' +
-        `<div class="mk-field">${text('voice', you.voice, L.voice)}${suggestBtn('voice')}${offerBox('voice')}</div>` +
-        text('want', you.want, L.want) +
-        `<div class="mk-row">${text('secret', you.secret, L.secret, 2)}<label class="mk-guard">${you.guard}<select data-f="guard">${['low', 'medium', 'high'].map((g) => `<option value="${g}"${form.guard === g ? ' selected' : ''}>${g}</option>`).join('')}</select></label></div>` +
-        `<fieldset class="mk-skills"><legend>${author ? `Skills: 0 to ${slot.maxSkill} each` : `Skills: <span class="${left < 0 ? 'fail' : ''}">${left} of ${slot.skillPoints} points left</span>, up to ${slot.maxSkill} each`}</legend>${skills}</fieldset>` +
-        `<fieldset class="mk-pics"><legend>Portrait${author ? ' <span class="muted">(your own images only)</span>' : ''}</legend>${portraits}</fieldset>` +
-        (feelings ? `<fieldset class="mk-feelings"><legend>${you.feel}</legend>${feelings}</fieldset>` : '') +
+        `<div class="mk-field">${text('voice', you.voice, L.voice, 0, HINT.voice)}${suggestBtn('voice')}${offerBox('voice')}</div>` +
+        text('want', you.want, L.want, 0, HINT.want) +
+        `<div class="mk-row">${text('secret', you.secret, L.secret, 2)}<label class="mk-guard">${you.guard}<select data-f="guard">${['low', 'medium', 'high'].map((g) => `<option value="${g}"${form.guard === g ? ' selected' : ''}>${g}</option>`).join('')}</select></label></div>` + hint(HINT.secret) +
+        `<fieldset class="mk-skills"><legend>${author ? `Skills: 0 to ${slot.maxSkill} each` : `Skills: <span class="${left < 0 ? 'fail' : ''}">${left} of ${slot.skillPoints} points left</span>, up to ${slot.maxSkill} each`}</legend>${hint(HINT.skills)}${skills}</fieldset>` +
+        `<fieldset class="mk-pics"><legend>Portrait${author ? ' <span class="muted">(your own images only)</span>' : ''}</legend>${hint(HINT.portrait)}${portraits}</fieldset>` +
+        (feelings ? `<fieldset class="mk-feelings"><legend>${you.feel}</legend>${hint(HINT.feelings)}${feelings}</fieldset>` : '') +
         // Needs this person goes without (task G-5): a robot doesn't eat or sleep.
-        ((sc.needs || []).length ? `<fieldset class="mk-needs-off"><legend>${author ? 'Needs they go without' : 'Needs you go without'} <span class="muted small">(a robot, a ghost: none of these, ever)</span></legend>${sc.needs.map((n) => `<label class="mk-option"><input type="checkbox" data-need-off="${esc(n.id)}"${(form.needsOff || []).includes(n.id) ? ' checked' : ''}> <span>${esc(n.label || n.id)}</span></label>`).join('')}</fieldset>` : '') +
+        ((sc.needs || []).length ? `<fieldset class="mk-needs-off"><legend>${author ? 'Needs they go without' : 'Needs you go without'} <span class="muted small">(a robot, a ghost: none of these, ever)</span></legend>${hint(HINT.needs)}${sc.needs.map((n) => `<label class="mk-option"><input type="checkbox" data-need-off="${esc(n.id)}"${(form.needsOff || []).includes(n.id) ? ' checked' : ''}> <span>${esc(n.label || n.id)}</span></label>`).join('')}</fieldset>` : '') +
         (author ? authorFields(sc, form) : '') +
         (m.note ? `<div class="fail small">${esc(m.note)}</div>` : '');
       renderErrors();

@@ -1338,17 +1338,47 @@
   // A place the player's own words go to ("I go to Seiryo High", "head over
   // to the cafe"): a place's name (its way in) or a room's, the player's own
   // place first, then the longest name. → room id or null.
-  const GO_TO = '\\b(?:go|goes|going|head|heads|heading|walk|walks|run|runs|hurry|return|cycle|make (?:my|our) way|set (?:out|off)|leave)\\b[^.!?]{0,30}?\\b(?:to|into|for|toward|towards)\\s+(?:the\\s+)?';
+  // A ride counts ("I take the bus to Seiryo High"), and joining people
+  // somewhere ("I join the others in the gym"); a room's id is a name too
+  // ("gym" for the Gymnasium). playtest-seiryo-bad-model: both stayed home.
+  const GO_VERBS = 'go|goes|going|head|heads|heading|walk|walks|run|runs|hurry|return|cycle|make (?:my|our) way|set (?:out|off)|leave|take|takes|taking|catch|catches|ride|rides|drive|drives|travel|travels';
+  const GO_TO = `(?:\\b(?:${GO_VERBS})\\b[^.!?]{0,30}?\\b(?:to|into|for|toward|towards)|\\bjoin(?:s|ing)?\\b[^.!?]{0,30}?\\b(?:in|at))\\s+(?:the\\s+)?`;
+  const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   Eng.placeInWords = function (state, text) {
     const t = String(text || '');
-    const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const esc = escRe;
     const mine = E.Sites ? E.Sites.playerSite(state) : null;
     const cands = Object.values(state.sites || {}).filter((s) => s && s.entry && state.locations[s.entry] && s.name).map((s) => ({ name: s.name, room: s.entry, site: s.id }))
       .concat(Object.values(state.locations).map((l) => ({ name: l.name, room: l.id, site: l.site })))
+      .concat(Object.values(state.locations).filter((l) => l.id.replace(/-/g, ' ') !== String(l.name || '').toLowerCase()).map((l) => ({ name: l.id.replace(/-/g, ' '), room: l.id, site: l.site })))
       .map((c) => Object.assign(c, { name: String(c.name).replace(/^the\s+/i, '').trim() }))
+      // A place in a region faded to a stub waits for the region's rebuild.
+      .filter((c) => !(c.site && state.sites[c.site] && (Eng.regionDef(state, state.sites[c.site].region) || {}).stub))
       .filter((c) => c.name.length > 2 && new RegExp(GO_TO + esc(c.name) + '(?![\\w])', 'i').test(t));
     cands.sort((a, b) => (b.site === mine) - (a.site === mine) || b.name.length - a.name.length);
     return cands.length ? cands[0].room : null;
+  };
+  // The player's own rooms: one named from their side ("Your room"), after
+  // them ("Sora's room"), or named in their role ("first-year, Class 1-B").
+  Eng.ownRooms = function (state) {
+    const pc = state.characters[state.player];
+    const role = String(pc.role || '').toLowerCase();
+    const first = String(pc.name || '').split(/\s+/)[0].toLowerCase();
+    return Object.values(state.locations).filter((l) => {
+      const n = String(l.name || '').toLowerCase();
+      return /^your\s/.test(n) || (first && n.startsWith(first + "'s ")) || (n.length > 3 && new RegExp(`(?:^|[^\\w])${escRe(n)}(?![\\w])`).test(role));
+    });
+  };
+  // "go to class", "head to my room": the one own room with that word in its
+  // name. → room id or null. playtest-seiryo-bad-model: "I go to class" went
+  // to Class 1-A, and Sora is in 1-B.
+  Eng.ownPlaceInWords = function (state, text) {
+    const t = String(text || '');
+    const first = String(state.characters[state.player].name || '').split(/\s+/)[0].toLowerCase();
+    const hits = Eng.ownRooms(state).filter((l) => String(l.name).toLowerCase().replace(/'s\b/g, '').split(/[^a-z]+/)
+      .filter((w) => w.length > 2 && !['your', 'the', 'and', first].includes(w))
+      .some((w) => new RegExp(`\\b(?:${GO_VERBS})\\b[^.!?]{0,30}?\\b(?:to|into|for)\\s+(?:my\\s+|our\\s+)?${escRe(w)}s?\\b`, 'i').test(t)));
+    return hits.length === 1 ? hits[0].id : null;
   };
   // The player's move as a room before anything else reads it: a place or
   // region the intent named, or one the player's words go to. → a note, or null.
@@ -1358,9 +1388,12 @@
   Eng.placeMove = function (state, intentObj, action) {
     const p = intentObj && intentObj.player;
     if (!p || typeof p !== 'object') return null;
-    const said = Eng.placeInWords(state, action);
+    const named = Eng.placeInWords(state, action);
+    // The player's own room wins over the model's guess even next door.
+    const own = named ? null : Eng.ownPlaceInWords(state, action);
+    const said = named || own;
     const room = typeof p.move_to === 'string' ? Eng.resolveLocation(state, p.move_to, true) : null;
-    if (room && (!said || E.Sites.siteOf(state, said) === E.Sites.siteOf(state, room))) return null;
+    if (room && (!said || room === said || !own && E.Sites.siteOf(state, said) === E.Sites.siteOf(state, room))) return null;
     const here = state.characters[state.player].status.location;
     const to = said || Eng.resolvePlace(state, p.move_to, action);
     if (!to) return null;
@@ -3097,6 +3130,17 @@
     return null;
   };
 
+  // The scene up to the first paragraph that moves the player, or ''.
+  Eng.untilRelocation = function (state, prose, startLoc, via) {
+    const kept = [];
+    for (const p of String(prose || '').split(/\n\s*\n/)) {
+      if (Eng.findRelocation(state, p, startLoc, via)) break;
+      kept.push(p);
+    }
+    const out = kept.join('\n\n').trim();
+    return out.replace(markRe('gi'), '').trim() ? out : '';
+  };
+
   // Shortest path between two locations through `connects`, both ends included.
   // Empty when either is unknown or there is no way through.
   // opts.who (task 3-6): only through ways that person can pass (locked
@@ -3453,19 +3497,32 @@
       [c.name, Eng.shortName(c), String(c.name || '').split(/\s+/)[0]].forEach((n) => n && n.length > 1 && names.add(n.toLowerCase()));
     });
     let n = 0;
-    const out = String(text).split(/\n\s*\n/).map((para) => para.replace(/^(\s*(?:\[[^\]]*\]\s*)?)(?:you\s*\([^)\n]{1,40}\)|([A-Z][\w.' -]{1,40}?))\s*:\s+(?=\S)/i, (all, lead, label) => {
-      if (label && !names.has(label.trim().toLowerCase())) return all;
-      n++;
-      return lead;
-    })).join('\n\n');
+    // "You:" too, and after "You (Sora):" the player's own action copied in
+    // the first person goes with it (playtest-seiryo-bad-model: "+0m] You
+    // (Sora Hayakawa): I join the others in the gym.").
+    const out = String(text).split(/\n\s*\n/).map((para) => {
+      let mine = false;
+      const rest = para.replace(/^(\s*(?:\[[^\]]*\]\s*)?)(?:(you(?:\s*\([^)\n]{1,40}\))?)|([A-Z][\w.' -]{1,40}?))\s*:\s+(?=\S)/i, (all, lead, you, label) => {
+        if (!you && !names.has(label.trim().toLowerCase())) return all;
+        n++;
+        mine = !!you;
+        return lead;
+      });
+      if (!mine) return rest;
+      const lead = (/^\s*(?:\[[^\]]*\]\s*)?/.exec(rest) || [''])[0];
+      return lead + rest.slice(lead.length).replace(/^I\b[^.!?\n]*[.!?]+\s*/, '');
+    }).filter((para) => para.replace(markRe('gi'), '').trim()).join('\n\n');
     if (n) guard(res, 'scene', 'speaker label removed', `${n} paragraph${n > 1 ? 's' : ''}`);
     return n ? out : text;
   };
 
   // With state, character id tags in brackets become names, speaker labels
   // and retellings of the last scene go, first.
+  // A marker that lost its opening bracket at the start of a paragraph
+  // ("+0m] You…"; playtest-seiryo-bad-model) gets it back.
+  Eng.repairMarkers = (text) => String(text || '').replace(new RegExp(`(^|\\n)([ \\t]*)\\+\\s*((?:\\d+(?:\\.\\d+)?\\s*(?:${MARK_UNIT})?\\s*){1,3})\\]`, 'gi'), '$1$2[+$3]');
   Eng.cleanScene = function (text, res, state) {
-    const raw = state ? Eng.dropRetold(state, Eng.dropSpeakerLabels(state, Eng.replaceIdTags(state, String(text || '').trim(), res), res), res) : String(text || '').trim();
+    const raw = state ? Eng.dropRetold(state, Eng.dropSpeakerLabels(state, Eng.replaceIdTags(state, Eng.repairMarkers(String(text || '').trim()), res), res), res) : String(text || '').trim();
     const whole = Eng.trimIncomplete(raw);
     if (whole !== raw) guard(res, 'scene', 'cut to last sentence', '…' + raw.slice(raw.startsWith(whole) ? whole.length : whole.length - 1));
     const paras = (t) => t.split(/\n\s*\n/).filter((p) => p.trim()).length;
@@ -3548,8 +3605,14 @@
     if (snap.agendas) Eng.cast(state).forEach((id, i) => { if (snap.agendas[i]) state.characters[id].agenda = E.clone(snap.agendas[i]); });
   };
 
+  // A planned trip is a floor: the player can't be there before the plan
+  // arrives, or anywhere short of the whole step when it runs out on the way
+  // (playtest-seiryo-bad-model: a scene with no markers settled the trip to
+  // the gate at +6m, half an hour before it could arrive).
   Eng.settleSceneTime = function (state, beats, spanMinutes, before, res) {
-    const end = Math.min(spanMinutes, beats[beats.length - 1].at + Math.round(spanMinutes * 0.1));
+    const t = res && res.travel;
+    const floor = !t || t.blocked ? 0 : t.arriveAt != null ? t.arriveAt + Math.round(spanMinutes * 0.1) : spanMinutes;
+    const end = Math.min(spanMinutes, Math.max(floor, beats[beats.length - 1].at + Math.round(spanMinutes * 0.1)));
     if (end >= spanMinutes) return false;
     if (state.clocks.length !== before.clocks.length || state.clocks.some((c, i) => c.fired !== before.clocks[i].fired)) return false;
     restoreTime(state, before);
@@ -4482,7 +4545,16 @@
       const here = state.locations[state.characters[state.player].status.location].name;
       frame.correction = `Your previous draft took the player character ${where}, which did not happen. The whole scene stays in ${here}${state.characters[state.player].status.location !== frame.startLoc ? ' (after the move shown above)' : ''}.`;
       const retry = await narrateOnce();
-      if (retry) prose = retry;
+      const again = retry && Eng.findRelocation(state, retry, frame.startLoc, via);
+      if (retry && !again) prose = retry;
+      else if (again) {
+        // The rewrite strays too (playtest-seiryo-bad-model: it walked Sora
+        // into Class 1-B and was kept): the scene stops before the move.
+        const kept = [Eng.untilRelocation(state, retry, frame.startLoc, via), Eng.untilRelocation(state, prose, frame.startLoc, via)]
+          .sort((a, b) => b.length - a.length)[0];
+        guard(res, 'scene', 'relocation cut', `the rewrite took the player ${again.to || `to ${again.name}`} too; ${kept ? 'the scene stops before that' : 'nothing came before it, so it stays'}`);
+        prose = kept || retry;
+      }
     }
     if (!prose) throw new Error('The model returned an empty scene.');
 
