@@ -255,6 +255,7 @@ Task R-8. How much the room-by-room layout matters. A tense story (a siege, a he
 | `castLabel` | string | sidebar heading ("Crew", "Survivors") |
 | `region` | id | where the player starts; required when the world has `regions`, and the default region of the start's locations |
 | `playerSlot` | object | optional (task 4-1): lets the player make their own character. See below |
+| `playable` | `true` or id[] | optional (task 7-6): who else in the cast the player may be, `true` for everyone. The picker offers "Play as …" for each (with their role), beside the start's own `player` and Make my own; `Scenario.startScenario(world, start, id)` starts as that person, in their own room, with their own knowledge and secret. Never someone who joins later (checked). The frontier's In the West starts use `true` |
 
 ### cast entries
 

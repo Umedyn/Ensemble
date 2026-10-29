@@ -1,0 +1,35 @@
+{
+  "id": "wes-calhoun",
+  "name": "Wes Calhoun",
+  "pronouns": "he/him",
+  "role": "Texas trail boss",
+  "age": 29,
+  "traits": [
+    "proud",
+    "reckless",
+    "loyal"
+  ],
+  "want": "sell his two thousand head before the grass gives out and get his men paid",
+  "secret": "Half the herd isn't his: he gathered unbranded cattle off his neighbours' ranges in the war, and some of those neighbours are on the trail behind him.",
+  "guard": "medium",
+  "voice": "A Texas drawl, polite to ladies, insolent to everyone else.",
+  "description": "A Confederate cavalry veteran who drove a herd north from the Nueces, was turned back at the Missouri line, and drifted west to Salt Lick to wait for a buyer.",
+  "appearance": "Lean and sunburnt, a big hat, a Confederate shell jacket worn out at the elbows.",
+  "skills": {
+    "riding": 3,
+    "shooting": 2,
+    "fighting": 2,
+    "trailcraft": 2,
+    "persuasion": 1,
+    "trade": 1,
+    "stealth": 0,
+    "medicine": 0
+  },
+  "status": {
+    "location": "saltlick-herd"
+  },
+  "relations": {
+    "rosa-delgado": 35,
+    "hollis-brandt": -20
+  }
+}

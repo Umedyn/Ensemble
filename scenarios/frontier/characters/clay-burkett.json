@@ -1,0 +1,38 @@
+{
+  "id": "clay-burkett",
+  "name": "Private Clay Burkett",
+  "pronouns": "he/him",
+  "role": "cavalry trooper, a galvanized Yankee",
+  "age": 22,
+  "traits": [
+    "charming",
+    "homesick",
+    "reckless"
+  ],
+  "want": "get home to Georgia with something to show for it",
+  "secret": "He means to desert at the next payday with a horse and two friends, and has told Nell Haskins.",
+  "guard": "low",
+  "voice": "Georgia soft, jokes about everything.",
+  "description": "A Confederate prisoner who enlisted in the Union army to get out of the prison camp at Rock Island, and was sent to guard the plains.",
+  "appearance": "A uniform too big for him, a grin, a harmonica in his breast pocket.",
+  "skills": {
+    "riding": 2,
+    "shooting": 2,
+    "fighting": 1,
+    "trailcraft": 1,
+    "persuasion": 2,
+    "trade": 0,
+    "stealth": 2,
+    "medicine": 0
+  },
+  "status": {
+    "location": "julesburg-sutler"
+  },
+  "groups": [
+    "army"
+  ],
+  "relations": {
+    "nell-haskins": 40,
+    "henry-ward": -10
+  }
+}

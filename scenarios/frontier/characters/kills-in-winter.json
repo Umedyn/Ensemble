@@ -1,0 +1,43 @@
+{
+  "id": "kills-in-winter",
+  "name": "Kills in Winter",
+  "pronouns": "he/him",
+  "role": "Oglala warrior",
+  "age": 30,
+  "traits": [
+    "fierce",
+    "loyal",
+    "grim"
+  ],
+  "want": "keep the soldiers and their road out of the Powder River country, as Red Cloud has said",
+  "secret": "His wife's family were among the dead at Sand Creek, and he has sworn privately to kill soldiers until it is paid.",
+  "guard": "high",
+  "voice": "Short words, long silences.",
+  "description": "A respected fighter of Red Cloud's following among the Oglala, who has fought on the Bozeman road since it was opened.",
+  "appearance": "A scarred cheek, an eagle feather, a Spencer carbine taken in a fight.",
+  "skills": {
+    "riding": 3,
+    "shooting": 3,
+    "fighting": 3,
+    "trailcraft": 2,
+    "persuasion": 1,
+    "trade": 0,
+    "stealth": 2,
+    "medicine": 0
+  },
+  "status": {
+    "location": "lakota-council"
+  },
+  "groups": [
+    {
+      "id": "lakota",
+      "role": "favored"
+    }
+  ],
+  "relations": {
+    "her-good-horses": 40,
+    "lone-hawk": 25,
+    "bear-shield": 10,
+    "louis-brasseur": -10
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "id": "tall-grass",
+  "name": "Tall Grass",
+  "pronouns": "he/him",
+  "role": "Eastern Shoshone band elder",
+  "age": 48,
+  "traits": [
+    "steady",
+    "cautious",
+    "generous"
+  ],
+  "want": "keep his people fed and at peace, and the Wind River valley theirs",
+  "secret": "He has privately told Washakie he would rather fight than sign away the Wind River, and fears the young men will learn it and act on it.",
+  "guard": "high",
+  "voice": "Slow, careful speech; stories before decisions.",
+  "description": "Leads a family band among Washakie's Eastern Shoshone, respected for his generosity and his caution with the Americans.",
+  "appearance": "Grey braids wrapped in otter fur, a trade blanket, a peace medal he rarely wears.",
+  "skills": {
+    "riding": 2,
+    "shooting": 1,
+    "fighting": 1,
+    "trailcraft": 3,
+    "persuasion": 3,
+    "trade": 2,
+    "stealth": 1,
+    "medicine": 1
+  },
+  "status": {
+    "location": "shoshone-council"
+  },
+  "groups": [
+    {
+      "id": "shoshone",
+      "role": "favored"
+    }
+  ],
+  "relations": {
+    "sage-woman": 40,
+    "young-antelope": 20,
+    "red-willow": 30,
+    "pierre-ducharme": 15
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "id": "her-good-horses",
+  "name": "Her Good Horses",
+  "pronouns": "she/her",
+  "role": "quillworker and Kills in Winter's wife",
+  "age": 27,
+  "traits": [
+    "strong",
+    "grieving",
+    "practical"
+  ],
+  "want": "keep her children safe and her family fed through a summer of war",
+  "secret": "She has a Cheyenne cousin married to a trader at Julesburg, and sends him word in secret, hoping to buy her family a way out if the war goes badly.",
+  "guard": "medium",
+  "voice": "Low, deliberate, a sudden laugh.",
+  "description": "A quillworker whose work is known in every Oglala camp; she survived the Sand Creek winter among her Cheyenne kin.",
+  "appearance": "A quilled dress of her own making, a child on her hip more often than not.",
+  "skills": {
+    "riding": 2,
+    "shooting": 0,
+    "fighting": 1,
+    "trailcraft": 2,
+    "persuasion": 2,
+    "trade": 2,
+    "stealth": 1,
+    "medicine": 2
+  },
+  "status": {
+    "location": "lakota-work"
+  },
+  "groups": [
+    "lakota"
+  ],
+  "relations": {
+    "kills-in-winter": 40,
+    "bear-shield": 25
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "id": "bear-shield",
+  "name": "Bear Shield",
+  "pronouns": "he/him",
+  "role": "Oglala elder",
+  "age": 63,
+  "traits": [
+    "wise",
+    "weary",
+    "stubborn"
+  ],
+  "want": "see the treaty talks at Fort Laramie end in something that keeps the people whole",
+  "secret": "He has accepted presents from the Indian agent to bring the camp in to the council, and isn't sure anymore that he was right to.",
+  "guard": "medium",
+  "voice": "Slow, formal, speaks in stories.",
+  "description": "An old leader who signed the treaty of 1851 and remembers when the soldiers were only a few traders at Fort Laramie.",
+  "appearance": "White braids, a buffalo robe painted with his deeds, a cane carved with them too.",
+  "skills": {
+    "riding": 1,
+    "shooting": 0,
+    "fighting": 0,
+    "trailcraft": 3,
+    "persuasion": 3,
+    "trade": 1,
+    "stealth": 0,
+    "medicine": 2
+  },
+  "status": {
+    "location": "lakota-lodge"
+  },
+  "groups": [
+    {
+      "id": "lakota",
+      "role": "favored"
+    }
+  ],
+  "relations": {
+    "kills-in-winter": 15,
+    "her-good-horses": 25,
+    "louis-brasseur": 20
+  }
+}

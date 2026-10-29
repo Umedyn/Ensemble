@@ -102,7 +102,24 @@ const TOWNS = [
     },
     kinds: { 'camp-captain': 'wagon', 'camp-circle': 'circle', 'camp-fire': 'fires', 'camp-doctor': 'wagon', 'camp-smith': 'wagon', 'camp-herd': 'herd', 'camp-edge': 'prairie-edge', 'camp-water': 'river' },
     faces: {} },
+  // The Shoshone and Lakota camps (task 7-6): lodges in a circle, the council
+  // lodge at its head, the work ground, the horse herd, the lookout and the river.
+  lodgeCamp('shoshone', 'Tall Grass\'s camp', 'Shoshone camp'),
+  lodgeCamp('lakota', 'The Oglala camp on the Tongue', 'Lakota camp'),
 ];
+function lodgeCamp(p, name, type) {
+  return { id: `${p}-camp`, name, type, entry: `${p}-circle`, tags: ['camp', 'lodges', 'band'],
+    shapes: {
+      [`${p}-council`]: box(650, 120, 950, 200),
+      [`${p}-circle`]: [[550, 200], [1050, 200], [1200, 500], [1050, 800], [550, 800], [400, 500]],
+      [`${p}-lodge`]: box(550, 800, 800, 880), [`${p}-work`]: box(800, 800, 1050, 880),
+      [`${p}-herd`]: [[1050, 200], [1550, 120], [1550, 880], [1050, 880], [1050, 800], [1200, 500]],
+      [`${p}-edge`]: [[50, 120], [650, 120], [650, 200], [550, 200], [400, 500], [550, 800], [550, 880], [50, 880]],
+      [`${p}-river`]: box(50, 880, 1550, 980),
+    },
+    kinds: { [`${p}-council`]: 'tipi', [`${p}-circle`]: 'lodges', [`${p}-lodge`]: 'tipi', [`${p}-work`]: 'racks', [`${p}-herd`]: 'horses', [`${p}-edge`]: 'hill', [`${p}-river`]: 'river' },
+    faces: {} };
+}
 
 // ---------- the picture ----------
 const pts = (p) => p.map(([x, y]) => `${x},${y}`).join(' ');
@@ -256,6 +273,30 @@ function picture(t) {
       add(`<rect x="${cx - 60}" y="${cy - 40}" width="120" height="80" fill="#8a6a46" stroke="${C.ink}" stroke-width="4"/>`);
       for (let y = cy - 30; y < cy + 40; y += 12) add(`<line x1="${cx - 60}" y1="${y}" x2="${cx + 60}" y2="${y}" stroke="#6b5034" stroke-width="2"/>`);
       add(`<rect x="${cx - 60}" y="${cy - 40}" width="60" height="80" fill="#c9bb93" opacity="0.5"/>`);
+    } else if (kind === 'lodges') {
+      poly('#cfc39a');
+      for (let i = 0; i < 14; i++) {
+        const a = (i / 14) * Math.PI * 2 + Math.PI / 2, x = 800 + Math.cos(a) * 300, y = 500 + Math.sin(a) * 230;
+        if (Math.abs(a - Math.PI * 2 - Math.PI / 2) < 0.2 || (Math.cos(a) > 0.9)) continue; // the circle opens to the east
+        add(`<circle cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="30" fill="#efe6cf" stroke="#8a7656" stroke-width="3"/><circle cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="6" fill="#6b5a48"/>`);
+        add(`<line x1="${x.toFixed(0)}" y1="${y.toFixed(0)}" x2="${(x + 26 * Math.cos(a + 2.4)).toFixed(0)}" y2="${(y + 26 * Math.sin(a + 2.4)).toFixed(0)}" stroke="#a3463a" stroke-width="3"/>`);
+      }
+      [[800, 500], [700, 600]].forEach(([x, y]) => add(`<circle cx="${x}" cy="${y}" r="12" fill="#c8693a" stroke="#6b5a48" stroke-width="4"/>`));
+    } else if (kind === 'tipi') {
+      poly(C.prairie);
+      const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+      add(`<circle cx="${cx}" cy="${cy}" r="${Math.min(x1 - x0, y1 - y0) / 2 - 6}" fill="#efe6cf" stroke="#8a7656" stroke-width="4"/><circle cx="${cx}" cy="${cy}" r="9" fill="#6b5a48"/>`);
+      add(`<path d="M${cx - 20} ${cy - 12} q20 -14 40 0" fill="none" stroke="#3f5f8a" stroke-width="4"/><path d="M${cx - 20} ${cy + 14} q20 14 40 0" fill="none" stroke="#a3463a" stroke-width="4"/>`);
+    } else if (kind === 'racks') {
+      poly('#d4c79c');
+      for (let x = x0 + 30; x < x1 - 30; x += 60) add(`<line x1="${x}" y1="${y0 + 20}" x2="${x + 40}" y2="${y0 + 20}" stroke="#7a5a3a" stroke-width="4"/><rect x="${x + 5}" y="${y0 + 24}" width="30" height="18" fill="#9b4a3a"/>`);
+      [[x0 + 60, y1 - 25], [x1 - 70, y1 - 25]].forEach(([x, y]) => add(`<rect x="${x - 25}" y="${y - 12}" width="50" height="24" fill="#c9b48a" stroke="#7a5a3a" stroke-width="2"/>`));
+    } else if (kind === 'horses') {
+      poly('#cfd09a');
+      scatter(p, 24, 30).forEach(([x, y], i) => add(`<ellipse cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" rx="13" ry="6" fill="${['#6e4a2e', '#3b2b20', '#c9b9a0', '#8a6a4a'][i % 4]}"/>`));
+    } else if (kind === 'hill') {
+      poly('#c8bb8e');
+      scatter(p, 12, 30).forEach(([x, y]) => add(`<polygon points="${x - 14},${y + 8} ${x},${y - 12} ${x + 16},${y + 8}" fill="#a59d8c" stroke="#6b6355" stroke-width="2"/>`));
     } else if (kind === 'lot') {
       // A staked lot (task 7-7): stakes and string; what is built shows in play by its name.
       poly('#d2c59d');

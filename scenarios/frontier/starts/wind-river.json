@@ -1,0 +1,142 @@
+{
+  "playable": true,
+  "castLabel": "Camp",
+  "tactical": true,
+  "id": "wind-river",
+  "title": "The Wind River, May 1866: Tall Grass's camp",
+  "summary": "Spring in the Wind River valley, where a band of Washakie's Eastern Shoshone has wintered. The buffalo hunt is coming, the Lakota are raiding, and miners have been seen at South Pass. Be one of its people, or make your own.",
+  "start": {
+    "day": 1582,
+    "hour": 7
+  },
+  "region": "wind-river",
+  "player": "red-willow",
+  "cast": [
+    "red-willow",
+    "tall-grass",
+    "sage-woman",
+    "young-antelope",
+    "pierre-ducharme"
+  ],
+  "playerSlot": {
+    "location": "shoshone-circle",
+    "summary": "You make your own person of Tall Grass's band of Eastern Shoshone, wintering in the Wind River valley.",
+    "roles": [
+      {
+        "id": "hunter",
+        "label": "Hunter",
+        "desc": "Rides after buffalo and elk; the camp eats what the hunters bring.",
+        "skills": {
+          "riding": 2,
+          "shooting": 1,
+          "trailcraft": 2
+        },
+        "suggestedTraits": [
+          "patient",
+          "proud",
+          "watchful"
+        ]
+      },
+      {
+        "id": "warrior",
+        "label": "Young warrior",
+        "desc": "Guards the camp and the horse herd, and wants to be counted among the men.",
+        "skills": {
+          "riding": 2,
+          "fighting": 2,
+          "stealth": 1
+        },
+        "suggestedTraits": [
+          "brave",
+          "impatient",
+          "loyal"
+        ]
+      },
+      {
+        "id": "healer",
+        "label": "Healer",
+        "desc": "Knows the plants and the ways of healing.",
+        "skills": {
+          "medicine": 3,
+          "trailcraft": 1
+        },
+        "suggestedTraits": [
+          "wise",
+          "calm",
+          "sharp"
+        ]
+      },
+      {
+        "id": "craftworker",
+        "label": "Quillworker or hide worker",
+        "desc": "Makes the lodges, clothes and robes the camp lives in, and trades them.",
+        "skills": {
+          "trade": 2,
+          "persuasion": 1,
+          "trailcraft": 1
+        },
+        "suggestedTraits": [
+          "skilled",
+          "practical",
+          "warm"
+        ]
+      },
+      {
+        "id": "go-between",
+        "label": "Go-between",
+        "desc": "Speaks the traders' languages and goes to the posts for the camp.",
+        "skills": {
+          "persuasion": 2,
+          "trade": 2
+        },
+        "suggestedTraits": [
+          "curious",
+          "careful",
+          "clever"
+        ]
+      }
+    ],
+    "freeform": true,
+    "skillPoints": 10,
+    "maxSkill": 3,
+    "relationsDefault": 10,
+    "castFeelings": 10,
+    "peoples": [
+      {
+        "id": "eastern-shoshone",
+        "label": "Eastern Shoshone",
+        "desc": "Of Washakie's people."
+      },
+      {
+        "id": "other-band",
+        "label": "From another band",
+        "desc": "A Shoshone or Bannock of another band, living with this one."
+      },
+      {
+        "id": "married-in",
+        "label": "Married into the band",
+        "desc": "From another people, living with your husband's or wife's family."
+      }
+    ],
+    "groups": [
+      "shoshone"
+    ],
+    "reputation": {
+      "shoshone": 40
+    }
+  },
+  "reputation": {
+    "shoshone": 40
+  },
+  "clocks": [
+    {
+      "id": "the-hunt",
+      "name": "The spring hunt",
+      "value": 2,
+      "max": 8,
+      "perHour": 0.01,
+      "fireText": "The scouts come in: buffalo in the basin to the east. The whole camp must move now, or go hungry until the fall."
+    }
+  ],
+  "opening": "Dawn in the Wind River valley. Frost on the lodge covers, smoke rising straight up in the still air, the mountains white above the cottonwoods. The horse herd is moving on the bottomland, and the boys who watched it all night are coming in to eat.\n\nAt the council lodge the men are already sitting with Tall Grass, and the talk is of the hunt and of the Lakota who took horses from the Popo Agie camps last moon.\n\nSage Woman, scraping a hide behind the lodges, looks up as you pass. \"Your face is like a man with a stone in his moccasin,\" she says. \"Sit. Tell me what it is before you tell the whole camp.\""
+}

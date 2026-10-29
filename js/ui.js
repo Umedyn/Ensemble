@@ -89,8 +89,12 @@
   function renderWho(preferred) {
     const st = pickedStart();
     const sel = $('whoSelect');
-    const show = !!(st && st.slot && !st.error);
-    sel.innerHTML = !show ? '' : (st.defaultPlayer ? `<option value="default">Play as ${esc(st.defaultPlayer)}</option>` : '') + '<option value="own">Make my own</option>';
+    // Its own player, anyone else in its playable cast (task 7-6), and Make my own.
+    const others = (st && !st.error && st.playable) || [];
+    const show = !!(st && !st.error && (st.slot || others.length));
+    sel.innerHTML = !show ? '' : (st.defaultPlayer ? `<option value="default">Play as ${esc(st.defaultPlayer)}</option>` : '')
+      + others.map((p) => `<option value="as:${esc(p.id)}">Play as ${esc(p.name)}, ${esc(p.role)}</option>`).join('')
+      + (st.slot ? '<option value="own">Make my own</option>' : '');
     if (show) sel.value = Array.from(sel.options).some((o) => o.value === preferred) ? preferred : sel.options[0].value;
     sel.classList.toggle('hidden', !show);
     renderPickInfo();
@@ -253,7 +257,9 @@
     const startId = $('startSelect').value || undefined;
     try {
       world = await resolveWorld($('scenarioSelect').value);
-      if (startId === GEN_OPTION) { /* the generator below */ } else if (!makingOwn()) beginGame(world, E.Scenario.startScenario(world, startId));
+      // Someone else of the start's cast (task 7-6): "as:<id>".
+      const as = !$('whoSelect').classList.contains('hidden') && /^as:/.test($('whoSelect').value) ? $('whoSelect').value.slice(3) : undefined;
+      if (startId === GEN_OPTION) { /* the generator below */ } else if (!makingOwn()) beginGame(world, E.Scenario.startScenario(world, startId, as));
     } catch (e) {
       world = null;
       alert(e.message);

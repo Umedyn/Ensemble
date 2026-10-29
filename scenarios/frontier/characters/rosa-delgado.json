@@ -1,0 +1,36 @@
+{
+  "id": "rosa-delgado",
+  "name": "Rosa Delgado",
+  "pronouns": "she/her",
+  "role": "owner of the Drovers' Rest",
+  "age": 33,
+  "traits": [
+    "shrewd",
+    "warm",
+    "proud"
+  ],
+  "want": "own the town's best saloon when the cattle money comes, and owe no one",
+  "secret": "She has been quietly buying stranded herds at a fraction of their worth through a Leavenworth agent, and the drovers who trust her would never forgive it.",
+  "guard": "medium",
+  "voice": "Quick English and quicker Spanish, laughs before she bargains.",
+  "description": "A Tejana from San Antonio who came north with a herd, stayed, and bought the saloon from a man who lost it at cards.",
+  "appearance": "A black dress, silver earrings, a derringer in her sleeve that everybody knows about.",
+  "skills": {
+    "riding": 1,
+    "shooting": 1,
+    "fighting": 0,
+    "trailcraft": 0,
+    "persuasion": 3,
+    "trade": 3,
+    "stealth": 1,
+    "medicine": 0
+  },
+  "status": {
+    "location": "saltlick-saloon"
+  },
+  "relations": {
+    "wes-calhoun": 30,
+    "hollis-brandt": 10,
+    "amos-tull": -10
+  }
+}

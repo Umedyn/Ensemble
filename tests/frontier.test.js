@@ -7,7 +7,7 @@
 // places begins in that place.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { loadEngine, readWorld, mockLLM } = require('./helpers');
+const { loadEngine, readWorld, mockLLM, newGame } = require('./helpers');
 const { replies, stepOf, SHEETS } = require('./genmock');
 
 const plain = (o) => JSON.parse(JSON.stringify(o));
@@ -49,10 +49,10 @@ const chain = (E, w, id) => [...E.Scenario.regionChainIn(w.bundle.world.regions,
 
 // ---------- the world ----------
 
-test('The Frontier loads with no starts yet and no warnings, makes its own starts, and opens on Tuesday 1 May 1866', () => {
+test('The Frontier loads with no warnings, with its In the West starts and Make my own start, and opens on Tuesday 1 May 1866', () => {
   const { E, w } = world();
   assert.deepEqual([...w.warnings], []);
-  assert.equal(w.starts.length, 0);
+  assert.deepEqual(w.starts.map((s) => s.id), ['salt-lick', 'haddon', 'julesburg', 'wind-river', 'powder-river']);
   assert.ok(w.generate, 'Make my own start');
   const sc = w.bundle.world;
   assert.equal(E.dayName(sc, sc.date.day), 'Tuesday 1 May 1866');
@@ -122,7 +122,7 @@ test('four towns are drawn plans: every room a building or lot with its shape, o
 
 // ---------- a start in one of the world's places ----------
 
-test('a generated start in Salt Lick begins on its Front Street with no rooms call and adds no rooms of its own; the town\'s people are there', async () => {
+test('a generated start in Salt Lick begins on its Front Street with no rooms call and adds no rooms of its own', async () => {
   const { E, w, job, calls, state } = await start('salt-lick');
   assert.ok(!calls.some((c) => /TASK: THE PLACE\b/.test(c.user)), 'no rooms call');
   assert.equal(job.steps.rooms.place, 'salt-lick');
@@ -132,8 +132,6 @@ test('a generated start in Salt Lick begins on its Front Street with no rooms ca
   const plan = calls.find((c) => /TASK: WHO IS HERE/.test(c.user));
   assert.match(plan.user, /The Drovers' Rest/);
   assert.ok(E.StartGen.people(job).every((c) => state.locations[c.status.location].site === 'salt-lick'));
-  // The world's own minor people live there.
-  assert.equal(state.extras['rosa-delgado'].location, 'saltlick-saloon');
   // The review shows the place but doesn't edit or reroll the world's rooms.
   assert.ok(E.StartGen.setField(w, job, 'room', 'saltlick-saloon', 'name', 'The Lone Star').error);
   await assert.rejects(E.StartGen.rerollRoom(w, job, 'saltlick-saloon'), /world's own places/);
@@ -225,4 +223,74 @@ test('the whole world fits an 8K context forty turns in, from a start in a town'
   const sum = r.totals.header + r.totals.intent + r.reply;
   assert.ok(sum <= 8192, `header ${r.totals.header} + intent ${r.totals.intent} + reply ${r.reply} = ${sum}`);
   assert.ok(r.totals.header + r.totals.narrate + 704 <= 8192, 'the narrator\'s call fits too');
+});
+
+// ---------- In the West (task 7-6) ----------
+
+test('In the West: every start lets you play anyone in its cast, or make your own', () => {
+  const E = loadEngine();
+  const w = readWorld('frontier', E);
+  const st = w.starts.find((s) => s.id === 'salt-lick');
+  assert.equal(st.defaultPlayer, 'Hollis Brandt');
+  assert.deepEqual(st.playable.map((p) => p.id), ['rosa-delgado', 'amos-tull', 'josiah-reed', 'wes-calhoun']);
+  assert.ok(st.slot, 'Make my own');
+  const sc = E.Scenario.startScenario(w, 'salt-lick', 'rosa-delgado');
+  const state = E.Engine.newGame(sc);
+  assert.equal(state.player, 'rosa-delgado');
+  assert.equal(state.characters[state.player].status.location, 'saltlick-saloon', 'she starts where she is');
+  assert.ok(state.characters['hollis-brandt'], 'the marshal is someone else now');
+  assert.throws(() => E.Scenario.startScenario(w, 'salt-lick', 'tall-grass'), /can't be played as "tall-grass"/);
+  w.starts.forEach((s) => assert.equal(s.playable.length + 1, s.scenario.characters.length, `${s.id}: everyone in the cast`));
+});
+
+test('"playable" is checked in plain words, and never offers someone who joins later', () => {
+  const E = loadEngine();
+  const base = () => ({ world: { title: 'T', setting: 'S', characters: ['a', 'b', 'c'], starts: ['s'], locations: [{ id: 'r', name: 'R', desc: 'd', connects: [] }] },
+    starts: { s: { id: 's', player: 'a', cast: ['a', 'b', { id: 'c', joins: 'later' }], playable: ['b'], timeline: [] } },
+    characters: { a: { id: 'a', name: 'A', role: 'x' }, b: { id: 'b', name: 'B', role: 'y' }, c: { id: 'c', name: 'C', role: 'z' } } });
+  const ok = base();
+  E.Scenario.validateWorld(ok);
+  const bad = base();
+  bad.starts.s.playable = ['b', 'zed'];
+  assert.throws(() => E.Scenario.validateWorld(bad), /"playable" must be true \(anyone in the cast\) or a list of cast ids/);
+  const later = base();
+  later.starts.s.playable = ['c'];
+  assert.throws(() => E.Scenario.validateWorld(later), /"playable" names c, who joins later/);
+  assert.deepEqual([...E.Scenario.playableIds({ playable: true, cast: ['a', 'b', { id: 'c', joins: 'later' }] }, {})], ['a', 'b']);
+});
+
+test('each In the West start plays a turn as each of its people', async () => {
+  const E = loadEngine();
+  const w = readWorld('frontier', E);
+  for (const st of w.starts) {
+    for (const id of [st.scenario.player].concat(st.playable.map((p) => p.id))) {
+      const E2 = loadEngine();
+      const state = E2.Engine.newGame(E2.Scenario.startScenario(readWorld('frontier', E2), st.id, id));
+      mockLLM(E2, ({ kind }) => (kind === 'intent' ? { player: { needs_roll: false }, intents: [], events: [] } : kind === 'update' ? { facts: [] } : 'You look around.'));
+      await E2.Engine.runTurn(state, 'Look around.', 'moment');
+      assert.equal(state.turn, 1, `${st.id} as ${id}`);
+    }
+  }
+});
+
+test('the camps move with the band, only when an elder says so; the towns\' people are characters now', () => {
+  const E = loadEngine();
+  const w = readWorld('frontier', E);
+  const step = { id: 'hour', hours: 1 };
+  const as = (id) => E.Engine.newGame(E.Scenario.startScenario(w, 'wind-river', id));
+  const willow = as('red-willow');
+  assert.match(E.Engine.campJourneyFor(willow, { player: {} }, 'We break camp and move to Fort Bridger.', step).refused, /only its leader can turn it/);
+  const elder = as('tall-grass');
+  const j = E.Engine.campJourneyFor(elder, { player: {} }, 'We break camp and move to Fort Bridger.', step);
+  assert.equal(j.destRegion, 'fort-bridger');
+  assert.ok(!(w.bundle.world.extras || []).some((x) => x.id === 'rosa-delgado'), 'Rosa is a character, not a minor person');
+});
+
+test('every In the West start fits an 8K context forty turns in', async () => {
+  const { measureState } = await import('../tools/context-report.mjs');
+  for (const id of ['salt-lick', 'haddon', 'julesburg', 'wind-river', 'powder-river']) {
+    const { E, state } = newGame('frontier', id);
+    const r = measureState(E, state, 8192, true);
+    assert.ok(r.totals.header + r.totals.intent + r.reply <= 8192, `${id}: ${r.totals.header} + ${r.totals.intent} + ${r.reply}`);
+  }
 });

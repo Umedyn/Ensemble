@@ -1,0 +1,36 @@
+{
+  "id": "seamus-carrick",
+  "name": "Seamus Carrick",
+  "pronouns": "he/him",
+  "role": "foreman of a grading gang",
+  "age": 36,
+  "traits": [
+    "fair",
+    "fierce",
+    "witty"
+  ],
+  "want": "see his gang paid in full every Saturday and send money home to Galway",
+  "secret": "He is not Seamus Carrick: he took a dead man's name after killing a policeman in the New York draft riots.",
+  "guard": "high",
+  "voice": "Galway Irish, singing when he's happy, cursing when he isn't.",
+  "description": "Fought for the Union with an Irish regiment, then came west with the railroad. His gang would follow him anywhere.",
+  "appearance": "Red-bearded, broad, a clay pipe and a shovel he uses to make points.",
+  "skills": {
+    "riding": 1,
+    "shooting": 1,
+    "fighting": 3,
+    "trailcraft": 1,
+    "persuasion": 2,
+    "trade": 1,
+    "stealth": 0,
+    "medicine": 0
+  },
+  "status": {
+    "location": "haddon-tents"
+  },
+  "relations": {
+    "ada-kittredge": 20,
+    "lyman-pell": -10,
+    "hannah-weir": 10
+  }
+}

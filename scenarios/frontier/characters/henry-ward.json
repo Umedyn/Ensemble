@@ -1,0 +1,38 @@
+{
+  "id": "henry-ward",
+  "name": "Captain Henry Ward",
+  "pronouns": "he/him",
+  "role": "commander at Fort Sedgwick",
+  "age": 39,
+  "traits": [
+    "dutiful",
+    "haunted",
+    "brittle"
+  ],
+  "want": "keep the roads open with too few men, and be transferred East",
+  "secret": "In the winter of '64 he stood by while other officers' men killed women and children, and has never told anyone.",
+  "guard": "high",
+  "voice": "Clipped and formal, polite to everyone, warm to no one.",
+  "description": "A volunteer officer kept on after the war, with too few men and too many roads to guard.",
+  "appearance": "Neat blue uniform gone pale with dust, a sabre he never draws, a habit of looking at the horizon.",
+  "skills": {
+    "riding": 2,
+    "shooting": 2,
+    "fighting": 1,
+    "trailcraft": 1,
+    "persuasion": 2,
+    "trade": 0,
+    "stealth": 0,
+    "medicine": 0
+  },
+  "status": {
+    "location": "julesburg-fort"
+  },
+  "groups": [
+    "army"
+  ],
+  "relations": {
+    "abner-moss": 10,
+    "clay-burkett": -5
+  }
+}

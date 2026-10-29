@@ -537,8 +537,23 @@ const genOpen = async (page) => {
 const genDone = (page) => page.waitForSelector('#genPlay', { timeout: 20000 });
 
 // Task 7-4: a start in a region with one of the world's drawn places begins there.
+// Task 7-6: a start's whole cast is playable.
+await check('the frontier: play Salt Lick as anyone in its cast', async (page) => {
+  await page.selectOption('#scenarioSelect', 'server:frontier');
+  await page.selectOption('#startSelect', 'salt-lick');
+  const who = await page.locator('#whoSelect option').evaluateAll((els) => els.map((e) => e.textContent));
+  assert.deepEqual(who, ['Play as Hollis Brandt', 'Play as Rosa Delgado, owner of the Drovers\' Rest', 'Play as Amos Tull, speculator who built the shipping pens',
+    'Play as Josiah Reed, schoolteacher and preacher', 'Play as Wes Calhoun, Texas trail boss', 'Make my own']);
+  await page.selectOption('#whoSelect', 'as:rosa-delgado');
+  await page.click('#btnNew');
+  await gameStarted(page);
+  assert.match(await page.textContent('#sceneBar'), /The Drovers' Rest/);
+  assert.match(await page.textContent('#cast'), /Hollis Brandt/);
+});
+
 await check('the frontier: make my own start in Salt Lick, and play on its drawn town plan', async (page) => {
   await page.selectOption('#scenarioSelect', 'server:frontier');
+  await page.selectOption('#startSelect', '__generate');
   await page.click('#btnNew');
   await page.waitForSelector('#genDialog[open]');
   await page.fill('#genSearch', 'salt lick');

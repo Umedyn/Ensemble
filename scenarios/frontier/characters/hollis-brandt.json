@@ -1,0 +1,37 @@
+{
+  "id": "hollis-brandt",
+  "name": "Hollis Brandt",
+  "pronouns": "he/him",
+  "role": "town marshal",
+  "age": 38,
+  "traits": [
+    "hard",
+    "honest",
+    "tired"
+  ],
+  "want": "keep the peace in Salt Lick until the railroad comes, and get paid for it",
+  "secret": "In the war he rode with Jennison's Jayhawkers, burning farms in Missouri; any Texan from the border counties might know his face.",
+  "guard": "high",
+  "voice": "Flat Kansas vowels, says less than he means.",
+  "description": "A former Kansas cavalryman the town company hired to keep the Texans in line. He enforces the gun ordinance and hates doing it.",
+  "appearance": "Big, slow, a grey moustache, a badge pinned to a worn army coat.",
+  "skills": {
+    "riding": 2,
+    "shooting": 3,
+    "fighting": 2,
+    "trailcraft": 1,
+    "persuasion": 1,
+    "trade": 0,
+    "stealth": 1,
+    "medicine": 0
+  },
+  "status": {
+    "location": "saltlick-jail"
+  },
+  "relations": {
+    "rosa-delgado": 15,
+    "amos-tull": 5,
+    "wes-calhoun": -15,
+    "josiah-reed": 20
+  }
+}

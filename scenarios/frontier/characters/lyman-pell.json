@@ -1,0 +1,35 @@
+{
+  "id": "lyman-pell",
+  "name": "Lyman Pell",
+  "pronouns": "he/him",
+  "role": "the railroad's locating engineer",
+  "age": 31,
+  "traits": [
+    "clever",
+    "vain",
+    "nervous"
+  ],
+  "want": "lay out a town that lasts, and come out of it rich",
+  "secret": "He has staked the real depot ground under a false name, a mile from where the plat on his wall says it will be.",
+  "guard": "high",
+  "voice": "Eastern, precise, too fond of the word \"obviously\".",
+  "description": "A Rensselaer graduate who surveys ahead of the track and decides where towns will be.",
+  "appearance": "Thin, clean-shaven, a good hat, ink-stained fingers, a transit always nearby.",
+  "skills": {
+    "riding": 1,
+    "shooting": 1,
+    "fighting": 0,
+    "trailcraft": 2,
+    "persuasion": 1,
+    "trade": 2,
+    "stealth": 1,
+    "medicine": 0
+  },
+  "status": {
+    "location": "haddon-office"
+  },
+  "relations": {
+    "ada-kittredge": 20,
+    "seamus-carrick": 0
+  }
+}

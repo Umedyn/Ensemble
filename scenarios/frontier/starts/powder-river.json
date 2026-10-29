@@ -1,0 +1,142 @@
+{
+  "playable": true,
+  "castLabel": "Camp",
+  "tactical": true,
+  "id": "powder-river",
+  "title": "The Powder River, June 1866: an Oglala camp",
+  "summary": "Early summer in the Powder River country, the best hunting ground the Lakota have left. The treaty council is at Fort Laramie, Red Cloud says no road will cross this land, and soldiers are on their way north anyway. Be one of its people, or make your own.",
+  "start": {
+    "day": 1613,
+    "hour": 7
+  },
+  "region": "powder-river",
+  "player": "her-good-horses",
+  "cast": [
+    "her-good-horses",
+    "kills-in-winter",
+    "lone-hawk",
+    "bear-shield",
+    "louis-brasseur"
+  ],
+  "playerSlot": {
+    "location": "lakota-circle",
+    "summary": "You make your own person of an Oglala camp on the Tongue River in the Powder River country, in the summer the soldiers came to build their road.",
+    "roles": [
+      {
+        "id": "hunter",
+        "label": "Hunter",
+        "desc": "Rides after buffalo and elk; the camp eats what the hunters bring.",
+        "skills": {
+          "riding": 2,
+          "shooting": 1,
+          "trailcraft": 2
+        },
+        "suggestedTraits": [
+          "patient",
+          "proud",
+          "watchful"
+        ]
+      },
+      {
+        "id": "warrior",
+        "label": "Young warrior",
+        "desc": "Guards the camp and the horse herd, and wants to be counted among the men.",
+        "skills": {
+          "riding": 2,
+          "fighting": 2,
+          "stealth": 1
+        },
+        "suggestedTraits": [
+          "brave",
+          "impatient",
+          "loyal"
+        ]
+      },
+      {
+        "id": "healer",
+        "label": "Healer",
+        "desc": "Knows the plants and the ways of healing.",
+        "skills": {
+          "medicine": 3,
+          "trailcraft": 1
+        },
+        "suggestedTraits": [
+          "wise",
+          "calm",
+          "sharp"
+        ]
+      },
+      {
+        "id": "craftworker",
+        "label": "Quillworker or hide worker",
+        "desc": "Makes the lodges, clothes and robes the camp lives in, and trades them.",
+        "skills": {
+          "trade": 2,
+          "persuasion": 1,
+          "trailcraft": 1
+        },
+        "suggestedTraits": [
+          "skilled",
+          "practical",
+          "warm"
+        ]
+      },
+      {
+        "id": "go-between",
+        "label": "Go-between",
+        "desc": "Speaks the traders' languages and goes to the posts for the camp.",
+        "skills": {
+          "persuasion": 2,
+          "trade": 2
+        },
+        "suggestedTraits": [
+          "curious",
+          "careful",
+          "clever"
+        ]
+      }
+    ],
+    "freeform": true,
+    "skillPoints": 10,
+    "maxSkill": 3,
+    "relationsDefault": 10,
+    "castFeelings": 10,
+    "peoples": [
+      {
+        "id": "oglala",
+        "label": "Oglala",
+        "desc": "Of the Oglala Lakota."
+      },
+      {
+        "id": "other-lakota",
+        "label": "Of another Lakota people",
+        "desc": "Miniconjou, Brulé, Hunkpapa or another, living in this camp."
+      },
+      {
+        "id": "cheyenne",
+        "label": "Northern Cheyenne",
+        "desc": "Of the Lakota's Cheyenne allies, with family here."
+      }
+    ],
+    "groups": [
+      "lakota"
+    ],
+    "reputation": {
+      "lakota": 40
+    }
+  },
+  "reputation": {
+    "lakota": 40
+  },
+  "clocks": [
+    {
+      "id": "the-council",
+      "name": "Word from the council",
+      "value": 1,
+      "max": 6,
+      "perHour": 0.012,
+      "fireText": "A rider comes in from Fort Laramie with the news of the council, and the whole camp gathers to hear what was said."
+    }
+  ],
+  "opening": "Morning on the Tongue River. The lodges stand in a wide circle among the cottonwoods, meat drying on the racks, the horse herd grazing fat on the summer grass. It is a good camp, and everyone knows it may be the last good summer.\n\nBear Shield and the other old men went south to the council at Fort Laramie and came back only yesterday, tired and quiet. Louis Brasseur rode in with them, and has not yet said what the soldiers' chiefs want.\n\nKills in Winter sits at your fire, checking the action of his carbine, and does not look up. \"Bear Shield says they will talk again,\" he says. \"Talk. While their soldiers walk up our road.\""
+}

@@ -1,0 +1,35 @@
+{
+  "id": "nell-haskins",
+  "name": "Nell Haskins",
+  "pronouns": "she/her",
+  "role": "telegrapher",
+  "age": 26,
+  "traits": [
+    "curious",
+    "discreet",
+    "restless"
+  ],
+  "want": "save enough to go to San Francisco and work a city office",
+  "secret": "She sells copies of the army's and the railroad's telegrams to a Denver speculator.",
+  "guard": "medium",
+  "voice": "Fast, precise, taps her fingers in Morse when she's nervous.",
+  "description": "Learned telegraphy during the war, when the men were gone, and took the Julesburg key because nobody else would.",
+  "appearance": "Ink-stained cuffs, hair pinned up hard, a shawl she pulls tight in the drafts.",
+  "skills": {
+    "riding": 1,
+    "shooting": 1,
+    "fighting": 0,
+    "trailcraft": 0,
+    "persuasion": 2,
+    "trade": 2,
+    "stealth": 2,
+    "medicine": 0
+  },
+  "status": {
+    "location": "julesburg-telegraph"
+  },
+  "relations": {
+    "abner-moss": 20,
+    "clay-burkett": 25
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "id": "louis-brasseur",
+  "name": "Louis Brasseur",
+  "pronouns": "he/him",
+  "role": "interpreter from Fort Laramie",
+  "age": 34,
+  "traits": [
+    "careful",
+    "torn",
+    "quick-witted"
+  ],
+  "want": "make each side understand the other before it is too late",
+  "secret": "The commissioners told him to soften what the Lakota say in council, and he has been doing it.",
+  "guard": "high",
+  "voice": "Lakota and English and French, always choosing his words.",
+  "description": "The son of a French trader and an Oglala woman, who interprets at Fort Laramie and comes to the camp as a relative and a messenger.",
+  "appearance": "A frock coat over a beaded vest, moccasins, a notebook.",
+  "skills": {
+    "riding": 2,
+    "shooting": 1,
+    "fighting": 0,
+    "trailcraft": 2,
+    "persuasion": 3,
+    "trade": 1,
+    "stealth": 1,
+    "medicine": 0
+  },
+  "status": {
+    "location": "lakota-circle"
+  },
+  "relations": {
+    "bear-shield": 25,
+    "kills-in-winter": -5
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "id": "sage-woman",
+  "name": "Sage Woman",
+  "pronouns": "she/her",
+  "role": "healer and Tall Grass's sister",
+  "age": 55,
+  "traits": [
+    "wise",
+    "sharp-tongued",
+    "patient"
+  ],
+  "want": "see her grandchildren grow up in this valley",
+  "secret": "Smallpox broke out among a band down on the Green River last month, and she has told no one for fear the camp will panic before the hunt.",
+  "guard": "medium",
+  "voice": "Teasing, blunt, never wastes a word.",
+  "description": "A healer who knows every plant in the Wind River country and every family's troubles.",
+  "appearance": "Small and quick, a quilled bag of medicines at her belt.",
+  "skills": {
+    "riding": 1,
+    "shooting": 0,
+    "fighting": 0,
+    "trailcraft": 2,
+    "persuasion": 2,
+    "trade": 1,
+    "stealth": 1,
+    "medicine": 3
+  },
+  "status": {
+    "location": "shoshone-work"
+  },
+  "groups": [
+    "shoshone"
+  ],
+  "relations": {
+    "tall-grass": 40,
+    "red-willow": 35,
+    "young-antelope": 15
+  }
+}

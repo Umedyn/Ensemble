@@ -1,0 +1,301 @@
+{
+  "id": "lakota-camp",
+  "name": "The Oglala camp on the Tongue",
+  "type": "Lakota camp",
+  "place": "lakota-camp",
+  "tags": [
+    "camp",
+    "lodges",
+    "band"
+  ],
+  "setting": [
+    "western"
+  ],
+  "credit": "Drawn for Ensemble (The Frontier, 1866–1869)",
+  "license": "PolyForm Noncommercial 1.0.0, with the game",
+  "image": "sites/lakota-camp.svg",
+  "width": 1600,
+  "height": 1000,
+  "entry": "lakota-circle",
+  "rooms": [
+    {
+      "id": "lakota-circle",
+      "name": "The camp circle",
+      "desc": "The lodges of an Oglala camp pitched in a wide circle opening to the east, smoke rising from their tops, dogs and children everywhere.",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "painted lodges",
+        "meat racks",
+        "dogs"
+      ],
+      "shape": [
+        [
+          550,
+          200
+        ],
+        [
+          1050,
+          200
+        ],
+        [
+          1200,
+          500
+        ],
+        [
+          1050,
+          800
+        ],
+        [
+          550,
+          800
+        ],
+        [
+          400,
+          500
+        ]
+      ],
+      "links": [
+        {
+          "to": "lakota-council",
+          "kind": "open"
+        },
+        {
+          "to": "lakota-lodge",
+          "kind": "open"
+        },
+        {
+          "to": "lakota-work",
+          "kind": "open"
+        },
+        {
+          "to": "lakota-edge",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "lakota-council",
+      "name": "The council lodge",
+      "desc": "The big lodge at the head of the circle where the men who lead talk, smoke and decide.",
+      "size": "medium",
+      "features": [
+        "council fire",
+        "pipe bag",
+        "buffalo robes"
+      ],
+      "shape": [
+        [
+          650,
+          120
+        ],
+        [
+          950,
+          120
+        ],
+        [
+          950,
+          200
+        ],
+        [
+          650,
+          200
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "lakota-lodge",
+      "name": "A family lodge",
+      "desc": "A lodge of painted buffalo hides: robes, parfleches, a fire in the middle, a family's whole life.",
+      "size": "small",
+      "features": [
+        "lodge fire",
+        "parfleches",
+        "backrests"
+      ],
+      "shape": [
+        [
+          550,
+          800
+        ],
+        [
+          800,
+          800
+        ],
+        [
+          800,
+          880
+        ],
+        [
+          550,
+          880
+        ]
+      ],
+      "links": []
+    },
+    {
+      "id": "lakota-work",
+      "name": "The work ground",
+      "desc": "Behind the lodges where hides are staked and scraped, meat dried and the women of the camp work and talk.",
+      "size": "medium",
+      "outside": true,
+      "features": [
+        "staked hides",
+        "drying racks",
+        "scrapers"
+      ],
+      "shape": [
+        [
+          800,
+          800
+        ],
+        [
+          1050,
+          800
+        ],
+        [
+          1050,
+          880
+        ],
+        [
+          800,
+          880
+        ]
+      ],
+      "links": [
+        {
+          "to": "lakota-herd",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "lakota-herd",
+      "name": "The horse herd",
+      "desc": "The camp's horses grazing on the bottomland, the wealth of every family, watched by the boys day and night.",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "horses",
+        "herd boys",
+        "picket ropes"
+      ],
+      "shape": [
+        [
+          1050,
+          200
+        ],
+        [
+          1550,
+          120
+        ],
+        [
+          1550,
+          880
+        ],
+        [
+          1050,
+          880
+        ],
+        [
+          1050,
+          800
+        ],
+        [
+          1200,
+          500
+        ]
+      ],
+      "links": [
+        {
+          "to": "lakota-river",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "lakota-edge",
+      "name": "The lookout hill",
+      "desc": "A rise above the camp where the young men watch the country for buffalo, enemies and strangers.",
+      "size": "medium",
+      "outside": true,
+      "features": [
+        "lookout rocks",
+        "signal mirror",
+        "the wide country"
+      ],
+      "shape": [
+        [
+          50,
+          120
+        ],
+        [
+          650,
+          120
+        ],
+        [
+          650,
+          200
+        ],
+        [
+          550,
+          200
+        ],
+        [
+          400,
+          500
+        ],
+        [
+          550,
+          800
+        ],
+        [
+          550,
+          880
+        ],
+        [
+          50,
+          880
+        ]
+      ],
+      "links": [
+        {
+          "to": "lakota-river",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "lakota-river",
+      "name": "The river",
+      "desc": "Cottonwoods and willow along the water, where the camp drinks, bathes and fetches wood.",
+      "size": "large",
+      "outside": true,
+      "features": [
+        "cottonwoods",
+        "willows",
+        "shallows"
+      ],
+      "shape": [
+        [
+          50,
+          880
+        ],
+        [
+          1550,
+          880
+        ],
+        [
+          1550,
+          980
+        ],
+        [
+          50,
+          980
+        ]
+      ],
+      "links": []
+    }
+  ]
+}

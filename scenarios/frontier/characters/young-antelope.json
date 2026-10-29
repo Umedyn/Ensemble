@@ -1,0 +1,38 @@
+{
+  "id": "young-antelope",
+  "name": "Young Antelope",
+  "pronouns": "he/him",
+  "role": "young hunter",
+  "age": 19,
+  "traits": [
+    "brave",
+    "impatient",
+    "proud"
+  ],
+  "want": "take back the horses the Lakota stole from his family last winter, and be counted among the men",
+  "secret": "He is planning a raid on a Lakota camp with three friends, against Tall Grass's word.",
+  "guard": "low",
+  "voice": "Eager, boastful, then suddenly quiet.",
+  "description": "The best rider among the young men of the band, burning to prove himself.",
+  "appearance": "Lean, a red-painted part in his hair, a new Spencer rifle traded at Fort Bridger.",
+  "skills": {
+    "riding": 3,
+    "shooting": 2,
+    "fighting": 2,
+    "trailcraft": 2,
+    "persuasion": 0,
+    "trade": 0,
+    "stealth": 2,
+    "medicine": 0
+  },
+  "status": {
+    "location": "shoshone-herd"
+  },
+  "groups": [
+    "shoshone"
+  ],
+  "relations": {
+    "tall-grass": 15,
+    "red-willow": 20
+  }
+}

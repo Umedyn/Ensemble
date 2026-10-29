@@ -1,0 +1,37 @@
+{
+  "id": "lone-hawk",
+  "name": "Lone Hawk",
+  "pronouns": "he/him",
+  "role": "young man of the camp",
+  "age": 17,
+  "traits": [
+    "eager",
+    "brave",
+    "unsure"
+  ],
+  "want": "go with the war party and count coup on the soldiers' road",
+  "secret": "He has been to Fort Laramie alone and secretly envies the soldiers' horses and guns more than he hates them.",
+  "guard": "low",
+  "voice": "Quick, earnest, imitates his elders badly.",
+  "description": "Kills in Winter's nephew, old enough to hold the horses on a raid and desperate to do more.",
+  "appearance": "Thin and quick, his first eagle feather not yet earned.",
+  "skills": {
+    "riding": 3,
+    "shooting": 1,
+    "fighting": 1,
+    "trailcraft": 2,
+    "persuasion": 0,
+    "trade": 0,
+    "stealth": 2,
+    "medicine": 0
+  },
+  "status": {
+    "location": "lakota-herd"
+  },
+  "groups": [
+    "lakota"
+  ],
+  "relations": {
+    "kills-in-winter": 35
+  }
+}

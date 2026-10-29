@@ -1,0 +1,36 @@
+{
+  "id": "amos-tull",
+  "name": "Amos Tull",
+  "pronouns": "he/him",
+  "role": "speculator who built the shipping pens",
+  "age": 45,
+  "traits": [
+    "charming",
+    "desperate",
+    "clever"
+  ],
+  "want": "bring the railroad and the cattle trade to Salt Lick and be rich by the fall",
+  "secret": "The letter of promise he shows investors is his own forgery, and the men he owes in Leavenworth give him until September.",
+  "guard": "high",
+  "voice": "A salesman's warmth, a speech for every occasion.",
+  "description": "The town company's president and promoter, who borrowed to build the hotel, the pens and his own reputation.",
+  "appearance": "A good suit going shiny, a gold watch chain, a smile that stops at his eyes.",
+  "skills": {
+    "riding": 1,
+    "shooting": 0,
+    "fighting": 0,
+    "trailcraft": 0,
+    "persuasion": 3,
+    "trade": 3,
+    "stealth": 1,
+    "medicine": 0
+  },
+  "status": {
+    "location": "saltlick-office"
+  },
+  "relations": {
+    "hollis-brandt": 10,
+    "rosa-delgado": 0,
+    "josiah-reed": 5
+  }
+}

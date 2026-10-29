@@ -1,0 +1,39 @@
+{
+  "id": "abner-moss",
+  "name": "Abner Moss",
+  "pronouns": "he/him",
+  "role": "station keeper for the Overland",
+  "age": 47,
+  "traits": [
+    "suspicious",
+    "loyal",
+    "opinionated"
+  ],
+  "want": "keep the coaches running on time and never be burned out again",
+  "secret": "On the day of the first raid he hid in the root cellar while the station hands fought, and two of them died.",
+  "guard": "high",
+  "voice": "Gruff and talkative, a story for everything.",
+  "description": "Was here when the station burned last year; sleeps with a rifle and has opinions about everybody.",
+  "appearance": "Stocky and bald, a powder-burned beard, suspenders and a Henry rifle.",
+  "skills": {
+    "riding": 2,
+    "shooting": 2,
+    "fighting": 1,
+    "trailcraft": 2,
+    "persuasion": 1,
+    "trade": 2,
+    "stealth": 0,
+    "medicine": 1
+  },
+  "status": {
+    "location": "julesburg-station"
+  },
+  "groups": [
+    "overland"
+  ],
+  "relations": {
+    "nell-haskins": 20,
+    "henry-ward": 10,
+    "jacques-rouleau": -5
+  }
+}

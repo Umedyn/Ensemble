@@ -1,0 +1,35 @@
+{
+  "id": "pierre-ducharme",
+  "name": "Pierre Ducharme",
+  "pronouns": "he/him",
+  "role": "trader married into the band",
+  "age": 44,
+  "traits": [
+    "easygoing",
+    "shrewd",
+    "loyal"
+  ],
+  "want": "keep trading between his wife's people and the posts, and keep both sides honest",
+  "secret": "He owes the Fort Bridger sutler more than a season's robes and has promised him things that aren't his to promise.",
+  "guard": "medium",
+  "voice": "French-Canadian English, cheerful, full of proverbs.",
+  "description": "A French-Canadian trader who married a Shoshone woman twenty years ago and lives with her people.",
+  "appearance": "A capote, a fox-fur cap, a pipe, a laugh you can hear across the camp.",
+  "skills": {
+    "riding": 2,
+    "shooting": 1,
+    "fighting": 1,
+    "trailcraft": 2,
+    "persuasion": 2,
+    "trade": 3,
+    "stealth": 0,
+    "medicine": 0
+  },
+  "status": {
+    "location": "shoshone-circle"
+  },
+  "relations": {
+    "tall-grass": 25,
+    "red-willow": 20
+  }
+}

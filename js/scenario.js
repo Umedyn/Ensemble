@@ -13,7 +13,7 @@
 
   // ---------- field lists ----------
   // Start fields that are not world overrides.
-  const START_OWN = ['id', 'title', 'summary', 'start', 'player', 'cast', 'opening', 'castLabel', 'region', 'playerSlot', 'generated'];
+  const START_OWN = ['id', 'title', 'summary', 'start', 'player', 'cast', 'opening', 'castLabel', 'region', 'playerSlot', 'playable', 'generated'];
   // World fields a start may override (merge rules below).
   const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'tagThresholds', 'portraitSet', 'factions', 'world',
     'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'regionLabels', 'routeKinds', 'presence', 'reputation', 'mapFocus', 'tactical', 'standees', 'site', 'siteInfo', 'localMap', 'map', 'entrances', 'lore', 'loreTopics', 'timeline', 'projectTimeline', 'endings'];
@@ -149,7 +149,7 @@
     Object.entries(legacy).forEach(([k, v]) => {
       if (k === 'characterData' || k === 'folder') return;
       if (k === 'characters') world.characters = v.slice();
-      else if (['start', 'player', 'locations', 'clocks', 'opening', 'castLabel', 'region', 'playerSlot'].includes(k)) start[k] = E.clone(v);
+      else if (['start', 'player', 'locations', 'clocks', 'opening', 'castLabel', 'region', 'playerSlot', 'playable'].includes(k)) start[k] = E.clone(v);
       else world[k] = E.clone(v);
     });
     world.starts = ['default'];
@@ -327,6 +327,12 @@
       dupes(cast).forEach((id) => problems.push(`${where}: "${id}" is in the cast twice`));
       cast.forEach((id) => req(pool.includes(id), `${where}: cast member "${id}" is not in the world's characters`));
       if (st.player != null || !st.playerSlot) req(cast.includes(st.player), `${where}: "player" must be in the cast${st.playerSlot ? '' : ' (or give the start a "playerSlot" so players make their own)'}`);
+      // Whom else the player may be (task 7-6): true (the whole cast) or cast ids, never someone who joins later.
+      if (st.playable != null) {
+        const ok = st.playable === true || (Array.isArray(st.playable) && st.playable.length && st.playable.every((id) => cast.includes(id)));
+        req(ok, `${where}: "playable" must be true (anyone in the cast) or a list of cast ids`);
+        if (Array.isArray(st.playable)) st.playable.filter((id) => S.joinsLater(st, characters, id)).forEach((id) => problems.push(`${where}: "playable" names ${id}, who joins later in the story`));
+      }
       ['locations', 'clocks', 'factions', 'regions'].forEach((k) =>
         dupes((Array.isArray(st[k]) ? st[k] : []).map((x) => x && x.id)).forEach((id) => problems.push(`${where}: ${k} has "${id}" twice`)));
       (st.cast || []).forEach((entry) => {
@@ -510,6 +516,9 @@
           // character, so a slot that can't produce a playable game shows here.
           const sc = info.scenario;
           info.defaultPlayer = sc.player != null ? sc.characterData[sc.characters.indexOf(sc.player)].name : null;
+          // The others the player may be (task 7-6), in cast order.
+          info.playable = S.playableIds(st, bundle.characters).filter((pid) => pid !== sc.player && sc.characters.includes(pid))
+            .map((pid) => { const c = sc.characterData[sc.characters.indexOf(pid)]; return { id: pid, name: c.name, role: c.role }; });
           if (sc.playerSlot) {
             E.CharMaker.withPlayer(sc, E.CharMaker.sample(sc));
             info.slot = true;
@@ -523,11 +532,26 @@
 
   // A loaded world's start (default: the first) → a fresh scenario copy. With
   // a character from the creator (task 4-1), that character is the player.
+  // character: a made character, or (task 7-6) the id of someone in the
+  // start's "playable" cast to play instead of its own player.
+  // A start's playable cast (task 7-6): its own list, or everyone in its cast
+  // who is there from the beginning (true); never someone who joins later.
+  S.joinsLater = (st, characters, id) => {
+    const entry = (st.cast || []).find((c) => isObj(c) && c.id === id);
+    const j = entry && 'joins' in entry ? entry.joins : (characters[id] || {}).joins;
+    return j != null;
+  };
+  S.playableIds = (st, characters) => (st.playable === true ? (st.cast || []).map(castId) : Array.isArray(st.playable) ? st.playable.slice() : [])
+    .filter((id) => !S.joinsLater(st, characters || {}, id));
   S.startScenario = function (loaded, startId, character) {
     const id = startId || loaded.defaultStart;
     const st = loaded.starts.find((s) => s.id === id);
     if (!st) throw new Error(`World "${loaded.title}" has no start "${id}".`);
     if (st.error) throw new Error(st.error);
+    if (typeof character === 'string') {
+      if (character !== st.scenario.player && !(st.playable || []).some((p) => p.id === character)) throw new Error(`"${st.title}" can't be played as "${character}".`);
+      return Object.assign(E.clone(st.scenario), { player: character });
+    }
     if (character) return E.CharMaker.withPlayer(st.scenario, character);
     if (st.scenario.player == null) throw new Error(`"${st.title}" has no character of its own: choose Make my own.`);
     return E.clone(st.scenario);

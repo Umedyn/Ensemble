@@ -1,0 +1,36 @@
+{
+  "id": "josiah-reed",
+  "name": "Josiah Reed",
+  "pronouns": "he/him",
+  "role": "schoolteacher and preacher",
+  "age": 40,
+  "traits": [
+    "principled",
+    "patient",
+    "stubborn"
+  ],
+  "want": "a real school in Salt Lick, open to every child in it",
+  "secret": "He keeps the town company's books on the side for a wage, and knows it is insolvent.",
+  "guard": "medium",
+  "voice": "Measured, a preacher's cadence, Ohio underneath.",
+  "description": "Born free in Ohio, he came to Kansas with an abolitionist colony before the war and stayed through the border troubles.",
+  "appearance": "Neat black coat, spectacles, chalk on his cuffs.",
+  "skills": {
+    "riding": 0,
+    "shooting": 0,
+    "fighting": 0,
+    "trailcraft": 1,
+    "persuasion": 3,
+    "trade": 1,
+    "stealth": 0,
+    "medicine": 2
+  },
+  "status": {
+    "location": "saltlick-chapel"
+  },
+  "relations": {
+    "hollis-brandt": 15,
+    "amos-tull": 0,
+    "rosa-delgado": 20
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "id": "jacques-rouleau",
+  "name": "Jacques Rouleau",
+  "pronouns": "he/him",
+  "role": "trader who keeps the store",
+  "age": 55,
+  "traits": [
+    "cunning",
+    "genial",
+    "sad"
+  ],
+  "want": "keep trading with everyone, soldiers and Cheyenne alike, as he has for thirty years",
+  "secret": "He passes word of where the soldiers ride to his wife's brother, who rides with men the army is hunting.",
+  "guard": "high",
+  "voice": "French and English and Cheyenne mixed, shrugs a lot.",
+  "description": "A French-Canadian trader on the Platte since the fur trade, married into a Cheyenne family, now selling whiskey and flour to emigrants.",
+  "appearance": "White-bearded, a capote, a pipe, quick black eyes.",
+  "skills": {
+    "riding": 2,
+    "shooting": 1,
+    "fighting": 0,
+    "trailcraft": 3,
+    "persuasion": 2,
+    "trade": 3,
+    "stealth": 1,
+    "medicine": 1
+  },
+  "status": {
+    "location": "julesburg-store"
+  },
+  "relations": {
+    "abner-moss": 0,
+    "henry-ward": -10,
+    "nell-haskins": 10
+  }
+}

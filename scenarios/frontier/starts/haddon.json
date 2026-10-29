@@ -1,0 +1,143 @@
+{
+  "playable": true,
+  "castLabel": "People",
+  "tactical": true,
+  "id": "haddon",
+  "title": "Haddon, Nebraska, May 1866",
+  "summary": "Haddon is a railroad town staked out on the Platte ahead of the track: tents, plank stores, graders, speculators and a road ranch that was here first. The rails are coming, and everyone is betting on where they will stop. Be one of its people, or make your own.",
+  "start": {
+    "day": 1582,
+    "hour": 9
+  },
+  "region": "haddon",
+  "player": "ada-kittredge",
+  "cast": [
+    "ada-kittredge",
+    "seamus-carrick",
+    "lyman-pell",
+    "hannah-weir",
+    "charlie-little-hawk"
+  ],
+  "playerSlot": {
+    "location": "haddon-front",
+    "summary": "You make your own townsperson of Haddon, a railroad town staked out on the Platte ahead of the track.",
+    "roles": [
+      {
+        "id": "saloon",
+        "label": "Saloon keeper",
+        "desc": "Pours the whiskey and hears everything.",
+        "skills": {
+          "trade": 2,
+          "persuasion": 2
+        },
+        "suggestedTraits": [
+          "shrewd",
+          "sociable",
+          "watchful"
+        ]
+      },
+      {
+        "id": "store",
+        "label": "Storekeeper",
+        "desc": "Sells everything on credit to people they trust.",
+        "skills": {
+          "trade": 3,
+          "persuasion": 1
+        },
+        "suggestedTraits": [
+          "careful",
+          "practical",
+          "ambitious"
+        ]
+      },
+      {
+        "id": "deputy",
+        "label": "Deputy",
+        "desc": "Keeps order for the marshal or the town, for a wage.",
+        "skills": {
+          "shooting": 2,
+          "fighting": 1,
+          "riding": 1
+        },
+        "suggestedTraits": [
+          "steady",
+          "hard",
+          "fair"
+        ]
+      },
+      {
+        "id": "drover",
+        "label": "Drover",
+        "desc": "Rides herd, and waits in town for wages that don't come.",
+        "skills": {
+          "riding": 3,
+          "shooting": 1
+        },
+        "suggestedTraits": [
+          "easygoing",
+          "tough",
+          "restless"
+        ]
+      },
+      {
+        "id": "blacksmith",
+        "label": "Blacksmith",
+        "desc": "Shoes horses and mends wagons, and knows everyone's business.",
+        "skills": {
+          "fighting": 2,
+          "trade": 2
+        },
+        "suggestedTraits": [
+          "strong",
+          "patient",
+          "blunt"
+        ]
+      },
+      {
+        "id": "gambler",
+        "label": "Gambler",
+        "desc": "Lives on cards and nerve.",
+        "skills": {
+          "persuasion": 2,
+          "stealth": 1,
+          "trade": 1
+        },
+        "suggestedTraits": [
+          "charming",
+          "cool",
+          "unreliable"
+        ]
+      },
+      {
+        "id": "doctor",
+        "label": "Doctor",
+        "desc": "Sets bones and pulls bullets.",
+        "skills": {
+          "medicine": 3,
+          "persuasion": 1
+        },
+        "suggestedTraits": [
+          "tired",
+          "kind",
+          "blunt"
+        ]
+      }
+    ],
+    "freeform": true,
+    "skillPoints": 10,
+    "maxSkill": 3,
+    "relationsDefault": 10,
+    "castFeelings": 10
+  },
+  "clocks": [
+    {
+      "id": "payday",
+      "name": "The graders' unpaid wages",
+      "value": 3,
+      "max": 8,
+      "perHour": 0.006,
+      "fireText": "The paymaster's car still hasn't come; the graders put down their shovels and march on the engineers' office."
+    }
+  ],
+  "opening": "Morning on Front Street, and Haddon smells of fresh-cut pine, mule dung and coffee. Somewhere a hammer is going; somewhere else, a fiddle that has been going all night. Out on the grade the scrapers are already moving, and the dust of them hangs over the Platte.\n\nOutside the engineers' office a crowd is reading a paper nailed to the door: the plat of the town, the lots numbered, the depot ground marked in red ink.\n\n\"Well, that's that,\" says Seamus Carrick, to the crowd and to you. \"Depot's at the east end. Anybody owns a lot at the west end, I'm sorry for your trouble.\" Behind the window Lyman Pell is very busy with his papers."
+}

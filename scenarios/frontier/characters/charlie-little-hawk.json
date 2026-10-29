@@ -1,0 +1,38 @@
+{
+  "id": "charlie-little-hawk",
+  "name": "Charlie Little Hawk",
+  "pronouns": "he/him",
+  "role": "Pawnee scout with the survey party",
+  "age": 24,
+  "traits": [
+    "watchful",
+    "proud",
+    "funny"
+  ],
+  "want": "earn the scout's pay and bring horses home to his family on the Loup",
+  "secret": "He has copied the survey party's maps for the chiefs at the Pawnee villages, who want to know where the railroad will go before the agents tell them.",
+  "guard": "medium",
+  "voice": "Good English learned at the mission school, used sparingly and drily.",
+  "description": "A Pawnee man who scouts for the railroad's surveyors, as his people's men scout for the army against their Lakota and Cheyenne enemies.",
+  "appearance": "An army jacket over a breechcloth and leggings, a cap-and-ball revolver, hair cut in the Pawnee way.",
+  "skills": {
+    "riding": 3,
+    "shooting": 2,
+    "fighting": 1,
+    "trailcraft": 3,
+    "persuasion": 1,
+    "trade": 0,
+    "stealth": 2,
+    "medicine": 0
+  },
+  "status": {
+    "location": "haddon-corral"
+  },
+  "groups": [
+    "pawnee"
+  ],
+  "relations": {
+    "hannah-weir": 25,
+    "lyman-pell": 5
+  }
+}

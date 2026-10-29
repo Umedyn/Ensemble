@@ -1,0 +1,39 @@
+{
+  "id": "red-willow",
+  "name": "Red Willow",
+  "pronouns": "she/her",
+  "role": "trader's go-between",
+  "age": 21,
+  "traits": [
+    "curious",
+    "clever",
+    "independent"
+  ],
+  "want": "see more of the world than the Wind River without leaving her people behind",
+  "secret": "She has seen what two diggers keep in a hidden valley a day's ride from camp, and told no one.",
+  "guard": "medium",
+  "voice": "Good English from the Fort Bridger trading post, asks many questions.",
+  "description": "Tall Grass's niece, who speaks English and goes to the posts to trade for the camp.",
+  "appearance": "A beaded dress, a trade-cloth shawl, a knife and a small looking glass at her belt.",
+  "skills": {
+    "riding": 2,
+    "shooting": 0,
+    "fighting": 0,
+    "trailcraft": 2,
+    "persuasion": 2,
+    "trade": 2,
+    "stealth": 1,
+    "medicine": 1
+  },
+  "status": {
+    "location": "shoshone-lodge"
+  },
+  "groups": [
+    "shoshone"
+  ],
+  "relations": {
+    "sage-woman": 35,
+    "pierre-ducharme": 20,
+    "young-antelope": 15
+  }
+}

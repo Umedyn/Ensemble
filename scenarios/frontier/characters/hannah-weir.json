@@ -1,0 +1,36 @@
+{
+  "id": "hannah-weir",
+  "name": "Hannah Weir",
+  "pronouns": "she/her",
+  "role": "keeper of the road ranch",
+  "age": 51,
+  "traits": [
+    "stubborn",
+    "wry",
+    "hospitable"
+  ],
+  "want": "keep her road ranch from being swallowed by the railroad town",
+  "secret": "Her husband didn't die in the raid of '64: he ran off with the stage company's strongbox, and she has been paying the company back in secret ever since.",
+  "guard": "high",
+  "voice": "Dry, slow, Kentucky in the vowels.",
+  "description": "Has kept the sod ranch on the river road for eight years, through raids, floods and the emigrant trains, and doesn't much like the newcomers.",
+  "appearance": "Weathered and small, a man's hat, a shotgun by the door.",
+  "skills": {
+    "riding": 2,
+    "shooting": 2,
+    "fighting": 1,
+    "trailcraft": 2,
+    "persuasion": 1,
+    "trade": 2,
+    "stealth": 0,
+    "medicine": 1
+  },
+  "status": {
+    "location": "haddon-ranch"
+  },
+  "relations": {
+    "ada-kittredge": -15,
+    "seamus-carrick": 10,
+    "charlie-little-hawk": 25
+  }
+}

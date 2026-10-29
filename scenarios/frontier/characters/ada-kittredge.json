@@ -1,0 +1,36 @@
+{
+  "id": "ada-kittredge",
+  "name": "Ada Kittredge",
+  "pronouns": "she/her",
+  "role": "storekeeper",
+  "age": 42,
+  "traits": [
+    "sharp",
+    "practical",
+    "ambitious"
+  ],
+  "want": "own the best corner in Haddon when the town is real",
+  "secret": "She has been buying lots through Lyman Pell's inside word on where the depot will stand, and has paid him for it.",
+  "guard": "medium",
+  "voice": "Ohio-plain, counts aloud.",
+  "description": "A widow who follows the railroad with a wagonload of goods and a sharp memory for debts.",
+  "appearance": "A man's duster over a calico dress, a pencil behind her ear.",
+  "skills": {
+    "riding": 1,
+    "shooting": 1,
+    "fighting": 0,
+    "trailcraft": 1,
+    "persuasion": 2,
+    "trade": 3,
+    "stealth": 0,
+    "medicine": 1
+  },
+  "status": {
+    "location": "haddon-store"
+  },
+  "relations": {
+    "lyman-pell": 25,
+    "seamus-carrick": 15,
+    "hannah-weir": -10
+  }
+}

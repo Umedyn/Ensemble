@@ -1603,6 +1603,270 @@
         "spyglass",
         "signal fire"
       ]
+    },
+    {
+      "id": "shoshone-circle",
+      "name": "The camp circle",
+      "desc": "The lodges of Tall Grass's band pitched in a wide circle opening to the east, smoke rising from their tops, dogs and children everywhere.",
+      "region": "wind-river",
+      "site": "shoshone-camp",
+      "outside": true,
+      "size": "large",
+      "features": [
+        "painted lodges",
+        "meat racks",
+        "dogs"
+      ],
+      "links": [
+        {
+          "to": "shoshone-council",
+          "kind": "open"
+        },
+        {
+          "to": "shoshone-lodge",
+          "kind": "open"
+        },
+        {
+          "to": "shoshone-work",
+          "kind": "open"
+        },
+        {
+          "to": "shoshone-edge",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "shoshone-council",
+      "name": "The council lodge",
+      "desc": "The big lodge at the head of the circle where the men who lead talk, smoke and decide.",
+      "region": "wind-river",
+      "site": "shoshone-camp",
+      "size": "medium",
+      "features": [
+        "council fire",
+        "pipe bag",
+        "buffalo robes"
+      ]
+    },
+    {
+      "id": "shoshone-lodge",
+      "name": "A family lodge",
+      "desc": "A lodge of painted buffalo hides: robes, parfleches, a fire in the middle, a family's whole life.",
+      "region": "wind-river",
+      "site": "shoshone-camp",
+      "size": "small",
+      "features": [
+        "lodge fire",
+        "parfleches",
+        "backrests"
+      ]
+    },
+    {
+      "id": "shoshone-work",
+      "name": "The work ground",
+      "desc": "Behind the lodges where hides are staked and scraped, meat dried and the women of the camp work and talk.",
+      "region": "wind-river",
+      "site": "shoshone-camp",
+      "outside": true,
+      "size": "medium",
+      "features": [
+        "staked hides",
+        "drying racks",
+        "scrapers"
+      ],
+      "links": [
+        {
+          "to": "shoshone-herd",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "shoshone-herd",
+      "name": "The horse herd",
+      "desc": "The camp's horses grazing on the bottomland, the wealth of every family, watched by the boys day and night.",
+      "region": "wind-river",
+      "site": "shoshone-camp",
+      "outside": true,
+      "size": "large",
+      "features": [
+        "horses",
+        "herd boys",
+        "picket ropes"
+      ],
+      "links": [
+        {
+          "to": "shoshone-river",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "shoshone-edge",
+      "name": "The lookout hill",
+      "desc": "A rise above the camp where the young men watch the country for buffalo, enemies and strangers.",
+      "region": "wind-river",
+      "site": "shoshone-camp",
+      "outside": true,
+      "size": "medium",
+      "features": [
+        "lookout rocks",
+        "signal mirror",
+        "the wide country"
+      ],
+      "links": [
+        {
+          "to": "shoshone-river",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "shoshone-river",
+      "name": "The river",
+      "desc": "Cottonwoods and willow along the water, where the camp drinks, bathes and fetches wood.",
+      "region": "wind-river",
+      "site": "shoshone-camp",
+      "outside": true,
+      "size": "large",
+      "features": [
+        "cottonwoods",
+        "willows",
+        "shallows"
+      ]
+    },
+    {
+      "id": "lakota-circle",
+      "name": "The camp circle",
+      "desc": "The lodges of an Oglala camp pitched in a wide circle opening to the east, smoke rising from their tops, dogs and children everywhere.",
+      "region": "powder-river",
+      "site": "lakota-camp",
+      "outside": true,
+      "size": "large",
+      "features": [
+        "painted lodges",
+        "meat racks",
+        "dogs"
+      ],
+      "links": [
+        {
+          "to": "lakota-council",
+          "kind": "open"
+        },
+        {
+          "to": "lakota-lodge",
+          "kind": "open"
+        },
+        {
+          "to": "lakota-work",
+          "kind": "open"
+        },
+        {
+          "to": "lakota-edge",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "lakota-council",
+      "name": "The council lodge",
+      "desc": "The big lodge at the head of the circle where the men who lead talk, smoke and decide.",
+      "region": "powder-river",
+      "site": "lakota-camp",
+      "size": "medium",
+      "features": [
+        "council fire",
+        "pipe bag",
+        "buffalo robes"
+      ]
+    },
+    {
+      "id": "lakota-lodge",
+      "name": "A family lodge",
+      "desc": "A lodge of painted buffalo hides: robes, parfleches, a fire in the middle, a family's whole life.",
+      "region": "powder-river",
+      "site": "lakota-camp",
+      "size": "small",
+      "features": [
+        "lodge fire",
+        "parfleches",
+        "backrests"
+      ]
+    },
+    {
+      "id": "lakota-work",
+      "name": "The work ground",
+      "desc": "Behind the lodges where hides are staked and scraped, meat dried and the women of the camp work and talk.",
+      "region": "powder-river",
+      "site": "lakota-camp",
+      "outside": true,
+      "size": "medium",
+      "features": [
+        "staked hides",
+        "drying racks",
+        "scrapers"
+      ],
+      "links": [
+        {
+          "to": "lakota-herd",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "lakota-herd",
+      "name": "The horse herd",
+      "desc": "The camp's horses grazing on the bottomland, the wealth of every family, watched by the boys day and night.",
+      "region": "powder-river",
+      "site": "lakota-camp",
+      "outside": true,
+      "size": "large",
+      "features": [
+        "horses",
+        "herd boys",
+        "picket ropes"
+      ],
+      "links": [
+        {
+          "to": "lakota-river",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "lakota-edge",
+      "name": "The lookout hill",
+      "desc": "A rise above the camp where the young men watch the country for buffalo, enemies and strangers.",
+      "region": "powder-river",
+      "site": "lakota-camp",
+      "outside": true,
+      "size": "medium",
+      "features": [
+        "lookout rocks",
+        "signal mirror",
+        "the wide country"
+      ],
+      "links": [
+        {
+          "to": "lakota-river",
+          "kind": "open"
+        }
+      ]
+    },
+    {
+      "id": "lakota-river",
+      "name": "The river",
+      "desc": "Cottonwoods and willow along the water, where the camp drinks, bathes and fetches wood.",
+      "region": "powder-river",
+      "site": "lakota-camp",
+      "outside": true,
+      "size": "large",
+      "features": [
+        "cottonwoods",
+        "willows",
+        "shallows"
+      ]
     }
   ],
   "siteInfo": {
@@ -1625,90 +1889,39 @@
       "name": "Poorman's Gulch",
       "kind": "gold camp",
       "map": "poormans-gulch"
+    },
+    "shoshone-camp": {
+      "name": "Tall Grass's camp",
+      "kind": "Shoshone camp",
+      "travel": {
+        "group": "shoshone",
+        "kinds": [
+          "wagon",
+          "overland",
+          "ferry",
+          "bridge"
+        ],
+        "toward": "wind-river"
+      },
+      "map": "shoshone-camp"
+    },
+    "lakota-camp": {
+      "name": "The Oglala camp on the Tongue",
+      "kind": "Lakota camp",
+      "travel": {
+        "group": "lakota",
+        "kinds": [
+          "wagon",
+          "overland",
+          "ferry",
+          "bridge"
+        ],
+        "toward": "powder-river"
+      },
+      "map": "lakota-camp"
     }
   },
-  "extras": [
-    {
-      "id": "seamus-carrick",
-      "name": "Seamus Carrick",
-      "role": "foreman of a grading gang",
-      "location": "haddon-tents",
-      "pronouns": "he/him",
-      "note": "Fought for the Union with an Irish regiment; fair with his men, savage with anyone who cheats them."
-    },
-    {
-      "id": "ada-kittredge",
-      "name": "Ada Kittredge",
-      "role": "storekeeper",
-      "location": "haddon-store",
-      "pronouns": "she/her",
-      "note": "A widow from Ohio who follows the railroad with a wagonload of goods and a sharp memory for debts."
-    },
-    {
-      "id": "lyman-pell",
-      "name": "Lyman Pell",
-      "role": "the railroad's locating engineer",
-      "location": "haddon-office",
-      "pronouns": "he/him",
-      "note": "Knows exactly where the depot and the good lots will be, and so does whoever he drinks with."
-    },
-    {
-      "id": "hollis-brandt",
-      "name": "Hollis Brandt",
-      "role": "town marshal",
-      "location": "saltlick-jail",
-      "pronouns": "he/him",
-      "note": "A former Kansas cavalryman the town company hired; he hates Texans and needs their money."
-    },
-    {
-      "id": "rosa-delgado",
-      "name": "Rosa Delgado",
-      "role": "owner of the Drovers' Rest",
-      "location": "saltlick-saloon",
-      "pronouns": "she/her",
-      "note": "A Tejana from San Antonio who came north with a herd and stayed; the drovers trust her more than the town."
-    },
-    {
-      "id": "amos-tull",
-      "name": "Amos Tull",
-      "role": "speculator who built the shipping pens",
-      "location": "saltlick-office",
-      "pronouns": "he/him",
-      "note": "Borrowed heavily on the promise that the railroad will come to Salt Lick."
-    },
-    {
-      "id": "josiah-reed",
-      "name": "Josiah Reed",
-      "role": "schoolteacher and preacher",
-      "location": "saltlick-chapel",
-      "pronouns": "he/him",
-      "note": "Born free in Ohio, came to Kansas with an abolitionist colony before the war."
-    },
-    {
-      "id": "abner-moss",
-      "name": "Abner Moss",
-      "role": "station keeper for the Overland",
-      "location": "julesburg-station",
-      "pronouns": "he/him",
-      "note": "Was here when the station burned; sleeps with a rifle and has opinions about everybody."
-    },
-    {
-      "id": "nell-haskins",
-      "name": "Nell Haskins",
-      "role": "telegrapher",
-      "location": "julesburg-telegraph",
-      "pronouns": "she/her",
-      "note": "Hears every message that passes on the line and keeps most of them to herself."
-    },
-    {
-      "id": "captain-ward",
-      "name": "Captain Elias Ward",
-      "role": "commander at Fort Sedgwick",
-      "location": "julesburg-fort",
-      "pronouns": "he/him",
-      "note": "A volunteer officer kept on after the war, with too few men and too many roads to guard."
-    }
-  ],
+  "extras": [],
   "standees": [
     {
       "id": "haddon-graders",
@@ -29096,6 +29309,42 @@
     "haddon",
     "salt-lick",
     "julesburg",
-    "poormans-gulch"
+    "poormans-gulch",
+    "shoshone-camp",
+    "lakota-camp"
+  ],
+  "characters": [
+    "hollis-brandt",
+    "rosa-delgado",
+    "amos-tull",
+    "josiah-reed",
+    "wes-calhoun",
+    "seamus-carrick",
+    "ada-kittredge",
+    "lyman-pell",
+    "hannah-weir",
+    "charlie-little-hawk",
+    "abner-moss",
+    "nell-haskins",
+    "henry-ward",
+    "clay-burkett",
+    "jacques-rouleau",
+    "tall-grass",
+    "sage-woman",
+    "young-antelope",
+    "red-willow",
+    "pierre-ducharme",
+    "kills-in-winter",
+    "her-good-horses",
+    "lone-hawk",
+    "bear-shield",
+    "louis-brasseur"
+  ],
+  "starts": [
+    "salt-lick",
+    "haddon",
+    "julesburg",
+    "wind-river",
+    "powder-river"
   ]
 }
