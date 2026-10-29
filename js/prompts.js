@@ -875,6 +875,16 @@ ${reply(P.shapes.intent(state, present, action, due, stepId))}`;
   // Length as paragraphs: the 12B writes about twice the words it is asked
   // for, and follows a count of short paragraphs better (playtest-r2-drive-to-ridge).
   const PARA_GUIDE = { minute: '1 or 2', moment: '2 or 3', hour: '3 to 5', hours: '4 to 6', morning: '5 to 7' };
+  // What each narration call is asked for, in words and beats: the prompts
+  // say it, and the engine's soft stop (task L-2) stops a streamed scene there.
+  // The beats follow BEAT_GUIDE.
+  P.LENGTH = {
+    scene: { words: '100–200' },
+    beats: { minute: [1, 1], moment: [1, 1], hour: [2, 3], hours: [2, 4], morning: [3, 4] },
+    more: { words: '40–100', beats: [1, 2] },
+    downtime: { words: '250–350', beats: [3, 4] },
+    closing: { words: '100–180' },
+  };
   const BEAT_GUIDE = {
     minute: '1 beat: [+0m].',
     moment: '1 beat: [+0m].',
@@ -953,7 +963,7 @@ Ends: ${E.fmtTime(state)}, ${pc.name} ${moved ? `now in ${endLoc.name}` : `still
     const spread = SPREAD_STEPS.includes(frame.stepId) ? ` Spread the beats across the whole span: the last one starts around [+${Math.round(span * 0.75)}m].` : '';
     return `
 === TASK ===
-Write the next scene in second person, present tense ("you" is ${pc.name}): ${PARA_GUIDE[frame.stepId] || PARA_GUIDE.hour} short paragraphs in all, each 2 to 4 sentences (${frame.words || '100–200'} words). Bring the characters to life through dialogue and small actions in their own voices.
+Write the next scene in second person, present tense ("you" is ${pc.name}): ${PARA_GUIDE[frame.stepId] || PARA_GUIDE.hour} short paragraphs in all, each 2 to 4 sentences (${frame.words || P.LENGTH.scene.words} words). Bring the characters to life through dialogue and small actions in their own voices.
 Time: ${STEP_GUIDE[frame.stepId] || STEP_GUIDE.hour}
 Beats: ${BEAT_GUIDE[frame.stepId] || BEAT_GUIDE.hour} Start each beat on its own line with a time marker in brackets: minutes since the scene started, like [+0m], [+25m], [+50m] (use hours for long spans, like [+5h]). The last marker is at most [+${span}m].${spread} End each beat on something the player could react to, since the player may step in between beats.
 Structure:
@@ -980,7 +990,7 @@ Hard rules:
   B.sceneSoFar = ({ sceneSoFar }) => `\n=== SCENE SO FAR ===\n${sceneSoFar}`;
   B.narrateMoreTask = ({ frame, pc, startLoc, endLoc, moved, span, fromMinutes }) => `
 === TASK ===
-Continue the scene above. It stops at [+${fromMinutes}m], but this turn covers ${frame.stepLabel} (${span} minutes). Write 1 or 2 more beats, 1 or 2 short paragraphs in all (40–100 words), in second person, present tense ("you" is ${pc.name}). Start each beat on its own line with a time marker counted from the start of the scene, later than [+${fromMinutes}m]; the last one around [+${Math.round(span * 0.85)}m] and at most [+${span}m].
+Continue the scene above. It stops at [+${fromMinutes}m], but this turn covers ${frame.stepLabel} (${span} minutes). Write 1 or 2 more beats, 1 or 2 short paragraphs in all (${P.LENGTH.more.words} words), in second person, present tense ("you" is ${pc.name}). Start each beat on its own line with a time marker counted from the start of the scene, later than [+${fromMinutes}m]; the last one around [+${Math.round(span * 0.85)}m] and at most [+${span}m].
 Time: ${STEP_GUIDE[frame.stepId] || STEP_GUIDE.hour} Compress the routine part ("For the next half hour…").
 Hard rules:
 - Carry on from where the scene stops. Do not repeat or rewrite it.
@@ -1144,7 +1154,7 @@ ${worldLines(state)}`;
     const endMark = useDays ? `[+${frame.days}d]` : useMins ? `[+${mins}m]` : `[+${Math.round(mins / 60)}h]`;
     return `
 === TASK ===
-Write 3 or 4 beats in second person ("you" is ${pc.name}): one short paragraph each, 2 to 4 sentences, and at most two for the final beat (250–350 words in total). Start each beat on its own line with a time marker since the downtime began: ${useDays ? '[+0d], [+3d], [+8d]' : useMins ? '[+0m], [+20m], [+45m]' : '[+0h], [+6h], [+15h]'} and so on.
+Write 3 or 4 beats in second person ("you" is ${pc.name}): one short paragraph each, 2 to 4 sentences, and at most two for the final beat (${P.LENGTH.downtime.words} words in total). Start each beat on its own line with a time marker since the downtime began: ${useDays ? '[+0d], [+3d], [+8d]' : useMins ? '[+0m], [+20m], [+45m]' : '[+0h], [+6h], [+15h]'} and so on.
 1. The first beats are a brief montage of the downtime, starting after the last scene (never retell it), a few sentences each: how the days pass, how people get along, the small things. ${pc.name} does only what their plan says and treats people according to the feelings in STATUS; others deal with whatever comes up.
 2. The final beat starts with ${endMark} and is a live scene in present tense: ${frame.arrival ? `${pc.name} arrives at ${frame.arrival}, and whoever is there notices` : `the thing that ends the downtime hits ${loc ? loc.name : 'where ' + pc.name + ' is'}, and the people there react in their own voices`}.
 Hard rules:
@@ -1176,7 +1186,7 @@ Reply with the beats only.`;
   B.closingTask = ({ ending, pc }) => `
 === TASK ===
 That scene ended the story: "${ending.title}" (${ENDING_TONE[ending.kind] || ENDING_TONE.neutral}). ${ending.judged ? `It happened: ${ending.judged}.` : ending.why ? `It happened: ${ending.why}.` : ''}${ending.epilogue ? ` ${ending.epilogue}` : ''}
-Write the closing in second person, present tense ("you" is ${pc.name}): 2 or 3 short paragraphs (100–180 words). Pick up right after the last scene, show the ending settle, then a brief look at what it means for the people in this story. Use only what has happened; invent no new turns. Close on it: no question, no choice left open.
+Write the closing in second person, present tense ("you" is ${pc.name}): 2 or 3 short paragraphs (${P.LENGTH.closing.words} words). Pick up right after the last scene, show the ending settle, then a brief look at what it means for the people in this story. Use only what has happened; invent no new turns. Close on it: no question, no choice left open.
 Reply with the closing text only.`;
   B.updateCrisis = ({ state, res }) => (res && res.crisisText
     ? `\n=== AN EMERGENCY WAS STILL HAPPENING ===\nThe scene began with an emergency still unanswered: "${res.crisisText}" If ${state.characters[state.player].name}'s action ignored it, the people who needed ${state.characters[state.player].name} may think less of them: record that in relations, with the reason.`

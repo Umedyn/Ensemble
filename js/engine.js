@@ -3121,21 +3121,24 @@
   // (playtest-agenda-skips).
   // names: the people in the story, so a paragraph that hands over to one of
   // them is not the player's (without names, only "he" or "she" count).
-  Eng.trimPlayerEnding = function (prose, names) {
-    const paras = String(prose || '').split(/\n\s*\n/);
-    let dropped = 0;
-    // Also the player's own quoted line ("Just looking," you say…;
-    // playtest-office-window).
-    // But not a paragraph that opens on the player and hands over to someone
-    // else ("You turn to go, but Dex hesitates. "Wait…""; playtest-r2-drive-to-ridge:
-    // trimming it lost the hook the scene ended on).
+  // A paragraph that is the player's own action or line, and doesn't hand
+  // over to someone else. Also the player's own quoted line ("Just looking,"
+  // you say…; playtest-office-window). But not a paragraph that opens on the
+  // player and hands over ("You turn to go, but Dex hesitates. "Wait…"";
+  // playtest-r2-drive-to-ridge: trimming it lost the hook the scene ended on).
+  Eng.playerParagraph = function (p, names) {
     const who = ['he', 'she', 'He', 'She'].concat((names || []).filter((n) => /^[A-Z][\w'-]+$/.test(n)));
     const turn = new RegExp(`(?:[.!?]["”]?\\s+|,\\s*(?:but|and|while|as|when|until|then)\\s+)(?:${who.join('|')})\\s+[a-z]+(?:s|ed)\\b`, 'g');
-    const handsOver = (p) => {
+    const handsOver = () => {
       const at = [...p.matchAll(turn)].pop();
       return !!at && !/[.!?]["”]?\s+(?:You|Your)\b/.test(p.slice(at.index + at[0].length));
     };
-    const mine = (p) => (/^\s*(\[[^\]]*\]\s*)?(you|your)\b/i.test(p) && !handsOver(p)) || /^\s*(\[[^\]]*\]\s*)?["“][^"”]*["”],?\s*you\s+(?:say|said|ask|asked|reply|replied|tell|told|answer|answered|add|added|murmur|mutter|whisper|call|shrug)\b/i.test(p);
+    return (/^\s*(\[[^\]]*\]\s*)?(you|your)\b/i.test(p) && !handsOver()) || /^\s*(\[[^\]]*\]\s*)?["“][^"”]*["”],?\s*you\s+(?:say|said|ask|asked|reply|replied|tell|told|answer|answered|add|added|murmur|mutter|whisper|call|shrug)\b/i.test(p);
+  };
+  Eng.trimPlayerEnding = function (prose, names) {
+    const paras = String(prose || '').split(/\n\s*\n/);
+    let dropped = 0;
+    const mine = (p) => Eng.playerParagraph(p, names);
     while (paras.length > 1 && dropped < 2 && mine(paras[paras.length - 1])) {
       if (dropped && /^\s*\[\s*\+/.test(paras[paras.length - 1])) break;
       paras.pop();
@@ -3227,29 +3230,32 @@
   // ---------- the turn ----------
   // ---------- beats ----------
   // The narrator marks beats with [+Nm] / [+Nh]. Returns [{at (minutes), text}].
-  Eng.parseBeats = function (prose, spanMinutes) {
-    // Seconds too, alone or after minutes ("[+30s]", "[+1m 15s]"): a 12B wrote
-    // them for a few-minute step and they stayed in the prose
-    // (playtest-stragglers-sneak). Compound marks too ("[+0h06]", "[+1d 20h]"):
-    // a number without a unit after another is the next smaller unit
-    // (playtest-coffee-skips).
-    const UNIT = 'days?|day|sols?|d|hours?|hrs?|hr|h|minutes?|mins?|min|m|seconds?|secs?|sec|s';
-    const re = new RegExp(`\\[\\s*\\+\\s*((?:\\d+(?:\\.\\d+)?\\s*(?:${UNIT})?\\s*){1,3})\\]`, 'gi');
+  // Time markers ("[+25m]"). Seconds too, alone or after minutes ("[+30s]",
+  // "[+1m 15s]"): a 12B wrote them for a few-minute step and they stayed in
+  // the prose (playtest-stragglers-sneak). Compound marks too ("[+0h06]",
+  // "[+1d 20h]"): a number without a unit after another is the next smaller
+  // unit (playtest-coffee-skips).
+  const MARK_UNIT = 'days?|day|sols?|d|hours?|hrs?|hr|h|minutes?|mins?|min|m|seconds?|secs?|sec|s';
+  const markRe = (flags) => new RegExp(`\\[\\s*\\+\\s*((?:\\d+(?:\\.\\d+)?\\s*(?:${MARK_UNIT})?\\s*){1,3})\\]`, flags);
+  const minutesOf = (inner) => {
     const per = { d: 1440, h: 60, m: 1, s: 1 / 60 };
     const smaller = { d: 'h', h: 'm', m: 's', s: 's' };
     const kind = (u) => (/^(d|sol)/.test(u) ? 'd' : u.startsWith('h') ? 'h' : /^s/.test(u) ? 's' : 'm');
-    const minutesOf = (inner) => {
-      let total = 0;
-      let prev = null;
-      const part = new RegExp(`(\\d+(?:\\.\\d+)?)\\s*(${UNIT})?`, 'gi');
-      let p;
-      while ((p = part.exec(inner))) {
-        const u = p[2] ? kind(p[2].toLowerCase()) : prev ? smaller[prev] : 'm';
-        total += parseFloat(p[1]) * per[u];
-        prev = u;
-      }
-      return total;
-    };
+    let total = 0;
+    let prev = null;
+    const part = new RegExp(`(\\d+(?:\\.\\d+)?)\\s*(${MARK_UNIT})?`, 'gi');
+    let p;
+    while ((p = part.exec(inner))) {
+      const u = p[2] ? kind(p[2].toLowerCase()) : prev ? smaller[prev] : 'm';
+      total += parseFloat(p[1]) * per[u];
+      prev = u;
+    }
+    return total;
+  };
+  // The minutes of the marker a paragraph opens with, or null.
+  Eng.markerAt = (para) => { const m = new RegExp('^\\s*' + markRe('i').source, 'i').exec(String(para || '')); return m ? minutesOf(m[1]) : null; };
+  Eng.parseBeats = function (prose, spanMinutes) {
+    const re = markRe('gi');
     const marks = [];
     let m;
     while ((m = re.exec(prose))) marks.push({ index: m.index, end: re.lastIndex, at: minutesOf(m[1]) });
@@ -3343,7 +3349,7 @@
     try {
       const upd = await E.LLM.chatJSON({
         kind: 'update', expect: ['facts', 'state', 'relations', 'player_attitude'], system: E.Prompts.header(state), user: E.Prompts.update(state, p.action, p.res, prose, p.present, !!cut),
-        maxTokens: 520, temperature: 0.3,
+        maxTokens: Eng.updateTokens(state, p.present, p.frame && p.frame.stepId), temperature: 0.3,
       });
       // A judged ending the scene shows (taken out before the update is applied).
       if (upd && typeof upd === 'object' && 'ending' in upd) { Eng.judgeEnding(state, upd.ending, prose, p.res); delete upd.ending; }
@@ -4027,12 +4033,76 @@
     return E.LLM.lastFinish === 'length' ? Eng.dropCutParagraph(text, res) : text;
   }
 
+  // Token caps that fit the turn (task L-2), for the local model (hosted
+  // backends get a flat, generous one: LLM.hostedJSONTokens). The intent:
+  // the player block, one entry per person here, and the extras the turn
+  // asks for; a player alone still gets the player block and an event or two
+  // (the Seiryo rerun hit 260 on its own). The update grows with the people
+  // present and the length of the step: compact replies in the recordings
+  // ran 60–300 tokens, and an hour with two others in Seiryo past 520.
+  Eng.INTENT_ALONE = 360;
+  Eng.intentTokens = (state, front, due) => (front.length ? 260 : Eng.INTENT_ALONE) + 150 * front.length
+    + 60 * Eng.standeesAt(state, state.characters[state.player].status.location).length + 80 * Eng.agendasDue(state).length
+    + (due.regional ? 120 : 0) + (due.world ? 140 : 0) + 120 * (due.canon || []).length;
+  Eng.UPDATE_TOKENS = { base: 300, perPerson: 80, people: 6, step: { minute: 0, moment: 0, hour: 120, hours: 180, morning: 240, major: 240 } };
+  Eng.updateTokens = (state, present, stepId) => {
+    const U = Eng.UPDATE_TOKENS;
+    const others = (present || []).filter((id) => id !== state.player).length;
+    // Never past the reply the context tier leaves room for (800 at 8K).
+    return Math.min(E.contextTier().reply, U.base + U.perPerson * Math.min(others, U.people) + (U.step[stepId] ?? U.step.hour));
+  };
+
+  // The soft stop (task L-2): a streamed scene ends at the first paragraph
+  // break where it has said enough, instead of running on to the token cap
+  // mid-sentence (the Seiryo rerun: 500 words and 9 beats for 100–200 and 3,
+  // so the cut lost the paragraph where Ozaki met Sora). t: { words: [low,
+  // top], beats: [low, top] or null, span: the last marker allowed, in
+  // minutes, or null, names: Eng.peopleWords }. It stops after the paragraph
+  // that reaches the top word count; before a paragraph opening a beat past
+  // the top or a marker past the span; and, once the scene has its lower
+  // word count or beats, before a finished paragraph that is the player's
+  // own line or action. → { at, why } or null.
+  Eng.softStop = function (text, t) {
+    const s = String(text || '');
+    const words = (x) => x.replace(markRe('gi'), ' ').split(/\s+/).filter(Boolean).length;
+    const re = /\n[ \t]*\n\s*/g;
+    let m, start = 0, said = 0, beats = 0, before = -1;
+    while ((m = re.exec(s))) {
+      const para = s.slice(start, m.index);
+      start = re.lastIndex;
+      if (!para.trim()) continue;
+      const enough = said >= t.words[0] || (!!t.beats && beats >= t.beats[0]);
+      if (before >= 0 && enough && Eng.playerParagraph(para, t.names)) return { at: before, why: "the player's own line" };
+      said += words(para);
+      beats += (para.match(markRe('gi')) || []).length;
+      if (said >= t.words[1]) return { at: m.index, why: `${said} words` };
+      const next = Eng.markerAt(s.slice(start));
+      if (next != null && t.beats && beats >= t.beats[1]) return { at: m.index, why: `${beats} beat${beats > 1 ? 's' : ''}, all that was asked` };
+      if (next != null && t.span && next > t.span) return { at: m.index, why: `a marker past [+${t.span}m]` };
+      before = m.index;
+    }
+    return null;
+  };
+  // The low and top of a range in words ("100–200").
+  const range = (r) => { const n = String(r).match(/\d+/g) || ['0']; return [Number(n[0]), Number(n[n.length - 1])]; };
+  // A narration call's stopAt, and onText for the phase line ("… 140 words").
+  const streamOpts = (state, phase, label, t) => {
+    let shown = -1;
+    return {
+      stopAt: (text) => Eng.softStop(text, Object.assign({ names: Eng.peopleWords(state), beats: null, span: null }, t)),
+      onText: (text) => {
+        const n = text.split(/\s+/).filter(Boolean).length;
+        if (Math.floor(n / 10) !== shown) { shown = Math.floor(n / 10); phase(`${label} ${n} words`); }
+      },
+    };
+  };
+
   async function writeSkipScene(state, n, p, phase) {
     phase('Writing the downtime…');
-    const prose = Eng.cleanScene(await sceneCall({
+    const prose = Eng.cleanScene(await sceneCall(Object.assign({
       kind: 'narrate', system: n.system, user: E.Prompts.narrateSkip(state, n.action, p.frame, n.montage, n.doings, p.res, n.presentStart),
       maxTokens: Math.round(E.settings.narrateTokens * 2.2),
-    }, p.res), p.res, state);
+    }, streamOpts(state, phase, 'Writing the downtime…', { words: range(E.Prompts.LENGTH.downtime.words), beats: E.Prompts.LENGTH.downtime.beats, span: p.frame.spanMinutes })), p.res), p.res, state);
     if (!prose) throw new Error('The model returned an empty scene.');
     return Eng.parseBeats(prose, p.frame.spanMinutes);
   }
@@ -4045,10 +4115,11 @@
     const { step, system } = n;
     const { present, action, frame, res } = p;
     phase('Writing the scene…');
-    const narrateOnce = async () => Eng.cleanScene(await sceneCall({
+    const target = { words: range(frame.words || E.Prompts.LENGTH.scene.words), beats: E.Prompts.LENGTH.beats[frame.stepId] || E.Prompts.LENGTH.beats.hour, span: frame.spanMinutes };
+    const narrateOnce = async () => Eng.cleanScene(await sceneCall(Object.assign({
       kind: frame.correction ? 'narrate (retry)' : 'narrate', system, user: E.Prompts.narrate(state, present, action, frame, res),
       maxTokens: Math.round(E.settings.narrateTokens * (step.lengthMult || 1)),
-    }, res), res, state);
+    }, streamOpts(state, phase, frame.correction ? 'Rewriting the scene…' : 'Writing the scene…', target)), res), res, state);
     let prose = await narrateOnce();
     const playerOut = res.outcomes && res.outcomes.find((o) => o.id === state.player);
     const via = playerOut && playerOut.via ? [frame.startLoc].concat(playerOut.via) : null;
@@ -4070,10 +4141,10 @@
       const lastAt = beats[beats.length - 1].at;
       if (lastAt < frame.spanMinutes / 2) {
         phase('Finishing the scene…');
-        const more = Eng.cleanScene(await sceneCall({
+        const more = Eng.cleanScene(await sceneCall(Object.assign({
           kind: 'narrate (continue)', system, user: E.Prompts.narrateMore(state, present, action, frame, res, markedBeats(beats), lastAt),
           maxTokens: Math.round(E.settings.narrateTokens * 0.8),
-        }, res), res, state);
+        }, streamOpts(state, phase, 'Finishing the scene…', { words: range(E.Prompts.LENGTH.more.words), beats: E.Prompts.LENGTH.more.beats, span: frame.spanMinutes })), res), res, state);
         const away = more && Eng.findRelocation(state, more, frame.startLoc, via);
         if (away) guard(res, 'scene', 'continuation dropped', `it took the player ${away.to || `to ${away.name}`}`);
         else if (more) {
@@ -4167,6 +4238,9 @@
       calls: t.calls.length, promptTokens: sum('promptTokens'), completionTokens: sum('completionTokens'),
       estimated: t.calls.some((c) => c.estimated !== false), modelMs: sum('ms'),
       retries: t.calls.filter((c) => c.retry).length, salvaged: t.calls.filter((c) => c.salvaged).length,
+      // How the calls ended (task L-2): on their own, at a soft stop, or at the cap.
+      complete: t.calls.filter((c) => !c.error && c.finish !== 'length' && c.finish !== 'stopped').length,
+      stopped: t.calls.filter((c) => c.finish === 'stopped').length, cutOff: t.calls.filter((c) => c.finish === 'length').length,
     };
   };
 
@@ -4179,6 +4253,7 @@
     lines.push(`${t.kind === 'reroll' ? 'Reroll of turn' : 'Turn'} ${t.turn}${t.action ? ` · "${t.action}"` : ''}${t.stepId ? ` · ${t.stepId}` : ''} · ${sec(t.ms)}${t.error ? ` · FAILED: ${t.error}` : ''}`);
     lines.push(`${tot.calls} call(s), ${tot.estimated ? '~' : ''}${tot.promptTokens} tokens in, ${tot.estimated ? '~' : ''}${tot.completionTokens} out, ${sec(tot.modelMs)} waiting on the model` +
       (tot.retries ? `, ${tot.retries} retr${tot.retries > 1 ? 'ies' : 'y'}` : '') + (tot.salvaged ? `, ${tot.salvaged} salvaged` : ''));
+    lines.push(`Ended: ${tot.complete} complete, ${tot.stopped} stopped at a paragraph, ${tot.cutOff} cut off`);
     t.calls.forEach((c) => {
       const extra = [];
       if (c.cachedTokens != null) extra.push(`${c.cachedTokens} cached`);
@@ -4186,6 +4261,7 @@
       if (c.grammar) extra.push(`grammar ${c.grammar} chars`);
       if (c.jsonMode) extra.push('JSON mode');
       if (c.finish === 'length') extra.push('cut off');
+      if (c.finish === 'stopped') extra.push(`stopped at a paragraph: ${c.stopped}`);
       if (c.salvaged) extra.push('salvaged');
       if (c.error) extra.push('error: ' + c.error);
       lines.push(`- ${c.kind} [${c.backend}]: ${tok(c, 'promptTokens')} in, ${tok(c, 'completionTokens')} out, ${sec(c.ms || 0)}${extra.length ? ' (' + extra.join('; ') + ')' : ''}`);
@@ -4210,7 +4286,8 @@
   // scene, logged as the ending's own entry.
   async function closeStory(state, phase) {
     phase('Closing the story…');
-    const raw = await E.LLM.chat({ kind: 'narrate', system: E.Prompts.header(state), user: E.Prompts.closing(state, state.ending), maxTokens: Math.round(E.settings.narrateTokens * 1.2), temperature: 0.8 });
+    const raw = await E.LLM.chat(Object.assign({ kind: 'narrate', system: E.Prompts.header(state), user: E.Prompts.closing(state, state.ending), maxTokens: Math.round(E.settings.narrateTokens * 1.2), temperature: 0.8 },
+      streamOpts(state, phase, 'Closing the story…', { words: range(E.Prompts.LENGTH.closing.words) })));
     const text = Eng.cleanProse(String(raw && raw.text != null ? raw.text : raw || '')).replace(/^\[\+?\d+[mhd]\]\s*/gm, '').trim();
     state.ending.closed = true;
     state.log.push({ turn: state.ending.turn, type: 'ending', id: state.ending.id, title: state.ending.title, kind: state.ending.kind, text });
@@ -4276,7 +4353,7 @@
     phase(due.world ? 'The wider world stirs…' : due.regional ? 'Something stirs nearby…' : 'Characters deciding…');
     const intentObj = await E.LLM.chatJSON({
       kind: 'intent', expect: ['player', 'intents'], system, user: E.Prompts.intent(state, present, action, step.label, step.id, due, front),
-      maxTokens: 260 + 150 * front.length + 60 * Eng.standeesAt(state, state.characters[state.player].status.location).length + 80 * Eng.agendasDue(state).length + (due.regional ? 120 : 0) + (due.world ? 140 : 0) + 120 * due.canon.length, temperature: 0.7,
+      maxTokens: Eng.intentTokens(state, front, due), temperature: 0.7,
     });
 
     const frame = { startTime: E.fmtTime(state), startLoc: state.characters[state.player].status.location, stepId: step.id, stepLabel: step.label, words: step.words, spanMinutes: Math.round(step.hours * 60) };

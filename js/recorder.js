@@ -43,7 +43,7 @@
       if (rec && rec.current && rec.current.rng) rec.current.rng.push(v);
       return v;
     };
-    const transport = async function (url, body, kind, b) {
+    const transport = async function (url, body, kind, b, stream) {
       const call = {
         kind, backend: b ? b.id : null,
         request: { system: body.messages[0].content, user: body.messages[1].content, max_tokens: body.max_tokens, temperature: body.temperature },
@@ -53,9 +53,11 @@
       if (body.response_format) call.request.response_format = body.response_format;
       if (rec && rec.current && rec.current.calls) rec.current.calls.push(call);
       try {
-        const out = await innerTransport(url, body, kind, b);
+        const out = await innerTransport(url, body, kind, b, stream);
         const r = typeof out === 'string' ? { text: out, finish: '' } : out || {};
         call.response = { text: r.text || '', finish: r.finish || '', usage: r.usage || null };
+        // A streamed call (task L-2) is kept as its finished text; a soft stop as "stopped", with why.
+        if (r.stopped) call.response.stopped = r.stopped;
         return out;
       } catch (err) {
         call.error = { name: err && err.name, message: String((err && err.message) || err) };

@@ -43,20 +43,70 @@
   }
 
   // Swappable transport (the test harness replaces this with a mock).
-  LLM.transport = async function (url, body, kind, b) {
+  // stream (task L-2): { onText(textSoFar) → { at, why } to stop there, or
+  // nothing }. Used only when body.stream is set; a transport that ignores it
+  // (the replays, the test mocks) returns the whole text as before.
+  LLM.transport = async function (url, body, kind, b, stream) {
     const headers = { 'Content-Type': 'application/json' };
     if (b && b.key) headers.Authorization = 'Bearer ' + b.key;
-    const r = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+    const ctrl = body.stream && typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const r = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: ctrl ? ctrl.signal : undefined });
     if (!r.ok) {
       let detail = '';
       try { detail = (await r.text()).slice(0, 200); } catch (e) {}
       throw new Error(friendlyHttpError(r.status, b || { url }, detail));
     }
+    // A server that ignores "stream" answers with plain JSON, read below.
+    if (body.stream && r.body && /event-stream/.test((r.headers && r.headers.get('content-type')) || '')) return readStream(r, body, b, stream, ctrl);
     const j = await r.json();
     if (j.error) throw new Error(`${host(url)}: ${j.error.message || JSON.stringify(j.error).slice(0, 200)}`);
     const choice = (j.choices && j.choices[0]) || {};
     // finish "length" = cut off at max_tokens (reasoning models count their thinking too)
     return { text: (choice.message && choice.message.content) || '', finish: choice.finish_reason || '', usage: j.usage || null };
+  };
+
+  // Server-sent events from an OpenAI-style chat endpoint: only the reply's
+  // text (never a reasoning stream), its finish reason and usage. A soft stop
+  // aborts the request and, for KoboldCpp, tells the server to stop too.
+  async function readStream(r, body, b, stream, ctrl) {
+    const reader = r.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '', text = '', finish = '', usage = null;
+    for (;;) {
+      let chunk;
+      try { chunk = await reader.read(); } catch (e) { if (ctrl && ctrl.signal.aborted) break; throw e; }
+      if (chunk.done) break;
+      buf += decoder.decode(chunk.value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      for (const line of lines) {
+        const data = line.replace(/^data:\s?/, '').trim();
+        if (!line.startsWith('data:') || !data || data === '[DONE]') continue;
+        let j;
+        try { j = JSON.parse(data); } catch (e) { continue; }
+        if (j.error) throw new Error(`${host(b.url)}: ${j.error.message || JSON.stringify(j.error).slice(0, 200)}`);
+        const choice = (j.choices && j.choices[0]) || {};
+        if (choice.delta && typeof choice.delta.content === 'string') text += choice.delta.content;
+        if (choice.finish_reason) finish = choice.finish_reason;
+        if (j.usage) usage = j.usage;
+      }
+      const stop = stream && stream.onText ? stream.onText(text) : null;
+      if (stop && stop.at != null) {
+        if (ctrl) ctrl.abort();
+        try { await reader.cancel(); } catch (e) {}
+        if (b.kobold) await LLM.abort(b, body.genkey);
+        return { text: text.slice(0, stop.at), finish: 'stopped', usage: null, stopped: stop.why || '' };
+      }
+    }
+    return { text, finish, usage };
+  }
+  // Stops our own generation on KoboldCpp (its genkey), so the GPU is free
+  // for the next call. A failure here changes nothing.
+  LLM.abort = async function (b, genkey) {
+    if (typeof fetch !== 'function') return;
+    const headers = { 'Content-Type': 'application/json' };
+    if (b.key) headers.Authorization = 'Bearer ' + b.key;
+    try { await fetch(b.url.replace(/\/v\d+$/, '') + '/api/extra/abort', { method: 'POST', headers, body: JSON.stringify({ genkey }) }); } catch (e) {}
   };
 
   // Token counts from the response's usage block; estimates (marked) when absent.
@@ -295,6 +345,16 @@
       if (b.kobold) body.grammar = E.Shape.gbnf(opts.shape);
       else if (!LLM.noJsonMode.has(jsonKey)) body.response_format = { type: 'json_object' };
     }
+    // Narration streams (task L-2): opts.stopAt(text) → { at, why } stops it
+    // at a paragraph; opts.onText(text) sees it grow. KoboldCpp gets a genkey
+    // so the abort stops only this generation.
+    let stream = null;
+    if (opts.stopAt || opts.onText) {
+      body.stream = true;
+      if (b.kobold) body.genkey = 'ENS' + Math.floor(Math.random() * 1e9).toString(36);
+      else body.stream_options = { include_usage: true };
+      stream = { onText: (t) => { if (opts.onText) opts.onText(t); return opts.stopAt ? opts.stopAt(t) : null; } };
+    }
     const est = E.estTokens(system) + E.estTokens(user) + body.max_tokens;
     const t0 = Date.now();
     const entry = { kind, step: LLM.stepOf(kind), backend: `${b.id}: ${b.model || b.label}`, system, user, raw: '', ms: 0, estTokens: est, overBudget: !!b.context && est > b.context, squeezed,
@@ -302,10 +362,12 @@
     if (body.grammar) entry.grammar = body.grammar.length;
     if (body.response_format) entry.jsonMode = true;
     try {
-      const out = await LLM.transport(b.url + '/chat/completions', body, kind, b);
+      const out = await LLM.transport(b.url + '/chat/completions', body, kind, b, stream);
       const r = typeof out === 'string' ? { text: out, finish: '' } : out;
       entry.raw = r.text || '';
       entry.finish = r.finish || '';
+      if (body.stream) entry.streamed = true;
+      if (r.finish === 'stopped') entry.stopped = r.stopped || 'a paragraph';
       entry.ms = Date.now() - t0;
       Object.assign(entry, LLM.readUsage(r.usage, system, user, entry.raw));
       entry.perf = await LLM.perf(b);

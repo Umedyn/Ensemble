@@ -2251,7 +2251,7 @@
       const tot = E.Engine.reportTotals(t);
       const cache = anyCache(t), perf = anyPerf(t);
       const rows = t.calls.map((c) =>
-        `<tr${c.error ? ' class="fail"' : ''}><td>${esc(c.kind)}${c.salvaged ? ' <span class="fail">salvaged</span>' : ''}${c.finish === 'length' ? ' <span class="fail">cut off</span>' : ''}</td><td>${esc(c.backend || '')}</td>` +
+        `<tr${c.error ? ' class="fail"' : ''}><td>${esc(c.kind)}${c.salvaged ? ' <span class="fail">salvaged</span>' : ''}${c.finish === 'length' ? ' <span class="fail">cut off</span>' : ''}${c.finish === 'stopped' ? ` <span class="muted" title="${esc(c.stopped || '')}">stopped at a paragraph</span>` : ''}</td><td>${esc(c.backend || '')}</td>` +
         `<td class="num">${tok(c, 'promptTokens')}</td><td class="num">${tok(c, 'completionTokens')}</td>` +
         (cache ? `<td class="num">${c.cachedTokens != null ? c.cachedTokens.toLocaleString() : ''}</td>` : '') +
         (perf ? `<td class="num">${c.perf ? sec(c.perf.processSec * 1000) : ''}</td>` : '') +

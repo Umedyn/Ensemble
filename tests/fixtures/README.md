@@ -40,6 +40,7 @@ Recordings of real (or mock) play sessions, replayed by `tests/replay.js` withou
 ```
 
 - `settings`: only what changes prompts, call limits or memory budgets. Never API keys or URLs; replay uses placeholder URLs.
+- A streamed narration call (task L-2) is recorded as its finished text; one the engine stopped at a paragraph has `"finish": "stopped"` and `response.stopped` (why, like `"3 beats, all that was asked"`). Replays return that text whole and don't stream.
 - `request.grammar` (task L-1): `{ "chars": 4585, "hash": "1a2b3c4d" }` when the call sent a GBNF grammar (its size and FNV-1a hash; the grammar follows from the prompt), and `request.response_format` when it asked for an API's JSON mode. Replays don't compare them.
 - `start`: the scenario travels inside the state, so a fixture keeps working when scenario files change.
 - `actions`, in order. `turn` is `Engine.runTurn(state, action, stepId, cutAt)`; `cutAt` is the beat the player stepped in after. `reroll` and `undo` are the Debug/scene buttons. `correct` is a feelings correction from a card: `{ "type": "correct", "id": "okafor", "delta": -5, "why": "..." }` (no dice, no calls). `pin` is the card's 📌 Pin: `{ "type": "pin", "id": "sorensen", "on": true }` (no dice, no calls).

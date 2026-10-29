@@ -84,7 +84,7 @@ async function replay(fixture, opts = {}) {
       err.name = rc.error.name || 'Error';
       throw err;
     }
-    return { text: rc.response.text, finish: rc.response.finish, usage: rc.response.usage };
+    return { text: rc.response.text, finish: rc.response.finish, usage: rc.response.usage, stopped: rc.response.stopped };
   };
 
   for (let i = 0; i < until; i++) {

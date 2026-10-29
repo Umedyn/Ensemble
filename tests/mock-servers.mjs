@@ -17,6 +17,43 @@ const reply = (res, content, prompt) => json(res, 200, {
   usage: { prompt_tokens: Math.ceil(prompt.length / 4), completion_tokens: Math.ceil(content.length / 4), total_tokens: Math.ceil((prompt.length + content.length) / 4) },
 });
 
+// Streamed replies (task L-2): server-sent events, a few words a chunk, so a
+// soft stop lands mid-stream. A stream ends early when its genkey is aborted
+// (KoboldCpp's /api/extra/abort) or the client hangs up; both are logged.
+const streams = new Map(); // genkey → { aborted }
+function streamReply(res, content, prompt, genkey) {
+  res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*' });
+  const parts = content.match(/\S+\s*/g) || [];
+  const me = { aborted: false };
+  if (genkey) streams.set(genkey, me);
+  let i = 0, gone = false;
+  res.on('close', () => { if (i < parts.length && !me.aborted) { gone = true; handler.log.push({ disconnected: genkey || true }); } });
+  const send = (obj) => res.write('data: ' + JSON.stringify(obj) + '\n\n');
+  const tick = () => {
+    if (gone || me.aborted) return res.end();
+    if (i >= parts.length) {
+      send({ choices: [{ delta: {}, finish_reason: 'stop' }], usage: { prompt_tokens: Math.ceil(prompt.length / 4), completion_tokens: Math.ceil(content.length / 4) } });
+      res.write('data: [DONE]\n\n');
+      streams.delete(genkey);
+      return res.end();
+    }
+    send({ choices: [{ delta: { content: parts.slice(i, i + 3).join('') }, finish_reason: null }] });
+    i += 3;
+    setTimeout(tick, 4);
+  };
+  tick();
+}
+
+// A scene that runs on past what it was asked for: six beats for an hour.
+const LONG_SCENE = [
+  '[+0m] You sit Teo down by the recycler and ask him to tell you everything, from the first rattle to this morning. He rubs his hands on his knees and starts slowly.',
+  '[+10m] "It began three sols ago," he says. "A tick, then a knock, then the rattle. I logged it as a sensor fault because that is what it sounded like."',
+  '[+25m] Okafor leans in the hatch, listening. She says nothing, but her eyes stay on Teo, and he talks faster while she is there.',
+  '[+40m] Teo shows you the log on his tablet. Two entries are missing from the night shift, and he swears he never touched them.',
+  '[+50m] Priya calls from hydroponics: the pressure in her racks dropped at the same minute the entries vanished.',
+  '[+70m] The rattle starts again behind the panel, louder now, and Teo goes pale.',
+].join('\n\n');
+
 // Answers each pipeline step with plausible content, based on the prompt text.
 function answer(user) {
   // Generated starts (task 4-2): the shared replies for Holdout at Harmon's.
@@ -61,6 +98,7 @@ function answer(user) {
     return JSON.stringify(out);
   }
   if (user.includes('Write the next scene')) {
+    if (/=== PLAYER ACTION[^\n]*\n"[^"\n]*tell me everything/i.test(user)) return LONG_SCENE;
     return '[+0m] You pry the access panel off the recycler. Teo hovers at your shoulder.\n\n[+30m] Okafor gathers her tablet and heads for Ops.\n\n[+55m] Teo hands you a spanner. "Probably just a sensor issue," he says, a little too fast.';
   }
   if (user.includes(' an agenda: what ')) return JSON.stringify({ routine: true });
@@ -85,6 +123,18 @@ function handler(requireKey) {
     if (req.method === 'OPTIONS') return json(res, 200, {});
     const authed = !requireKey || req.headers.authorization === 'Bearer sk-test';
     const url = req.url;
+    if (req.method === 'POST' && !requireKey && url.endsWith('/api/extra/abort')) {
+      let body = '';
+      req.on('data', (c) => (body += c));
+      req.on('end', () => {
+        const key = (JSON.parse(body || '{}').genkey) || '';
+        const s = streams.get(key);
+        if (s) s.aborted = true;
+        handler.log.push({ abort: key, running: !!s });
+        json(res, 200, { success: s ? 'true' : 'false', done: 'true' });
+      });
+      return;
+    }
     if (req.method === 'GET') {
       if (!authed) return json(res, 401, { error: { message: 'bad key' } });
       if (url.includes('true_max_context_length')) return json(res, 200, { value: 8192 });
@@ -98,14 +148,18 @@ function handler(requireKey) {
     req.on('end', () => {
       if (!authed) return json(res, 401, { error: { message: 'bad key' } });
       const b = JSON.parse(body || '{}');
-      handler.log.push({ port: requireKey ? 5002 : 5001, model: b.model, user: b.messages[1].content, grammar: !!b.grammar, jsonMode: !!b.response_format });
-      reply(res, answer(b.messages[1].content), b.messages[0].content + b.messages[1].content);
+      handler.log.push({ port: requireKey ? 5002 : 5001, model: b.model, user: b.messages[1].content, grammar: !!b.grammar, jsonMode: !!b.response_format, stream: !!b.stream });
+      const content = answer(b.messages[1].content), prompt = b.messages[0].content + b.messages[1].content;
+      if (b.stream) return streamReply(res, content, prompt, b.genkey);
+      reply(res, content, prompt);
     });
   };
 }
 handler.log = [];
 
-export async function startMocks() {
+// ports: { kobold, api } (default 5001 and 5002); 0 picks a free one, and the
+// result says which (npm test uses free ones, so a running KoboldCpp is fine).
+export async function startMocks(ports = {}) {
   const kobold = http.createServer(handler(false));
   const api = http.createServer(handler(true));
   // A real KoboldCpp left running on 5001 would answer the tests instead (and
@@ -123,15 +177,15 @@ export async function startMocks() {
     s.once('error', () => resolve());
   });
   const listen = async (server, port, what) => {
-    await probe(port, what);
+    if (port) await probe(port, what);
     await new Promise((resolve, reject) => {
       server.once('error', (err) => reject(err.code === 'EADDRINUSE' ? busy(port, what) : err));
       server.listen(port, resolve);
     });
   };
-  await listen(kobold, 5001, 'the fake KoboldCpp needs it');
-  await listen(api, 5002, 'the fake API needs it');
-  return { log: handler.log, close: () => { kobold.close(); api.close(); } };
+  await listen(kobold, ports.kobold ?? 5001, 'the fake KoboldCpp needs it');
+  await listen(api, ports.api ?? 5002, 'the fake API needs it');
+  return { log: handler.log, ports: { kobold: kobold.address().port, api: api.address().port }, close: () => { kobold.close(); api.close(); } };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

@@ -234,8 +234,11 @@ await check('debug shows a turn report with tokens, prompt time and guards', asy
   await page.click('#btnDebug');
   const report = page.locator('#debugBody details.telemetry[open]');
   assert.equal(await report.count(), 1, 'the newest turn is open');
-  assert.match(await report.locator('summary').textContent(), /^Turn 2 · [\d.]+ s · 3 calls · \d[\d,]* in/, 'mocks report usage, so no estimates');
-  assert.deepEqual(await report.locator('tbody td:first-child').allTextContents(), ['update', 'intent', 'narrate']);
+  // The mock's three beats run past the one a moment asks for: that scene is
+  // stopped at a paragraph (task L-2), and a stopped stream has no usage to report.
+  assert.match(await report.locator('summary').textContent(), /^Turn 2 · [\d.]+ s · 3 calls · ~\d[\d,]* in/, 'the stopped scene is estimated');
+  assert.match(await report.textContent(), /stopped at a paragraph/);
+  assert.deepEqual(await report.locator('tbody td:first-child').allTextContents(), ['update', 'intent', 'narrate stopped at a paragraph']);
   assert.equal(await report.locator('th', { hasText: 'prompt' }).count(), 1, 'KoboldCpp perf column shown');
   assert.equal(await report.locator('th', { hasText: 'cached' }).count(), 0, 'no cache column when nobody reports it');
   assert.match(await report.textContent(), /update rejected|tags & mood|No guards fired/);
@@ -244,6 +247,21 @@ await check('debug shows a turn report with tokens, prompt time and guards', asy
   await page.waitForFunction(() => /Copied|failed/.test(document.querySelector('#debugBody details.telemetry[open] button[data-copy-report]').textContent));
   assert.equal(await report.locator('button[data-copy-report]').textContent(), 'Copied');
   assert.match(await page.evaluate(() => navigator.clipboard.readText()), /^Turn 2 · "Hold on, Teo\." · moment[\s\S]*Guards fired/);
+});
+
+// Task L-2: the narration streams, and a scene that runs on stops at a paragraph.
+await check('a scene that runs long stops at a paragraph, and KoboldCpp is told to stop', async (page) => {
+  mocks.log.length = 0;
+  await newGame(page);
+  await act(page, 'Tell me everything.', 'hour');
+  while (await page.locator('button[data-next]').count()) await page.click('button[data-next]');
+  const beats = await page.locator('.turn-current .beat').count();
+  assert.ok(beats >= 2 && beats <= 3, `three beats at most (${beats})`);
+  assert.ok(!(await page.locator('.turn-current').textContent()).includes('two entries are missing'), 'the fourth beat never arrives');
+  assert.ok(mocks.log.some((l) => /Write the next scene/.test(l.user || '') && l.stream), 'narration streamed');
+  assert.ok(mocks.log.some((l) => l.abort && l.running), 'the abort reached the server');
+  await page.click('#btnDebug');
+  assert.match(await page.locator('#debugBody details.telemetry[open]').textContent(), /stopped at a paragraph/);
 });
 
 // Also writes the sample fixture when run as `npm run fixture:mock`.
