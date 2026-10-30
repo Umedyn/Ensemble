@@ -3,10 +3,10 @@
 // Needs Playwright's Chromium once: `npx playwright install chromium`
 // (or set CHROMIUM_PATH to an existing Chrome/Chromium binary).
 // Screenshots land in tests/screenshots/ for a quick visual check.
-import { chromium } from 'playwright';
+import { chromium, firefox } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import assert from 'node:assert/strict';
 import { startServer } from '../tools/serve.mjs';
 import { startMocks } from './mock-servers.mjs';
@@ -27,13 +27,13 @@ let failures = 0;
 
 async function check(name, fn) {
   const ctx = await browser.newContext(name.startsWith('phone') ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } : { viewport: { width: 1360, height: 900 } });
+  // Before the page's first script, so the store's first run moves it over.
+  await ctx.addInitScript(() => { if (!localStorage.getItem('smoke.seeded')) { localStorage.setItem('smoke.seeded', '1'); localStorage.setItem('ensemble.setupDone', '1'); } });
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   try {
     await page.goto(BASE);
-    await page.evaluate(() => { localStorage.clear(); localStorage.setItem('ensemble.setupDone', '1'); });
-    await page.reload();
     await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
     await fn(page);
     assert.deepEqual(errors, [], 'no page errors');
@@ -53,6 +53,14 @@ const clickFloor = async (page, id) => {
   const box = await page.locator(`#mapPane .map-room[data-room="${id}"] .sd-floor, #mapPane .map-room[data-room="${id}"] .sd-ground`).first().boundingBox();
   await page.mouse.click(box.x + 6, box.y + box.height - 6);
 };
+// Changes the current game as saved; fn runs in the page. Reload to see it.
+const editSave = (page, fn) => page.evaluate(async (src) => {
+  const { Saves } = window.Ensemble;
+  const { id } = await Saves.last();
+  const s = await Saves.load(id);
+  (0, eval)(src)(s);
+  await Saves.save(id, s);
+}, `(${fn})`);
 const sceneReady = (page) => page.waitForFunction(() => document.getElementById('sceneBar').textContent.trim() !== '');
 
 // Act is only enabled at the end of a scene or after choosing "Step in here",
@@ -368,7 +376,7 @@ await check('record a session and export it as a fixture', async (page) => {
 });
 
 await check('first run: setup picks a hosted model and opens its settings', async (page) => {
-  await page.evaluate(() => localStorage.removeItem('ensemble.setupDone'));
+  await page.evaluate(() => window.Ensemble.Prefs.remove('ensemble.setupDone'));
   await page.reload();
   await page.waitForSelector('#setup[open]');
   await page.waitForFunction(() => /KoboldCpp is running here/.test(document.getElementById('setupLocal').textContent));
@@ -412,7 +420,7 @@ await check('settings: API key errors and hybrid routing', async (page) => {
   assert.ok(where(/Judge only/).length === 0, 'the 32K API keeps the single intent call');
   const json = mocks.log.filter((c) => /Judge the player|Record what changed/.test(c.user));
   assert.deepEqual(json.map((c) => [c.port, c.grammar, c.jsonMode]), json.map((c) => [c.port, c.port === 5001, false]), 'a grammar for KoboldCpp only');
-  const save = await page.evaluate(() => localStorage.getItem('ensemble.autosave'));
+  const save = await page.evaluate(async () => { const E = window.Ensemble; return E.Store.get('save.' + (await E.Saves.last()).id); });
   assert.ok(!save.includes('sk-test'), 'API key never lands in the save');
 });
 
@@ -936,7 +944,7 @@ await check('background people are under a collapsed Elsewhere list that remembe
   await away.locator(':scope > summary').click();
   assert.ok(await card(page, 'Lev Sorensen').isVisible());
   // toggle fires after the click returns; wait until it is saved.
-  await page.waitForFunction(() => /true/.test(localStorage.getItem('ensemble.cards.elsewhere') || ''));
+  await page.waitForFunction(async () => /true/.test((await window.Ensemble.Store.get('ensemble.cards.elsewhere')) || ''));
   await page.reload();
   await page.waitForFunction(() => document.querySelectorAll('#cast .card').length > 0);
   assert.ok(await card(page, 'Lev Sorensen').isVisible(), 'still open after a reload');
@@ -1132,10 +1140,8 @@ await check('presence and unknown regions: a contested junction, a hidden lava t
   await page.click('[data-maplevel="root"]');
   assert.equal(await page.locator('.region-g[data-region="lava-tube"]').count(), 0, 'hidden: not on the map');
   assert.ok(!/lava/i.test(await page.textContent('#mapPane')));
-  await page.evaluate(() => {
-    const s = JSON.parse(localStorage.getItem('ensemble.autosave'));
+  await editSave(page, (s) => {
     s.regions['lava-tube'].known = true;
-    localStorage.setItem('ensemble.autosave', JSON.stringify(s));
   });
   await page.reload();
   await sceneReady(page);
@@ -1176,12 +1182,10 @@ await check('the zooming map: breadcrumb, levels with and without a picture, tra
   assert.equal(await page.inputValue('#actionInput'), 'I go to Highway junction.');
   await page.fill('#actionInput', '');
   // Without a picture: node maps of each level's children, routes by kind.
-  await page.evaluate(() => {
-    const s = JSON.parse(localStorage.getItem('ensemble.autosave'));
+  await editSave(page, (s) => {
     delete s.scenario.map;
     s.characters.pike.status.location = 'lot';
     s.locations.lot.region = 'junction';
-    localStorage.setItem('ensemble.autosave', JSON.stringify(s));
   });
   await page.reload();
   await sceneReady(page);
@@ -1198,11 +1202,9 @@ await check('the zooming map: breadcrumb, levels with and without a picture, tra
   assert.equal(await page.inputValue('#actionInput'), 'I drive to Ridge.');
   assert.match(await page.getAttribute('.map-route[data-say="I drive to Ridge."]', 'title'), /road, 45m/);
   // Stopped on a journey (R-2): a travel card, not a floor plan.
-  await page.evaluate(() => {
-    const s = JSON.parse(localStorage.getItem('ensemble.autosave'));
+  await editSave(page, (s) => {
     s.locations['on-the-way'] = { id: 'on-the-way', name: 'On the way to Ridge', desc: 'Somewhere on the way to Ridge, in Highway junction.', outside: true, region: 'junction', site: 'on-the-way', transit: true, connects: ['lot', 'floor'], links: [] };
     s.characters.pike.status.location = 'on-the-way';
-    localStorage.setItem('ensemble.autosave', JSON.stringify(s));
   });
   await page.reload();
   await sceneReady(page);
@@ -1465,7 +1467,7 @@ await check('creator: a new world from nothing, test played and exported', async
   assert.equal(await game.inputValue('#scenarioSelect'), 'test:harbor-watch');
   assert.match(await game.textContent('#log'), /harbor bell rings twice/);
   await act(game, 'I walk over to Ana.');
-  assert.equal(await game.evaluate(() => localStorage.getItem('ensemble.autosave')), null, "test play leaves the player's own game alone");
+  assert.deepEqual(await game.evaluate(() => window.Ensemble.Saves.list()), [], "test play leaves the player's own game alone");
   await game.close();
   // Export: the zip loads as a world, and its start plays.
   const [download] = await Promise.all([page.waitForEvent('download'), page.click('#cExport')]);
@@ -1855,6 +1857,109 @@ await check('phone: high visibility at 150% fits the screen', async (page) => {
   await page.waitForTimeout(350);
   await page.screenshot({ path: path.join(shots, 'phone-hv-150-side.png') });
 });
+
+// Storage and saves (task A-1).
+await check('a new game gets its own save; a reload resumes the newest; Load adds one', async (page) => {
+  await newGame(page);
+  await act(page, 'I open up the recycler.');
+  page.once('dialog', (d) => d.accept());
+  await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+  await newGame(page);
+  const list = () => page.evaluate(() => window.Ensemble.Saves.list());
+  await page.waitForFunction(async () => (await window.Ensemble.Saves.list()).length === 2);
+  assert.deepEqual((await list()).map((s) => [s.world, s.turn]), [['zombie-holdout', 0], ['mars-station', 1]]);
+  await page.reload();
+  await sceneReady(page);
+  assert.ok(!/Ares Deep/.test(await page.textContent('#sceneBar')), 'the newest game is back');
+  await act(page, 'I look around.');
+  await page.waitForFunction(async () => (await window.Ensemble.Saves.last()).turn === 1);
+  assert.equal((await list()).length, 2, 'resuming keeps the same entry');
+  const old = await page.evaluate(async () => { const E = window.Ensemble; return JSON.stringify(await E.Saves.load((await E.Saves.list())[1].id)); });
+  await page.setInputFiles('#loadInput', { name: 'game.json', mimeType: 'application/json', buffer: Buffer.from(old) });
+  await page.waitForFunction(async () => (await window.Ensemble.Saves.list()).length === 3);
+  assert.match(await page.textContent('#sceneBar'), /Ares Deep/);
+});
+
+await check('an old autosave and old settings move over and play on', async (page) => {
+  await newGame(page);
+  await act(page, 'I open up the recycler.');
+  await page.waitForFunction(async () => (await window.Ensemble.Saves.last()).turn === 1);
+  const old = await page.evaluate(async () => { const E = window.Ensemble; return JSON.stringify(await E.Saves.load((await E.Saves.last()).id)); });
+  const ctx = await browser.newContext();
+  await ctx.addInitScript((text) => {
+    if (localStorage.getItem('smoke.seeded')) return;
+    localStorage.setItem('smoke.seeded', '1');
+    localStorage.setItem('ensemble.setupDone', '1');
+    localStorage.setItem('ensemble.autosave', text);
+    localStorage.setItem('ensemble.settings', JSON.stringify({ appearance: { theme: 'light' }, backends: { external: { key: 'sk-old' } } }));
+  }, old);
+  const second = await ctx.newPage();
+  await second.goto(BASE);
+  await sceneReady(second);
+  assert.match(await second.textContent('#sceneBar'), /Ares Deep/);
+  assert.equal(await second.getAttribute('html', 'data-theme'), 'light');
+  await second.reload();
+  await sceneReady(second);
+  assert.equal(await second.getAttribute('html', 'data-theme'), 'light', 'the theme copy, with the settings moved out');
+  assert.deepEqual(await second.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('ensemble.'))), ['ensemble.appearance']);
+  await ctx.close();
+});
+
+{
+  const ctx = await browser.newContext();
+  await ctx.addInitScript(() => {
+    Object.defineProperty(window, 'indexedDB', { get() { throw new Error('blocked'); } });
+    localStorage.setItem('ensemble.setupDone', '1');
+  });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  try {
+    await page.goto(BASE);
+    await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
+    assert.match(await page.textContent('#storeNotice'), /isn't letting Ensemble keep anything/);
+    await newGame(page);
+    await act(page, 'I open up the recycler.');
+    assert.deepEqual(errors, []);
+    console.log('✓ IndexedDB blocked: the game still plays, and says nothing is kept');
+  } catch (e) { failures++; console.error('✕ IndexedDB blocked\n  ' + e.message); }
+  await ctx.close();
+}
+
+// Pages opened straight from disk: shared storage says nothing; Firefox's
+// one store per file gets the plain message. Firefox is optional here, and
+// needs its stock prefs back: Playwright's build relaxes file origins.
+const fileUrl = (name) => pathToFileURL(path.join(here, '..', name)).href;
+{
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  try {
+    await page.goto(fileUrl('index.html'));
+    await page.waitForFunction(() => window.Ensemble.Prefs.ready());
+    await page.waitForFunction(() => !document.querySelector('iframe[src="storecheck.html"]'));
+    assert.equal(await page.locator('#storeNotice').count(), 0);
+    console.log('✓ from disk in Chromium: pages share storage, no notice');
+  } catch (e) { failures++; console.error('✕ from disk in Chromium\n  ' + e.message); }
+  await ctx.close();
+}
+let firefoxBrowser = null;
+try { firefoxBrowser = await firefox.launch({ firefoxUserPrefs: { 'privacy.file_unique_origin': true, 'security.fileuri.strict_origin_policy': true } }); }
+catch (e) { console.log('- from disk in Firefox: skipped (npx playwright install firefox)'); }
+if (firefoxBrowser) {
+  const page = await firefoxBrowser.newPage();
+  try {
+    await page.goto(fileUrl('index.html'));
+    await page.waitForSelector('#storeNotice');
+    assert.match(await page.textContent('#storeNotice'), /start\.bat or start\.sh/);
+    await page.evaluate(() => document.getElementById('setup').close());
+    await page.click('#storeNotice button');
+    await page.waitForFunction(() => window.Ensemble.Prefs.get('ensemble.fileNoticeClosed') === '1');
+    await page.goto(fileUrl('creator.html'));
+    await page.waitForSelector('#storeNotice');
+    console.log('✓ from disk in Firefox: each page alone, and it says so');
+  } catch (e) { failures++; console.error('✕ from disk in Firefox\n  ' + e.message); }
+  await firefoxBrowser.close();
+}
 
 await browser.close();
 mocks.close();

@@ -9,7 +9,7 @@ A local, character-driven story sim in the spirit of Pax Historia, but at person
 3. On your first visit, a short setup asks how you want to run the model (hosted, KoboldCpp, or both), checks whether KoboldCpp is running, and opens Settings where you finish up. **Settings → Setup guide** brings it back.
 4. Pick a world (and, if it has more than one, where you start), press **New game**, and type what you do.
 
-No Python? Open `index.html` directly and use **Open folder** to pick the `scenarios` folder (or a single world folder).
+No Python? Open `index.html` directly and use **Open folder** to pick the `scenarios` folder (or a single world folder). In Firefox, use `start.bat` or `start.sh` instead: opened straight from a file, it keeps each page's saves and settings apart, and the page tells you so.
 
 Each backend has its own context size: **Test** reads it from KoboldCpp, or from the provider's model list when it has one (OpenRouter does). Settings also has the memory cap, scene length, temperature and the most turns a chapter runs.
 
@@ -147,7 +147,7 @@ Health is one of `ok`, `hurt`, `badly_hurt`, `dead`. Death is permanent; if the 
 
 ## Saves
 
-Progress autosaves to the browser after every turn. **Save** downloads a JSON file that includes the scenario, so saves work even if the scenario folder changes later.
+Progress autosaves to the browser after every turn, and each game keeps its own save. In a private window the page says that nothing will be kept. **Save** downloads a JSON file that includes the scenario, so saves work even if the scenario folder changes later.
 
 ## Files
 

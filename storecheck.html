@@ -1,0 +1,9 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Ensemble storage check</title>
+<!-- Loaded in a hidden frame by js/pagecheck.js: reports what a sibling page can see. -->
+<script>
+var marker = null;
+try { marker = localStorage.getItem('peek.marker'); } catch (e) {}
+parent.postMessage({ type: 'ensemble-storecheck', marker: marker }, '*');
+</script>

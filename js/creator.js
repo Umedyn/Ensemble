@@ -1,6 +1,6 @@
 // The creator (task 3-5): a separate page for building worlds without
 // editing JSON. It keeps a working copy of one world's raw files in memory
-// and in localStorage (images by object URL only, never stored), validates
+// and in E.Store (images by object URL only, never stored), validates
 // it live with the game's own Scenario checks, and exports the world folder
 // as a zip. The only creator file that touches the DOM; the editing logic is
 // in mapedit.js, drawing in mapdraw.js. Tabs are a registry so later phases
@@ -10,12 +10,7 @@
   const S = E.Scenario, M = E.MapEdit, D = E.MapDraw, LE = E.LoreEdit, WE = E.WorldEdit;
   const $ = (id) => document.getElementById(id);
   const esc = D.esc;
-  const store = {
-    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
-    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
-    del(k) { try { localStorage.removeItem(k); } catch (e) {} },
-    keys() { try { return Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i)); } catch (e) { return []; } },
-  };
+  const store = E.Prefs;
   const SAVE_KEY = (folder) => `ensemble.creator.${folder}`;
 
   // The working copy: { folder, files: {path: JSON}, assets: {path: File|Blob}, server }
@@ -111,7 +106,7 @@
   $('cBanner').addEventListener('click', (ev) => {
     if (ev.target.id === 'cDeleteDraft' && cw) {
       if (!cw.confirmDraft) { cw.confirmDraft = true; ev.target.textContent = 'Click again to delete it for good'; return; }
-      store.del(SAVE_KEY(cw.folder));
+      store.remove(SAVE_KEY(cw.folder));
       const opt = Array.from($('cWorld').options).find((o) => o.value === 'draft:' + cw.folder);
       if (opt) opt.remove();
       cw = null;
@@ -123,7 +118,7 @@
     }
     if (ev.target.id === 'cNewGo') return newWorld($('cNewTitle').value);
     if (ev.target.id !== 'cDiscard' || !cw) return;
-    store.del(SAVE_KEY(cw.folder));
+    store.remove(SAVE_KEY(cw.folder));
     cw.files = JSON.parse(JSON.stringify(cw.original));
     banner('Edits discarded.');
     render();
@@ -2614,6 +2609,8 @@
     });
   }
   (async () => {
+    await E.Store.ready();
+    E.pageCheck();
     E.loadSettings(); // Suggest and card conversion use the game's model settings
     renderTabs();
     if (location.protocol !== 'file:') {

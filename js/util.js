@@ -43,7 +43,7 @@
 
   E.loadSettings = function () {
     try {
-      const raw = root.localStorage && root.localStorage.getItem('ensemble.settings');
+      const raw = E.readSettings();
       if (raw) {
         const saved = JSON.parse(raw);
         // Older versions had a single KoboldCpp "endpoint".
@@ -114,7 +114,7 @@
   };
 
   E.saveSettings = function () {
-    try { root.localStorage.setItem('ensemble.settings', JSON.stringify(E.settings)); } catch (e) {}
+    E.writeSettings(E.settings);
   };
 
   E.clamp = (v, a, b) => Math.max(a, Math.min(b, v));

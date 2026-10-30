@@ -20,7 +20,7 @@ window.EnsembleAppearance = function (a) {
   el.setAttribute('data-motion', motion);
   el.style.setProperty('--text-scale', String(Math.min(150, Math.max(90, Number(a.textSize) || 100)) / 100));
 };
-try { window.EnsembleAppearance((JSON.parse(localStorage.getItem('ensemble.settings')) || {}).appearance); } catch (e) { window.EnsembleAppearance(); }
+try { window.EnsembleAppearance(JSON.parse(localStorage.getItem('ensemble.appearance')) || (JSON.parse(localStorage.getItem('ensemble.settings')) || {}).appearance); } catch (e) { window.EnsembleAppearance(); }
 </script>
 </head>
 <body>
@@ -248,6 +248,7 @@ try { window.EnsembleAppearance((JSON.parse(localStorage.getItem('ensemble.setti
 <div id="srAnnounce" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
 <script src="js/util.js"></script>
+<script src="js/adapters.js"></script>
 <script src="js/jsonshape.js"></script>
 <script src="js/llm.js"></script>
 <script src="js/recorder.js"></script>
@@ -271,6 +272,7 @@ try { window.EnsembleAppearance((JSON.parse(localStorage.getItem('ensemble.setti
 <script src="js/zip.js"></script>
 <script src="js/worldedit.js"></script>
 <script src="js/charform.js"></script>
+<script src="js/pagecheck.js"></script>
 <script src="js/ui.js"></script>
 </body>
 </html>

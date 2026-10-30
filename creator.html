@@ -10,7 +10,7 @@
 // The game's appearance settings (theme, text size, motion), applied before first paint.
 (function () {
   var a = {};
-  try { a = (JSON.parse(localStorage.getItem('ensemble.settings')) || {}).appearance || {}; } catch (e) {}
+  try { a = JSON.parse(localStorage.getItem('ensemble.appearance')) || (JSON.parse(localStorage.getItem('ensemble.settings')) || {}).appearance || {}; } catch (e) {}
   var el = document.documentElement, mq = function (q) { try { return window.matchMedia(q).matches; } catch (e) { return false; } };
   var theme = a.theme === 'system' ? (mq('(prefers-color-scheme: light)') ? 'light' : 'dark') : (a.theme || 'dark');
   el.setAttribute('data-theme', theme);
@@ -43,6 +43,7 @@
 <section id="cValidation" class="c-validation" aria-live="polite"></section>
 
 <script src="js/util.js"></script>
+<script src="js/adapters.js"></script>
 <script src="js/jsonshape.js"></script>
 <script src="js/llm.js"></script>
 <script src="js/recorder.js"></script>
@@ -69,6 +70,7 @@
 <script src="js/worldedit.js"></script>
 <script src="js/siteedit.js"></script>
 <script src="js/charform.js"></script>
+<script src="js/pagecheck.js"></script>
 <script src="js/creator.js"></script>
 </body>
 </html>

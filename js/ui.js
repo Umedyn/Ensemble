@@ -5,6 +5,7 @@
   const esc = E.esc;
 
   let state = null;
+  let saveId = null; // this game's entry in E.Saves; set on its first autosave
   let busy = false;
   let uiCut = null; // beat number the player wants to step in after
   let suggested = null; // suggested actions: { state, key, list } (see renderSuggestions)
@@ -16,10 +17,7 @@
   const loaded = new Map(); // worlds in the picker; see "worlds and starts"
 
   // ---------- storage helpers (never fatal) ----------
-  const store = {
-    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
-    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
-  };
+  const store = E.Prefs;
 
   // ---------- connection ----------
   async function checkConnection(showStatus) {
@@ -279,6 +277,7 @@
     // Lore packs (task 5-7): every new game goes through here.
     scenario = withPacks(world, scenario);
     state = E.Engine.newGame(scenario);
+    saveId = null;
     restoreView();
     rememberPick();
     showPickInfo(false);
@@ -752,7 +751,11 @@
   }
 
   // A test-play tab (task 6-1) never overwrites the player's own game.
-  function autosave() { if (state && !TEST_PLAY) store.set('ensemble.autosave', JSON.stringify(state)); }
+  function autosave() {
+    if (!state || TEST_PLAY) return;
+    if (!saveId) saveId = E.Saves.newId();
+    E.Saves.save(saveId, state);
+  }
 
   // obj: a Blob as it is, or anything else as JSON.
   function download(name, obj) {
@@ -806,6 +809,7 @@
       if (!s.scenario || !s.characters || !s.player) throw new Error('That file is not an Ensemble save.');
       stopRecording();
       state = E.Engine.migrate(s);
+      saveId = null;
       restoreView();
       showPickInfo(false);
       openTurns.clear();
@@ -2587,12 +2591,14 @@
   });
   $('btnSetup').addEventListener('click', () => { $('settings').close('cancel'); openSetup(); });
   // Settings sections remember whether they were left open.
-  document.querySelectorAll('#settings details.section').forEach((d) => {
-    const k = 'ensemble.section.' + d.dataset.section;
-    const v = store.get(k);
-    if (v !== null) d.open = v === '1';
-    d.addEventListener('toggle', () => store.set(k, d.open ? '1' : '0'));
-  });
+  function restoreSections() {
+    document.querySelectorAll('#settings details.section').forEach((d) => {
+      const k = 'ensemble.section.' + d.dataset.section;
+      const v = store.get(k);
+      if (v !== null) d.open = v === '1';
+      d.addEventListener('toggle', () => store.set(k, d.open ? '1' : '0'));
+    });
+  }
   $('settings').addEventListener('close', () => {
     if ($('settings').returnValue === 'save') {
       readSettings();
@@ -2643,6 +2649,9 @@
   }
 
   async function boot() {
+    await E.Store.ready();
+    E.pageCheck();
+    restoreSections();
     const firstRun = store.get('ensemble.settings') === null && store.get('ensemble.setupDone') === null;
     E.loadSettings();
     applyAppearance(E.settings.appearance);
@@ -2655,10 +2664,12 @@
     if (firstRun) openSetup();
     else checkConnection(false);
     if (TEST_PLAY) return startTestPlay();
-    const saved = store.get('ensemble.autosave');
+    const last = await E.Saves.last();
+    const saved = last && await E.Saves.load(last.id);
     if (saved) {
       try {
-        state = E.Engine.migrate(JSON.parse(saved));
+        state = E.Engine.migrate(saved);
+        saveId = last.id;
         restoreView();
         showPickInfo(false);
         renderAll();
