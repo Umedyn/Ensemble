@@ -2465,8 +2465,7 @@
     try {
       if (v.startsWith('disk:')) { const d = diskWorlds.get(v); return open(d.folder, d.files, d.assets, false); }
       if (v.startsWith('draft:')) { const d = JSON.parse(store.get(SAVE_KEY(v.slice(6)))); return open(v.slice(6), d.files, {}, false, true); }
-      const folder = v.slice('server:'.length);
-      open(folder, await S.fetchWorldFiles(folder), {}, true);
+      open(v.slice(v.indexOf(':') + 1), await E.Library.load(v, { raw: true }), {}, true);
     } catch (err) { banner(`Couldn't open that world: ${esc(err.message)}`, 'bad'); }
   });
   $('cFolder').addEventListener('change', async (ev) => {
@@ -2613,13 +2612,14 @@
     E.pageCheck();
     E.loadSettings(); // Suggest and card conversion use the game's model settings
     renderTabs();
-    if (location.protocol !== 'file:') {
-      // The shared site map library (task 6-3): worlds that ask for it, the
-      // Sites tab's copies and its matching box.
-      try { S.library = await S.loadLibraryServer(); } catch (e) { /* no library/ */ }
-      try { (await S.listServer()).forEach((w) => addOption('server:' + w.folder, w.title || w.folder)); }
-      catch (e) { /* opened without the server: folder picker only */ }
-    }
+    // The shared site map library (task 6-3): worlds that ask for it, the
+    // Sites tab's copies and its matching box.
+    try {
+      const [shared] = await E.Library.list('library');
+      if (shared) S.library = await E.Library.load(shared.id);
+    } catch (e) { /* no library/ */ }
+    try { (await E.Library.list('world')).forEach((w) => addOption(w.id, w.title)); }
+    catch (e) { /* opened without the server: folder picker only */ }
     listDrafts();
   })();
 })();

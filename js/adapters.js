@@ -1,5 +1,7 @@
-// Adapters (task A-1): seams a different build could fill. E.Store is where
-// everything the app keeps lives. No DOM access here.
+// Adapters (tasks A-1, A-2): seams a different build could fill. E.Store is
+// where everything the app keeps lives, E.Backend how a model request is sent,
+// E.Voice who reads the story aloud, E.Library where worlds come from. No DOM
+// access here.
 (function (root) {
   const E = root.Ensemble;
   const DB_NAME = 'ensemble', KV = 'kv';
@@ -206,5 +208,117 @@
       return out.filter(Boolean).sort((a, b) => b.date - a.date);
     },
     last: async () => (await E.Saves.list())[0] || null,
+  };
+
+  // ---------- E.Backend ----------
+  // How a request reaches a model server: fetch(b, url, init) → a Response,
+  // with b from LLM.backend. Everything above it (streaming, the soft stop,
+  // grammar, JSON mode, usage) is in llm.js and doesn't change with it.
+  const directBackend = {
+    fetch(b, url, init = {}) {
+      const headers = Object.assign({}, init.headers);
+      if (b && b.key) headers.Authorization = 'Bearer ' + b.key;
+      return fetch(url, Object.assign({}, init, { headers }));
+    },
+  };
+  // A proxy that adds its own auth: the player's key never goes to it.
+  E.proxyBackend = (proxyUrl) => ({
+    fetch(b, url, init = {}) {
+      const headers = Object.assign({}, init.headers, { 'X-Ensemble-Target': url });
+      return fetch(proxyUrl, Object.assign({}, init, { headers }));
+    },
+  });
+  let backend = directBackend;
+  E.Backend = {
+    use(impl) { backend = impl || directBackend; },
+    fetch: async (b, url, init) => backend.fetch(b, url, init),
+  };
+
+  // ---------- E.Voice ----------
+  // An empty seam: the Voiced narration block lands behind it. Off speaks
+  // nothing, and nothing in the game calls it yet.
+  const voiceOff = { available: false, async speak() {}, stop() {} };
+  let voice = voiceOff;
+  E.Voice = {
+    use(impl) { voice = impl || voiceOff; },
+    get available() { return !!voice.available; },
+    speak: (text, opts) => voice.speak(text, opts),
+    stop: () => voice.stop(),
+  };
+
+  // ---------- E.Library ----------
+  // One list and one load over everything the game can pick from. A source is
+  // { id, list(kind) → entries, load(id, opts) }; an entry is
+  // { id, kind, source, title, folder }. Kinds: 'world', 'pack', 'library'
+  // (the shared site and base maps, whole), and 'table' once T-1 has any.
+  // A world's id is "<source>:<name>", as the picker remembers it; the others
+  // start with their kind ("pack:server:<folder>"). load(id, { raw: true })
+  // gives a world's files as they are, for the creator. Sources for stored
+  // bundles (A-5) and remote lists (A-8) join with addSource.
+  const fromDisk = () => { try { return location.protocol === 'file:'; } catch (e) { return false; } };
+  const entry = (kind, source, name, title) => ({
+    id: (kind === 'world' ? '' : kind + ':') + source + ':' + name, kind, source, title: title || name, folder: name,
+  });
+  const nameOf = (id) => id.replace(/^(pack|library|table):/, '').replace(/^[^:]*:/, '');
+
+  // scenarios/, library/ and packs/ from the server; nothing from disk.
+  function bundledSource() {
+    let packs = new Map();
+    return {
+      id: 'server',
+      async list(kind) {
+        if (fromDisk()) return [];
+        if (kind === 'world') return (await E.Scenario.listServer()).map((w) => entry('world', 'server', w.folder, w.title));
+        if (kind === 'library') return [entry('library', 'server', 'shared', 'Shared maps')];
+        if (kind !== 'pack') return [];
+        const found = await E.Packs.listServer();
+        packs = new Map(found.map((p) => [p.folder, p]));
+        return found.map((p) => entry('pack', 'server', p.folder, p.title));
+      },
+      async load(id, opts) {
+        const name = nameOf(id);
+        if (id.startsWith('library:')) return E.Scenario.loadLibraryServer();
+        if (id.startsWith('pack:')) return packs.get(name) || null;
+        return opts && opts.raw ? E.Scenario.fetchWorldFiles(name) : E.Scenario.loadWorldServer(name);
+      },
+    };
+  }
+  // What this page opened from a folder; gone when the page is (A-5 keeps it).
+  function openedSource() {
+    const items = new Map();
+    return {
+      id: 'disk',
+      async list(kind) { return Array.from(items.values()).filter((x) => x.entry.kind === kind).map((x) => x.entry); },
+      async load(id, opts) {
+        const item = items.get(id);
+        if (!item) return null;
+        return opts && opts.raw ? item.value.files : item.value;
+      },
+      add(kind, name, title, value) {
+        const e = entry(kind, 'disk', name, title);
+        items.set(e.id, { entry: e, value });
+        return e.id;
+      },
+    };
+  }
+
+  const opened = openedSource();
+  let sources = [bundledSource(), opened];
+  E.Library = {
+    // Replaces every source with this one.
+    use(source) { sources = [source]; },
+    addSource(source) { sources.push(source); },
+    async list(kind) {
+      const lists = await Promise.all(sources.map((s) => s.list(kind)));
+      return [].concat(...lists);
+    },
+    async load(id, opts) {
+      const sid = String(id).replace(/^(pack|library|table):/, '').split(':')[0];
+      const source = sources.find((s) => s.id === sid);
+      if (!source) throw new Error(`Nothing in the library called "${id}".`);
+      return source.load(id, opts);
+    },
+    // Something picked with Open folder. → its id
+    open: (kind, name, title, value) => opened.add(kind, name, title, value),
   };
 })(typeof window !== 'undefined' ? window : globalThis);

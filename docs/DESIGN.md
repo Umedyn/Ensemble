@@ -219,6 +219,14 @@ Task A-1, `js/adapters.js`. Everything kept goes through `E.Store`: async `get/s
 - **Saves:** `save.<id>` is the game as JSON and `savemeta.<id>` is what a list shows (world, start, player name, turn, date), so listing reads no whole game and two tabs can't drop each other's entries. New game and Load each make a new id; the old autosave became `autosave`; boot resumes the newest; test play writes nothing.
 - **From disk:** Chromium and WebKit share storage between `file://` pages. Firefox gives each HTML file its own, so its pages can't hand games over. Owner's decision (2026-10-30): Firefox from disk needs `start.bat` or `start.sh`. `E.pageCheck` tells by loading `storecheck.html` in a hidden frame, which reports a marker written by the page, and says so in plain words. Results: `docs/tasks/A-1-storage-and-saves.md`.
 
+## Backend, voice and library
+
+Task A-2, `js/adapters.js`. Each has today's behaviour as its default and `use()` to swap it.
+
+- **`E.Backend.fetch(b, url, init)`** → a Response. Every request to a model server goes through it (chat, abort, perf, ping). The direct default adds the key; `E.proxyBackend(url)` sends to one URL with the target in `X-Ensemble-Target` and never sends the key. Streaming, the soft stop, the grammar, JSON mode and usage sit above it in `llm.js`, and `LLM.transport` stays the hook for replays and test mocks. No setting turns a proxy on: that's for a build that needs one.
+- **`E.Voice`**: `available`, `speak(text, opts)`, `stop()`. Off by default, and nothing in the game calls it yet.
+- **`E.Library`**: `list(kind)` and `load(id, opts)` over sources `{ id, list, load }`. Kinds are `world`, `pack`, `library` (the shared site and base maps, loaded whole, because worlds find maps by id in `Scenario.library`) and `table` (none yet). World ids stay `server:<folder>` and `disk:<folder>`, so a remembered pick still works; others start with their kind (`pack:server:<folder>`). `{ raw: true }` gives a world's files as they are, for the creator. The bundled source lists nothing from disk; the opened source holds what this page opened, through `E.Library.open`. The creator's own Open folder and zip stay outside it: they make working copies, not library entries.
+
 ## Creator
 
 Task 3-5. `creator.html` is a separate page that reuses the engine scripts. `js/creator.js` (the only creator file that touches the DOM) keeps a working copy of one world's raw files (`Scenario.fetchWorldFiles` or `Scenario.readFolderFiles`; a legacy folder is converted with `fromLegacy` on opening) in memory and in `E.Store` under `ensemble.creator.<folder>` (images only as object URLs, never stored), and runs the game's own checks on every edit: `prepareWorld` on a copy, with a problem every start reports shown once as the world's. Tabs are a registry (`TABS`); all of them work. `render()` is safe to call while it runs (replacing a focused field fires its change handler): the second call waits and runs after.

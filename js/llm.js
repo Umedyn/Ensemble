@@ -48,15 +48,15 @@
     return `${where} returned HTTP ${status}${detail ? ': ' + detail : ''}`;
   }
 
-  // Swappable transport (the test harness replaces this with a mock).
+  // Swappable transport (the test harness replaces this with a mock). Requests
+  // leave through E.Backend (task A-2), which adds the API key.
   // stream (task L-2): { onText(textSoFar) → { at, why } to stop there, or
   // nothing }. Used only when body.stream is set; a transport that ignores it
   // (the replays, the test mocks) returns the whole text as before.
   LLM.transport = async function (url, body, kind, b, stream) {
     const headers = { 'Content-Type': 'application/json' };
-    if (b && b.key) headers.Authorization = 'Bearer ' + b.key;
     const ctrl = body.stream && typeof AbortController !== 'undefined' ? new AbortController() : null;
-    const r = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: ctrl ? ctrl.signal : undefined });
+    const r = await E.Backend.fetch(b, url, { method: 'POST', headers, body: JSON.stringify(body), signal: ctrl ? ctrl.signal : undefined });
     if (!r.ok) {
       let detail = '';
       try { detail = (await r.text()).slice(0, 200); } catch (e) {}
@@ -109,10 +109,8 @@
   // Stops our own generation on KoboldCpp (its genkey), so the GPU is free
   // for the next call. A failure here changes nothing.
   LLM.abort = async function (b, genkey) {
-    if (typeof fetch !== 'function') return;
     const headers = { 'Content-Type': 'application/json' };
-    if (b.key) headers.Authorization = 'Bearer ' + b.key;
-    try { await fetch(b.url.replace(/\/v\d+$/, '') + '/api/extra/abort', { method: 'POST', headers, body: JSON.stringify({ genkey }) }); } catch (e) {}
+    try { await E.Backend.fetch(b, b.url.replace(/\/v\d+$/, '') + '/api/extra/abort', { method: 'POST', headers, body: JSON.stringify({ genkey }) }); } catch (e) {}
   };
 
   // Token counts from the response's usage block; estimates (marked) when absent.
@@ -136,9 +134,9 @@
   // how long generation took. Prompt time is the cache signal: a reused prefix
   // processes in a fraction of the time. Swappable for tests; null when absent.
   LLM.perf = async function (b) {
-    if (!b.kobold || typeof fetch !== 'function') return null;
+    if (!b.kobold) return null;
     try {
-      const r = await fetch(b.url.replace(/\/v\d+$/, '') + '/api/extra/perf', { headers: b.key ? { Authorization: 'Bearer ' + b.key } : {} });
+      const r = await E.Backend.fetch(b, b.url.replace(/\/v\d+$/, '') + '/api/extra/perf');
       if (!r.ok) return null;
       const j = await r.json();
       if (j.last_process_time == null && j.last_eval_time == null) return null;
@@ -163,21 +161,20 @@
   LLM.ping = async function (id) {
     const b = LLM.backend(id || 'local');
     if (!b.url) throw new Error('No URL set.');
-    const headers = b.key ? { Authorization: 'Bearer ' + b.key } : {};
     if (b.kobold) {
       const root = b.url.replace(/\/v\d+$/, '');
-      const r = await fetch(root + '/api/v1/model', { headers });
+      const r = await E.Backend.fetch(b, root + '/api/v1/model');
       if (!r.ok) throw new Error(friendlyHttpError(r.status, b));
       const j = await r.json();
       let context = null;
       try {
-        const c = await fetch(root + '/api/extra/true_max_context_length', { headers });
+        const c = await E.Backend.fetch(b, root + '/api/extra/true_max_context_length');
         if (c.ok) context = (await c.json()).value || null;
       } catch (e) { /* older KoboldCpp */ }
       return { model: String(j.result || 'unknown').replace(/^koboldcpp\//, ''), context };
     }
     if (!b.model) throw new Error('Set a model name for this backend.');
-    const r = await fetch(b.url + '/models', { headers });
+    const r = await E.Backend.fetch(b, b.url + '/models');
     if (!r.ok) throw new Error(friendlyHttpError(r.status, b));
     let known = null, context = null;
     try {

@@ -43,7 +43,8 @@
   }
 
   // ---------- worlds and starts ----------
-  // loaded: key ("server:<folder>" or "disk:<folder>") -> a loaded world
+  // loaded: E.Library id ("server:<folder>", "disk:<folder>", or "test:…" for
+  // test play) -> a loaded world
   // (Scenario.prepareWorld) or { folder, title, error } when it failed to load.
   // The last pick is remembered across visits.
   const PICK_KEY = 'ensemble.pick';
@@ -187,25 +188,31 @@
       return;
     }
     let list;
-    try { list = await E.Scenario.listServer(); }
+    try { list = await E.Library.list('world'); }
     catch (e) { addScenarioOption('', '— no scenarios/index.json —', true); return; }
-    const worlds = await Promise.all(list.map((s) => E.Scenario.loadWorldServer(s.folder)
+    const worlds = await Promise.all(list.map((s) => E.Library.load(s.id)
       .catch((e) => ({ folder: s.folder, title: s.title, error: e.message }))));
-    allPacks = await E.Packs.listServer();
+    allPacks = await readPacks();
     // Options appear once every world is loaded, in index.json order.
-    worlds.forEach((w, i) => { loaded.set('server:' + list[i].folder, w); addScenarioOption('server:' + list[i].folder, worldLabel(w)); });
+    worlds.forEach((w, i) => { loaded.set(list[i].id, w); addScenarioOption(list[i].id, worldLabel(w)); });
     const pick = rememberedPick();
     if (pick.world && loaded.has(pick.world)) $('scenarioSelect').value = pick.world;
     renderStarts(pick.world === $('scenarioSelect').value ? pick.start : null, pick.who);
   }
 
-  // The picked world, fetched again from the server so edited files show up
-  // without a reload. Throws a world's load error.
+  // Every lore pack in the library; a pack opened later replaces one of its id.
+  async function readPacks() {
+    const packs = await Promise.all((await E.Library.list('pack')).map((p) => E.Library.load(p.id)));
+    return packs.filter((p, i) => !packs.slice(i + 1).some((q) => q.id === p.id));
+  }
+
+  // The picked world, loaded again so a server's edited files show up without
+  // a reload. Throws a world's load error.
   async function resolveWorld(key) {
     const item = loaded.get(key);
     if (!item) throw new Error('Pick a world first (or use Open folder).');
     if (item.error) throw new Error(item.error);
-    const world = key.startsWith('server:') ? await E.Scenario.loadWorldServer(item.folder) : item;
+    const world = key.startsWith('test:') ? item : await E.Library.load(key);
     if (world.warnings.length) console.warn(`World "${world.title}":\n` + world.warnings.join('\n'));
     return world;
   }
@@ -218,6 +225,7 @@
     if (lib) {
       E.Scenario.library = { maps: Object.assign({}, E.Scenario.library.maps, lib.maps), assets: {}, errors: lib.errors };
       libraryAssets = Object.assign({}, libraryAssets, lib.assets);
+      E.Library.open('library', 'opened', 'Opened maps', lib);
       alert(`Added ${Object.keys(lib.maps).length} site map${Object.keys(lib.maps).length === 1 ? '' : 's'} to the library.${lib.errors.length ? `\n\nSkipped:\n${lib.errors.join('\n')}` : ''}`);
       ev.target.value = '';
       return;
@@ -226,7 +234,8 @@
     // packs alone is fine.
     const found = await E.Packs.readFolderFiles(ev.target.files);
     if (found.length) {
-      allPacks = allPacks.filter((p) => !found.some((f) => f.id === p.id)).concat(found);
+      found.forEach((p) => E.Library.open('pack', p.folder, p.title, p));
+      allPacks = await readPacks();
       renderPackButton();
       if (!Array.from(ev.target.files).some((f) => /(^|\/)(world|scenario)\.json$/.test(f.webkitRelativePath || f.name))) {
         alert(`Found ${found.length} lore pack${found.length === 1 ? '' : 's'}: ${found.map((p) => p.title).join(', ')}. Pick their world, then Lore packs to turn them on.`);
@@ -236,7 +245,7 @@
     }
     try {
       const { worlds, errors } = await E.Scenario.loadFromFiles(ev.target.files);
-      worlds.forEach((w, i) => { loaded.set('disk:' + w.folder, w); diskAssets.set(w.folder, w.assets || {}); addScenarioOption('disk:' + w.folder, w.title + ' (disk)', i === 0); });
+      worlds.forEach((w, i) => { const id = E.Library.open('world', w.folder, w.title, w); loaded.set(id, w); diskAssets.set(w.folder, w.assets || {}); addScenarioOption(id, w.title + ' (disk)', i === 0); });
       renderStarts();
       rememberPick();
       if (errors.length) alert('Some worlds were skipped:\n\n' + errors.join('\n\n'));
@@ -2657,9 +2666,10 @@
     applyAppearance(E.settings.appearance);
     initTimeSteps();
     // The shared site map library (task 6-3), before the worlds that use it.
-    if (location.protocol !== 'file:') {
-      try { E.Scenario.library = await E.Scenario.loadLibraryServer(); } catch (e) { /* no library/: worlds use their own maps */ }
-    }
+    try {
+      const [shared] = await E.Library.list('library');
+      if (shared) E.Scenario.library = await E.Library.load(shared.id);
+    } catch (e) { /* no library/: worlds use their own maps */ }
     await loadServerList();
     if (firstRun) openSetup();
     else checkConnection(false);

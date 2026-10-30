@@ -1926,6 +1926,43 @@ await check('an old autosave and old settings move over and play on', async (pag
   await ctx.close();
 }
 
+// Adapters (task A-2): a fake backend and a fake library, put in right after
+// adapters.js loads, with nothing else on the page changed.
+{
+  const ctx = await browser.newContext({ viewport: { width: 1360, height: 900 } });
+  await ctx.addInitScript(() => localStorage.setItem('ensemble.setupDone', '1'));
+  const fakes = `
+    (function () {
+      const E = window.Ensemble;
+      E.fakeSent = [];
+      E.Backend.use({ fetch(b, url, init) { E.fakeSent.push(url); return fetch(url, init); } });
+      E.Library.use({
+        id: 'fake',
+        async list(kind) { return kind === 'world' ? [{ id: 'fake:one', kind, source: 'fake', title: 'A fake shelf', folder: 'one' }] : []; },
+        async load(id, opts) { return opts && opts.raw ? E.Scenario.fetchWorldFiles('mars-station') : E.Scenario.loadWorldServer('mars-station'); },
+      });
+    })();`;
+  await ctx.route('**/js/adapters.js', async (route) => {
+    const res = await route.fetch();
+    await route.fulfill({ response: res, body: (await res.text()) + fakes });
+  });
+  const page = await ctx.newPage();
+  try {
+    await page.goto(BASE);
+    await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
+    assert.deepEqual(await page.locator('#scenarioSelect option').evaluateAll((els) => els.map((o) => o.value)), ['fake:one']);
+    await newGame(page);
+    await act(page, 'I open up the recycler.');
+    assert.ok(await page.evaluate(() => window.Ensemble.fakeSent.some((u) => u.endsWith('/chat/completions'))), 'the turn went through the fake backend');
+    await page.goto(BASE + 'creator.html');
+    await page.waitForFunction(() => document.querySelector('#cWorld option[value="fake:one"]'));
+    await page.selectOption('#cWorld', 'fake:one');
+    await page.waitForFunction(() => !document.getElementById('cExport').disabled);
+    console.log('✓ a fake backend and library are used by the game and the creator');
+  } catch (e) { failures++; console.error('✕ fake backend and library\n  ' + e.message); }
+  await ctx.close();
+}
+
 // Pages opened straight from disk: shared storage says nothing; Firefox's
 // one store per file gets the plain message. Firefox is optional here, and
 // needs its stock prefs back: Playwright's build relaxes file origins.
