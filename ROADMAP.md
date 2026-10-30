@@ -265,6 +265,32 @@ Small models drift to the most likely beat. Genre-aware random tables fix that: 
 - [ ] **Tables, rolls and uses** (T-1): tables as data (weights, guides, danger, needs), layered defaults → genre → world → start, merged by id; seeded, recorded, no quick repeats; focus weighted by tension. Used for generated starts (mood, plot, theme, conflict, roles, rerollable in the review), events, off-screen beats and major skips, never for the player's own turns. Default entries written in Ensemble's own words.
 - [ ] **Creator Tables tab and table mods** (T-2): edit and test-roll tables; a `tables/` folder as a shareable mod type.
 
+## Pages and adapters (the shared app)
+
+`index.html` becomes a landing page that branches out to separate pages, and everything that doesn't need an account (landing, library, game, creator, settings) lives in this public repo, shared by every version. The hobby version keeps working exactly as now at every step: from a folder or a local server, with KoboldCpp or the player's own key. No build step, every page opens from disk, no gameplay changes, and nothing commercial here: only seams a different build could fill. Source: the 2026-10-30 update (owner's decision; tasks A-1 to A-11).
+
+- [ ] **Storage and saves** (A-1): `E.Store` in `js/adapters.js`, IndexedDB by default with the old localStorage keys moved over on first run; a list of saves with ids. First, check that separate `file://` pages share storage outside Chromium.
+- [ ] **The other adapters** (A-2): `E.Backend` (direct, or a proxy URL), `E.Voice` (off for now), `E.Library` (one `list()` and `load(id)` across bundled worlds, opened folders and remote lists).
+- [ ] **Split the game screen** (A-3): a shared header and CSS, and `ui.js` into `js/ui/` modules of about 1,000 lines at most, with nothing on screen changing; smoke tests extended first.
+- [ ] **Own pages** (A-4 to A-7): `settings.html`; `library.html`; `new.html`; `play.html`; then `index.html` as the landing page, last. Ids in the query string, data through `E.Store`; refresh and back are safe; every page works at phone width.
+- [ ] **World bundles and the library** (A-5, ahead of the new-game page so the disk version always has a way to start): a world opened from a folder or zip is stored with its images and survives changing pages; a save still plays after its world is removed.
+- [ ] **Remote lists** (A-8): the library can add a list URL for downloadable worlds, validated and stored as bundles, fetched only in the library, never in play. None configured by default.
+- [ ] **Polish** (A-9): consistent spacing and type, plain empty states, loading states.
+- [ ] **Moving pieces** (A-10, A-11): tokens walk the real path on the beat they move, only for what the player saw, with a phone pop-up and a Map motion setting; region control, presence, tags and drawn outlines shift on the map the same way.
+
+## Engine systems
+
+Decided 2026-10-30. The engine decides and the model only writes it up; results reach prompts in the user message only; each system is optional per world and the minimum-world test stays green. **Everything has a home, and the scene decides which homes are opened**: new state (facts, details, items, beliefs) is stored at its home and loaded by what the scene touches, never added to every prompt. Separate from the pages work: the two tracks can run side by side. Listed in build order (tasks B-0 to B-10).
+
+- [ ] **Scoped memory** (B-0, first, since everything after stores into it): facts gain `where` beside `about`; a call opens the room and region chain, the people present, anyone named, and the weight-3 facts, with a budget for each; a stable core stays in the header, the rest moves to the user message.
+- [ ] **Narrated details become part of the world** (B-0b): what the narration says stays true. Details are filed at their home and object details become features; contradictions of engine state are dropped and shown in Debug; `source` marks them, and narration-only facts never drive rules.
+- [ ] **Breaking routine is a clue** (B-1, with routines G-7 to G-9): someone missing from where they always are, or somewhere they never are, gets noticed, at most once a scene, with the reason hidden.
+- [ ] **Headless run harness** (B-9, before B-2 and B-3): `npm run soak` plays hundreds of turns and reports clocks, needs, people, endings, budgets and guards that look wrong; runs in CI.
+- [ ] **Beliefs and spreading** (B-2, B-3): facts pass between people who spend time together, with no model call; beliefs can be false, the player and the cast can lie, rumours blur, and lies can be exposed. Secrets never spread this way.
+- [ ] **Light and private places** (B-4, B-5): a derived light level feeds sneaking, sight and the scene; rooms can have owners, and being found there costs something.
+- [ ] **Items, promises, skills** (B-6, B-7, B-8, any order): named items and counted resources owned by the engine; promises both ways, kept or broken, feeding the reckoning; skills improve slowly with use.
+- [ ] **Director and arc memory** (B-10, when long campaigns need it; after T-1): tension nudges story tables and event rates within the genre's limits; arc summaries, and a "history with you" line per character.
+
 ## Content settings
 
 No phase dependency (it builds on the genre guidance blocks from phase 1); must be done before publishing.
@@ -280,7 +306,7 @@ No phase dependency (it builds on the genre guidance blocks from phase 1); must 
 
 ## Voiced narration
 
-No phase dependency beyond mood tags (phase 1, done). Reuses StreamTTS pieces.
+No phase dependency beyond mood tags (phase 1, done). Reuses StreamTTS pieces. Lands behind the `E.Voice` adapter (A-2).
 
 - [ ] **TTS backends**, like LLM backends: off, Piper locally (the hobbyist default), a hosted TTS provider (bring-your-own key), and later the paid side's bundled catalog.
 - [ ] **No separate transcript.** The narrated scene is the script; split it into narrator lines and dialogue.
@@ -293,15 +319,11 @@ No phase dependency beyond mood tags (phase 1, done). Reuses StreamTTS pieces.
 
 ## Later
 
-- **Director**: tension tracking that nudges events up or down to keep pacing interesting. It can build on story tables (T-1) by adjusting their weights.
 - **Streaming narration**: show the scene as it's written. It doesn't depend on any phase, so it can go in whenever there's a gap.
-- **Arc memory** for long campaigns: summarize every ~5 chapters into an arc, keep weight-3 facts verbatim, and give each character a running "history with you" line.
-- **Save slots and autosave**, and an in-game **journal** (what you know, by person, and the chapters).
 - **Endings**: optional win/loss/epilogue conditions on clocks, regions and timeline events, with a closing "what became of everyone" scene.
-- **Inventory and resources**, owned by the engine.
+- **Chapter replay**: a sped-up playback of a chapter's movements and territory shifts, built on moving pieces (A-10, A-11).
 - **Positions inside a room** (doorway, cover, back wall) for a more hands-on feel; site layouts already give every room coordinates. Decide after playing with tokens (from phase 3).
 - **Remembered feature state**: remember each feature's last-seen state (as `state.known` does for people), so a remembered room shows the cabinet as you left it. Today remembered rooms show features with no state, and doors out of sight show as plain doors (from phase 3).
-- **Promises ledger**: the engine tracks what the player committed to, with deadlines.
 - **Stream mode**: Twitch chat votes on the player's action.
 - **Installable app (PWA)** and optional save sync to the player's own cloud drive.
 - **Native port** (e.g. Godot) if it outgrows the browser; the JSON state and prompt chain port as-is.
@@ -338,3 +360,4 @@ A long-term possibility, not a plan of record.
 - Side B is a different kind of project: inference and TTS costs, accounts, billing, moderation, age assurance, privacy (GDPR), and hosting user uploads with a takedown process and a registered DMCA agent. Form an LLC and get a legal review of the terms before launching it.
 - **Order:** Side A with real players → community on existing platforms (Discord, itch.io/GitHub) → paid desktop build → Side B.
 - **A lighter Side B to consider:** a subscription for the polished app, the hub, cloud saves and premium content, with play on the user's own GPU or key and hosted tokens as an optional add-on.
+- **How Side B would be built** (2026-10-30): account features (sign-in, credits, cloud saves, publishing, dashboards) plus its own adapters, in a separate private repo, on top of the shared app (Pages and adapters). It never forks the pages or the engine.
