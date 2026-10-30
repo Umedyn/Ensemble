@@ -120,6 +120,14 @@ try { window.EnsembleAppearance((JSON.parse(localStorage.getItem('ensemble.setti
   </form>
 </dialog>
 
+<dialog id="termDialog" class="term-dialog" aria-labelledby="termTitle">
+  <form method="dialog" class="settings">
+    <div id="termBody"></div>
+    <div class="row end"><button value="close">Close</button></div>
+  </form>
+</dialog>
+<div id="termTip" class="term-tip" role="tooltip" hidden></div>
+
 <dialog id="webDialog" aria-labelledby="webTitle">
   <form method="dialog" class="settings web">
     <h3 id="webTitle">Who feels what</h3>
@@ -214,6 +222,7 @@ try { window.EnsembleAppearance((JSON.parse(localStorage.getItem('ensemble.setti
         <label>Line spacing <select id="aSpacing"><option value="normal">Normal</option><option value="relaxed">Relaxed</option></select></label>
         <label>Reduce motion <select id="aMotion"><option value="system">Same as my device</option><option value="on">On</option><option value="off">Off</option></select></label>
         <label>Map detail <select id="aMapDetail"><option value="detailed">Detailed (floor plans)</option><option value="simple">Simple (boxes, lighter on old phones)</option></select></label>
+        <label>Names in the story <select id="aStoryLinks"><option value="on">Linked: hover or tap for who or what they are</option><option value="off">Plain text</option></select></label>
         <div class="muted small">Changes show right away; Save keeps them.</div>
       </fieldset>
     </details>
@@ -258,6 +267,7 @@ try { window.EnsembleAppearance((JSON.parse(localStorage.getItem('ensemble.setti
 <script src="js/layouts.js"></script>
 <script src="js/sitedraw.js"></script>
 <script src="js/mapdraw.js"></script>
+<script src="js/glossary.js"></script>
 <script src="js/zip.js"></script>
 <script src="js/worldedit.js"></script>
 <script src="js/charform.js"></script>

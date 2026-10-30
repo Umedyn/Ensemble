@@ -211,6 +211,51 @@ await check('chapters fold their turns under one row, with the summary inside', 
   await page.locator('#log').screenshot({ path: path.join(shots, 'chapters.png') });
 });
 
+// Names in the story: hover a place for a short box, click it for the whole
+// entry, click a person for their card; the setting turns the links off. The
+// journal shows the latest chapter and folds the ones before it.
+await check('names in the story: a box on hover, the entry or a card on a click; the journal folds older chapters', async (page) => {
+  const { state } = helpers.newGame('seiryo-high');
+  state.log.push({ turn: 1, type: 'action', text: 'I look out at the lake.', time: 'Wed 8 April, 07:00' });
+  state.log.push({ turn: 1, type: 'scene', text: 'Aoi points across Mito to Kairakuen.', beats: [{ at: 0, text: 'Aoi points across Mito to Kairakuen.' }] });
+  const ch = (n, title, fromTurn, toTurn) => ({ n, title, summary: `What happened in ${title}.`, fromTurn, toTurn, reason: 'size' });
+  state.chapters.push(ch(1, 'Cherry petals', 0, 0), ch(2, 'The gate', 1, 1));
+  Object.assign(state, { turn: 1, chapter: 3, chapterStartTurn: 2 });
+  await page.setInputFiles('#loadInput', { name: 'names.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(state)) });
+  await page.waitForSelector('.turn-current .term');
+  assert.deepEqual(await page.locator('.turn-current .term').allTextContents(), ['Aoi', 'Mito', 'Kairakuen']);
+  await page.hover('.turn-current .term[data-term="region:mito"]');
+  await page.waitForSelector('#termTip:not([hidden])');
+  assert.match(await page.textContent('#termTip'), /Mito[\s\S]*capital of Ibaraki[\s\S]*Click for more/);
+  await page.locator('#log').screenshot({ path: path.join(shots, 'names-hover.png') });
+  await page.click('.turn-current .term[data-term="lore:kairakuen"]');
+  await page.waitForSelector('#termDialog[open]');
+  assert.match(await page.textContent('#termBody'), /Kairakuen and Lake Senba[\s\S]*plum/);
+  await page.click('#termDialog button[value="close"]');
+  await page.click('.turn-current .term[data-term="person:aoi"]');
+  await page.waitForSelector('#termDialog[open] .popup-card');
+  assert.match(await page.textContent('#termBody'), /Aoi Mizuhara[\s\S]*What you know/);
+  assert.equal(await page.locator('#termBody .feel, #termBody [data-pin]').count(), 0, 'to read only');
+  await page.screenshot({ path: path.join(shots, 'names-card.png') });
+  await page.click('#termDialog button[value="close"]');
+  // The keyboard: Tab to a name, Enter opens it.
+  await page.focus('.turn-current .term[data-term="region:mito"]');
+  await page.keyboard.press('Enter');
+  await page.waitForSelector('#termDialog[open]');
+  await page.keyboard.press('Escape');
+  // The journal: chapter 2 open, the ones before it folded to their titles.
+  const journal = await page.locator('#journal details.journal-entry').evaluateAll((ds) => ds.map((d) => [d.dataset.journal, d.open]));
+  assert.deepEqual(journal.slice(0, 2), [['2', true], ['1', false]]);
+  assert.ok(journal.slice(1).every(([, open]) => !open));
+  // Plain text when the setting says so.
+  await page.click('#btnSettings');
+  await page.locator('details.section:has(#aStoryLinks)').evaluate((d) => { d.open = true; });
+  await page.selectOption('#aStoryLinks', 'off');
+  assert.equal(await page.locator('.turn-current .term').count(), 0);
+  await page.click('#settings button[value="save"]');
+  assert.equal(await page.locator('.turn-current .term').count(), 0);
+});
+
 // Endings: a story that reached one shows it and an end card; Keep playing goes on.
 await check('endings: the end card after a story reaches an ending, and Keep playing', async (page) => {
   const { E, state } = helpers.newGame('zombie-holdout');

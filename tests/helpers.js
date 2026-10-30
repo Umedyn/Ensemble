@@ -5,7 +5,7 @@ const path = require('path');
 const vm = require('vm');
 
 const ROOT = path.join(__dirname, '..');
-const ENGINE_FILES = ['util', 'jsonshape', 'llm', 'recorder', 'memory', 'standing', 'lore', 'timeline', 'genres', 'prompts', 'engine', 'scenario', 'packs', 'charmaker', 'startgen', 'sites', 'geo', 'layouts', 'sitedraw', 'mapdraw', 'zip', 'cards', 'mapedit', 'loreedit', 'worldedit', 'siteedit', 'research'];
+const ENGINE_FILES = ['util', 'jsonshape', 'llm', 'recorder', 'memory', 'standing', 'lore', 'timeline', 'genres', 'prompts', 'engine', 'scenario', 'packs', 'charmaker', 'startgen', 'sites', 'geo', 'layouts', 'sitedraw', 'mapdraw', 'glossary', 'zip', 'cards', 'mapedit', 'loreedit', 'worldedit', 'siteedit', 'research'];
 
 // extraGlobals lets a test provide browser objects such as localStorage.
 function loadEngine(extraGlobals = {}) {

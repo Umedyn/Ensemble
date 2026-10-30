@@ -11,6 +11,7 @@
   let uiShown = 1; // beats of the live scene revealed so far
   const openTurns = new Set(); // folded earlier turns the player has opened
   const openChapters = new Set(); // closed chapters the player has opened
+  const openJournal = new Set(); // earlier journal chapters the player has opened
   const notes = []; // undo/reroll history for the Debug panel
   const loaded = new Map(); // worlds in the picker; see "worlds and starts"
 
@@ -1072,7 +1073,7 @@
       const live = liveScene();
       if (live && live.turn === e.turn && !canAct()) return '';
       const word = { win: 'A win', loss: 'A loss', bittersweet: 'Bittersweet', neutral: 'An ending' }[e.kind] || 'An ending';
-      return (e.text ? `<div class="entry scene ending">${String(e.text).split(/\n\s*\n/).map((p) => `<p>${esc(p.trim())}</p>`).join('')}</div>` : '') +
+      return (e.text ? `<div class="entry scene ending">${String(e.text).split(/\n\s*\n/).map((p) => `<p>${storyHtml(p.trim())}</p>`).join('')}</div>` : '') +
         `<div class="entry chapter ending-title">${word}<b>The end: ${esc(e.title)}</b></div>`;
     }
     if (e.type === 'note') return `<div class="entry note muted small">${esc(e.text)}</div>`;
@@ -1140,10 +1141,10 @@
     // What is still to go on a trip (R-10): the engine's line, outside the prose.
     const travel = (read) => (e.travel && read ? `<div class="beat-note travel-note">${esc(e.travel)}</div>` : '');
     const live = state.pending && state.pending.turn === e.turn;
-    if (!e.beats || e.beats.length < 2) return `<div class="entry scene">${esc(e.text)}</div>${travel(true)}`;
+    if (!e.beats || e.beats.length < 2) return `<div class="entry scene">${storyHtml(e.text)}</div>${travel(true)}`;
     const shown = live ? Math.min(uiShown, e.beats.length) : (e.cutAt || e.beats.length);
     let h = e.beats.slice(0, shown).map((b, i) =>
-      `<div class="beat" data-beat="${i}"><div class="beat-time">${beatClock(e, b)}</div><div class="entry scene">${esc(b.text)}</div></div>`
+      `<div class="beat" data-beat="${i}"><div class="beat-time">${beatClock(e, b)}</div><div class="entry scene">${storyHtml(b.text)}</div></div>`
     ).join('');
     if (live && shown < e.beats.length) {
       const on = uiCut === shown;
@@ -1154,6 +1155,68 @@
     }
     return h + travel(!live || shown >= e.beats.length);
   }
+
+  // ---------- names in the story ----------
+  // Places, people and lore terms in a scene are linked (E.Glossary decides
+  // which, and only with what the player may know): hovering or focusing one
+  // shows a short box, a click or tap opens the whole entry, and a person's
+  // opens their card.
+  function storyHtml(text) {
+    const on = (storyLinksPreview || E.settings.appearance.storyLinks) !== 'off';
+    return on && state ? E.Glossary.markup(state, text, esc) : esc(text);
+  }
+  const termInfo = (el) => E.Glossary.info(state, E.Glossary.parse(el.dataset.term));
+  function termHtml(info, short) {
+    const text = short ? (info.text[0] ? [E.shorten(info.text[0], 220)] : []) : info.text;
+    return `<div class="term-title"${short ? '' : ' id="termTitle"'}><b>${esc(info.title)}</b>${info.feel ? ` <span class="rel-${esc(info.feel.split(' ')[0])}">you: ${esc(info.feel)}</span>` : ''}</div>` +
+      (info.sub ? `<div class="muted small">${esc(info.sub)}</div>` : '') +
+      text.map((t) => `<p>${esc(t)}</p>`).join('') +
+      (!text.length ? '<div class="muted small">Nothing more is known yet.</div>' : '') +
+      (short ? `<div class="muted small">${info.person ? 'Click for their card.' : 'Click for more.'}</div>` : '');
+  }
+  function showTip(el) {
+    const info = termInfo(el);
+    const tip = $('termTip');
+    if (!info) return hideTip();
+    tip.innerHTML = termHtml(info, true);
+    tip.hidden = false;
+    const r = el.getBoundingClientRect();
+    const w = tip.offsetWidth;
+    const h = tip.offsetHeight;
+    const left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8));
+    const below = r.bottom + 6 + h <= window.innerHeight - 8;
+    tip.style.left = `${left}px`;
+    tip.style.top = `${below ? r.bottom + 6 : Math.max(8, r.top - h - 6)}px`;
+  }
+  function hideTip() { $('termTip').hidden = true; }
+  function openTerm(el) {
+    hideTip();
+    const info = termInfo(el);
+    if (!info) return;
+    $('termBody').innerHTML = info.person ? popupCard(info.person) : termHtml(info, false);
+    $('termDialog').showModal();
+  }
+  // A person's card in the popup: what the People panel shows, to read only.
+  function popupCard(id) {
+    const c = state.characters[id];
+    const dead = c.status.health === 'dead';
+    return `<div class="card popup-card${dead ? ' dead' : ''}" id="termTitle">${cardHeader(id, c, id === state.player, true)}${cardStatus(c, id === state.player)}${cardBody(id, c, dead, false)}</div>`;
+  }
+  $('log').addEventListener('pointerover', (ev) => {
+    const el = ev.pointerType === 'mouse' && ev.target.closest('.term');
+    if (el) showTip(el);
+  });
+  $('log').addEventListener('pointerout', (ev) => { if (ev.target.closest('.term')) hideTip(); });
+  $('log').addEventListener('focusin', (ev) => { const el = ev.target.closest('.term'); if (el) showTip(el); });
+  $('log').addEventListener('focusout', (ev) => { if (ev.target.closest('.term')) hideTip(); });
+  $('log').addEventListener('scroll', hideTip, { passive: true });
+  $('log').addEventListener('click', (ev) => { const el = ev.target.closest('.term'); if (el && state) openTerm(el); });
+  $('log').addEventListener('keydown', (ev) => {
+    const el = ev.target.closest && ev.target.closest('.term');
+    if (!el || (ev.key !== 'Enter' && ev.key !== ' ')) return;
+    ev.preventDefault();
+    openTerm(el);
+  });
 
   function actionPlaceholder() {
     const entry = liveScene();
@@ -1257,6 +1320,7 @@
   // "localMap" draws its floor-plan image with room hotspots instead.
   const CELL = E.SiteDraw.CELL;
   let mapDetailPreview = null; // Settings › Map detail while the dialog is open
+  let storyLinksPreview = null; // Settings › Names in the story, likewise
   let planCache = { key: null, plan: null };
   function mapPlan() {
     const sc = state.scenario;
@@ -1919,12 +1983,14 @@
     return url && !failedUrls.has(url) ? `<img class="portrait" src="${esc(url)}" alt="" data-fallback="${esc(id)}">` : monogramHtml(id);
   }
   // error doesn't bubble, so listen in the capture phase.
-  $('cast').addEventListener('error', (ev) => {
+  const portraitFallback = (ev) => {
     const img = ev.target;
     if (img.tagName !== 'IMG' || !img.dataset.fallback) return;
     failedUrls.add(img.getAttribute('src'));
     img.outerHTML = monogramHtml(img.dataset.fallback);
-  }, true);
+  };
+  $('cast').addEventListener('error', portraitFallback, true);
+  $('termDialog').addEventListener('error', portraitFallback, true);
 
   // ---------- relationship web (task 2-4) ----------
   // E.Engine.relationWeb decides what the player may see; this only draws it:
@@ -2048,7 +2114,8 @@
   }
 
   // Portrait, name, role, how they and you feel about each other, and where they are.
-  function cardHeader(id, c, isPlayer) {
+  // bare: without the minimize button (the popup card).
+  function cardHeader(id, c, isPlayer, bare) {
     const loc = state.locations[c.status.location];
     let rels = '';
     if (!isPlayer) {
@@ -2060,7 +2127,7 @@
       rels = `<div class="rels"><div class="rel-${relW}" title="How they feel about you">them: ${relW} ${rel > 0 ? '+' : ''}${rel}</div>` +
         `<div class="rel-${myW}" title="${esc(why ? 'How you feel about them: ' + why : 'How you feel about them')}">you: ${myW} ${mine > 0 ? '+' : ''}${mine}</div></div>`;
     }
-    return `<div class="top">${portraitHtml(id)}<div class="who"><div class="nm">${esc(c.name)}${isPlayer ? ' (you)' : ''}${c.pinned && !isPlayer ? ' <span title="Pinned" aria-label="pinned">📌</span>' : ''}</div><div class="role">${esc(c.role)}</div></div>${rels}${minButton(id, c, false)}</div>` +
+    return `<div class="top">${portraitHtml(id)}<div class="who"><div class="nm">${esc(c.name)}${isPlayer ? ' (you)' : ''}${c.pinned && !isPlayer ? ' <span title="Pinned" aria-label="pinned">📌</span>' : ''}</div><div class="role">${esc(c.role)}</div></div>${rels}${bare ? '' : minButton(id, c, false)}</div>` +
       `<div class="meta">${esc(whereText(id, isPlayer, loc))}</div>`;
   }
   // Where the card says someone is (task 3-3): where you last saw them, so a
@@ -2103,20 +2170,24 @@
   const openCards = new Set();
   const KNOWN_SHOWN = 6;
   function cardDetails(id, c, dead) {
+    return `<details class="card-details" data-card="${esc(id)}"${openCards.has(id) ? ' open' : ''}><summary>Details</summary>${cardBody(id, c, dead, true)}</details>`;
+  }
+  // The details themselves; interactive: with the pin, feelings and save
+  // controls (the People panel), else to read only (the popup card).
+  function cardBody(id, c, dead, interactive) {
     const who = [c.pronouns, c.role, c.age, E.Standing.membership(state, c)].filter(Boolean).map(esc).join(' · ');
     const known = E.Engine.knownAbout(state, id);
     const knownHtml = known.length
       ? `<ul class="known">${known.slice(0, KNOWN_SHOWN).map((f) => `<li>${esc(f.text)}</li>`).join('')}</ul>` +
         (known.length > KNOWN_SHOWN ? `<div class="muted small">and ${known.length - KNOWN_SHOWN} more in Debug › Fact store</div>` : '')
       : '<div class="muted small">Nothing yet.</div>';
-    const body = `<div class="small muted">${who}</div>` +
+    return `<div class="small muted">${who}</div>` +
       (c.description ? `<p class="desc">${esc(c.description)}</p>` : '') +
       (c.appearance ? `<p class="desc"><span class="muted">Looks:</span> ${esc(c.appearance)}</p>` : '') +
-      (id !== state.player && !dead ? cardPin(id, c) + cardFeelings(id, c) : '') +
-      (id === state.player && state.scenario.madePlayer === id ? '<button type="button" class="small" data-save-char>Save this character</button>' : '') +
+      (interactive && id !== state.player && !dead ? cardPin(id, c) + cardFeelings(id, c) : '') +
+      (interactive && id === state.player && state.scenario.madePlayer === id ? '<button type="button" class="small" data-save-char>Save this character</button>' : '') +
       cardNeeds(c, dead) +
       `<div class="known-head">What you know</div>${knownHtml}`;
-    return `<details class="card-details" data-card="${esc(id)}"${openCards.has(id) ? ' open' : ''}><summary>Details</summary>${body}</details>`;
   }
   // Pin: they stay in the foreground (full detail every turn) even while unseen.
   function cardPin(id, c) {
@@ -2172,10 +2243,20 @@
       $('journal').innerHTML = `<div class="muted">Chapter ${state.chapter} in progress${state.turn ? ` (turn ${E.Memory.turnsInChapter(state)}; it closes when its notes fill the memory, or after ${E.settings.chapterLength} turns)` : ''}.</div>`;
       return;
     }
+    // The latest chapter is shown in full; earlier ones fold to their title
+    // and stay as the player leaves them.
+    const latest = state.chapters[state.chapters.length - 1].n;
     $('journal').innerHTML = state.chapters.slice().reverse().map((c) =>
-      `<div class="journal-entry"><b>${c.n}. ${esc(c.title)}</b> <span class="turns">turns ${c.fromTurn}–${c.toTurn}</span><div>${esc(c.summary)}</div></div>`
+      `<details class="journal-entry" data-journal="${c.n}"${c.n === latest || openJournal.has(c.n) ? ' open' : ''}><summary><b>${c.n}. ${esc(c.title)}</b> <span class="turns">turns ${c.fromTurn}–${c.toTurn}</span></summary><div>${esc(c.summary)}</div></details>`
     ).join('');
   }
+  $('journal').addEventListener('toggle', (ev) => {
+    const d = ev.target;
+    if (!d.matches || !d.matches('details.journal-entry') || !state || !state.chapters.length) return;
+    const n = Number(d.dataset.journal);
+    if (n === state.chapters[state.chapters.length - 1].n) return;
+    if (d.open) openJournal.add(n); else openJournal.delete(n);
+  }, true);
 
   // ---------- debug ----------
   // Generated sites (task 4-4), for Debug: everything, notes included.
@@ -2452,6 +2533,7 @@
     $('aSpacing').value = a.lineSpacing;
     $('aMotion').value = a.motion;
     $('aMapDetail').value = a.mapDetail === 'simple' ? 'simple' : 'detailed';
+    $('aStoryLinks').value = a.storyLinks === 'off' ? 'off' : 'on';
   }
   function readAppearance() {
     return {
@@ -2461,12 +2543,14 @@
       lineSpacing: $('aSpacing').value,
       motion: $('aMotion').value,
       mapDetail: $('aMapDetail').value,
+      storyLinks: $('aStoryLinks').value,
     };
   }
-  ['aTheme', 'aTextSize', 'aFont', 'aSpacing', 'aMotion', 'aMapDetail'].forEach((id) => $(id).addEventListener('input', () => {
+  ['aTheme', 'aTextSize', 'aFont', 'aSpacing', 'aMotion', 'aMapDetail', 'aStoryLinks'].forEach((id) => $(id).addEventListener('input', () => {
     $('aTextSizeOut').textContent = $('aTextSize').value + '%';
     applyAppearance(readAppearance());
     if (id === 'aMapDetail') { mapDetailPreview = $('aMapDetail').value; if (state) renderMap(); }
+    if (id === 'aStoryLinks') { storyLinksPreview = $('aStoryLinks').value; if (state) renderLog(); }
   }));
   // "Same as my device" follows the OS while the page is open.
   ['(prefers-color-scheme: light)', '(prefers-reduced-motion: reduce)'].forEach((q) => {
@@ -2518,6 +2602,7 @@
     }
     applyAppearance(E.settings.appearance);
     if (mapDetailPreview) { mapDetailPreview = null; if (state) renderMap(); }
+    if (storyLinksPreview) { storyLinksPreview = null; if (state) renderLog(); }
   });
 
   // ---------- mobile side sheet ----------

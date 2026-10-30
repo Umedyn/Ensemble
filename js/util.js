@@ -37,7 +37,7 @@
     chapterRule: 2,
     debug: false,
     // Settings › Appearance; index.html applies it before first paint.
-    appearance: { theme: 'dark', textSize: 100, storyFont: 'serif', lineSpacing: 'normal', motion: 'system', mapDetail: 'detailed' },
+    appearance: { theme: 'dark', textSize: 100, storyFont: 'serif', lineSpacing: 'normal', motion: 'system', mapDetail: 'detailed', storyLinks: 'on' },
   };
   E.settings = JSON.parse(JSON.stringify(E.defaults));
 

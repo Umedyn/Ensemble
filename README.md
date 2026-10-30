@@ -13,7 +13,9 @@ No Python? Open `index.html` directly and use **Open folder** to pick the `scena
 
 Each backend has its own context size: **Test** reads it from KoboldCpp, or from the provider's model list when it has one (OpenRouter does). Settings also has the memory cap, scene length, temperature and the most turns a chapter runs.
 
-**Settings → Appearance** sets the theme (Dark, Light, **High visibility** for low vision, or the same as your device), text size (90–150%), story font (serif or sans), line spacing, reduce motion and map detail (detailed floor plans, or simple boxes for older phones). Changes show as you pick them and are kept in this browser. With a screen reader, each new beat and note is read out as it appears.
+**Settings → Appearance** sets the theme (Dark, Light, **High visibility** for low vision, or the same as your device), text size (90–150%), story font (serif or sans), line spacing, reduce motion, map detail (detailed floor plans, or simple boxes for older phones) and names in the story. Changes show as you pick them and are kept in this browser. With a screen reader, each new beat and note is read out as it appears.
+
+**Names in the story.** People, places and lore terms in a scene are underlined: hover (or Tab to one) for a short note, click or tap for the whole entry, and a person opens their card. Only what you could know is linked: regions you know of, rooms you have seen, people in the story, and lore, never secrets. Settings → Appearance turns it off. The journal shows the latest chapter and folds the earlier ones to their titles.
 
 ## Models: local, remote or API
 

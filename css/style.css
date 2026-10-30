@@ -478,9 +478,22 @@ details.rolls li { margin: 2px 0; }
 .rel-trusts, .rel-friendly { color: var(--good); }
 .rel-wary, .rel-hostile { color: var(--bad); }
 
-.journal-entry { margin-bottom: 10px; font-size: 0.8125rem; }
+.journal-entry { margin-bottom: 8px; font-size: 0.8125rem; }
+.journal-entry > summary { cursor: pointer; }
+.journal-entry > div { margin-top: 4px; }
 .journal-entry b { font-family: var(--story-font); font-size: 0.875rem; }
 .journal-entry .turns { color: var(--muted); font-size: 0.7188rem; }
+/* names in the story: a hover box and a popup */
+.term { text-decoration: underline dotted; text-decoration-color: var(--muted); text-underline-offset: 0.18em; cursor: pointer; border-radius: 3px; }
+.term:hover { text-decoration-color: var(--accent); }
+.term:focus-visible { outline: var(--focus-width) solid var(--focus); outline-offset: 1px; }
+.term-tip { position: fixed; z-index: 50; max-width: min(22rem, calc(100vw - 16px)); background: var(--panel); color: var(--text); border: 1px solid var(--line-strong); border-radius: 8px; padding: 8px 10px; font-size: 0.8125rem; line-height: 1.4; box-shadow: 0 4px 16px var(--shadow); pointer-events: none; }
+.term-tip[hidden] { display: none; }
+.term-tip p, .term-dialog p { margin: 6px 0 0; }
+.term-tip .muted.small:last-child { margin-top: 6px; }
+.term-dialog { width: min(30rem, 96vw); }
+.term-dialog .term-title { font-size: 1rem; }
+.popup-card { margin-bottom: 0; }
 
 .debug { position: fixed; inset: 8% 6%; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; display: flex; flex-direction: column; box-shadow: 0 20px 60px var(--shadow); z-index: 10; }
 .debug-head { display: flex; gap: 10px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--line); }
