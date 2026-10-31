@@ -1,0 +1,31 @@
+{
+  "id": "monday",
+  "title": "Monday morning",
+  "summary": "You are Sora, at the plaza before school.",
+  "start": { "day": 5, "hour": 8 },
+  "player": "sora",
+  "playerSlot": {
+    "location": "plaza",
+    "routine": "student",
+    "places": { "home": null, "club": "yard" },
+    "roles": [{ "id": "first-year", "label": "first-year, Classroom" }],
+    "freeform": true, "skillPoints": 0, "maxSkill": 3
+  },
+  "cast": [
+    { "id": "sora", "status": { "location": "plaza" } },
+    { "id": "aoi", "status": { "location": "aoi-room" } },
+    { "id": "ken", "status": { "location": "plaza" } },
+    { "id": "rin", "status": { "location": "yard" } },
+    { "id": "gil", "status": { "location": "plaza" } }
+  ],
+  "locations": [
+    { "id": "plaza", "name": "Plaza", "desc": "The town square.", "connects": ["yard", "aoi-room"], "links": [{ "to": "city", "kind": "trip", "time": "150m" }] },
+    { "id": "aoi-room", "name": "Aoi's Room", "desc": "A small bedroom over the shop.", "connects": ["plaza"] },
+    { "id": "yard", "name": "School Yard", "desc": "Gravel and a bike rack.", "connects": ["plaza", "classroom", "canteen"], "links": [{ "to": "workshop", "kind": "locked door", "key": ["rin"] }] },
+    { "id": "classroom", "name": "Classroom", "desc": "Rows of desks.", "connects": ["yard"] },
+    { "id": "canteen", "name": "Canteen", "desc": "Long tables.", "connects": ["yard"] },
+    { "id": "workshop", "name": "Workshop", "desc": "The club's benches.", "connects": [] },
+    { "id": "city", "name": "The City", "desc": "A long ride away.", "connects": [], "outside": true, "site": "downtown" }
+  ],
+  "opening": "The bell is an hour off."
+}

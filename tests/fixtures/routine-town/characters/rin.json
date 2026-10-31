@@ -1,0 +1,1 @@
+{ "id": "rin", "name": "Rin Sato", "pronouns": "they/them", "role": "club captain", "traits": ["quiet"], "want": "to get through the day", "relations": {}, "skills": {}, "routine": "student", "places": { "home": "aoi-room", "class": "classroom", "club": "yard" }, "slots": { "school": [{ "from": 12, "to": 13, "at": ["workshop"] }] } }

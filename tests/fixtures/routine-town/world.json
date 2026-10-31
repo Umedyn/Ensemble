@@ -1,0 +1,39 @@
+{
+  "format": 2,
+  "id": "routine-town",
+  "title": "Routine Town",
+  "summary": "A small school, its two kinds of day, a home off the map and a locked door.",
+  "tags": ["slice-of-life"],
+  "setting": "A small town school. Days follow the bell; weekends are their own.",
+  "rules": ["Ordinary life."],
+  "calendar": { "day1": "2026-01-01" },
+  "skills": ["social"],
+  "needs": [
+    { "id": "hunger", "label": "Hunger", "perHour": 0.04 }
+  ],
+  "world": { "term": "spring" },
+  "routines": {
+    "student": {
+      "dayTypes": {
+        "school": { "days": ["Mon", "Tue", "Wed", "Thu", "Fri"], "except": [{ "from": "2026-01-12", "to": "2026-01-13" }] },
+        "free": { "default": true }
+      },
+      "slots": {
+        "school": [
+          { "from": 9, "to": 12, "at": ["class"] },
+          { "from": 12, "to": 13, "at": ["canteen", "yard"] },
+          { "from": 13, "to": 15, "at": ["class"] },
+          { "from": 15, "to": 18, "at": ["club"] },
+          { "from": 22, "to": 7, "at": ["home"] }
+        ],
+        "free": [
+          { "from": 11, "to": 16, "at": ["canteen", "yard", "plaza", "class"] },
+          { "from": 22, "to": 8, "at": ["home"] }
+        ]
+      }
+    },
+    "traveller": { "slots": [{ "from": 9, "to": 17, "at": ["city"] }, { "from": 17, "to": 9, "at": ["plaza"] }] }
+  },
+  "characters": ["sora", "aoi", "ken", "rin", "gil"],
+  "starts": ["monday"]
+}

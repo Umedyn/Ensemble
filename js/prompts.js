@@ -522,7 +522,7 @@
       const rel = c.relations[state.player] || 0;
       parts.push(`feels toward ${name(state, state.player)}: ${E.relWord(rel)} (${rel})`);
       const others = Object.entries(c.relations)
-        .filter(([o]) => o !== state.player && state.characters[o] && state.characters[o].status.location === c.status.location)
+        .filter(([o]) => o !== state.player && state.characters[o] && Eng().isAt(state, o, c.status.location))
         .map(([o, v]) => `${name(state, o)} ${E.relWord(v)}`);
       if (others.length) parts.push(`toward others here: ${others.join(', ')}`);
     }
@@ -538,7 +538,7 @@
     const all = everyone || present;
     const back = all.filter((id) => !present.includes(id));
     const elsewhere = Eng().offstage(state, all)
-      .map((id) => `${name(state, id)} (${state.locations[state.characters[id].status.location]?.name || '?'})`);
+      .map((id) => `${name(state, id)} (${Eng().isAway(state, id) ? Eng().inWords(state, id) : state.locations[state.characters[id].status.location]?.name || '?'})`);
     const lines = [
       `=== NOW: ${E.fmtTime(state)} ===`,
       `${pc.name} is in ${inRoom(state, loc, pc.status.location)}.`,
@@ -672,8 +672,7 @@
     if (!offstage.length) return null;
     return '\n=== OFFSTAGE (not with the player; for events only) ===\n' + offstage.map((id) => {
       const c = state.characters[id];
-      const loc = state.locations[c.status.location];
-      return `- ${id} (${c.name}), in ${loc ? loc.name : c.status.location}: wants ${c.want || '?'}${c.secret ? '; secret: ' + c.secret : ''}${working(c) ? '; working on: ' + working(c) : ''}`;
+      return `- ${id} (${c.name}), ${Eng().inWords(state, id)}: wants ${c.want || '?'}${c.secret ? '; secret: ' + c.secret : ''}${working(c) ? '; working on: ' + working(c) : ''}`;
     }).join('\n');
   };
   // Secondary characters (task 2-1): one short line each, no secrets, so a big
@@ -687,16 +686,14 @@
       const by = new Map();
       ids.forEach((id) => {
         const c = state.characters[id];
-        const loc = state.locations[c.status.location];
-        const k = loc ? loc.name : c.status.location;
+        const k = Eng().inWords(state, id);
         by.set(k, (by.get(k) || []).concat(working(c) ? `${id} (now: ${E.shorten(working(c), 50)})` : id));
       });
-      return ['\n=== BACKGROUND (not with the player; for events only) ==='].concat([...by].map(([loc, list]) => `- in ${loc}: ${list.join(', ')}`));
+      return ['\n=== BACKGROUND (not with the player; for events only) ==='].concat([...by].map(([loc, list]) => `- ${loc}: ${list.join(', ')}`));
     }
     return ['\n=== BACKGROUND (not with the player; one line each; for events only) ==='].concat(ids.map((id) => {
       const c = state.characters[id];
-      const loc = state.locations[c.status.location];
-      return `- ${id} (${c.name}, ${E.shorten(c.role || '?', 40)}), in ${loc ? loc.name : c.status.location}${c.want ? '; wants: ' + E.shorten(c.want, 60) : ''}${working(c) ? '; now: ' + E.shorten(working(c), 50) : ''}`;
+      return `- ${id} (${c.name}, ${E.shorten(c.role || '?', 40)}), ${Eng().inWords(state, id)}${c.want ? '; wants: ' + E.shorten(c.want, 60) : ''}${working(c) ? '; now: ' + E.shorten(working(c), 50) : ''}`;
     }));
   };
   // Agenda steps the engine says are due: each becomes exactly one event.
@@ -1104,13 +1101,12 @@ Reply with the new beats only.`;
   function crewBrief(state, withSecrets) {
     const full = skipFull(state);
     const rest = Eng().cast(state, { alive: true, includePlayer: false }).filter((id) => !full.includes(id));
-    const more = rest.length ? `\n- In the background, keeping to their usual places: ${rest.map((id) => `${id} (${state.characters[id].name}, ${(state.locations[state.characters[id].status.location] || {}).name || '?'})`).join(', ')}` : '';
+    const more = rest.length ? `\n- In the background, keeping to their usual places: ${rest.map((id) => `${id} (${state.characters[id].name}, ${Eng().isAway(state, id) ? Eng().inWords(state, id) : (state.locations[state.characters[id].status.location] || {}).name || '?'})`).join(', ')}` : '';
     return full.map((id) => {
       const c = state.characters[id];
-      const loc = state.locations[c.status.location];
       const rel = c.relations[state.player] || 0;
       const mine = state.characters[state.player].relations[id] || 0;
-      return `- ${id} (${c.name}${c.pronouns ? ', ' + c.pronouns : ''}), in ${loc ? loc.name : c.status.location}; wants ${c.want || '?'}; feels toward the player: ${E.relWord(rel)}; the player feels: ${E.relWord(mine)}` +
+      return `- ${id} (${c.name}${c.pronouns ? ', ' + c.pronouns : ''}), ${Eng().inWords(state, id)}; wants ${c.want || '?'}; feels toward the player: ${E.relWord(rel)}; the player feels: ${E.relWord(mine)}` +
         (withSecrets && c.secret ? `; secret (guard ${c.guard || 'medium'}): ${c.secret}` : '') +
         (withSecrets && working(c) ? `; aim: ${c.agenda.goal}` : '');
     }).join('\n') + more;
@@ -1240,7 +1236,7 @@ ${worldLines(state)}`;
   };
   B.endsIt = ({ res, frame }) => `\n=== WHAT ENDS IT ===\n${res.major ? res.major.text.replace(/^\[major\]\s*/, '') : frame.arrival ? `The journey's end: arriving at ${frame.arrival}.` : '?'}`;
   B.whereEveryone = ({ state, doings }) => (doings.length
-    ? '\n=== WHERE EVERYONE IS WHEN IT HITS ===\n' + doings.map((p) => `- ${name(state, p.id)}: in ${state.locations[state.characters[p.id].status.location].name}, ${p.doing}`).join('\n')
+    ? '\n=== WHERE EVERYONE IS WHEN IT HITS ===\n' + doings.map((p) => `- ${name(state, p.id)}: ${Eng().inWords(state, p.id)}, ${p.doing}`).join('\n')
     : null);
   B.narrateSkipTask = ({ pc, loc, frame }) => {
     const dead = pc.status.health === 'dead';
@@ -1485,8 +1481,7 @@ Reply with JSON only: ${reply(S.obj({ suggestions: S.list(S.str(), { n: 4, min: 
   P.layouts.agenda = ['agendaPerson', 'agendaTask'];
   P.agenda = (state, id, previous) => P.build('agenda', { state, c: state.characters[id], id, previous });
   B.agendaPerson = ({ state, c, id, previous }) => {
-    const loc = state.locations[c.status.location];
-    const lines = [`=== ${c.name.toUpperCase()} (${id}) ===`, `${c.role}${c.pronouns ? ', ' + c.pronouns : ''}, in ${loc ? loc.name : c.status.location}. ${E.fmtTime(state)}.`];
+    const lines = [`=== ${c.name.toUpperCase()} (${id}) ===`, `${c.role}${c.pronouns ? ', ' + c.pronouns : ''}, ${Eng().inWords(state, id)}. ${E.fmtTime(state)}.`];
     if (c.traits && c.traits.length) lines.push(`Traits: ${c.traits.join(', ')}.`);
     if (c.want) lines.push(`Wants: ${c.want}.`);
     if (c.secret) lines.push(`Secret (private): ${c.secret}`);

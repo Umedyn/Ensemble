@@ -165,8 +165,8 @@
     const moved = [];
     if (how === 'fired') (Array.isArray(ev.moves) ? ev.moves : []).forEach((m) => {
       const c = m && state.characters[m.id];
-      if (!c || m.id === state.player || !Eng().alive(state, m.id) || !state.locations[m.to] || c.status.location === m.to) return;
-      c.status.location = m.to;
+      if (!c || m.id === state.player || !Eng().alive(state, m.id) || !state.locations[m.to] || Eng().isAt(state, m.id, m.to)) return;
+      Eng().storyMove(state, m.id, m.to);
       moved.push(`${c.name} → ${state.locations[m.to].name}`);
       guard(res, 'canon moved', `${c.name} → ${state.locations[m.to].name} (${ev.id})`);
     });

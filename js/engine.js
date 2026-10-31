@@ -502,7 +502,7 @@
   // Living non-player characters at a location (default: where the player is).
   Eng.present = (state, loc) => {
     const here = loc || state.characters[state.player].status.location;
-    return Eng.cast(state, { alive: true, includePlayer: false }).filter((id) => state.characters[id].status.location === here);
+    return Eng.cast(state, { alive: true, includePlayer: false }).filter((id) => Eng.isAt(state, id, here));
   };
   // Living non-player characters not in the scene (default: not with the player).
   // ---------- extras (task 2-3) ----------
@@ -596,7 +596,7 @@
   // player and living characters, then extras, then standees.
   Eng.tokens = function (state, loc) {
     const chars = [state.player].concat(Eng.cast(state, { alive: true, includePlayer: false }))
-      .filter((id) => Eng.alive(state, id) && state.characters[id].status.location === loc)
+      .filter((id) => Eng.alive(state, id) && Eng.isAt(state, id, loc))
       .map((id) => ({ kind: 'character', id, label: state.characters[id].name, player: id === state.player }));
     const extras = Eng.extrasAt(state, loc).map((x) => ({ kind: 'extra', id: x.id, label: x.name }));
     const groups = Eng.standeesAt(state, loc).map((g) => ({ kind: 'standee', id: g.id, label: g.label, count: g.count, state: g.state, faction: g.faction }));
@@ -909,7 +909,7 @@
   // saw each character, extra and group. Covert moves and hidden events never
   // update it, so the map and the cards never show what the player didn't see.
   Eng.knowAll = function (state, turn) {
-    Object.values(state.characters || {}).forEach((c) => { if (c.id !== state.player) state.known[c.id] = { loc: c.status.location, turn }; });
+    Object.values(state.characters || {}).forEach((c) => { if (c.id !== state.player && !c.status.away) state.known[c.id] = { loc: c.status.location, turn }; });
     Object.values(state.extras || {}).forEach((x) => { if (x.location) state.known[x.id] = { loc: x.location, turn }; });
     Object.values(state.standees || {}).forEach((g) => { state.known[g.id] = { loc: g.location, turn }; });
   };
@@ -946,6 +946,8 @@
     if (id === state.player) return { loc: state.characters[id].status.location, turn: state.turn, now: true };
     const k = state.known && state.known[id];
     if (!k) return null;
+    // Away: nowhere on the map, and the card says so in words.
+    if (Eng.isAway(state, id)) return { loc: null, turn: k.turn, now: false, away: Eng.awayWords(state.characters[id].status.away) };
     const actual = whereIs(state, id);
     const view = Eng.visibleRooms(state);
     return { loc: k.loc, turn: k.turn, now: k.loc === actual && view.includes(actual) && (k.loc === state.characters[state.player].status.location || !!(state.standees || {})[id]) };
@@ -995,7 +997,7 @@
   };
 
   // Where someone is, character, extra or group.
-  const whereIs =(state, id) => (state.characters[id] ? state.characters[id].status.location : state.extras && state.extras[id] ? state.extras[id].location : state.standees && state.standees[id] ? state.standees[id].location : null);
+  const whereIs =(state, id) => (state.characters[id] ? (state.characters[id].status.away ? null : state.characters[id].status.location) : state.extras && state.extras[id] ? state.extras[id].location : state.standees && state.standees[id] ? state.standees[id].location : null);
   const isExtra = (state, id) => !!(state.extras && state.extras[id]);
   const isStandee = (state, id) => !!(state.standees && state.standees[id]);
 
@@ -1021,7 +1023,7 @@
     Object.values(state.characters).forEach((c) => {
       if (c.lastSeen == null) c.lastSeen = turn || 0;
       if (c.id === state.player || c.pinned) c.tier = 'local';
-      else if (c.tier !== 'local' && c.tier !== 'secondary') c.tier = c.status.location === here ? 'local' : 'secondary';
+      else if (c.tier !== 'local' && c.tier !== 'secondary') c.tier = !c.status.away && c.status.location === here ? 'local' : 'secondary';
     });
   };
 
@@ -1225,11 +1227,11 @@
       let where = c.status.location;
       const moved = [];
       if (st.contact) {
-        if (where !== here) { c.status.location = here; moved.push(`${c.name} → ${state.locations[here].name}`); }
+        if (where !== here || c.status.away) { Eng.storyMove(state, id, here); moved.push(`${c.name} → ${state.locations[here].name}`); }
         where = here;
       } else if (ev && !present.includes(id)) {
         const to = Eng.resolveLocation(state, ev.where, false);
-        if (to && to !== where && to !== here) { c.status.location = to; where = to; moved.push(`${c.name} → ${state.locations[to].name}`); }
+        if (to && to !== where && to !== here) { Eng.storyMove(state, id, to); where = to; moved.push(`${c.name} → ${state.locations[to].name}`); }
       }
       const vis = st.contact ? 'seen' : a.visibility === 'heard' ? (where === here ? 'seen' : 'heard') : 'hidden';
       res.involved = [...new Set((res.involved || []).concat(who))];
@@ -1321,7 +1323,7 @@
     const low = key.toLowerCase();
     const byName = Object.values(state.locations).find((l) => l.name.toLowerCase() === low || l.id.toLowerCase() === low);
     if (byName) return byName.id;
-    if (allowCharacter && state.characters[key]) return state.characters[key].status.location;
+    if (allowCharacter && state.characters[key]) return whereIs(state, key);
     return null;
   };
   // Whether text names a room: a word of its name that says which room it is
@@ -1881,7 +1883,7 @@
         if (!to || !Eng.alive(state, m.id)) return;
         const why = Eng.moveProblem(state, m.id, state.characters[m.id].status.location, to);
         if (why) return guard(res, 'resolve', 'move blocked', `${state.characters[m.id].name} → ${to}: ${why}`);
-        state.characters[m.id].status.location = to;
+        Eng.storyMove(state, m.id, to);
         moved.push(`${state.characters[m.id].name} → ${state.locations[to].name}`);
       });
       // Hidden big events stay hidden: no public status changes, only private knowledge.
@@ -2133,7 +2135,7 @@
           // Through a way the player named in another room (the stockroom window).
           if (it.viaRoom) { const leg = Eng.route(state, c.status.location, it.viaRoom, { who: it.id }); if (leg.length) path = leg.concat([it.moveTo]); }
           if (path.length > 2) o.via = path.slice(1, -1);
-          c.status.location = it.moveTo;
+          Eng.storyMove(state, it.id, it.moveTo);
           o.moved = it.moveTo;
           if (crossed) guard(res, 'resolve', 'crossed', `${c.name}: ${trip.why}, and gets through anyway`);
           // The way, for the narrator: legs that take time, or a crossing.
@@ -2190,7 +2192,163 @@
   // routine = long downtime: people eat and sleep, so hunger/fatigue settle
   // toward normal instead of climbing; stress drifts toward a calm baseline.
   // routine.climb: the player's needs their plan doesn't cover, which climb anyway.
+  // ---------- routines (task G-7) ----------
+  // Where people usually are, hour by hour. A character's `routine` names one
+  // of the world's `routines`: { dayTypes: { school: { days, dates, except,
+  // default } }, slots: { school: [{ from, to, at }] } }, or a plain slots list
+  // for a world where every day is alike. Their own `slots` come first; their
+  // `places` fill in the place words (`home`, `class`; null: away, off the map).
+  const routineOf = (state, c) => (c && c.routine && (state.scenario.routines || {})[c.routine]) || null;
+  // Today's type of day for a routine: named dates, then weekdays, then the default.
+  Eng.dayType = function (state, routine, day) {
+    const types = Object.entries(routine.dayTypes || {});
+    if (!types.length) return null;
+    if (types.length === 1) return types[0][0];
+    const sc = state.scenario;
+    const within = (list) => (list || []).some((r) => {
+      const from = E.dayOfDate(sc, typeof r === 'string' ? r : r.from), to = E.dayOfDate(sc, typeof r === 'string' ? r : r.to);
+      return from != null && to != null && day >= from && day <= to;
+    });
+    const date = E.dateOfDay(sc, day);
+    const weekday = date ? date.weekday.slice(0, 3).toLowerCase() : null;
+    const open = types.filter(([, t]) => !within(t.except));
+    const hit = open.find(([, t]) => within(t.dates))
+      || open.find(([, t]) => (t.days || []).some((d) => String(d).slice(0, 3).toLowerCase() === weekday))
+      || open.find(([, t]) => t.default);
+    return hit ? hit[0] : null;
+  };
+  const slotList = (slots, type) => (Array.isArray(slots) ? slots : (slots && slots[type]) || []);
+  // The slot that holds an hour: one begun today, else one wrapping past
+  // midnight from yesterday. A person's own slots come before the routine's.
+  // → { slot, day (the day it began), key } or null.
+  Eng.routineSlot = function (state, id, time) {
+    const c = state.characters[id];
+    const routine = routineOf(state, c);
+    if (!routine) return null;
+    const hour = Math.floor(time.hour);
+    const lists = (day) => { const type = Eng.dayType(state, routine, day); return [slotList(c.slots, type), slotList(routine.slots, type)]; };
+    const today = lists(time.day), yesterday = lists(time.day - 1);
+    const begun = (s) => (s.from < s.to ? hour >= s.from && hour < s.to : hour >= s.from);
+    const wrapped = (s) => s.from > s.to && hour < s.to;
+    for (let i = 0; i < 2; i++) {
+      const s = today[i].find(begun);
+      const y = s ? null : yesterday[i].find(wrapped);
+      if (s || y) return { slot: s || y, day: s ? time.day : time.day - 1, key: `${s ? time.day : time.day - 1}:${(s || y).from}-${(s || y).to}` };
+    }
+    return null;
+  };
+  const hashText = (t) => { let h = 2166136261; for (let i = 0; i < t.length; i++) h = Math.imul(h ^ t.charCodeAt(i), 16777619); return h >>> 0; };
+  // What a place in a slot means for this person: { room }, { away: word }, or
+  // null (a word they don't have, a room this start doesn't have).
+  function routinePlace(state, id, place) {
+    const c = state.characters[id];
+    const own = !!c.places && Object.prototype.hasOwnProperty.call(c.places, place);
+    if (own && c.places[place] == null) return { away: place, own };
+    let room = own ? c.places[place] : place;
+    // A made character's class: the room their role names (the way Eng.ownRooms finds it).
+    if (!own && place === 'class' && id === state.player) {
+      const role = String(c.role || '').toLowerCase();
+      room = (Eng.ownRooms(state).find((l) => role.includes(String(l.name).toLowerCase())) || {}).id;
+    }
+    return state.locations[room] ? { room, own } : null;
+  }
+  // The choice among a slot's places: fixed for the person and the day, never
+  // dice, so reroll, undo and replays agree. The player's is their own entry,
+  // else the first listed.
+  function routineTarget(state, id, time) {
+    const at = Eng.routineSlot(state, id, time);
+    if (!at) return null;
+    const places = (at.slot.at || []).map((p) => routinePlace(state, id, p)).filter(Boolean);
+    if (!places.length) return null;
+    const place = id === state.player ? places.find((p) => p.own) || places[0] : places[hashText(`${id}|${at.day}|${at.slot.from}`) % places.length];
+    return Object.assign({ key: at.key }, place);
+  }
+  // Where someone should be at a time, whether or not they are following it:
+  // a room id, 'away', or null (no routine, or none for this hour).
+  Eng.routineAt = function (state, id, time) {
+    const t = routineTarget(state, id, time);
+    return !t ? null : t.away ? 'away' : t.room;
+  };
+
+  // Off the map: `location` stays the room they left by, and they are nowhere.
+  Eng.isAway = (state, id) => !!(state.characters[id] && state.characters[id].status.away);
+  Eng.isAt = (state, id, room) => state.characters[id].status.location === room && !state.characters[id].status.away;
+  Eng.awayWords = (word) => (word === 'home' ? 'at home' : 'away');
+  // Where someone is, in words for a prompt: "in the Commons", "at home".
+  Eng.inWords = function (state, id) {
+    const c = state.characters[id];
+    if (c.status.away) return Eng.awayWords(c.status.away);
+    const loc = state.locations[c.status.location];
+    return `in ${loc ? loc.name : c.status.location}`;
+  };
+  // Every move of a person goes through here: it brings them back from away.
+  Eng.setLocation = function (state, id, room) {
+    const c = state.characters[id];
+    c.status.location = room;
+    delete c.status.away;
+  };
+  // A move the story made before the step's time passes: it holds even when
+  // a new slot begins during that step.
+  Eng.storyMove = function (state, id, room) {
+    Eng.setLocation(state, id, room);
+    if (state.characters[id].routine) state.characters[id].routineHold = true;
+  };
+  // Routines stop for the badly hurt, a person whose needs have given out, and
+  // an open emergency around them (a pressure firing opens one too).
+  function routinePaused(state, id) {
+    const c = state.characters[id];
+    if (c.status.health === 'badly_hurt') return true;
+    if (state.scenario.needs.some((n) => E.Scenario.hasNeed(c, n.id) && (c.needs[n.id] || 0) >= 1)) return true;
+    return !!(state.crisis && state.crisis.turn >= state.turn - 1 && (state.crisis.who || []).includes(id));
+  }
+  // One whole hour for one person. A routine only moves someone when a new
+  // slot begins or a trip is under way, so anything else that moved them keeps
+  // that place until the next slot without having to say so.
+  function routineHour(state, id, time) {
+    const c = state.characters[id];
+    const t = routineTarget(state, id, time);
+    if (!t) return;
+    const rs = c.routineState;
+    if (c.routineHold) { rs.slot = t.key; delete rs.trip; return; }
+    const newSlot = rs.slot !== t.key;
+    if (!newSlot && !rs.trip) return;
+    if (!newSlot && c.status.location !== rs.left) { delete rs.trip; return; } // the story took them off their way
+    if (routinePaused(state, id) || Eng.isAt(state, id, state.characters[state.player].status.location)) return;
+    const walked = !newSlot && rs.trip ? rs.trip.minutes : 0;
+    rs.slot = t.key;
+    delete rs.trip;
+    if (t.away) { c.status.away = t.away; rs.left = c.status.location; return; }
+    const from = c.status.location;
+    const plan = from === t.room ? null : Eng.travelPlan(state, from, t.room, id);
+    if (from === t.room) delete c.status.away;
+    else if (!plan || plan.blocked || Eng.moveProblem(state, id, from, t.room)) rs.trip = { to: t.room, minutes: 0 }; // tried again next hour
+    else {
+      // A trip longer than the hour waits in the last room reached, and goes on.
+      const reach = Eng.travelReach(plan, walked + 60);
+      Eng.setLocation(state, id, reach.room);
+      if (!reach.arrived) rs.trip = { to: t.room, minutes: walked + 60 - reach.at };
+    }
+    rs.left = c.status.location;
+  }
+  // Each whole hour between two times, for everyone offscreen with a routine.
+  function runRoutines(state, people, before) {
+    const end = state.time.day * 24 + state.time.hour;
+    for (let h = Math.floor(before.day * 24 + before.hour) + 1; h <= Math.floor(end); h++) {
+      const time = { day: Math.floor(h / 24), hour: h % 24 };
+      people.forEach((id) => { if (Eng.alive(state, id)) routineHour(state, id, time); });
+    }
+    people.forEach((id) => { delete state.characters[id].routineHold; });
+  }
+
   Eng.advanceTime = function (state, hours, res, routine) {
+    const clockBefore = { day: state.time.day, hour: state.time.hour };
+    const here = state.characters[state.player].status.location;
+    const onRoutine = Eng.cast(state, { alive: true, includePlayer: false }).filter((id) => routineOf(state, state.characters[id]));
+    // Where they stand when a routine first sees them holds until the next slot.
+    onRoutine.forEach((id) => {
+      const c = state.characters[id];
+      if (!c.routineState) c.routineState = { slot: (Eng.routineSlot(state, id, clockBefore) || {}).key || null, left: c.status.location };
+    });
     state.time.hour += hours;
     while (state.time.hour >= 24) { state.time.hour -= 24; state.time.day += 1; }
     const climb = (routine && routine.climb) || [];
@@ -2201,7 +2359,7 @@
         const v = c.needs[n.id] || 0;
         const unmet = id === state.player && climb.includes(n.id);
         // People in the background live their routine: needs settle, not climb.
-        const settles = !unmet && (routine || Eng.tier(state, id) === 'secondary');
+        const settles = !unmet && (routine || Eng.tier(state, id) === 'secondary' || (onRoutine.includes(id) && !Eng.isAt(state, id, here) && !routinePaused(state, id)));
         c.needs[n.id] = settles
           ? E.clamp(0.35 + (v - 0.35) * Math.exp(-hours / 24), 0, 1)
           : E.clamp(v + (n.perHour || 0) * hours, 0, 1);
@@ -2223,6 +2381,7 @@
     // Downtime runs agendas itself (Eng.runAgendas), step by step.
     if (!routine) advanceAgendas(state, hours);
     advancePatrols(state, hours);
+    if (onRoutine.length) runRoutines(state, onRoutine, clockBefore);
   };
 
   // ---------- worn phrases ----------
@@ -2303,7 +2462,7 @@
   // room (playtest-coffee-skips: Kit was alone in the commons for every crisis).
   Eng.crisisPeople = (state) => {
     const site = E.Sites.playerSite(state);
-    return Eng.cast(state, { alive: true, includePlayer: false }).filter((id) => E.Sites.siteOf(state, state.characters[id].status.location) === site);
+    return Eng.cast(state, { alive: true, includePlayer: false }).filter((id) => !Eng.isAway(state, id) && E.Sites.siteOf(state, state.characters[id].status.location) === site);
   };
   Eng.openCrisis = (state) => (state.crisis && state.crisis.turn === state.turn ? state.crisis : null);
 
@@ -2359,7 +2518,7 @@
     // everyone outside (thirst, cold, air running out).
     if (cl.fireHarm) {
       const ids = [state.player].concat(Eng.cast(state, { alive: true, includePlayer: false }))
-        .filter((id) => cl.fireHarm === 'all' || (state.locations[state.characters[id].status.location] || {}).outside);
+        .filter((id) => cl.fireHarm === 'all' || (!Eng.isAway(state, id) && (state.locations[state.characters[id].status.location] || {}).outside));
       ids.forEach((id) => Eng.harm(state, id, HEALTH[Math.min(3, HEALTH.indexOf(state.characters[id].status.health) + 1)], res, cl.name));
     }
     // A repeating pressure starts again: it keeps hurting until someone deals with it.
@@ -2903,12 +3062,12 @@
           if (key === state.player) return reject(label, "the player only moves through the player's own action");
           const dest = Eng.resolveLocation(state, s.value, false);
           if (!dest) return reject(label, 'unknown location');
-          const inScene = [ctx.startLoc, ctx.endLoc].includes(c.status.location) || dest === ctx.endLoc;
+          const inScene = (!c.status.away && [ctx.startLoc, ctx.endLoc].includes(c.status.location)) || dest === ctx.endLoc;
           if (!inScene) return reject(label, 'nobody in the scene could have seen that move');
           if (!shownMoving(c, c.status.location, dest)) return reject(label, notShown);
           const blocked = Eng.moveProblem(state, key, c.status.location, dest);
           if (blocked) return reject(label, blocked);
-          c.status.location = dest;
+          Eng.setLocation(state, key, dest);
         } else if (s.field === 'add_tag' || s.field === 'add_condition') {
           // add_condition: the name before tags (task 1-6); recordings still use it.
           const out = Eng.addTag(state, c, s.value, s.turns, s.reason, ctx.turn ?? state.turn);
@@ -3094,7 +3253,7 @@
   // the engine doesn't track are never contradictions.
   Eng.detailProblem = function (state, d, ctx) {
     const person = (id) => state.characters[id] || (state.extras || {})[id];
-    const where = (id) => (state.characters[id] ? state.characters[id].status.location : ((state.extras || {})[id] || {}).location);
+    const where = (id) => whereIs(state, id);
     const dead = d.about.find((id) => state.characters[id] && state.characters[id].status.health === 'dead');
     if (dead && !PAST_ON.test(d.text)) return `${state.characters[dead].name} is dead`;
     const at = AT_ROOM.exec(d.text);
@@ -3409,7 +3568,7 @@
       for (const e of (trip && trip.legs) || []) { const h = Eng.legMinutes(state, e) / 60; if (done + h > hoursIn) break; done += h; region = e.to; }
       room = transitAt(state, { region, toward: plan.to, next: st.to, nextMinutes: Math.round(st.minutes - reach.into), back: st.from, backMinutes: Math.round(reach.into) });
     }
-    (ids || []).filter((id) => state.characters[id]).forEach((id) => { state.characters[id].status.location = room; });
+    (ids || []).filter((id) => state.characters[id]).forEach((id) => { Eng.setLocation(state, id, room); });
     return { room, reach };
   };
   // "the School gate is still about 1h 05m away"
@@ -3722,6 +3881,11 @@
     needs: E.clone(Eng.cast(state).map((id) => state.characters[id].needs)),
     clocks: state.clocks.map((c) => ({ value: c.value, fired: c.fired })),
     agendas: E.clone(Eng.cast(state).map((id) => state.characters[id].agenda || null)),
+    // Routines move people as time passes, so winding it back puts them back.
+    routines: E.clone(Eng.cast(state).filter((id) => state.characters[id].routine).map((id) => {
+      const c = state.characters[id];
+      return { id, location: c.status.location, away: c.status.away, routineState: c.routineState, routineHold: c.routineHold };
+    })),
   });
 
   // Winds the clock back to where the scene actually ended: the last beat plus
@@ -3732,6 +3896,13 @@
     Eng.cast(state).forEach((id, i) => { state.characters[id].needs = E.clone(snap.needs[i]); });
     state.clocks.forEach((c, i) => { if (snap.clocks[i]) c.value = snap.clocks[i].value; });
     if (snap.agendas) Eng.cast(state).forEach((id, i) => { if (snap.agendas[i]) state.characters[id].agenda = E.clone(snap.agendas[i]); });
+    (snap.routines || []).forEach((r) => {
+      const c = state.characters[r.id];
+      if (!c) return;
+      c.status.location = r.location;
+      if (r.away == null) delete c.status.away; else c.status.away = r.away;
+      ['routineState', 'routineHold'].forEach((k) => { if (r[k] == null) delete c[k]; else c[k] = E.clone(r[k]); });
+    });
   };
 
   // A planned trip is a floor: the player can't be there before the plan
@@ -4102,7 +4273,7 @@
     }
     const arrived = plan.reason === 'arrive' || (plan.stage && plan.stage.hours >= j.trip.hours);
     const to = arrived ? j.dest : transitRoom(state, j, plan.hours, frame.startLoc);
-    [state.player].concat(j.companions).filter((id) => Eng.alive(state, id)).forEach((id) => { state.characters[id].status.location = to; });
+    [state.player].concat(j.companions).filter((id) => Eng.alive(state, id)).forEach((id) => { Eng.setLocation(state, id, to); });
     // The trip still to go (R-10), for "keep going" and Travel there.
     if (arrived) delete state.travel;
     else state.travel = { dest: j.dest, destName: state.locations[j.dest].name, turn: state.turn };
@@ -4254,7 +4425,7 @@
       // Who it hurts: people it names or who are where it happens.
       const where = plan.onPlayer ? state.characters[state.player].status.location : Eng.resolveLocation(state, m.where, false);
       const hit = new Set((Array.isArray(m.who) ? m.who : []).filter((id) => state.characters[id])
-        .concat([state.player].concat(Eng.cast(state, { alive: true, includePlayer: false })).filter((id) => where && state.characters[id].status.location === where)));
+        .concat([state.player].concat(Eng.cast(state, { alive: true, includePlayer: false })).filter((id) => where && Eng.isAt(state, id, where))));
       Eng.applyHarm(state, m.harm, hit, res, 'the major event');
       res.events.push(`[major] ${text}`);
       E.Memory.addFact(state, { about: (m.who || []).filter((id) => state.characters[id]), text, known_by: ['all'], weight: 3 });
@@ -4272,7 +4443,7 @@
       if (!c || !loc || !Eng.alive(state, p.id)) return;
       const why = Eng.moveProblem(state, p.id, c.status.location, loc);
       if (why) return guard(res, 'resolve', 'move blocked', `${c.name} → ${loc}: ${why}`);
-      c.status.location = loc;
+      Eng.setLocation(state, p.id, loc);
     });
     // The player ends up somewhere else only if their plan names it (rule 3;
     // playtest-agenda-skips: "keep to routine" put Kit outside as the storm hit).
@@ -4298,7 +4469,7 @@
     if (plan.reason === 'agenda') {
       const c = state.characters[plan.agenda.id];
       if (activeAgenda(c) && c.agenda.due) {
-        c.status.location = state.characters[state.player].status.location;
+        Eng.setLocation(state, c.id, state.characters[state.player].status.location);
         E.Memory.addFact(state, { about: [c.id], text: res.major.text, known_by: [c.id, state.player], weight: 2 });
         completeStep(state, c, res, 'ends the downtime');
       }
@@ -4306,7 +4477,7 @@
     // The person who has had enough comes to the player, and the slate is clean.
     if (plan.reason === 'reckoning') {
       const c = state.characters[plan.reckoning.id];
-      c.status.location = state.characters[state.player].status.location;
+      Eng.setLocation(state, c.id, state.characters[state.player].status.location);
       E.Memory.addFact(state, { about: [c.id, state.player], text: res.major.text, known_by: [c.id, state.player], weight: 2 });
       guard(res, 'resolve', 'reckoning', `${c.name} confronts ${state.characters[state.player].name} after ${plan.reckoning.sat.length} emergencies sat out`);
       state.ignored = [];
@@ -4949,7 +5120,7 @@
     // enough walks in this span (playtest-coffee-bystander).
     const reckon = reckoningStop(state, false);
     if (reckon) {
-      state.characters[reckon.id].status.location = state.characters[state.player].status.location;
+      Eng.setLocation(state, reckon.id, state.characters[state.player].status.location);
       state.ignored = [];
     }
     const present = Eng.present(state);

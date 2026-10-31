@@ -614,10 +614,10 @@
       const dead = c.status.health === 'dead';
       const min = U.isMinimized(id);
       const sections = min ? [U.cardMini(id, c, isPlayer)] : [U.cardHeader(id, c, isPlayer), U.cardStatus(c, isPlayer), U.cardDetails(id, c, dead)].filter(Boolean);
-      return `<div class="card ${!isPlayer && c.status.location === here ? 'here' : ''} ${dead ? 'dead' : ''} ${min ? 'min' : ''}" data-id="${esc(id)}">${sections.join('')}</div>`;
+      return `<div class="card ${!isPlayer && E.Engine.isAt(U.state, id, here) ? 'here' : ''} ${dead ? 'dead' : ''} ${min ? 'min' : ''}" data-id="${esc(id)}">${sections.join('')}</div>`;
     };
     const others = ids.filter((id) => id !== U.state.player);
-    const withYou = others.filter((id) => U.state.characters[id].status.location === here);
+    const withYou = others.filter((id) => E.Engine.isAt(U.state, id, here));
     const local = others.filter((id) => !withYou.includes(id) && E.Engine.tier(U.state, id) === 'local');
     const away = others.filter((id) => !withYou.includes(id) && !local.includes(id));
     $('cast').innerHTML = [U.state.player].concat(withYou, local).map(card).join('') + (away.length

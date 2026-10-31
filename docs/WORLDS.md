@@ -82,6 +82,7 @@ With no `starts` the picker offers only **✦ Make my own start** (as if the wor
 | `skillPenalties`, `revealPressure` | object, string[] | optional; roll penalties from health and needs, and which needs count as pressure on secrets. Defaults are today's values. Starts may override |
 | `factions` | | as today; starts may override `stance`. Optional `color` (1–8) picks one of eight theme colours for the regions a group holds on the world map; without it, one is picked from the id. Optional `allies` and `enemies` (group ids, task G-6): the player's standing with this group spreads to them, a quarter of each change, the same way and the other way |
 | `reputation` | object | optional (task G-6): the player's standing with each group at the start, `{group id: −100..100}` (default 0). Starts and `playerSlot` may override it by group. See [Standing with the groups](#standing-with-the-groups) |
+| `routines` | object | optional (task G-7): named routines, where people usually are by type of day and hour. See [Routines](#routines) |
 | `world` | object | world-status defaults; starts may add or override keys |
 | `eventRates`, `eventSeeds`, `majorEventDays`, `majorHorizonDays`, `majorSeeds`, `revealSkills` | | as today; starts may override. An `eventSeeds` idea is text or `{text, region}` (a known region id); regional ideas for regions away from the player are left out of prompts |
 | `tiers` | object | optional `{demoteAfter, maxLocal}` (whole numbers ≥ 1; defaults 4 and 6) for cast tiers (task 2-1). Starts may override field by field |
@@ -216,6 +217,40 @@ Task R-10. The model only says where the player wants to go; the engine plans th
 - **Bundled examples.** Harmon's junction has a 45-minute road to Ridge; Ares Deep's rim road to the relay mast takes a day and needs the rover (`{"world": "rover", "is": "the Mule, operational"}`).
 - A generated place's room-to-room link (task 4-4) is a **trip** link in the engine, not a route.
 
+### Routines
+
+Task G-7. Where people usually are, hour by hour, with no model call. Optional: a world or a person without one plays as before, and a tight scenario (the station evacuation, the holdout's siege) has none on purpose.
+
+```json
+"routines": {
+  "student": {
+    "dayTypes": {
+      "school": { "days": ["Mon", "Tue", "Wed", "Thu", "Fri"], "except": [{ "from": "2026-07-20", "to": "2026-08-31" }] },
+      "free": { "default": true }
+    },
+    "slots": {
+      "school": [
+        { "from": 9, "to": 15, "at": ["class"] },
+        { "from": 15, "to": 18, "at": ["club", "mito-downtown"] },
+        { "from": 22, "to": 7, "at": ["home"] }
+      ],
+      "free": [{ "from": 22, "to": 8, "at": ["home"] }]
+    }
+  },
+  "crew-day": { "slots": [{ "from": 8, "to": 18, "at": ["ops"] }] }
+}
+```
+
+- **Types of day.** `days` (weekdays), `dates` (`"YYYY-MM-DD"` or `{from, to}`, which beat weekdays), `except` (not this type on these dates), `default` (any day left). More than one type needs the world's `calendar`. A plain `slots` list, or a single type, means every day is alike (a sol).
+- **Slots.** `{from, to, at, private?}`, whole hours; `to` below `from` wraps past midnight and belongs to the day it began. `at` lists room ids or **place words**. An hour with no slot leaves people where they are. `private` is for cards (G-9).
+- **A person.** On a character file or cast entry: `"routine": "student"`, `"places": {"home": "mizuhara-house", "class": "classroom-1c", "club": "track-field"}`, and optional `slots` of their own, which come before the routine's hour by hour. `null` as a place means away, off the map.
+- **Several places in a slot.** The choice is fixed for the person and the day (a hash of the two, never dice), so reroll, undo and replays agree.
+- **The player.** A character or a `playerSlot` may have `routine` and `places`. For a made character `class` may be left out: it's the room their role names. Routines never move the player.
+- **What moves people.** A routine moves someone when a new slot begins, offscreen only, through links, locked doors and route times. A way that is shut is tried again each hour; a trip longer than the hour waits in the last room reached and goes on. Anything else that moves them (their intent, an agenda step, an event, the update step) keeps that place until the next slot.
+- **What pauses it.** Death, being badly hurt, a need at its worst, an emergency around them. They catch up when it ends, as does someone in the player's room once the player has gone (leaving a scene is task G-8).
+- **Away.** `status.away` holds the place word, and `location` stays the room they left by. They are not present anywhere or on the map, the card says "at home" or "away", and they come back through that room.
+- **Needs.** People following a routine offscreen settle their needs, like people in the background.
+
 ### Presence and unknown regions
 
 Task R-5. Both optional.
@@ -324,7 +359,7 @@ The bundled worlds use it: Ares Deep's crew belong to Mission Control (Okafor fa
 
 The made character is a character file like any other (`id` from the name, made unique; `people` when a people was picked; `portrait` a path from the world's `portraitSet`, left out for the stand-in, or `false` for initials only), checked by `Scenario.characterProblems`. `CharMaker.withPlayer` adds it to the composed scenario as the player, at the front of the cast, sets `madePlayer`, applies `castFeelings`, drops the authored player (and feelings about them) unless `keepDefault`, and validates the result. When a world loads, each start with a slot is checked with a sample made character, so a slot that can't produce a playable game shows "(has errors)" in the picker. Saves embed the scenario, so the character travels with the game.
 
-Overridable per start: `status`, `needs`, `needsOff`, `relations`, `knows`, `want`, `secret`, `guard`, `tags`, `joins`.
+Overridable per start: `status`, `needs`, `needsOff`, `routine`, `places`, `slots`, `relations`, `knows`, `want`, `secret`, `guard`, `tags`, `joins`.
 
 **People who join later** (task 7-2): `joins` on a character file or a cast entry is the id of a timeline event after the start: a transfer student in the second term, next April's first-years, the convoy's scout. Until that event happens they wait outside the story: not in the cast, the prompts, the cards or the tiers, their `knows` not yet facts, and other people's feelings toward them waiting with them. When it happens (as written or changed by the story; not when it is dropped) they join as newcomers (the header's live "joined during the story" block), where their `status.location` puts them, in the foreground if that is the player's room, with a `joined` guard in Debug. A start where they belong from the beginning sets `"joins": null` in their cast entry (Seiryo High's Momo is the Hayakawas' daughter in one start and a new first-year in the other). Checked in plain words: an event that exists, after the start, and never the player. Seiryo High's transfer student and new first-years and the holdout's convoy scout are the examples.
 

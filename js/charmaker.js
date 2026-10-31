@@ -8,7 +8,7 @@
   const E = root.Ensemble;
   const CM = (E.CharMaker = {});
 
-  CM.SLOT_FIELDS = ['location', 'summary', 'knows', 'needs', 'roles', 'peoples', 'freeform', 'skillPoints', 'maxSkill', 'relationsDefault', 'castFeelings', 'keepDefault', 'groups', 'reputation'];
+  CM.SLOT_FIELDS = ['location', 'routine', 'places', 'summary', 'knows', 'needs', 'roles', 'peoples', 'freeform', 'skillPoints', 'maxSkill', 'relationsDefault', 'castFeelings', 'keepDefault', 'groups', 'reputation'];
   CM.MAX_SKILL = 4; // the cap for every character
   CM.LIMITS = { name: 40, pronouns: 20, role: 60, people: 60, description: 600, appearance: 400, trait: 30, traits: 6, voice: 160, want: 160, secret: 300 };
   CM.SUGGEST_FIELDS = ['traits', 'voice', 'description'];
@@ -43,6 +43,8 @@
     const groupSet = new Set((sc.factions || []).map((f) => f && f.id));
     E.Standing.groupsProblems(slot.groups, groupSet, 'groups').forEach((p) => req(false, p));
     E.Standing.reputationProblems(slot.reputation, groupSet, 'reputation').forEach((p) => req(false, p));
+    // Their routine (task G-7): "class" may be left to the room their role names.
+    E.Scenario.personRoutineProblems(slot, sc, new Set((sc.locations || []).map((l) => l && l.id)), 'playerSlot', true).forEach((p) => req(false, p));
     req(slot.keepDefault == null || typeof slot.keepDefault === 'boolean', '"keepDefault" must be true or false');
     req(Number.isInteger(slot.maxSkill) && slot.maxSkill >= 1 && slot.maxSkill <= CM.MAX_SKILL, `"maxSkill" must be a whole number from 1 to ${CM.MAX_SKILL}`);
     req(Number.isInteger(slot.skillPoints) && slot.skillPoints >= 0, '"skillPoints" must be a whole number (0 or more)');
@@ -228,6 +230,8 @@
     }
     if (slot.knows && slot.knows.length) c.knows = slot.knows.slice();
     if (Array.isArray(slot.groups) && slot.groups.length) c.groups = E.clone(slot.groups);
+    if (slot.routine) c.routine = slot.routine;
+    if (slot.places) c.places = E.clone(slot.places);
     const cast = CM.castFor(sc);
     cast.forEach((other) => {
       const v = f.feelings && f.feelings[other] != null ? f.feelings[other] : feelingFor(slot.relationsDefault, other);

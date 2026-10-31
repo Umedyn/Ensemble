@@ -16,16 +16,16 @@
   const START_OWN = ['id', 'title', 'summary', 'start', 'player', 'cast', 'opening', 'castLabel', 'region', 'playerSlot', 'playable', 'generated'];
   // World fields a start may override (merge rules below).
   const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'tagThresholds', 'portraitSet', 'factions', 'world',
-    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'regionLabels', 'routeKinds', 'travelTimes', 'presence', 'reputation', 'mapFocus', 'tactical', 'standees', 'site', 'siteInfo', 'localMap', 'map', 'entrances', 'lore', 'loreTopics', 'timeline', 'projectTimeline', 'endings'];
+    'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'regionLabels', 'routines', 'routeKinds', 'travelTimes', 'presence', 'reputation', 'mapFocus', 'tactical', 'standees', 'site', 'siteInfo', 'localMap', 'map', 'entrances', 'lore', 'loreTopics', 'timeline', 'projectTimeline', 'endings'];
   const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'date', 'calendar', 'characters', 'starts', 'generatedStarts', 'generatedSites', 'generatedRegions', 'sites', 'lorePacks', ...OVERRIDABLE];
   const WORLD_RESERVED = [];
   const START_RESERVED = [];
-  const CAST_FIELDS = ['id', 'status', 'needs', 'needsOff', 'groups', 'relations', 'knows', 'want', 'secret', 'guard', 'tags', 'tier', 'pinned', 'agenda', 'joins'];
+  const CAST_FIELDS = ['id', 'status', 'needs', 'needsOff', 'groups', 'relations', 'knows', 'want', 'secret', 'guard', 'tags', 'tier', 'pinned', 'agenda', 'joins', 'routine', 'places', 'slots'];
   // Merge rules: lists of {id} objects merge by id, lists of strings are
   // unioned, plain objects merge shallowly; anything else is replaced.
   const ID_LISTS = ['locations', 'clocks', 'factions', 'extras', 'regions', 'standees', 'lore', 'timeline', 'endings'];
   const STRING_LISTS = ['rules', 'facts', 'tags'];
-  const OBJECTS = ['world', 'eventRates', 'eventSeeds', 'tiers', 'routeKinds', 'travelTimes', 'presence', 'loreTopics', 'reputation', 'siteInfo'];
+  const OBJECTS = ['world', 'eventRates', 'eventSeeds', 'tiers', 'routeKinds', 'travelTimes', 'presence', 'loreTopics', 'reputation', 'siteInfo', 'routines'];
 
   const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
   const castId = (entry) => (typeof entry === 'string' ? entry : entry && entry.id);
@@ -659,6 +659,85 @@
   };
   // Does this character have this need? (Not when needsOff says so.)
   S.hasNeed = (c, id) => !(c && (c.needsOff === true || (Array.isArray(c.needsOff) && c.needsOff.includes(id))));
+  // Routines (task G-7), in plain words. One list of slots for a type of day.
+  const slotProblems = function (list, where) {
+    if (!Array.isArray(list) || !list.length) return [`${where} has no slots`];
+    const problems = [];
+    const hours = new Array(24).fill(0);
+    list.forEach((s, i) => {
+      const it = `${where}, slot ${i + 1}`;
+      if (!isObj(s)) return problems.push(`${it} must be {from, to, at}`);
+      const hour = (v, top) => Number.isInteger(v) && v >= 0 && v <= top;
+      if (!hour(s.from, 23) || !hour(s.to, 24)) return problems.push(`${it}: "from" and "to" must be whole hours (0 to 24)`);
+      if (s.from === s.to) return problems.push(`${it} is empty: it starts and ends at ${s.from}:00`);
+      if (!Array.isArray(s.at) || !s.at.length || !s.at.every((p) => typeof p === 'string' && p)) problems.push(`${it}: "at" must list at least one place`);
+      if (s.private != null && typeof s.private !== 'boolean') problems.push(`${it}: "private" must be true or false`);
+      const length = (s.to - s.from + 24) % 24 || 24;
+      for (let n = 0; n < length; n++) hours[(s.from + n) % 24] += 1;
+    });
+    const twice = hours.findIndex((n) => n > 1);
+    if (twice >= 0) problems.push(`${where}: slots overlap at ${twice}:00`);
+    return problems;
+  };
+  const slotsProblems = function (slots, types, where) {
+    if (Array.isArray(slots)) return slotProblems(slots, where);
+    if (!isObj(slots)) return [`${where}: "slots" must be a list, or lists by type of day`];
+    const problems = [];
+    Object.entries(slots).forEach(([t, list]) => {
+      if (types && !types.includes(t)) problems.push(`${where}: slots for "${t}", which isn't one of its types of day`);
+      problems.push(...slotProblems(list, `${where}, "${t}"`));
+    });
+    return problems;
+  };
+  const dateRangesOk = (list) => Array.isArray(list) && list.every((r) => {
+    const dates = typeof r === 'string' ? [r] : isObj(r) ? [r.from, r.to] : [null];
+    return dates.every((d) => E.calendarDay1({ day1: d }) != null);
+  });
+  S.routinesProblems = function (sc) {
+    if (sc.routines == null) return [];
+    if (!isObj(sc.routines)) return ['"routines" must map names to routines'];
+    const problems = [];
+    Object.entries(sc.routines).forEach(([name, r]) => {
+      const where = `routine "${name}"`;
+      if (!isObj(r)) return problems.push(`${where} must be {dayTypes, slots}`);
+      if (r.dayTypes != null && !isObj(r.dayTypes)) problems.push(`${where}: "dayTypes" must map names to types of day`);
+      const types = Object.entries(isObj(r.dayTypes) ? r.dayTypes : {});
+      if (types.length > 1 && !sc.calendar) problems.push(`${where}: types of day need the world's "calendar"; without one every day is alike`);
+      types.forEach(([t, d]) => {
+        const it = `${where}, type of day "${t}"`;
+        if (!isObj(d)) return problems.push(`${it} must be {days, dates, except, default}`);
+        ['dates', 'except'].forEach((k) => { if (d[k] != null && !dateRangesOk(d[k])) problems.push(`${it}: "${k}" must be dates ("YYYY-MM-DD") or {from, to}`); });
+        if (d.days != null && !(Array.isArray(d.days) && d.days.every((x) => ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'].includes(String(x).slice(0, 3).toLowerCase())))) problems.push(`${it}: "days" must be weekdays, like "Mon"`);
+        const some = (d.days && d.days.length) || (d.dates && d.dates.length) || d.default;
+        if (!some && types.length > 1) problems.push(`${it} has no days: give it "days", "dates" or "default": true`);
+        if (isObj(r.slots) && !r.slots[t]) problems.push(`${where}: type of day "${t}" has no slots`);
+      });
+      if (types.length && Array.isArray(r.slots)) problems.push(`${where}: with types of day, "slots" must be lists by type`);
+      else if (!types.length && isObj(r.slots)) problems.push(`${where}: slots by type of day need "dayTypes"`);
+      else problems.push(...slotsProblems(r.slots, types.length ? types.map(([t]) => t) : null, where));
+    });
+    return problems;
+  };
+  // A person's routine, places and own slots (a character, or a playerSlot).
+  S.personRoutineProblems = function (c, sc, locIds, who, isPlayerSlot) {
+    if (c.routine == null && c.places == null && c.slots == null) return [];
+    const problems = [];
+    const routine = c.routine != null ? (sc.routines || {})[c.routine] : null;
+    if (c.routine != null && !routine) problems.push(`${who}: routine "${c.routine}" doesn't exist`);
+    if (c.routine == null && c.slots != null) problems.push(`${who}: "slots" need a "routine"`);
+    if (c.places != null && !isObj(c.places)) problems.push(`${who}: "places" must map place words to rooms (null: away, off the map)`);
+    const places = isObj(c.places) ? c.places : {};
+    Object.entries(places).forEach(([w, room]) => { if (room != null && !locIds.has(room)) problems.push(`${who}: place "${w}" is unknown room "${room}"`); });
+    if (c.slots != null) problems.push(...slotsProblems(c.slots, isObj(routine) && isObj(routine.dayTypes) ? Object.keys(routine.dayTypes) : null, `${who}'s slots`));
+    const lists = (s) => (Array.isArray(s) ? s : isObj(s) ? Object.values(s).flat() : []).filter(isObj);
+    const seen = new Set();
+    lists(isObj(routine) ? routine.slots : null).concat(lists(c.slots)).forEach((s) => (Array.isArray(s.at) ? s.at : []).forEach((p) => {
+      if (seen.has(p) || locIds.has(p) || p in places || (isPlayerSlot && p === 'class')) return;
+      seen.add(p);
+      problems.push(`${who}: "${p}" in their routine is neither a room nor one of their places`);
+    }));
+    return problems;
+  };
   S.characterProblems = function (c, sc, locIds, castIds) {
     const problems = [];
     const req = (cond, msg) => { if (!cond) problems.push(msg); };
@@ -667,6 +746,7 @@
     req(c.tier == null || ['local', 'secondary'].includes(c.tier), `character "${c.id}" tier must be local or secondary`);
     req(c.pinned == null || typeof c.pinned === 'boolean', `character "${c.id}" pinned must be true or false`);
     problems.push(...S.needsOffProblems(c.needsOff, sc, `character "${c.id}"`));
+    problems.push(...S.personRoutineProblems(c, sc, locIds, `character "${c.id}"`, c.id === sc.player || !(sc.characters || []).includes(c.id)));
     // Factions they belong to, and their role in each (task G-6).
     problems.push(...E.Standing.groupsProblems(c.groups, new Set((sc.factions || []).map((f) => f && f.id)), `character "${c.id}"`));
     if (c.agenda != null) {
@@ -1364,6 +1444,7 @@
     (sc.factions || []).forEach((f) => problems.push(...E.Standing.factionProblems(f, groupSet)));
     (sc.factions || []).forEach((f) => req(f.color == null || (Number.isInteger(f.color) && f.color >= 1 && f.color <= S.FACTION_COLORS), `group "${f.id}": "color" must be a whole number from 1 to ${S.FACTION_COLORS} (a theme colour)`));
     if (sc.playerSlot != null && Array.isArray(sc.characters)) problems.push(...E.CharMaker.slotProblems(sc));
+    problems.push(...S.routinesProblems(sc));
     problems.push(...mapProblems(sc, locIds));
     problems.push(...regionProblems(sc));
     problems.push(...standeeProblems(sc, locIds, extraIds));

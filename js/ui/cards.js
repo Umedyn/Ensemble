@@ -192,6 +192,7 @@
   function whereText(id, isPlayer, loc) {
     if (isPlayer) return loc ? loc.name : '?';
     const kw = E.Engine.knownWhere(U.state, id);
+    if (kw && kw.away) return kw.away;
     const room = kw && U.state.locations[kw.loc];
     if (!room) return 'whereabouts unknown';
     return kw.now ? room.name : `last seen in ${room.name}${kw.turn ? ` (turn ${kw.turn})` : ''}`;
