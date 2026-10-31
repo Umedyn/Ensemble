@@ -145,6 +145,9 @@
     btn.textContent = (await copyText(E.Engine.turnReport(t))) ? 'Copied' : 'Copy failed (select the text in a call below instead)';
   });
 
+  $('btnGuardTally').addEventListener('click', async (ev) => {
+    ev.target.textContent = (await copyText(E.Engine.guardTally())) ? 'Copied' : 'Copy failed';
+  });
   $('btnDebug').addEventListener('click', () => { $('debug').classList.toggle('hidden'); renderDebug(); });
   $('btnDebugClose').addEventListener('click', () => $('debug').classList.add('hidden'));
   Object.assign(U, { renderDebug });

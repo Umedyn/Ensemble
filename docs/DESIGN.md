@@ -313,6 +313,10 @@ Each secret-keeper has a `guard`:
 
 "Stress" here is the highest of the needs listed in the world's `revealPressure` (default `stress` and `fear`); a world without those needs cracks secrets only through trust, confrontation (low guard) or a social roll. A successful social roll works on anyone. A reveal attempt is either the `reveals` field (any truthy value) or a leak: 3+ content words shared with the secret, or a confession verb plus 1+. Unearned attempts become "is pressed about it but keeps the secret".
 
+## Guard tally
+
+Every turn adds to a lifetime count of each guard fired (`E.Prefs`, `ensemble.guardTally`; Debug › Copy guard tally). It is the evidence for retiring a guard: a guard that never fires across real play is a candidate, and rule 1 still wants a reason and a look at its test. The soak's mock gets replies wrong on purpose, so it says nothing either way.
+
 ## Time
 
 Each whole hour that passes also runs routines (task G-7, `routineHour` under `Eng.advanceTime`; format in `docs/WORLDS.md`). A routine moves someone only when a new slot begins or a trip is under way, so nothing else has to say it moved them: the story's move stands until the next slot. `Eng.storyMove`, for moves made before a step's time passes, also holds through a slot beginning in that step. The time snapshot carries these people, so a scene that settles early or a reroll puts them back. Every location write goes through `Eng.setLocation`, which brings someone back from `status.away`.

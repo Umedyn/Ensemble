@@ -732,13 +732,7 @@
 2. You MUST give exactly one intent for EACH present character: ${ids}. Decide what each actually tries to do during this time, driven by their personality, wants, needs, secrets and feelings. They may help, argue, refuse, lie, deflect, pursue their own goals, or leave (move_to). Set visible to false if they act covertly so the player would not notice.
 3. "says": the gist of anything they say aloud this turn (or null).
 4. "reveals": almost always null. Only fill it if the character deliberately says their secret or private knowledge out loud this turn, and that matches their "says". Being asked once, or being nervous, is not enough: people deflect, make excuses or lie first.
-5. "events": things that happen during this span outside the player's control, to keep the world moving: offstage characters pursuing their wants and secrets, groups making moves that affect the people here, someone arriving, a call or message, something breaking down, the pressures above getting closer. How many: ${EVENT_GUIDE[stepId] || EVENT_GUIDE.hour} Each event has:
-   - "text": one sentence, with names.
-   - "who": character ids involved (not the player).
-   - "where": location id where it happens.
-   - "visibility": "seen" (happens in the player's room), "heard" (the player gets a sound, call or message about it) or "hidden" (the player has no idea).
-   - "moves": [{"id":"character_id","to":"location_id"}] for offstage characters who go somewhere because of it, else [].
-   - "scope": "local" for these.
+5. "events": things that happen during this span outside the player's control, to keep the world moving: offstage characters pursuing their wants and secrets, groups making moves that affect the people here, someone arriving, a call or message, something breaking down, the pressures above getting closer. How many: ${EVENT_GUIDE[stepId] || EVENT_GUIDE.hour} Use names in "text". "who" leaves out the player. "visibility": "seen" (in the player's room), "heard" (a sound, call or message reaches the player) or "hidden" (the player has no idea). "moves": offstage characters who go somewhere because of it.
 ${staysTask(state, present, stepId)}${groupTask(state, action)}${siteTask(state)}${inventLine(sc)}${ordersTask(state)}${tierTask(state, due)}${canonTask(state, due)}
 Reply with JSON only, exactly in this shape:
 ${reply(P.shapes.intent(state, present, action, due, stepId))}`;
@@ -1422,22 +1416,22 @@ ${factPlaces(state).length ? `regions and sites around: ${factPlaces(state).join
   function updateGuides(state, sc) {
     const pc = name(state, state.player);
     const g = [
-      ['facts', '- 1 to 5 facts. Only things that actually happened or were revealed. Skip trivia.'],
-      ['facts', '- known_by lists who witnessed or was told. Use ["all"] only when everyone at the location would know. Hidden actions are known only by the actor and anyone who caught them.'],
-      ['facts', `- What ${pc} knows is limited to what they could see or hear in the narrated scene. Other characters' motives, plans and secrets are NOT known by ${pc} unless explicitly revealed; record those as known only by that character.`],
+      ['facts', '- 1 to 5 facts: only what actually happened or was revealed. Skip trivia.'],
+      ['facts', '- known_by: who witnessed or was told; ["all"] only when everyone at the location would know. Hidden actions: only the actor and anyone who caught them.'],
+      ['facts', `- ${pc} knows only what they could see or hear in the scene. Others' motives, plans and secrets are known only by that character unless explicitly revealed.`],
       ['facts', '- weight: 1 minor detail, 2 notable, 3 major turning point (injury, death, betrayal, discovery, confession).'],
-      ['facts', '- where: the room, region or site a fact belongs to, when it belongs to a place (something about that place, or that only matters there). Leave it out for facts about people or the whole world.'],
+      ['facts', '- where: the room, region or site, for a fact that belongs to a place. Leave it out for facts about people or the whole world.'],
       ['facts', '- Anything listed under REVEALS should become a fact known by the revealer and whoever was told.'],
-      ['facts', '- details: up to 3 lasting things the scene said about a place, an object or a person that should stay true later (a broken machine, a habit, a scar). Not events. For an object, give "thing" and any "state". Only what the scene says.'],
-      ['state', `- state: only real changes.${sc.needs.length ? ' Eating or resting lowers needs (negative delta).' : ''} Repairs or sabotage can move clocks (negative delta delays, positive hastens). location: only for other characters who were seen leaving or arriving in the scene (where they went or came from). Never for ${pc}.`],
-      ['state', "- groups: update a group's stance only when this turn's events would realistically change how that group sees things."],
-      ['state', '- world values are short factual status (e.g. "degraded, about 70% output"). Only change one when that status actually changed this turn.'],
-      ['state', `- tags: short visible states or situations (e.g. "sprained ankle", "covered in dust", "on night shift"), at most 5 words, with "turns" for how long they last (default 6). Remove tags that no longer fit. Not feelings${sc.needs.length ? `; ${needsList(sc)} tracked as needs` : ''}.`],
-      ['state', `- mood: for each non-player character present, at most one short line on how they come across right now, as others could read it (e.g. "short with everyone, avoiding Okafor"). Only when it changed. Never for ${pc}, and never hint at anyone's secret.`],
-      ['feelings', `- relations: how this turn changed how non-player characters feel about others (never ${pc}'s own feelings), delta between -15 and 15. Leave empty if nothing changed.`],
+      ['facts', '- details: up to 3 lasting things the scene said about a place, object or person (a broken machine, a habit, a scar). Not events. For an object, give "thing" and any "state".'],
+      ['state', `- state: only real changes.${sc.needs.length ? ' Eating or resting lowers needs (negative delta).' : ''} Repairs or sabotage can move clocks (negative delays, positive hastens). location: only for others seen leaving or arriving in the scene. Never for ${pc}.`],
+      ['state', "- groups: change a stance only when this turn would realistically change how that group sees things."],
+      ['state', '- world: short factual status (e.g. "degraded, about 70% output"), only when it actually changed.'],
+      ['state', `- tags: visible states or situations (e.g. "sprained ankle", "on night shift"), at most 5 words, with "turns" they last (default 6). Remove ones that no longer fit. Not feelings${sc.needs.length ? `; ${needsList(sc)} tracked as needs` : ''}.`],
+      ['state', `- mood: for each person present, one short line on how they come across (e.g. "short with everyone, avoiding Okafor"), only when it changed. Never for ${pc}, and never hint at a secret.`],
+      ['feelings', `- relations: how others' feelings changed this turn (never ${pc}'s own), delta -15 to 15.`],
     ];
     standingGuide(state).split('\n').filter(Boolean).forEach((line) => g.push(['feelings', line]));
-    g.push(['feelings', `- player_attitude: how ${pc}'s own feelings toward someone shifted, judged ONLY from the player action as quoted above (their words and tone), never from how the narrator embellished it. Snapping, mocking or threatening lowers it; thanking, helping, joking warmly or confiding raises it. Delta between -10 and 10. Leave empty if the action was neutral.`]);
+    g.push(['feelings', `- player_attitude: how ${pc}'s own feelings toward someone shifted, judged ONLY from the player action quoted above (their words and tone), never the narration. Snapping, mocking or threatening lowers it; thanking, helping, joking warmly or confiding raises it. Delta -10 to 10; empty if neutral.`]);
     if (Object.keys(state.extras || {}).length) g.push(['facts state', '- minor people: may be in facts (about, known_by) and may change location; no relations, moods, tags or needs.']);
     if (Object.keys(state.standees || {}).length) g.push(['state', '- unnamed groups: count goes down for members killed, captured or gone (it only goes up if an event brought more); state when the scene shows them change (fled: they leave for good); location only one linked room, when seen leaving.']);
     const site = siteGuide(state).replace(/^\n/, '');

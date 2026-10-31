@@ -724,6 +724,15 @@ test('reroll of a downtime skip keeps the time jump and where everyone is', asyn
 
 // ---------- telemetry ----------
 
+test('the guard tally counts each guard across turns', async () => {
+  const { E, state } = newGame();
+  noRoutines(state);
+  mockLLM(E, ({ kind }) => (kind.startsWith('intent') ? { player: { summary: 'waits', move_to: 'nowhere-at-all' }, intents: [], events: [] } : kind.startsWith('update') ? { facts: [] } : 'Kit waits.'));
+  await E.Engine.runTurn(state, 'I wait.', 'moment');
+  await E.Engine.runTurn(state, 'I wait.', 'moment');
+  assert.match(E.Engine.guardTally(), /^Guards over 2 turns:/);
+});
+
 test('a turn report lists its calls and every guard, including the update step rejections from the turn before', async () => {
   const { E, state } = newGame();
   let narrations = 0;

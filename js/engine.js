@@ -5182,7 +5182,25 @@
     if (err) t.error = String(err.message || err);
     Eng.telemetry.push(t);
     if (Eng.telemetry.length > Eng.telemetryMax) Eng.telemetry.shift();
+    tallyGuards(t.guards);
   }
+  // How often each guard has fired, across every game on this machine: the
+  // evidence for retiring one (rule 1 wants a reason). Kept in E.Prefs.
+  const GUARD_TALLY = 'ensemble.guardTally';
+  function tallyGuards(guards) {
+    try {
+      const old = E.Prefs.get(GUARD_TALLY) || {};
+      const types = Object.assign({}, old.types);
+      guards.forEach((g) => { types[g.type] = (types[g.type] || 0) + 1; });
+      Promise.resolve(E.Prefs.set(GUARD_TALLY, { turns: (old.turns || 0) + 1, types })).catch(() => {});
+    } catch (e) { /* a tally is never worth a turn */ }
+  }
+  // The tally as text, most fired first.
+  Eng.guardTally = function () {
+    const t = E.Prefs.get(GUARD_TALLY) || {};
+    const rows = Object.entries(t.types || {}).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    return [`Guards over ${t.turns || 0} turns:`].concat(rows.map(([k, n]) => `${n}  ${k}`)).join('\n');
+  };
 
   // What the engine decided and the scene as written, for the copied report.
   // This is Debug, so covert actions and hidden events are shown as they are.
