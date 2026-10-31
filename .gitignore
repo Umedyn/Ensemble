@@ -18,3 +18,6 @@ soak-out/
 
 # Local instructions for Claude Code
 CLAUDE.md
+
+# VS Code workspace
+Ensemble.code-workspace
