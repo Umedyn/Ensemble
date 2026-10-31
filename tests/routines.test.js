@@ -70,12 +70,9 @@ test('each whole hour moves offscreen people through the rooms, and never the pl
   assert.equal(g.where('aoi'), 'canteen', 'a routine may bring someone to the player');
 });
 
-test('someone in the player\'s room stays, and goes once the player has left', () => {
+test('someone in the player\'s room leaves on schedule when nothing keeps them', () => {
   const g = game();
   g.state.characters.sora.status.location = 'aoi-room';
-  advance(g, 2);
-  assert.equal(g.where('aoi'), 'aoi-room', 'leaving a scene is for later');
-  g.state.characters.sora.status.location = 'plaza';
   advance(g, 1);
   assert.equal(g.where('aoi'), 'classroom');
 });

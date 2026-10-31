@@ -932,6 +932,7 @@
     if (res) {
       (res.outcomes || []).forEach((o) => { if (o.visible && o.moved && o.id !== state.player) mark(o.id, o.moved); });
       (res.groups || []).forEach((g) => { if (g.visible && g.moved) mark(g.id, g.moved); });
+      (res.routineMoves || []).forEach((m) => mark(m.id, m.to));
       (res.director || []).forEach((d) => { if (d.visibility !== 'hidden' && d.where) (d.who || []).forEach((id) => mark(id, whereIs(state, id) || d.where)); });
     }
     Eng.present(state).forEach((id) => mark(id, here));
@@ -982,6 +983,7 @@
     };
     (p.res.outcomes || []).forEach((o) => { if (o.visible && o.moved && o.id !== state.player) add(o.id, o.moved); });
     (p.res.groups || []).forEach((g) => { if (g.visible && g.moved) add(g.id, g.moved); });
+    (p.res.routineMoves || []).forEach((m) => add(m.id, m.to));
     return out;
   };
   // The words a scene uses for someone: their full name, a first name or
@@ -2295,16 +2297,115 @@
   };
   // Routines stop for the badly hurt, a person whose needs have given out, and
   // an open emergency around them (a pressure firing opens one too).
-  function routinePaused(state, id) {
+  function routinePaused(state, id, beforeFire) {
     const c = state.characters[id];
     if (c.status.health === 'badly_hurt') return true;
     if (state.scenario.needs.some((n) => E.Scenario.hasNeed(c, n.id) && (c.needs[n.id] || 0) >= 1)) return true;
-    return !!(state.crisis && state.crisis.turn >= state.turn - 1 && (state.crisis.who || []).includes(id));
+    return !beforeFire && !!(state.crisis && state.crisis.turn >= state.turn - 1 && (state.crisis.who || []).includes(id));
   }
+  // People here whose routine takes them elsewhere during a span (task G-8):
+  // [{ id, to (null: off the map), at (minutes in) }]. Moves nothing.
+  Eng.routineLeaving = function (state, present, hours) {
+    const here = state.characters[state.player].status.location;
+    const start = state.time.day * 24 + state.time.hour;
+    const out = [];
+    present.filter((id) => routineOf(state, state.characters[id])).forEach((id) => {
+      let key = (state.characters[id].routineState || {}).slot;
+      if (key === undefined) key = (Eng.routineSlot(state, id, state.time) || {}).key;
+      for (let h = Math.floor(start) + 1; h <= Math.floor(start + hours); h++) {
+        const t = routineTarget(state, id, { day: Math.floor(h / 24), hour: h % 24 });
+        if (!t || t.key === key) continue;
+        key = t.key;
+        if (t.room === here) continue;
+        out.push({ id, to: t.away ? null : t.room, at: Math.round((h - start) * 60) });
+        break;
+      }
+    });
+    return out;
+  };
+  // Who keeps their place in the scene through a new slot: { id: why }. The
+  // player dealing with them (this turn or the last), an ask they brought, an
+  // event here they are part of, and what the scene demands of anyone: a
+  // hostile group here, someone badly hurt. Anything else that needs them
+  // (a fight to break up) is the model's `stays_for`, only for people leaving.
+  Eng.routineStaying = function (state, action, present, res, intents, leaving) {
+    const here = state.characters[state.player].status.location;
+    const out = {};
+    const stay = (id, why) => { if (!out[id]) out[id] = why; };
+    const people = present.filter((id) => routineOf(state, state.characters[id]) && Eng.isAt(state, id, here));
+    const named = people.filter((id) => mentions(action, state.characters[id]));
+    const last = state.routineEngaged && state.routineEngaged.turn === state.turn - 1 ? state.routineEngaged.ids : [];
+    named.forEach((id) => stay(id, 'the player is dealing with them'));
+    people.filter((id) => last.includes(id)).forEach((id) => stay(id, 'still with the player'));
+    if (state.ask && people.includes(state.ask.who)) stay(state.ask.who, 'came to the player');
+    (res.director || []).filter((d) => d.visibility === 'seen' && d.where === here).forEach((d) => (d.who || []).filter((id) => people.includes(id)).forEach((id) => stay(id, 'part of what is happening here')));
+    const hostile = Object.values(state.standees || {}).some((g) => g.location === here && g.state === 'hostile' && Eng.standeeActive(g));
+    const hurt = [state.player].concat(present).find((id) => state.characters[id].status.health === 'badly_hurt' && (id === state.player || Eng.isAt(state, id, here)));
+    if (hostile || hurt) people.forEach((id) => stay(id, hostile ? 'danger here' : `${state.characters[hurt].name} needs help`));
+    const due = new Set(leaving.map((l) => l.id));
+    (Array.isArray(intents) ? intents : []).forEach((it) => {
+      if (!it || !due.has(it.id) || !people.includes(it.id) || typeof it.stays_for !== 'string') return;
+      const why = it.stays_for.trim();
+      if (why && !/^(null|none|no|n\/a)$/i.test(why)) stay(it.id, E.clip(why, 80));
+    });
+    leaving.filter((l) => out[l.id]).forEach((l) => guard(res, 'resolve', 'stays', `${state.characters[l.id].name} misses their routine: ${out[l.id]}`));
+    if (people.length) state.routineEngaged = { turn: state.turn, ids: named };
+    return out;
+  };
+  // Handing the hours to routine, in the player's own words (rule 3). Not
+  // ROUTINE_PLAN: a skip's plan has no deed in it, a turn's action might
+  // ("I check the shift logs").
+  const HANDS_DAY = new RegExp('\\b(?:sit through|sit in (?:on )?(?:class|lessons?|the)|go about (?:my|our|the) (?:day|business)|get through (?:the|my) (?:day|classes|lessons|shift)'
+    + '|attend (?:my |the )?(?:classes|class|lessons|school|work)|(?:until|till|through|for) the (?:end|rest) of the (?:school |work )?(?:day|shift|lessons?|classes)'
+    + '|(?:keep to|stick to|follow|go about|get on with|carry on with|do)\\b[^.!?]{0,20}\\b(?:routine|usual|chores|duties|shift))\\b', 'i');
+  const sayMinutes = (m) => (m < 60 ? `${m}m` : `${Math.floor(m / 60)}h${m % 60 ? `${m % 60}m` : ''}`);
+  Eng.sayDay = (day) => day.stops.map((s) => `${s.name} +${sayMinutes(s.at)}`).join('; ');
+  // The player's day on their routine, planned like a trip (task G-8): the
+  // stops with their minutes, getting to the first in time when it can. An
+  // action naming a person or another place wins, and the routine waits. A
+  // clock going off ends the day there. → { stops, via, end, stopped } or null.
+  Eng.routineDay = function (state, action, step, crisis) {
+    const pid = state.player;
+    if (!routineOf(state, state.characters[pid]) || step.id === 'major' || !(step.hours >= 1) || state.travel || crisis || !HANDS_DAY.test(String(action || ''))) return null;
+    if (Eng.cast(state, { includePlayer: false }).some((id) => mentions(action, state.characters[id]))) return null;
+    const span = Math.round(step.hours * 60);
+    const fire = Math.min(...state.clocks.filter((c) => !c.fired && !c.stopped && c.perHour > 0).map((c) => (c.max - c.value) / c.perHour * 60), Infinity);
+    const limit = Math.min(span, fire);
+    const start = state.time.day * 24 + state.time.hour;
+    let room = state.characters[pid].status.location, free = 0, key = null;
+    const stops = [], via = [];
+    for (let h = Math.floor(start); h < start + step.hours; h++) {
+      const t = routineTarget(state, pid, h === Math.floor(start) ? state.time : { day: Math.floor(h / 24), hour: h % 24 });
+      if (!t || t.key === key) continue;
+      key = t.key;
+      if (t.away) break; // the player stays on the map
+      if (t.room === room) { if (!stops.length) stops.push({ room, name: state.locations[room].name, at: 0 }); continue; }
+      const plan = Eng.travelPlan(state, room, t.room, pid);
+      if (!plan || plan.blocked) break;
+      const at = Math.round(Math.max(free, (h - start) * 60 - plan.minutes) + plan.minutes);
+      if (at > limit) break;
+      via.push(...plan.steps.map((s) => s.to));
+      room = t.room;
+      free = at;
+      stops.push({ room, name: state.locations[room].name, at });
+    }
+    const placed = Eng.placeInWords(state, action) || Eng.placeNamed(state, action);
+    if (!stops.length || (placed && !stops.some((s) => s.room === placed))) return null;
+    return { stops, via: via.slice(0, -1), end: room, stopped: fire < span };
+  };
   // One whole hour for one person. A routine only moves someone when a new
   // slot begins or a trip is under way, so anything else that moved them keeps
   // that place until the next slot without having to say so.
-  function routineHour(state, id, time) {
+  function routineHour(state, id, time, res, minutes) {
+    const c = state.characters[id];
+    const was = c.status.away ? null : c.status.location;
+    routineStep(state, id, time, res);
+    const now = c.status.away ? null : c.status.location;
+    const here = state.characters[state.player].status.location;
+    // What the player can see: someone leaving their room or coming into it.
+    if (was !== now && (was === here || now === here)) res.routineMoves.push({ id, to: now, at: minutes });
+  }
+  function routineStep(state, id, time, res) {
     const c = state.characters[id];
     const t = routineTarget(state, id, time);
     if (!t) return;
@@ -2313,7 +2414,7 @@
     const newSlot = rs.slot !== t.key;
     if (!newSlot && !rs.trip) return;
     if (!newSlot && c.status.location !== rs.left) { delete rs.trip; return; } // the story took them off their way
-    if (routinePaused(state, id) || Eng.isAt(state, id, state.characters[state.player].status.location)) return;
+    if (routinePaused(state, id, res.beforeFire) || (res.staying || {})[id]) return;
     const walked = !newSlot && rs.trip ? rs.trip.minutes : 0;
     rs.slot = t.key;
     delete rs.trip;
@@ -2331,12 +2432,17 @@
     rs.left = c.status.location;
   }
   // Each whole hour between two times, for everyone offscreen with a routine.
-  function runRoutines(state, people, before) {
+  function runRoutines(state, people, before, res, fireIn) {
+    const start = before.day * 24 + before.hour;
     const end = state.time.day * 24 + state.time.hour;
-    for (let h = Math.floor(before.day * 24 + before.hour) + 1; h <= Math.floor(end); h++) {
+    res.routineMoves = [];
+    for (let h = Math.floor(start) + 1; h <= Math.floor(end); h++) {
       const time = { day: Math.floor(h / 24), hour: h % 24 };
-      people.forEach((id) => { if (Eng.alive(state, id)) routineHour(state, id, time); });
+      // The hours before a pressure went off in this step ran as usual.
+      res.beforeFire = h - start < fireIn;
+      people.forEach((id) => { if (Eng.alive(state, id)) routineHour(state, id, time, res, Math.round((h - start) * 60)); });
     }
+    delete res.beforeFire;
     people.forEach((id) => { delete state.characters[id].routineHold; });
   }
 
@@ -2372,6 +2478,8 @@
       });
     });
     Eng.stopClocks(state, res);
+    const crisisBefore = state.crisis;
+    const fireIn = Math.min(...state.clocks.filter((cl) => !cl.fired && !cl.stopped && cl.perHour > 0).map((cl) => (cl.max - cl.value) / cl.perHour), Infinity);
     state.clocks.slice().forEach((cl) => {
       if (cl.fired || cl.stopped) return;
       cl.value = E.clamp(cl.value + (cl.perHour || 0) * hours, 0, cl.max);
@@ -2381,7 +2489,7 @@
     // Downtime runs agendas itself (Eng.runAgendas), step by step.
     if (!routine) advanceAgendas(state, hours);
     advancePatrols(state, hours);
-    if (onRoutine.length) runRoutines(state, onRoutine, clockBefore);
+    if (onRoutine.length) runRoutines(state, onRoutine, clockBefore, res, state.crisis !== crisisBefore ? fireIn : 0);
   };
 
   // ---------- worn phrases ----------
@@ -3911,7 +4019,10 @@
   // the gate at +6m, half an hour before it could arrive).
   Eng.settleSceneTime = function (state, beats, spanMinutes, before, res) {
     const t = res && res.travel;
-    const floor = !t || t.blocked ? 0 : t.arriveAt != null ? t.arriveAt + Math.round(spanMinutes * 0.1) : spanMinutes;
+    const trip = !t || t.blocked ? 0 : t.arriveAt != null ? t.arriveAt + Math.round(spanMinutes * 0.1) : spanMinutes;
+    // Nor before what the narrator was told happens: routine moves, the day's last stop (task G-8).
+    const told = (res && res.routineMoves ? res.routineMoves.map((m) => m.at + 1) : []).concat(res && res.routineDay ? res.routineDay.stops[res.routineDay.stops.length - 1].at : []);
+    const floor = Math.max(trip, ...told);
     const end = Math.min(spanMinutes, Math.max(floor, beats[beats.length - 1].at + Math.round(spanMinutes * 0.1)));
     if (end >= spanMinutes) return false;
     if (state.clocks.length !== before.clocks.length || state.clocks.some((c, i) => c.fired !== before.clocks[i].fired)) return false;
@@ -3954,11 +4065,16 @@
         if (entry) { if (note) entry.travel = note; else if (reach.arrived) delete entry.travel; }
         if (room !== p.playerMovedTo) guard(p.res, 'memory', 'travel', `stepped in on the way: at ${state.locations[room].name}`);
       }
+      // A routine day (task G-8): the stop the plan had reached.
+      if (p.routineDay) {
+        const stop = p.routineDay.stops.filter((s) => s.at <= minutes).pop();
+        Eng.setLocation(state, state.player, stop ? stop.room : p.frame.startLoc);
+      }
       // Corrections the player made while this turn was pending still stand.
       (p.corrections || []).forEach((c) => applyCorrection(state, c));
       (p.pins || []).forEach((x) => applyPin(state, x));
       endLoc = state.characters[state.player].status.location;
-      Eng.advanceTime(state, minutes / 60, { events: [] }, p.routine === true ? true : p.routine || false);
+      Eng.advanceTime(state, minutes / 60, { events: [], staying: p.res.staying }, p.routine === true ? true : p.routine || false);
       const entry = state.log.find((e) => e.turn === p.turn && e.type === 'scene');
       if (entry) entry.cutAt = cut;
       const actionEntry = state.log.find((e) => e.turn === p.turn && e.type === 'action');
@@ -4441,6 +4557,8 @@
       const c = p && state.characters[p.id];
       const loc = c && Eng.resolveLocation(state, p.where, false);
       if (!c || !loc || !Eng.alive(state, p.id)) return;
+      // Their routine has placed them; only the story moves them from it (task G-8).
+      if (c.routine && !(res.major && mentions(res.major.text, c))) return guard(res, 'resolve', 'position dropped', `${c.name} keeps to their routine`);
       const why = Eng.moveProblem(state, p.id, c.status.location, loc);
       if (why) return guard(res, 'resolve', 'move blocked', `${c.name} → ${loc}: ${why}`);
       Eng.setLocation(state, p.id, loc);
@@ -4451,7 +4569,12 @@
     if (journey) endJourney(state, plan, frame, res);
     // Arriving somewhere hidden, or a major event naming it, reveals it (R-5).
     if (res.major && res.major.text) Eng.revealNamed(state, res.major.text, res, 'the event that ends the downtime names it');
-    if (pw && pw !== frame.startLoc) {
+    // A routine plan puts the player where their routine has them (task G-8).
+    const usual = !journey && !plan.crisis && (!String(action || '').trim() || ROUTINE_PLAN.test(String(action).toLowerCase())) ? Eng.routineAt(state, state.player, state.time) : null;
+    if (usual && usual !== 'away' && !Eng.moveProblem(state, state.player, frame.startLoc, usual)) {
+      Eng.setLocation(state, state.player, usual);
+      if (usual !== frame.startLoc) guard(res, 'resolve', 'routine day', `the plan keeps to routine: ${state.locations[usual].name}`);
+    } else if (pw && pw !== frame.startLoc) {
       if (planNames(state, action, pw)) state.characters[state.player].status.location = pw;
       else guard(res, 'resolve', 'move cancelled', `the downtime put the player in ${pw}; their plan doesn't take them there`);
     }
@@ -5137,12 +5260,21 @@
     const canonDue = E.Timeline.due(state, step.hours);
     due.canon = E.Timeline.diverging(canonDue);
     phase(due.world ? 'The wider world stirs…' : due.regional ? 'Something stirs nearby…' : 'Characters deciding…');
+    const leaving = Eng.routineLeaving(state, present, step.hours);
     const intentObj = await Eng.intentCalls(state, { system, present, front, action, step, due, phase, early });
 
     const frame = { startTime: E.fmtTime(state), startLoc: state.characters[state.player].status.location, stepId: step.id, stepLabel: step.label, words: step.words, spanMinutes: Math.round(step.hours * 60) };
     // A new place the player is heading for (task 4-4), built before the
     // moves are resolved; the start-of-turn copy gets it too.
     const siteNotes = [];
+    // The player's own words hand the hours to their routine (task G-8): the
+    // engine plans the day, and the model's move doesn't count.
+    const routineDay = Eng.routineDay(state, action, step, crisis);
+    if (routineDay) {
+      const p = intentObj && intentObj.player;
+      if (p && typeof p === 'object') Object.assign(p, { move_to: null, new_place: null, new_region: null });
+      siteNotes.push({ type: 'routine day', detail: Eng.sayDay(routineDay) });
+    }
     // An unfinished trip going on, or dropped (R-10).
     const resumed = Eng.travelResume(state, intentObj, action);
     if (resumed) siteNotes.push(resumed);
@@ -5175,6 +5307,16 @@
     }
     const res = Eng.resolve(state, intentObj, present, action, step.id, due, { crossingRoll: journey && journey.failed, front });
     res.guards.unshift(...early.guards);
+    if (routineDay) {
+      res.routineDay = routineDay;
+      const o = res.outcomes.find((x) => x.id === state.player);
+      if (routineDay.end !== frame.startLoc) {
+        Eng.setLocation(state, state.player, routineDay.end);
+        if (o) o.moved = routineDay.end;
+      }
+      if (o && routineDay.via.length) o.via = routineDay.via;
+      if (o) o.action += ` (the day, planned by the engine: ${Eng.sayDay(routineDay)})`;
+    }
     // Moving into a hidden region reveals it.
     Eng.revealAround(state, res);
     if (crisis) {
@@ -5193,6 +5335,7 @@
     tierChanges.forEach((t) => guard(res, 'resolve', 'cast tier', t));
     extraNotes.forEach((t) => guard(res, 'resolve', 'extras', t));
     siteNotes.concat(timelineNotes).forEach((n) => guard(res, 'resolve', n.type, n.detail));
+    res.staying = Eng.routineStaying(state, action, present, res, intentObj && intentObj.intents, leaving);
     const before = timeSnapshot(state);
     Eng.advanceTime(state, step.hours, res);
     E.Sites.noteVisit(state, frame.startLoc);
@@ -5220,7 +5363,7 @@
     // A trip (R-10): its plan, who went along and the trip still to go, so a
     // step-in puts them where the plan has them at that minute.
     const travel = res.travel ? { plan: res.travel.plan, companions: res.outcomes.filter((o) => o.id !== state.player && o.moved && o.moved === playerOut.moved).map((o) => o.id), keep: state.travel ? E.clone(state.travel) : null } : null;
-    state.pending = { turn: state.turn, action, res, frame, present, extrasPresent, beats, pre, playerMovedTo: playerOut && playerOut.moved, narration, travel };
+    state.pending = { turn: state.turn, action, res, frame, present, extrasPresent, beats, pre, playerMovedTo: playerOut && playerOut.moved, narration, travel, routineDay: res.routineDay };
 
     phase('');
     return { prose: text, beats, res, report: report || { applied: [], rejected: [] } };

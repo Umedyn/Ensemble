@@ -672,7 +672,7 @@
     if (!offstage.length) return null;
     return '\n=== OFFSTAGE (not with the player; for events only) ===\n' + offstage.map((id) => {
       const c = state.characters[id];
-      return `- ${id} (${c.name}), ${Eng().inWords(state, id)}: wants ${c.want || '?'}${c.secret ? '; secret: ' + c.secret : ''}${working(c) ? '; working on: ' + working(c) : ''}`;
+      return `- ${id} (${c.name}), ${Eng().inWords(state, id)}: wants ${c.want || '?'}${c.secret ? '; secret: ' + c.secret : ''}${working(c) ? '; working on: ' + working(c) : ''}${usually(state, id)}`;
     }).join('\n');
   };
   // Secondary characters (task 2-1): one short line each, no secrets, so a big
@@ -693,7 +693,7 @@
     }
     return ['\n=== BACKGROUND (not with the player; one line each; for events only) ==='].concat(ids.map((id) => {
       const c = state.characters[id];
-      return `- ${id} (${c.name}, ${E.shorten(c.role || '?', 40)}), ${Eng().inWords(state, id)}${c.want ? '; wants: ' + E.shorten(c.want, 60) : ''}${working(c) ? '; now: ' + E.shorten(working(c), 50) : ''}`;
+      return `- ${id} (${c.name}, ${E.shorten(c.role || '?', 40)}), ${Eng().inWords(state, id)}${c.want ? '; wants: ' + E.shorten(c.want, 60) : ''}${working(c) ? '; now: ' + E.shorten(working(c), 50) : ''}${usually(state, id)}`;
     }));
   };
   // Agenda steps the engine says are due: each becomes exactly one event.
@@ -739,7 +739,7 @@
    - "visibility": "seen" (happens in the player's room), "heard" (the player gets a sound, call or message about it) or "hidden" (the player has no idea).
    - "moves": [{"id":"character_id","to":"location_id"}] for offstage characters who go somewhere because of it, else [].
    - "scope": "local" for these.
-${groupTask(state, action)}${siteTask(state)}${inventLine(sc)}${ordersTask(state)}${tierTask(state, due)}${canonTask(state, due)}
+${staysTask(state, present, stepId)}${groupTask(state, action)}${siteTask(state)}${inventLine(sc)}${ordersTask(state)}${tierTask(state, due)}${canonTask(state, due)}
 Reply with JSON only, exactly in this shape:
 ${reply(P.shapes.intent(state, present, action, due, stepId))}`;
   };
@@ -794,7 +794,7 @@ ${reply(P.shapes.intentPart(state, present, action, due, stepId, 'player'))}`;
 Decide what ${who.map((id) => name(state, id)).join(' and ')} actually ${who.length > 1 ? 'each try' : 'tries'} to do during this time, driven by ${who.length > 1 ? 'their' : 'their own'} personality, wants, needs, secrets and feelings, and by what ${name(state, state.player)} is doing. They may help, argue, refuse, lie, deflect, pursue their own goals, or leave (move_to). Set visible to false if they act covertly so the player would not notice.
 - "says": the gist of anything they say aloud this turn (or null).
 - "reveals": almost always null. Only fill it if the character deliberately says their secret or private knowledge out loud this turn, and that matches their "says". Being asked once, or being nervous, is not enough: people deflect, make excuses or lie first.
-Reply with JSON only, exactly in this shape:
+${staysTask(state, who, stepId).trimStart()}Reply with JSON only, exactly in this shape:
 ${reply(P.shapes.intentPart(state, present, action, due, stepId, 'chars', who))}`;
   B.intentEventsTask = ({ state, sc, present, stepId, due, action }) => {
     const pc = name(state, state.player);
@@ -886,9 +886,10 @@ ${reply(P.shapes.intentPart(state, present, action, due, stepId, 'events'))}`;
     }
     if (due.crisis) player.crisis_answered = S.bool(false);
     if (commandable(state).length) player.orders = S.maybe(S.obj({ group: S.oneOf(commandable(state)), order: S.str('what they asked') }));
+    const leaving = Eng().routineLeaving(state, present, E.stepHours(state, stepId).hours).map((l) => l.id);
     const shape = {
       player: S.obj(player),
-      intents: S.tuple(present.map((id) => S.obj({ id: S.lit(id), action: S.str('one sentence'), says: S.maybe(S.str()), reveals: S.maybe(S.str()), visible: S.bool(true), needs_roll: S.bool(false), skill, difficulty, move_to: S.maybe(ids(locs.concat(LOOSE(state)), 'location_id')) }))),
+      intents: S.tuple(present.map((id) => S.obj({ id: S.lit(id), action: S.str('one sentence'), says: S.maybe(S.str()), reveals: S.maybe(S.str()), visible: S.bool(true), needs_roll: S.bool(false), skill, difficulty, move_to: S.maybe(ids(locs.concat(LOOSE(state)), 'location_id')) , ...(leaving.includes(id) ? { stays_for: S.maybe(S.str('why they must stay')) } : {}) }))),
     };
     const groups = groupsHere(state, action);
     if (groups.length) shape.group_intents = S.tuple(groups.map((g) => S.obj({ id: S.lit(g.id), action: S.str('one sentence'), visible: S.bool(true), move_to: S.maybe(ids(locs, 'location_id')) })));
@@ -1021,16 +1022,34 @@ ${reply(P.shapes.intentPart(state, present, action, due, stepId, 'events'))}`;
 Starts: ${frame.startTime}, in ${startLoc ? inRoom(state, startLoc, frame.startLoc) : frame.startLoc}, with ${presentStart.length ? presentStart.map((id) => name(state, id)).join(', ') : 'no one'}.
 Ends: ${E.fmtTime(state)}, ${pc.name} ${moved ? `now in ${endLoc.name}` : `still in ${startLoc ? startLoc.name : frame.startLoc}`}.` +
       // When the player moves, people who stay put are left behind, not leaving.
-      (left.length ? `\nDuring the scene, ${left.map((id) => state.characters[id].status.location === frame.startLoc
-        ? `${name(state, id)} stays behind in ${startLoc ? startLoc.name : frame.startLoc}`
-        : `${name(state, id)} leaves for ${state.locations[state.characters[id].status.location].name}`).join('; ')}.` : '') +
-      (arrived.length ? `\n${arrived.map((id) => name(state, id)).join(', ')} ${arrived.length > 1 ? 'are' : 'is'} there at the end.` : '') +
+      (left.length ? `\nDuring the scene, ${left.map((id) => (Eng().isAway(state, id)
+        ? `${name(state, id)} ${state.characters[id].status.away === 'home' ? 'heads home' : 'leaves'}${around(res, id)}`
+        : state.characters[id].status.location === frame.startLoc
+          ? `${name(state, id)} stays behind in ${startLoc ? startLoc.name : frame.startLoc}`
+          : `${name(state, id)} leaves for ${state.locations[state.characters[id].status.location].name}${around(res, id)}`)).join('; ')}.` : '') +
+      (arrived.length ? `\n${arrived.map((id) => name(state, id) + around(res, id)).join(', ')} ${arrived.length > 1 ? 'are' : 'is'} there at the end.` : '') +
       ((back || []).length ? `\nIn the background (there, but with no part of their own this scene: at most a glance or a murmur): ${back.map((id) => name(state, id)).join(', ')}.` : '') +
       travelLines(state, pc, res && res.travel) +
+      dayLines(pc, res && res.routineDay) +
       minorLine(state, [frame.startLoc, state.characters[state.player].status.location], res && res.engaged) +
       `\n${worldLines(state)}`;
   // The trip the engine planned (R-10): when the player arrives, or where the
   // time runs out; the beats keep to it.
+  // When a routine moves someone in or out of the scene (task G-8).
+  const around = (res, id) => { const m = ((res && res.routineMoves) || []).find((x) => x.id === id); return m ? ` around [+${m.at}m]` : ''; };
+  const dayLines = (pc, day) => (day
+    ? `\nThe day (planned by the engine, on ${pc.name}'s routine): ${Eng().sayDay(day)}. Tell it briefly; each beat is where the plan has ${pc.name} at that time.${day.stopped ? ' Something cuts the day short at the last of these.' : ''}`
+    : '');
+  // Where someone offstage usually is now, when they aren't there (task G-8).
+  const usually = (state, id) => {
+    const r = Eng().routineAt(state, id, state.time);
+    return r && r !== 'away' && !Eng().isAt(state, id, r) ? `; usually in ${state.locations[r].name} now` : '';
+  };
+  // People here who may leave during this span (task G-8), told to the intent.
+  const staysTask = (state, present, stepId) => {
+    const who = Eng().routineLeaving(state, present, E.stepHours(state, stepId).hours);
+    return who.length ? `   ${who.map((l) => name(state, l.id)).join(', ')} would normally leave during this time. Set their "stays_for" (a few words) only if something here demands they stay: a fight to break up, someone in danger or in need. Otherwise null, and they go.\n` : '';
+  };
   function travelLines(state, pc, t) {
     if (!t) return '';
     const way = `\nThe way (planned by the engine): ${Eng().sayPlan(t)}.`;
