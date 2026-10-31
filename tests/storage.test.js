@@ -195,7 +195,8 @@ test('a refused write is reported and never throws', async () => {
 });
 
 test('saves move to no other key: nothing writes the old autosave or settings keys to localStorage', () => {
-  for (const f of ['ui.js', 'creator.js', 'util.js']) {
+  const ui = fs.readdirSync(path.join(ROOT, 'js', 'ui')).map((f) => 'ui/' + f);
+  for (const f of [...ui, 'creator.js', 'util.js']) {
     assert.ok(!/localStorage\./.test(fs.readFileSync(path.join(ROOT, 'js', f), 'utf8')), f);
   }
 });

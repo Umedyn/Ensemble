@@ -271,7 +271,7 @@ Small models drift to the most likely beat. Genre-aware random tables fix that: 
 
 - [x] **Storage and saves** (A-1): `E.Store` in `js/adapters.js`, IndexedDB by default with the old localStorage keys moved over on first run; a list of saves with ids. Separate `file://` pages share storage in Chromium and WebKit but not Firefox, so Firefox from disk needs `start.bat`/`start.sh` and the page says so (owner's decision, 2026-10-30).
 - [x] **The other adapters** (A-2): `E.Backend` (direct, or a proxy URL), `E.Voice` (off for now), `E.Library` (one `list()` and `load(id)` across bundled worlds, opened folders and remote lists).
-- [ ] **Split the game screen** (A-3): a shared header and CSS, and `ui.js` into `js/ui/` modules of about 1,000 lines at most, with nothing on screen changing; smoke tests extended first.
+- [x] **Split the game screen** (A-3): a shared header and CSS, and `ui.js` into `js/ui/` modules of about 1,000 lines at most, with nothing on screen changing; smoke tests extended first.
 - [ ] **Own pages** (A-4 to A-7): `settings.html`; `library.html`; `new.html`; `play.html`; then `index.html` as the landing page, last. Ids in the query string, data through `E.Store`; refresh and back are safe; every page works at phone width.
 - [ ] **World bundles and the library** (A-5, ahead of the new-game page so the disk version always has a way to start): a world opened from a folder or zip is stored with its images and survives changing pages; a save still plays after its world is removed.
 - [ ] **Remote lists** (A-8): the library can add a list URL for downloadable worlds, validated and stored as bundles, fetched only in the library, never in play. None configured by default.
@@ -324,6 +324,7 @@ No phase dependency beyond mood tags (phase 1, done). Reuses StreamTTS pieces. L
 - **Chapter replay**: a sped-up playback of a chapter's movements and territory shifts, built on moving pieces (A-10, A-11).
 - **Positions inside a room** (doorway, cover, back wall) for a more hands-on feel; site layouts already give every room coordinates. Decide after playing with tokens (from phase 3).
 - **Remembered feature state**: remember each feature's last-seen state (as `state.known` does for people), so a remembered room shows the cabinet as you left it. Today remembered rooms show features with no state, and doors out of sight show as plain doors (from phase 3).
+- **Suggestions in the creator**: suggestion boxes like the character creator's in the starts section, to help makers with their scenarios (owner's idea, 2026-10-30).
 - **Stream mode**: Twitch chat votes on the player's action.
 - **Installable app (PWA)** and optional save sync to the player's own cloud drive.
 - **Native port** (e.g. Godot) if it outgrows the browser; the JSON state and prompt chain port as-is.

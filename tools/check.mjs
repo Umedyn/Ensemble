@@ -9,7 +9,9 @@ import { createRequire } from 'node:module';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(import.meta.url);
 let failed = 0;
-for (const f of fs.readdirSync(path.join(root, 'js'))) {
+const scripts = fs.readdirSync(path.join(root, 'js')).filter((f) => f.endsWith('.js'))
+  .concat(fs.readdirSync(path.join(root, 'js', 'ui')).map((f) => 'ui/' + f));
+for (const f of scripts) {
   try { execFileSync(process.execPath, ['--check', path.join(root, 'js', f)], { stdio: 'pipe' }); }
   catch (e) { failed++; console.error(`✕ js/${f}\n${e.stderr}`); }
 }

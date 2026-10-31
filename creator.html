@@ -7,22 +7,24 @@
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/creator.css">
 <script>
-// The game's appearance settings (theme, text size, motion), applied before first paint.
-(function () {
-  var a = {};
-  try { a = JSON.parse(localStorage.getItem('ensemble.appearance')) || (JSON.parse(localStorage.getItem('ensemble.settings')) || {}).appearance || {}; } catch (e) {}
+// The game's appearance settings (theme, text size, motion), applied before
+// first paint, as in index.html.
+window.EnsembleAppearance = function (a) {
+  a = a || {};
   var el = document.documentElement, mq = function (q) { try { return window.matchMedia(q).matches; } catch (e) { return false; } };
   var theme = a.theme === 'system' ? (mq('(prefers-color-scheme: light)') ? 'light' : 'dark') : (a.theme || 'dark');
+  var motion = a.motion === 'on' || (a.motion !== 'off' && mq('(prefers-reduced-motion: reduce)')) ? 'reduce' : 'full';
   el.setAttribute('data-theme', theme);
   el.setAttribute('data-font', a.storyFont === 'sans' ? 'sans' : 'serif');
-  el.setAttribute('data-motion', a.motion === 'on' || (a.motion !== 'off' && mq('(prefers-reduced-motion: reduce)')) ? 'reduce' : 'full');
+  el.setAttribute('data-spacing', a.lineSpacing === 'relaxed' ? 'relaxed' : 'normal');
+  el.setAttribute('data-motion', motion);
   el.style.setProperty('--text-scale', String(Math.min(150, Math.max(90, Number(a.textSize) || 100)) / 100));
-})();
+};
+try { window.EnsembleAppearance(JSON.parse(localStorage.getItem('ensemble.appearance')) || (JSON.parse(localStorage.getItem('ensemble.settings')) || {}).appearance); } catch (e) { window.EnsembleAppearance(); }
 </script>
 </head>
 <body class="creator">
 <header class="topbar">
-  <div class="brand">Ensemble Creator</div>
   <div class="group">
     <select id="cWorld" title="World to edit" aria-label="World to edit"><option value="">Pick a world…</option></select>
     <label class="btn" title="Edit a world folder from your computer (a legacy scenario folder is converted)">Open folder<input type="file" id="cFolder" webkitdirectory directory multiple hidden></label>
@@ -34,7 +36,6 @@
     <button id="cTest" disabled title="Play the world as it is now in a new tab, without exporting">▶ Test play</button>
     <button id="cExport" disabled title="Download the whole world folder as a zip">Export zip</button>
     <button id="cJson" disabled title="Download only world.json">world.json</button>
-    <a class="btn" href="index.html">Back to the game</a>
   </div>
 </header>
 <div id="cBanner" class="c-banner hidden" role="status"></div>
@@ -71,6 +72,7 @@
 <script src="js/siteedit.js"></script>
 <script src="js/charform.js"></script>
 <script src="js/pagecheck.js"></script>
+<script src="js/ui/header.js"></script>
 <script src="js/creator.js"></script>
 </body>
 </html>

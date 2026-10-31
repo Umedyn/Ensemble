@@ -3,8 +3,8 @@
 body.creator { display: flex; flex-direction: column; height: 100dvh; }
 .c-banner { padding: 8px 18px; font-size: 0.8125rem; background: var(--panel-2); border-bottom: 1px solid var(--line); }
 .c-banner.bad { color: var(--bad); }
-.c-tabs { display: flex; gap: 4px; padding: 8px 14px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
-.c-tabs button { border-radius: 6px 6px 0 0; border-bottom: none; font-size: 0.8125rem; }
+.c-tabs { display: flex; gap: var(--gap-xs); padding: 8px 14px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.c-tabs button { border-radius: var(--radius) 6px 0 0; border-bottom: none; font-size: 0.8125rem; }
 .c-tabs button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
 .c-tabs .soon { color: var(--muted); font-size: 0.6875rem; }
 .c-main { flex: 1; min-height: 0; overflow: auto; }
@@ -15,25 +15,25 @@ body.creator { display: flex; flex-direction: column; height: 100dvh; }
 .c-validation .good, .good { color: var(--good); }
 .c-map { display: grid; grid-template-columns: minmax(0, 1fr) 330px; height: 100%; min-height: 0; }
 .c-canvas-col { display: flex; flex-direction: column; min-height: 0; padding: 10px 14px; }
-.c-toolbar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+.c-toolbar { display: flex; gap: var(--gap-s); align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
 .c-toolbar button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
 .c-toolbar .sep { width: 1px; height: 1.4rem; background: var(--line); margin: 0 4px; }
-.c-toolbar .zoom { margin-left: auto; display: flex; gap: 4px; }
+.c-toolbar .zoom { margin-left: auto; display: flex; gap: var(--gap-xs); }
 .c-canvas { flex: 1; min-height: 0; overflow: hidden; position: relative; }
 .c-canvas .world-svg { height: 100%; max-height: 100%; cursor: crosshair; }
 .c-hint { color: var(--muted); font-size: 0.75rem; margin-top: 6px; }
-.c-missing { position: absolute; left: 10px; right: 10px; top: 10px; padding: 8px 10px; background: var(--panel); border: 1px solid var(--bad); border-radius: 6px; font-size: 0.8125rem; }
+.c-missing { position: absolute; left: 10px; right: 10px; top: 10px; padding: 8px 10px; background: var(--panel); border: 1px solid var(--bad); border-radius: var(--radius); font-size: 0.8125rem; }
 .c-panel { overflow-y: auto; border-left: 1px solid var(--line); background: var(--panel); padding: 10px 14px; }
 .c-panel section { margin-bottom: 16px; }
 .c-panel h3 { margin: 0 0 6px; font-size: 0.875rem; }
 .c-panel label { display: block; font-size: 0.8125rem; margin: 6px 0; }
 .c-panel input:not([type="checkbox"]), .c-panel textarea, .c-panel select { width: 100%; }
-.c-panel .c-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.c-panel .c-row { display: flex; justify-content: space-between; align-items: center; gap: var(--gap-m); }
 .c-panel .c-row select { width: auto; max-width: 55%; }
 .c-list { display: flex; flex-direction: column; gap: 3px; margin-bottom: 6px; }
 .c-list button { text-align: left; font-size: 0.8125rem; }
 .c-list button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
-.c-neigh { border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; margin: 8px 0; }
+.c-neigh { border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 10px; margin: 8px 0; }
 .c-neigh label { display: block; margin: 3px 0; }
 .c-placed { list-style: none; margin: 6px 0 0; padding: 0; font-size: 0.8125rem; }
 .c-placed li { margin: 3px 0; }
@@ -53,9 +53,9 @@ button.danger { color: var(--bad); }
 /* Lore and timeline tabs (task 5-3) */
 .c-split { display: grid; grid-template-columns: minmax(0, 1fr) 360px; height: 100%; min-height: 0; }
 .c-scroll-col { overflow-y: auto; padding: 10px 14px; min-height: 0; }
-.c-group { border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; }
+.c-group { border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 10px; margin-bottom: 8px; }
 .c-group.focus { border-color: var(--accent); }
-.c-group h4 { margin: 0 0 4px; font-size: 0.8125rem; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.c-group h4 { margin: 0 0 4px; font-size: 0.8125rem; display: flex; gap: var(--gap-s); align-items: center; flex-wrap: wrap; }
 .c-group h4 button:last-child { margin-left: auto; }
 .c-item { display: block; width: 100%; text-align: left; font-size: 0.8125rem; margin: 3px 0; }
 .c-item[aria-pressed="true"], .c-event.focus { border-color: var(--accent); color: var(--accent); }
@@ -64,26 +64,26 @@ button.danger { color: var(--bad); }
 .linkish { background: none; border: none; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; font: inherit; }
 .linkish.small { font-size: 0.75rem; }
 .c-uses { margin: 6px 0; }
-.c-chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
+.c-chips { display: flex; flex-wrap: wrap; gap: var(--gap-xs); margin: 4px 0; }
 .chip { font-size: 0.75rem; padding: 1px 8px; border-radius: 999px; }
 .c-topic[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 600; }
 .c-topic[aria-pressed="false"] { opacity: 0.7; }
 .c-field { display: block; font-size: 0.8125rem; margin: 6px 0; }
 .c-field > span { display: block; }
-.c-panel .c-check, .c-check { display: flex; gap: 6px; align-items: baseline; }
+.c-panel .c-check, .c-check { display: flex; gap: var(--gap-s); align-items: baseline; }
 .c-panel .c-check input, .c-check input { width: auto; }
-.c-source { display: flex; gap: 4px; align-items: center; margin: 4px 0; }
+.c-source { display: flex; gap: var(--gap-xs); align-items: center; margin: 4px 0; }
 .c-source input { flex: 1; min-width: 0; }
 .c-test { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 8px; }
 .c-test h3 { margin: 0 0 6px; font-size: 0.875rem; }
-.c-testform { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 6px 12px; font-size: 0.8125rem; }
+.c-testform { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--gap-s) 12px; font-size: 0.8125rem; }
 .c-testform label { display: block; }
 .c-testform input, .c-testform select, .c-testform textarea { width: 100%; }
 .c-picks { margin: 4px 0 4px 18px; padding: 0; font-size: 0.8125rem; }
-.c-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.c-pre { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; border-bottom: 1px solid var(--line); padding: 4px 0; font-size: 0.8125rem; }
+.c-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap-m); }
+.c-pre { display: flex; flex-wrap: wrap; gap: var(--gap-xs); align-items: center; border-bottom: 1px solid var(--line); padding: 4px 0; font-size: 0.8125rem; }
 .c-panel .c-pre select, .c-panel .c-pre input { width: auto; max-width: 100%; }
-.c-pre-values { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; flex-basis: 100%; }
+.c-pre-values { display: flex; flex-wrap: wrap; gap: var(--gap-xs); align-items: center; flex-basis: 100%; }
 .c-project .c-inline { display: inline-block; margin-right: 10px; font-size: 0.8125rem; }
 .c-project input[type="number"] { width: 4.5rem; }
 @media (max-width: 860px) {
@@ -92,7 +92,7 @@ button.danger { color: var(--bad); }
 }
 /* Drafts from the research helper (Phase 5) */
 .badge-draft { font-size: 0.6875rem; padding: 0 6px; border: 1px dashed var(--accent); border-radius: 999px; color: var(--accent); }
-.c-draft-note { border: 1px dashed var(--accent); border-radius: 6px; padding: 6px 10px; margin: 6px 0 10px; font-size: 0.8125rem; }
+.c-draft-note { border: 1px dashed var(--accent); border-radius: var(--radius); padding: 6px 10px; margin: 6px 0 10px; font-size: 0.8125rem; }
 /* World, groups and starts tabs (task 6-1) */
 .c-form { max-width: 60rem; padding: 10px 14px 24px; }
 .c-scroll-col .c-form { padding: 0; }
@@ -101,21 +101,21 @@ button.danger { color: var(--bad); }
 .c-form h4 { margin: 8px 0 4px; }
 .c-form label { display: block; font-size: 0.8125rem; margin: 6px 0; }
 .c-form input:not([type="checkbox"]), .c-form textarea, .c-form select { width: 100%; }
-.c-form .c-check { display: flex; gap: 6px; align-items: baseline; }
+.c-form .c-check { display: flex; gap: var(--gap-s); align-items: baseline; }
 .c-form .c-check input { width: auto; }
 .c-row3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 0 10px; align-items: end; }
-.c-card { border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; margin: 6px 0; background: var(--panel); }
+.c-card { border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 10px; margin: 6px 0; background: var(--panel); }
 .c-card.c-sub { background: var(--panel-2); }
-.c-card > summary { cursor: pointer; font-size: 0.8125rem; display: flex; gap: 6px; align-items: center; }
+.c-card > summary { cursor: pointer; font-size: 0.8125rem; display: flex; gap: var(--gap-s); align-items: center; }
 .c-card > summary button { margin-left: auto; }
 .c-kv, .c-rows { margin: 4px 0; }
-.c-kvrow { display: flex; gap: 6px; align-items: center; margin: 4px 0; }
+.c-kvrow { display: flex; gap: var(--gap-s); align-items: center; margin: 4px 0; }
 .c-kvrow > * { flex: 1; min-width: 0; }
 .c-kvrow > button, .c-kvrow > .c-check { flex: none; }
 .c-form .c-kvrow select, .c-form .c-kvrow input:not([type="checkbox"]) { width: auto; flex: 1; min-width: 0; }
 .c-skills { display: grid; grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr)); gap: 0 8px; }
 .c-checks { display: flex; flex-wrap: wrap; gap: 0 16px; }
-.c-conn { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 0.8125rem; margin: 3px 0; }
+.c-conn { display: flex; flex-wrap: wrap; gap: var(--gap-s); align-items: center; font-size: 0.8125rem; margin: 3px 0; }
 .c-form .c-conn select { width: auto; }
 .c-inline-check { display: inline-flex !important; gap: 3px; margin: 0 6px 0 0 !important; }
 .c-genre { border-left: 3px solid var(--accent); padding: 2px 8px; margin: 4px 0; }
@@ -124,12 +124,12 @@ button.danger { color: var(--bad); }
 .c-preview svg { width: 100%; height: auto; max-height: 50vh; }
 /* Characters and portraits tabs (task 6-2) */
 .c-charform { max-width: 52rem; }
-.c-cardpic { width: 4rem; height: 4rem; object-fit: cover; border-radius: 6px; display: block; margin: 6px 0; }
+.c-cardpic { width: 4rem; height: 4rem; object-fit: cover; border-radius: var(--radius); display: block; margin: 6px 0; }
 .c-notes { margin: 4px 0 8px 18px; padding: 0; }
 .c-pics { display: flex; flex-wrap: wrap; gap: 10px; margin: 6px 0; }
 .c-pics figure { margin: 0; text-align: center; }
-.c-pics img { width: 4.5rem; height: 4.5rem; object-fit: cover; border-radius: 6px; }
-.mk-author .mk-step { display: flex; gap: 6px; align-items: center; }
+.c-pics img { width: 4.5rem; height: 4.5rem; object-fit: cover; border-radius: var(--radius); }
+.mk-author .mk-step { display: flex; gap: var(--gap-s); align-items: center; }
 .mk-author .mk-step input[type=text] { flex: 1; min-width: 0; }
 /* Sites tab (task 6-3) */
 .c-intro { margin: 20px; max-width: 40rem; }
@@ -144,8 +144,8 @@ button.danger { color: var(--bad); }
 .c-sspot text, .c-tok text { fill: var(--on-accent); pointer-events: none; font-weight: 600; }
 .c-tok circle { fill: var(--f2); stroke: var(--bg); stroke-width: 2; vector-effect: non-scaling-stroke; }
 .c-tok.you circle { fill: var(--accent); }
-.c-grid-fields { display: inline-flex; gap: 4px; align-items: center; font-size: 0.75rem; }
-.c-grid-fields label { display: inline-flex; gap: 4px; align-items: center; margin: 0; }
+.c-grid-fields { display: inline-flex; gap: var(--gap-xs); align-items: center; font-size: 0.75rem; }
+.c-grid-fields label { display: inline-flex; gap: var(--gap-xs); align-items: center; margin: 0; }
 .c-grid-fields input { width: 4.5rem; }
 #cSiteCanvas .map-svg { max-height: 100%; }
 /* Base maps and real places (task 4-5) */
@@ -153,7 +153,7 @@ button.danger { color: var(--bad); }
 .c-handle.piece { fill: var(--good); }
 .c-place-sel { fill: none; stroke: var(--accent); stroke-width: 3; vector-effect: non-scaling-stroke; }
 .c-banner code { font-size: 0.75rem; }
-.c-banner label { display: inline-flex; gap: 4px; align-items: center; margin-right: 8px; }
+.c-banner label { display: inline-flex; gap: var(--gap-xs); align-items: center; margin-right: 8px; }
 
 /* The region tree, routes and route kinds (R-4) */
 .c-tree button[draggable="true"] { cursor: grab; }
@@ -168,3 +168,4 @@ button.danger { color: var(--bad); }
 /* Lore packs (task 5-7) */
 .c-pack-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: 0.25rem 0.5rem; font-size: 0.8125rem; margin: 0.25rem 0 0.5rem; }
 .c-pack-fields input { width: 100%; }
+#cWorld { max-width: 16rem; } /* room in the top bar with the shared header */

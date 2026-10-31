@@ -160,7 +160,7 @@ Progress autosaves to the browser after every turn, and each game keeps its own 
 - `js/charmaker.js`: the character creator (player slots, point-buy, building the character, Suggest)
 - `js/startgen.js`: generated starts (the step pipeline, each step's checks, the finished start)
 - `js/sites.js`: generated sites (deciding, library maps, building, trip links, keeping and fading)
-- `js/ui.js`: the page
+- `js/ui/`: the game page, in modules, and the header every page shares
 
 ## Next steps
 

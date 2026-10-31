@@ -1979,6 +1979,25 @@ const fileUrl = (name) => pathToFileURL(path.join(here, '..', name)).href;
   } catch (e) { failures++; console.error('✕ from disk in Chromium\n  ' + e.message); }
   await ctx.close();
 }
+{
+  const ctx = await browser.newContext({ viewport: { width: 1360, height: 900 } });
+  await ctx.addInitScript(() => localStorage.setItem('ensemble.setupDone', '1'));
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  try {
+    await page.goto(fileUrl('index.html'));
+    await page.waitForFunction(() => window.Ensemble.Prefs.ready());
+    await page.setInputFiles('#folderInput', path.join(here, '..', 'scenarios', 'zombie-holdout'));
+    await page.waitForFunction(() => document.querySelector('#scenarioSelect option[value^="disk:"]'));
+    await newGame(page);
+    await act(page, 'I look around.');
+    assert.match(await page.textContent('#log'), /\w/);
+    assert.deepEqual(errors, []);
+    console.log('✓ from disk: open a world folder and play a turn');
+  } catch (e) { failures++; console.error('✕ from disk: open a world folder\n  ' + e.message); }
+  await ctx.close();
+}
 let firefoxBrowser = null;
 try { firefoxBrowser = await firefox.launch({ firefoxUserPrefs: { 'privacy.file_unique_origin': true, 'security.fileuri.strict_origin_policy': true } }); }
 catch (e) { console.log('- from disk in Firefox: skipped (npx playwright install firefox)'); }
@@ -1997,6 +2016,104 @@ if (firefoxBrowser) {
   } catch (e) { failures++; console.error('✕ from disk in Firefox\n  ' + e.message); }
   await firefoxBrowser.close();
 }
+
+// The game screen's parts, checked before ui.js moved into js/ui/ (task A-3).
+await check('Save downloads the game without its undo copy, and Load brings it back', async (page) => {
+  await newGame(page);
+  await act(page, 'I open up the recycler.');
+  const [download] = await Promise.all([page.waitForEvent('download'), page.click('#btnSave')]);
+  assert.match(download.suggestedFilename(), /^ensemble-.*-turn1\.json$/);
+  const text = fs.readFileSync(await download.path(), 'utf8');
+  const saved = JSON.parse(text);
+  assert.equal(saved.turn, 1);
+  assert.equal(saved.undo, undefined);
+  await act(page, 'I look around.');
+  await page.setInputFiles('#loadInput', { name: 'game.json', mimeType: 'application/json', buffer: Buffer.from(text) });
+  await page.waitForFunction(() => /turn 1$/.test(document.getElementById('sceneBar').textContent.trim()));
+});
+
+await check('Load refuses a file that is not a save', async (page) => {
+  let said = '';
+  page.on('dialog', (d) => { said = d.message(); d.accept(); });
+  await page.setInputFiles('#loadInput', { name: 'x.json', mimeType: 'application/json', buffer: Buffer.from('{"a":1}') });
+  await page.waitForTimeout(200);
+  assert.match(said, /not an Ensemble save/);
+});
+
+await check('the side panels fill in: Situation, People, Journal, and News only with news', async (page) => {
+  await newGame(page);
+  assert.ok((await page.textContent('#situation')).trim().length > 0, 'Situation');
+  assert.ok(await page.locator('#cast .card').count(), 'People');
+  assert.match(await page.textContent('#journal'), /Before the story/);
+  await editSave(page, (s) => { s.news = (s.news || []).concat({ turn: 0, text: 'The relay went quiet.', tier: 'regional', when: 'now' }); });
+  await page.reload();
+  await sceneReady(page);
+  const hidden = await page.locator('#newsPanel').evaluate((el) => el.classList.contains('hidden'));
+  assert.equal(hidden, !(await page.textContent('#news')).trim(), 'the panel shows exactly when it has something');
+});
+
+await check('phone: the side sheet opens and closes', async (page) => {
+  await newGame(page);
+  assert.equal(await page.locator('#side.open').count(), 0);
+  await page.click('#btnSide');
+  await page.waitForSelector('#side.open');
+  await page.click('#btnSideClose');
+  await page.waitForFunction(() => !document.querySelector('#side.open'));
+});
+
+await check('the top bar keeps every control, and Creator opens in a new tab', async (page) => {
+  for (const id of ['scenarioSelect', 'startSelect', 'whoSelect', 'btnNew', 'folderInput', 'conn', 'btnSave', 'loadInput', 'btnDebug', 'btnSettings']) assert.equal(await page.locator('header.topbar #' + id).count(), 1, id);
+  await page.waitForFunction(() => /test\/story|koboldcpp|●/.test(document.getElementById('conn').textContent));
+  const link = page.locator('header.topbar a[href="creator.html"]');
+  assert.equal(await link.getAttribute('target'), '_blank');
+});
+
+await check('phone: the top bar stays as it was: no title and no Creator link', async (page) => {
+  assert.equal(await page.locator('header.topbar a[href="creator.html"]').isVisible(), false);
+  assert.ok(await page.isVisible('#conn') && await page.isVisible('#btnSettings'));
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), 'no sideways scroll');
+});
+
+await check('the theme button changes the theme, keeps it, and leaves other settings alone', async (page) => {
+  assert.equal(await page.getAttribute('html', 'data-theme'), 'dark');
+  await page.click('#headerTheme');
+  await page.waitForFunction(() => document.documentElement.getAttribute('data-theme') === 'light');
+  await page.waitForFunction(async () => /"theme":"light"/.test(await window.Ensemble.Store.get('ensemble.settings')));
+  assert.match(await page.getAttribute('#headerTheme', 'title'), /Theme: Light/);
+  // As if another page changed a setting after this one loaded.
+  await page.evaluate(async () => {
+    const E = window.Ensemble;
+    const s = JSON.parse(await E.Store.get('ensemble.settings'));
+    s.temperature = 0.11;
+    await E.Store.set('ensemble.settings', JSON.stringify(s));
+  });
+  await page.click('#headerTheme');
+  await page.waitForFunction(async () => /"theme":"hv"/.test(await window.Ensemble.Store.get('ensemble.settings')));
+  assert.equal(await page.evaluate(async () => JSON.parse(await window.Ensemble.Store.get('ensemble.settings')).temperature), 0.11);
+  await page.reload();
+  await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
+  assert.equal(await page.getAttribute('html', 'data-theme'), 'hv');
+  await page.click('#btnSettings');
+  assert.equal(await page.inputValue('#aTheme'), 'hv', 'Settings shows it too');
+});
+
+await check('creator: the header has the status and the theme button, and the theme carries over', async (page) => {
+  await page.goto(BASE + 'creator.html');
+  await page.waitForFunction(() => document.getElementById('conn') && !/offline/.test(document.getElementById('conn').textContent));
+  await page.click('#headerTheme');
+  await page.waitForFunction(async () => /"theme":"light"/.test(await window.Ensemble.Store.get('ensemble.settings')));
+  await page.goto(BASE);
+  assert.equal(await page.getAttribute('html', 'data-theme'), 'light');
+});
+
+// A second page's title, links and settings from the creator.
+await check('creator: the top bar links back to the game', async (page) => {
+  await page.goto(BASE + 'creator.html');
+  await page.waitForFunction(() => document.querySelectorAll('#cWorld option').length > 1);
+  assert.match(await page.textContent('header.topbar'), /Ensemble Creator/);
+  await page.click('header.topbar a[href="index.html"]');
+  await page.waitForFunction(() => document.getElementById('btnNew'));
+});
 
 await browser.close();
 mocks.close();

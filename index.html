@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="css/style.css">
 <script>
 // Appearance (Settings > Appearance), applied before first paint so the page
-// never flashes the wrong theme. ui.js calls it again when settings change.
+// never flashes the wrong theme. The pages call it again when settings change.
 window.EnsembleAppearance = function (a) {
   a = a || {};
   var el = document.documentElement, mq = function (q) { try { return window.matchMedia(q).matches; } catch (e) { return false; } };
@@ -25,7 +25,6 @@ try { window.EnsembleAppearance(JSON.parse(localStorage.getItem('ensemble.appear
 </head>
 <body>
 <header class="topbar">
-  <div class="brand">Ensemble</div>
   <div class="group">
     <div class="pickers">
       <select id="scenarioSelect" title="World" aria-label="World"></select>
@@ -38,10 +37,8 @@ try { window.EnsembleAppearance(JSON.parse(localStorage.getItem('ensemble.appear
   </div>
   <div class="spacer"></div>
   <div class="group">
-    <span id="conn" class="conn off" title="KoboldCpp connection">● offline</span>
     <button id="btnSave">Save</button>
     <label class="btn">Load<input type="file" id="loadInput" accept=".json,application/json" hidden></label>
-    <a class="btn desktop-only" href="creator.html" target="_blank" rel="noopener" title="Build and edit worlds (opens in a new tab)">Creator</a>
     <button id="btnDebug">Debug</button>
     <button id="btnSettings">Settings</button>
   </div>
@@ -273,6 +270,15 @@ try { window.EnsembleAppearance(JSON.parse(localStorage.getItem('ensemble.appear
 <script src="js/worldedit.js"></script>
 <script src="js/charform.js"></script>
 <script src="js/pagecheck.js"></script>
-<script src="js/ui.js"></script>
+<script src="js/ui/header.js"></script>
+<script src="js/ui/shared.js"></script>
+<script src="js/ui/worlds.js"></script>
+<script src="js/ui/review.js"></script>
+<script src="js/ui/story.js"></script>
+<script src="js/ui/mapview.js"></script>
+<script src="js/ui/cards.js"></script>
+<script src="js/ui/debug.js"></script>
+<script src="js/ui/settings.js"></script>
+<script src="js/ui/game.js"></script>
 </body>
 </html>

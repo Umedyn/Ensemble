@@ -39,6 +39,7 @@
     // Settings › Appearance; index.html applies it before first paint.
     appearance: { theme: 'dark', textSize: 100, storyFont: 'serif', lineSpacing: 'normal', motion: 'system', mapDetail: 'detailed', storyLinks: 'on' },
   };
+  E.themes = [{ id: 'system', label: 'Same as my device' }, { id: 'dark', label: 'Dark' }, { id: 'light', label: 'Light' }, { id: 'hv', label: 'High visibility' }];
   E.settings = JSON.parse(JSON.stringify(E.defaults));
 
   E.loadSettings = function () {

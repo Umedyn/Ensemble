@@ -2608,9 +2608,12 @@
     });
   }
   (async () => {
+    E.Header.mount({ title: 'Ensemble Creator' });
     await E.Store.ready();
     E.pageCheck();
     E.loadSettings(); // Suggest and card conversion use the game's model settings
+    E.Header.refresh();
+    E.Header.checkConnection(false);
     renderTabs();
     // The shared site map library (task 6-3): worlds that ask for it, the
     // Sites tab's copies and its matching box.
