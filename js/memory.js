@@ -13,15 +13,17 @@
       known_by: f.known_by && f.known_by.length ? f.known_by : ['all'],
       weight: E.clamp(Math.round(Number(f.weight) || 1), 1, 3),
     };
+    // Its home (task B-0): a room, site or region id, beside the people in `about`.
+    if (f.where) fact.where = f.where;
     state.facts.push(fact);
     return fact;
   };
 
   Mem.knows = (fact, id) => fact.known_by.includes('all') || fact.known_by.includes(id);
   Mem.playerFacts = (state) => state.facts.filter((f) => Mem.knows(f, state.player));
-  // For the header: past timeline events are already in the chapter-zero
-  // summary (task 5-2), so their facts are left out there.
-  Mem.headerFacts = (state) => Mem.playerFacts(state).filter((f) => !f.inSummary);
+  // What memory can still put in a prompt: past timeline events are already in
+  // the chapter-zero summary (task 5-2), so their facts are left out.
+  Mem.liveFacts = (state) => Mem.playerFacts(state).filter((f) => !f.inSummary);
   // Facts a given character knows that the player does not.
   Mem.privateFacts = (state, id) =>
     state.facts.filter((f) => !Mem.knows(f, state.player) && Mem.knows(f, id));
@@ -65,34 +67,123 @@
 
   const factLine = (f) => `- [T${f.turn}] ${f.text}`;
 
-  // Player-known facts for the shared prompt prefix, within the budget, in
-  // the order they happened. Standard and roomy: every weight-3 fact, then
-  // the newest minor ones. Compact (task G-4): facts about the player and
-  // weight-3 ones first, then the rest, newest first, all within the budget
-  // (older major facts live on in the chapter summaries).
-  Mem.factsBlock = function (state) {
-    const facts = Mem.headerFacts(state);
-    const b = Mem.budgets(state);
-    const lines = facts.map(factLine);
-    if (E.estTokens(lines.join('\n')) <= b.facts) return lines.join('\n');
+  // ---------- scoped facts (task B-0) ----------
+  // The header carries a core frozen at each chapter close (rule 7: it changes
+  // only where the chapters block already rewrites what follows it). Everything
+  // else is chosen per call for the user message, by what the scene touches.
+  // Both come out of the facts budget, which the tiers already leave room for.
+  Mem.CORE_SHARE = 0.5;
+  Mem.SCENE_SHARES = { place: 0.3, people: 0.3, named: 0.2, always: 0.2 };
+  Mem.freezeCore = (state) => { state.factCore = Mem.liveFacts(state).map((f) => f.id); };
+
+  // The frozen facts that fit the core's share, newest kept, in the order they
+  // happened. Older major facts live on in the chapter summaries, and come back
+  // through the scene when it touches them.
+  Mem.core = function (state) {
+    const frozen = new Set(state.factCore || []);
+    const facts = Mem.liveFacts(state).filter((f) => frozen.has(f.id));
+    const budget = Math.floor(Mem.budgets(state).facts * Mem.CORE_SHARE);
     const keep = new Set();
     let used = 0;
-    const take = (f) => {
-      const cost = E.estTokens(factLine(f));
-      if (keep.has(f.id) || used + cost > b.facts) return false;
+    for (const f of facts.slice().reverse()) {
+      used += E.estTokens(factLine(f));
+      if (used > budget) break;
       keep.add(f.id);
-      used += cost;
-      return true;
-    };
-    const newest = facts.slice().reverse();
-    if (b.tier === 'compact') {
-      newest.filter((f) => f.weight >= 3 || (f.about || []).includes(state.player)).forEach(take);
-      newest.forEach(take);
-    } else {
-      facts.filter((f) => f.weight >= 3).forEach((f) => { keep.add(f.id); used += E.estTokens(factLine(f)); });
-      for (const f of newest) if (!keep.has(f.id) && !take(f)) break;
     }
-    return facts.filter((f) => keep.has(f.id)).map(factLine).join('\n');
+    return facts.filter((f) => keep.has(f.id));
+  };
+  Mem.factsBlock = (state) => Mem.core(state).map(factLine).join('\n');
+
+  // The ids among `ids` whose names are in the text: the glossary's terms for
+  // people, regions and sites (with its rule for parts of a name), and rooms
+  // and unnamed groups by name.
+  function namedIn(state, ids, text) {
+    const hit = new Set();
+    if (!text || !ids.size) return hit;
+    const test = (id, term) => { if (ids.has(id) && !hit.has(id) && E.Lore.matches(term, text)) hit.add(id); };
+    if (E.Glossary) E.Glossary.index(state).terms.forEach((t, term) => { if (t.kind !== 'lore') test(t.id, term); });
+    ids.forEach((id) => {
+      const l = state.locations[id];
+      const g = (state.standees || {})[id];
+      if (l) test(id, l.name);
+      if (g) test(id, g.label);
+    });
+    return hit;
+  }
+
+  // Facts outside the core for this moment, within what the core leaves, in
+  // the order they happened: [{ fact, compartment, tokens }]. Each compartment
+  // fills up to its share, newest first, then spare room goes in the same
+  // order. opts: action, scene (default: the last scene), room (default: where
+  // the player is). Only player-known facts, so nothing reaches a prompt it
+  // wasn't allowed in. Deterministic, so the engine and Debug always agree.
+  Mem.sceneFacts = function (state, opts) {
+    const o = opts || {};
+    const Eng = E.Engine;
+    const core = Mem.core(state);
+    const inCore = new Set(core.map((f) => f.id));
+    const rest = Mem.liveFacts(state).filter((f) => !inCore.has(f.id)).reverse();
+    if (!rest.length) return [];
+    const room = o.room || state.characters[state.player].status.location;
+    const region = Eng.regionOf(state, room);
+    const places = new Set([room, E.Sites.siteOf(state, room)].concat(region ? Eng.regionChain(state, region) : []));
+    const here = new Set(Eng.present(state, room)
+      .concat(Object.values(state.extras || {}).filter((x) => x.location === room).map((x) => x.id))
+      .concat(Object.values(state.standees || {}).filter((g) => g.location === room).map((g) => g.id)));
+    const about = (f) => f.about || [];
+    const homes = { place: [], people: [], named: [], always: [] };
+    const others = [];
+    rest.forEach((f) => {
+      if (f.where && places.has(f.where)) homes.place.push(f);
+      else if (about(f).some((id) => here.has(id) || id === state.player)) homes.people.push(f);
+      else others.push(f);
+    });
+    // The people in the room before the player's own running record.
+    const local = (f) => (about(f).some((id) => here.has(id)) ? 1 : 0);
+    homes.people.sort((a, b) => local(b) - local(a));
+    const last = state.recent && state.recent[state.recent.length - 1];
+    const scene = o.scene != null ? o.scene : last ? last.text : '';
+    const ids = new Set(others.flatMap((f) => about(f).concat(f.where || [])));
+    const named = namedIn(state, ids, [o.action, scene].filter(Boolean).join('\n'));
+    others.forEach((f) => {
+      if (about(f).concat(f.where || []).some((id) => named.has(id))) homes.named.push(f);
+      // "Always": major facts, and this chapter's facts with no home at all.
+      else if (f.weight >= 3 || (!f.where && !about(f).length && f.chapter === state.chapter)) homes.always.push(f);
+    });
+    const total = Mem.budgets(state).facts - E.estTokens(core.map(factLine).join('\n'));
+    const kinds = Object.keys(Mem.SCENE_SHARES);
+    const picks = new Map();
+    let used = 0;
+    const take = (f, compartment, left) => {
+      const tokens = E.estTokens(factLine(f));
+      if (picks.has(f.id) || tokens > left) return 0;
+      picks.set(f.id, { fact: f, compartment, tokens });
+      used += tokens;
+      return tokens;
+    };
+    kinds.forEach((k) => {
+      let left = Math.floor(total * Mem.SCENE_SHARES[k]);
+      homes[k].forEach((f) => { left -= take(f, k, left); });
+    });
+    kinds.forEach((k) => homes[k].forEach((f) => take(f, k, total - used)));
+    return rest.filter((f) => picks.has(f.id)).reverse().map((f) => picks.get(f.id));
+  };
+  Mem.sceneBlock = (picks) => picks.map((p) => factLine(p.fact)).join('\n');
+
+  // Debug: while a turn report is open, what each prompt carried per
+  // compartment ([{ call, compartment, count, tokens }]); set by the engine's
+  // telemetry.
+  Mem.collector = null;
+  Mem.note = function (call, picks) {
+    const c = Mem.collector;
+    if (!c || c.some((x) => x.call === call)) return;
+    const by = {};
+    picks.forEach((p) => {
+      const row = by[p.compartment] || (by[p.compartment] = { call, compartment: p.compartment, count: 0, tokens: 0 });
+      row.count++;
+      row.tokens += p.tokens;
+    });
+    c.push(...Object.values(by));
   };
 
   Mem.storyBlock = function (state) {
@@ -116,7 +207,9 @@
   // replaced by one summary. So it closes when that is worth it, not on a
   // dramatic moment (chapters were closing after one or two turns):
   // - size: the facts it would roll up reach a share of the facts budget
-  //   (after a few turns), or the header's facts are over budget (after two);
+  //   (after a few turns), or the live facts are over budget (after two). All
+  //   of them, wherever they are shown (task B-0): what the scene happens to
+  //   open never changes when a chapter closes;
   // - length: a backstop, the most turns a chapter runs (Settings).
   Mem.CHAPTER = { minTurns: 4, share: 0.35 };
   // Tokens a chapter close would free: this chapter's minor facts the player knows.
@@ -127,7 +220,7 @@
     const budget = Mem.budgets(state).facts;
     // Over budget counts only when a close would free something: major facts
     // stay after it, so they alone would close a chapter every two turns.
-    if (turns >= 2 && E.estTokens(Mem.headerFacts(state).map(factLine).join('\n')) > budget && Mem.freeable(state) > 0) return 'size';
+    if (turns >= 2 && E.estTokens(Mem.liveFacts(state).map(factLine).join('\n')) > budget && Mem.freeable(state) > 0) return 'size';
     if (turns >= Mem.CHAPTER.minTurns && Mem.freeable(state) >= budget * Mem.CHAPTER.share) return 'size';
     if (turns >= E.settings.chapterLength) return 'length';
     return false;
@@ -154,5 +247,6 @@
     state.chapter = n + 1;
     state.chapterStartTurn = state.turn + 1;
     state.flags.chapterWorthy = false;
+    Mem.freezeCore(state);
   };
 })(typeof window !== 'undefined' ? window : globalThis);

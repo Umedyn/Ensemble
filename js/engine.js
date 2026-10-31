@@ -84,6 +84,7 @@
     (sc.facts || []).forEach((text) => E.Memory.addFact(state, { about: [], text, known_by: ['all'], weight: 2 }));
     // The canon timeline (task 5-2): the past becomes facts and chapter zero.
     E.Timeline.seed(state);
+    E.Memory.freezeCore(state);
     // Where the player starts counts as reached (task 7-7).
     Eng.noteReached(state);
     if (sc.opening) {
@@ -95,7 +96,7 @@
 
   // Saves and autosaves from older versions are upgraded one step at a time
   // when loaded. Each step takes a state at version n and returns n + 1.
-  Eng.STATE_VERSION = 16;
+  Eng.STATE_VERSION = 17;
   Eng.migrations = {
     // Worlds and starts (docs/WORLDS.md): the scenario records where it came from.
     1: (state) => {
@@ -232,6 +233,15 @@
         if (!s.reputation) { s.reputation = {}; (s.factions || []).forEach((f) => { s.reputation[f.id] = { value: 0, why: '', turn: 0 }; }); }
       });
       state.version = 16;
+      return state;
+    },
+    // Scoped facts (task B-0): old facts have no "where", and the header's
+    // core starts as the facts an old save has now.
+    16: (state) => {
+      E.Memory.freezeCore(state);
+      const pre = state.pending && state.pending.pre;
+      if (pre && pre.facts) pre.factCore = state.factCore.slice();
+      state.version = 17;
       return state;
     },
   };
@@ -1881,7 +1891,7 @@
         Eng.revealNamed(state, text, res, 'a public event names it');
         res.events.push((vis === 'heard' ? '(heard from elsewhere; only a sound, call or message reaches the player) ' : '') + tag + text);
         if (scope !== 'local') {
-          E.Memory.addFact(state, { about: who, text, known_by: ['all'], weight: scope === 'world' ? 3 : 2 });
+          E.Memory.addFact(state, { about: who, text, known_by: ['all'], weight: scope === 'world' ? 3 : 2, where: scope === 'regional' ? region : null });
           state.news.push({ scope, text, time: E.fmtTime(state), effects, region });
           if (state.news.length > 12) state.news.shift();
         }
@@ -2809,14 +2819,20 @@
         return hit / Math.min(words.size, ow.size) >= 0.75;
       });
       if (same) return reject('fact', `already recorded: "${E.shorten(same.text, 80)}" (${E.shorten(String(f.text), 60)})`);
-      const fact = E.Memory.addFact(state, { about, text: f.text, known_by: known, weight: f.weight });
+      // Its home (task B-0): the place the model gives, if it's real, or the
+      // room when the scene stayed in one.
+      const place = f.where == null || f.where === '' ? null : bare(f.where);
+      const real = place && (state.locations[place] || (state.regions || {})[place] || (state.sites || {})[place]);
+      if (place && !real) reject('fact where', `dropped ${place}: no such place (${String(f.text).slice(0, 60)})`);
+      const where = real ? place : ctx.startLoc && ctx.startLoc === ctx.endLoc ? ctx.startLoc : null;
+      const fact = E.Memory.addFact(state, { about, text: f.text, known_by: known, weight: f.weight, where });
       if (fact.weight >= 3) state.flags.chapterWorthy = true;
       // An individual extra in a notable fact comes to matter (task 2-3).
       about.filter((x) => extraIds.has(x) && !state.extras[x].group && !state.extras[x].promote && fact.weight >= 2).forEach((x) => {
         state.extras[x].promote = true;
         report.extras.push(`${state.extras[x].name}: in a notable fact, will become a full character`);
       });
-      report.applied.push(`fact: ${fact.text} (w${fact.weight}, known by ${fact.known_by.join('/')}${addedPlayer ? '; the player added: it is about their own action' : ''})`);
+      report.applied.push(`fact: ${fact.text} (w${fact.weight}, known by ${fact.known_by.join('/')}${where ? `, at ${where}` : ''}${addedPlayer ? '; the player added: it is about their own action' : ''})`);
     });
 
     // Someone in the scene only goes elsewhere if the scene shows them leaving,
@@ -4620,14 +4636,16 @@
   Eng.telemetryMax = 20;
 
   function startReport(kind, turn, action, stepId) {
-    const t = { kind, turn, action: action || '', stepId, calls: [], guards: [], lore: [], ms: 0, started: Date.now() };
+    const t = { kind, turn, action: action || '', stepId, calls: [], guards: [], lore: [], facts: [], ms: 0, started: Date.now() };
     E.LLM.collector = t.calls;
     E.Lore.collector = t.lore;
+    E.Memory.collector = t.facts;
     return t;
   }
   function finishReport(t, guards, err) {
     if (E.LLM.collector === t.calls) E.LLM.collector = null;
     if (E.Lore.collector === t.lore) E.Lore.collector = null;
+    if (E.Memory.collector === t.facts) E.Memory.collector = null;
     t.ms = Date.now() - t.started;
     t.guards = guards || [];
     if (err) t.error = String(err.message || err);
@@ -4694,6 +4712,10 @@
     if ((t.lore || []).length) {
       lines.push(`Lore included (${t.lore.length}):`);
       t.lore.forEach((l) => lines.push(`- ${l.call} · ${l.id} (${l.title}): ${l.why}`));
+    }
+    if ((t.facts || []).length) {
+      lines.push('Facts included:');
+      t.facts.forEach((f) => lines.push(`- ${f.call} · ${f.compartment}: ${f.count} (~${f.tokens} tokens)`));
     }
     if (t.outcomes && t.outcomes.length) {
       lines.push('What happened:');

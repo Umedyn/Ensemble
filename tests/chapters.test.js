@@ -41,7 +41,7 @@ test('a chapter closes by size: when its facts would free a good share of the bu
 test('facts over the budget close a chapter from its second turn; a long chapter closes at the backstop', () => {
   const { E, state } = newGame('mars-station');
   const budget = E.Memory.budgets().facts;
-  while (E.estTokens(E.Memory.headerFacts(state).map((f) => `- [T${f.turn}] ${f.text}`).join('\n')) <= budget) addFacts(E, state, 5);
+  while (E.estTokens(E.Memory.liveFacts(state).map((f) => `- [T${f.turn}] ${f.text}`).join('\n')) <= budget) addFacts(E, state, 5);
   atTurn(state, 1);
   assert.equal(E.Memory.needsChapter(state), false);
   atTurn(state, 2);

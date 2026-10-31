@@ -41,7 +41,7 @@ function oldChapterRule(E) {
     if (state.turn < state.chapterStartTurn) return false;
     if (M.turnsInChapter(state) >= E.settings.chapterLength) return 'length';
     if (state.flags.chapterWorthy && M.turnsInChapter(state) >= 2) return 'story beat';
-    const facts = M.headerFacts(state).map((f) => `- [T${f.turn}] ${f.text}`).join('\n');
+    const facts = M.liveFacts(state).map((f) => `- [T${f.turn}] ${f.text}`).join('\n');
     return E.estTokens(facts) > M.budgets().facts ? 'size' : false;
   };
   const apply = E.Engine.applyUpdate;

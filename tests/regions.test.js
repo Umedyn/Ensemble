@@ -151,10 +151,11 @@ test('the header lists the static geography and does not change when a region ch
   assert.match(before, /\n- town: Harmon, a town — A small farm town/);
   assert.ok(!/held by|overrun|fortified/.test(before), 'no controllers, tags or status in the header');
   regional(E, state, { control: [{ region: 'junction', to: 'convoy' }], add_tag: [{ region: 'junction', tag: 'checkpoint' }], region_status: [{ region: 'junction', status: 'convoy trucks parked across the ramp' }] });
-  // The event itself becomes a public fact, so the header only grows at its end (rule 7).
-  const after = E.Prompts.header(state);
-  assert.ok(after.startsWith(before));
-  assert.equal(after.slice(before.length), '\n- [T0] Smoke rises over town.');
+  // The event itself becomes a public fact, in the scene's facts until the
+  // chapter closes (rule 7, task B-0), filed at its region.
+  assert.equal(E.Prompts.header(state), before);
+  assert.ok(state.facts[state.facts.length - 1].where, 'the fact has a home');
+  assert.equal(state.facts[state.facts.length - 1].where, E.Engine.regionChain(state, state.facts[state.facts.length - 1].where)[0]);
   assert.match(E.Prompts.intent(state, [], 'Look out.', 'about an hour', 'hour', {}), /Highway junction \(junction\): held by Coastal rescue convoy; present: Coastal rescue convoy \(some\), The Ridge \(a little\); contested; tags: blocked, checkpoint; convoy trucks parked across the ramp/
 );
 });

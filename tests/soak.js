@@ -89,7 +89,7 @@ function sample(E, state, t, life, plan, calls) {
   people.forEach((id) => { at[id] = state.characters[id].status.location; });
   const res = state.pending && state.pending.turn === state.turn ? state.pending.res : null;
   const budgets = M.budgets(state);
-  const facts = M.factsBlock(state); // what reaches the prompts
+  const facts = [M.factsBlock(state), M.sceneBlock(M.sceneFacts(state))].filter(Boolean).join('\n'); // what reaches a prompt
   const last = Eng.telemetry[Eng.telemetry.length - 1];
   const save = t % 10 === 0 ? JSON.stringify(Object.assign({}, state, { undo: undefined })).length : null;
   return {
@@ -293,7 +293,7 @@ const LIFE_ALARMS = {
     if (ss.length < L.growthTurns) return [];
     const quarter = Math.floor(ss.length / 4);
     const out = [];
-    // Facts keep growing by design, and factsBlock fits them to their budget
+    // Facts keep growing by design, and the core and scene fit them to their budget
     // (overBudget watches that); these have no such limit.
     ['extras', 'standees', 'clocks', 'tags'].forEach((k) => {
       const v = [1, 2, 3, 4].map((q) => ss[Math.min(ss.length - 1, q * quarter - 1)].counts[k]);

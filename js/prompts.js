@@ -247,6 +247,13 @@
     E.Lore.note(layout, picks);
     return picks.length ? ['\n=== LORE (public knowledge; use it when it fits) ==='].concat(picks.map(E.Lore.line)) : null;
   };
+  // The facts this moment touches (task B-0), picked as lore is; the header
+  // has the frozen core. Player-known only, as the header's were.
+  B.sceneFacts = ({ state, action }, layout) => {
+    const picks = Mem().sceneFacts(state, { action });
+    Mem().note(layout, picks);
+    return picks.length ? '\n=== FACTS THAT MATTER HERE (known to the player) ===\n' + Mem().sceneBlock(picks) : null;
+  };
   // A big cast on a small context (task 7-2: Seiryo High's thirty people
   // were 4,200 tokens of header): beyond the tier's castFull, cast lines are
   // short (who they are and their traits), and the rest of a person's line
@@ -300,6 +307,7 @@
     return story ? '\n=== STORY SO FAR ===\n' + story : null;
   };
   B.facts = ({ state }) => {
+    Mem().note('header', Mem().core(state).map((fact) => ({ fact, compartment: 'core', tokens: E.estTokens(fact.text) })));
     const facts = Mem().factsBlock(state);
     return facts ? '\n=== ESTABLISHED FACTS (known to the player) ===\n' + facts : null;
   };
@@ -568,7 +576,7 @@
   };
 
   // ---------- intent ----------
-  P.layouts.intent = ['now', 'castHere', 'lore', 'knownPlaces', 'private', 'hiddenPlaces', 'extrasHere', 'standees', 'offstage', 'background', 'agendaDue', 'lastScene', 'crisisNow', 'reckoningNow', 'intentAction', 'intentTask'];
+  P.layouts.intent = ['now', 'castHere', 'lore', 'sceneFacts', 'knownPlaces', 'private', 'hiddenPlaces', 'extrasHere', 'standees', 'offstage', 'background', 'agendaDue', 'lastScene', 'crisisNow', 'reckoningNow', 'intentAction', 'intentTask'];
   // Places beyond the start's rooms (task 4-4): the rooms of the place the
   // player is in (made during the story, so not in the header) and the
   // places the story knows of. Only in worlds that build new places.
@@ -746,7 +754,7 @@ ${reply(P.shapes.intent(state, present, action, due, stepId))}`;
   // lore, places, the last scene, the action), so KoboldCpp reprocesses only
   // what differs. Engine.intentCalls merges their replies into the single
   // call's object, so nothing after it changes.
-  const INTENT_SHARED = ['now', 'castHere', 'lore', 'knownPlaces', 'lastScene', 'intentAction'];
+  const INTENT_SHARED = ['now', 'castHere', 'lore', 'sceneFacts', 'knownPlaces', 'lastScene', 'intentAction'];
   P.layouts.intentPlayer = INTENT_SHARED.concat(['crisisNow', 'intentPlayerTask']);
   P.layouts.intentChars = INTENT_SHARED.concat(['privateFor', 'playerDoing', 'crisisNow', 'reckoningNow', 'intentCharsTask']);
   P.layouts.intentEvents = INTENT_SHARED.concat(['hiddenPlaces', 'extrasHere', 'standees', 'offstage', 'background', 'agendaDue', 'crisisNow', 'reckoningNow', 'intentsSoFar', 'intentEventsTask']);
@@ -969,7 +977,7 @@ ${reply(P.shapes.intentPart(state, present, action, due, stepId, 'events'))}`;
   // ---------- scene and its continuation ----------
   // Frame, status, last scene, player action and resolved outcomes are shared
   // by the scene and its continuation.
-  const SCENE_CONTEXT = ['sceneFrame', 'status', 'castHere', 'lore', 'lastScene', 'sceneAction', 'resolved'];
+  const SCENE_CONTEXT = ['sceneFrame', 'status', 'castHere', 'lore', 'sceneFacts', 'lastScene', 'sceneAction', 'resolved'];
   P.layouts.narrate = SCENE_CONTEXT.concat(['worn', 'narrateTask', 'endingClose']);
   P.layouts.narrateMore = SCENE_CONTEXT.concat(['sceneSoFar', 'worn', 'narrateMoreTask', 'endingClose']);
   // An ending the engine reached this turn: the scene closes the story, after
@@ -1125,7 +1133,7 @@ Reply with the new beats only.`;
     return h >= 1 ? `about ${h} ${h === 1 ? 'hour' : 'hours'}` : 'under an hour';
   }
 
-  P.layouts.skipIntent = ['skipFrame', 'lore', 'people', 'hiddenPlaces', 'agendaDuring', 'lastScene', 'skipTask'];
+  P.layouts.skipIntent = ['skipFrame', 'lore', 'sceneFacts', 'people', 'hiddenPlaces', 'agendaDuring', 'lastScene', 'skipTask'];
   P.skipIntent = (state, action, plan, frame, res, agendaSteps) =>
     P.build('skipIntent', { state, pc: state.characters[state.player], action, plan, frame, res, agendaSteps: agendaSteps || [] });
 
@@ -1208,7 +1216,7 @@ Guidelines:${plan.crisis ? `
     return S.obj(shape);
   };
 
-  P.layouts.narrateSkip = ['downtimeFrame', 'status', 'lore', 'lastScene', 'montage', 'alsoDuring', 'endsIt', 'whereEveryone', 'worn', 'narrateSkipTask', 'endingClose'];
+  P.layouts.narrateSkip = ['downtimeFrame', 'status', 'lore', 'sceneFacts', 'lastScene', 'montage', 'alsoDuring', 'endsIt', 'whereEveryone', 'worn', 'narrateSkipTask', 'endingClose'];
   P.narrateSkip = function (state, action, frame, montage, doings, res, presentStart) {
     const pc = state.characters[state.player];
     const here = pc.status.location;
@@ -1249,7 +1257,7 @@ Reply with the beats only.`;
   };
 
   // ---------- update ----------
-  P.layouts.update = ['validIds', 'whatHappened', 'sceneNarrated', 'updateCrisis', 'updateTask', 'updateEndings'];
+  P.layouts.update = ['validIds', 'sceneFacts', 'whatHappened', 'sceneNarrated', 'updateCrisis', 'updateTask', 'updateEndings'];
   // Endings the model rules on (judged): only those on offer now, with a
   // quote the engine looks for in the scene.
   B.updateEndings = ({ state, part }) => {
@@ -1284,7 +1292,14 @@ locations: ${Object.keys(state.locations).join(', ')}
 world keys: ${Object.keys(state.world).join(', ') || '(none)'}
 groups: ${(state.factions || []).map((f) => f.id).join(', ') || '(none)'}
 clocks (higher = closer to going off; a negative delta puts it off): ${state.clocks.filter((c) => !c.fired).map((c) => `${c.id} ("${c.name}")`).join(', ') || '(none)'}
-${updateSiteIds(state)}${Object.keys(state.standees || {}).length ? `unnamed groups (count, state, location only): ${Object.values(state.standees).map((g) => `${g.id} (${g.count}, ${g.state}) in ${g.location}`).join(', ')}\n` : ''}${Object.keys(state.extras || {}).length ? `minor people (facts and location only): ${Object.values(state.extras).map((x) => `${x.id}${x.location ? ' in ' + x.location : ''}`).join(', ')}\n` : ''}${sc.needs.length ? `needs: ${sc.needs.map((n) => n.id).join(', ')}\n` : ''}present this turn: ${[state.player].concat(present).join(', ')}`;
+${factPlaces(state).length ? `regions and sites around: ${factPlaces(state).join(', ')}\n` : ''}${updateSiteIds(state)}${Object.keys(state.standees || {}).length ? `unnamed groups (count, state, location only): ${Object.values(state.standees).map((g) => `${g.id} (${g.count}, ${g.state}) in ${g.location}`).join(', ')}\n` : ''}${Object.keys(state.extras || {}).length ? `minor people (facts and location only): ${Object.values(state.extras).map((x) => `${x.id}${x.location ? ' in ' + x.location : ''}`).join(', ')}\n` : ''}${sc.needs.length ? `needs: ${sc.needs.map((n) => n.id).join(', ')}\n` : ''}present this turn: ${[state.player].concat(present).join(', ')}`;
+  // Where a fact can live beyond the rooms (task B-0): what's around the
+  // player, never the whole tree, and nothing they don't know of yet (R-5).
+  function factPlaces(state) {
+    const around = Eng().regionsAround(state).filter((id) => Eng().regionKnown(state, id));
+    const sites = Object.values(state.sites || {}).filter((s) => around.includes(s.region)).map((s) => s.id);
+    return [...new Set(around.concat(sites))];
+  }
   // Doors next to the player, features with a state there, and unknown rooms (task 3-6).
   // The same things as ids for the update's grammar (task L-1).
   function updateSiteKeys(state) {
@@ -1363,7 +1378,7 @@ ${updateSiteIds(state)}${Object.keys(state.standees || {}).length ? `unnamed gro
     if (clockIds(state).length) kinds.push(S.obj({ target: prefixed('clock:', clockIds(state), 'clock:clock_id'), delta: S.int(-12, 12, -2) }));
     const others = ids(Eng().cast(state, { includePlayer: false }), 'character_id');
     const shape = {
-      facts: S.list(S.obj({ about: S.list(ids(people, 'character_id'), { max: 6 }), text: S.str('one short sentence using names, not pronouns'), known_by: S.list(ids(people.concat('all'), 'character_id'), { max: 12 }), weight: S.int(1, 3, 2) }), { max: 5 }),
+      facts: S.list(S.obj({ about: S.list(ids(people, 'character_id'), { max: 6 }), text: S.str('one short sentence using names, not pronouns'), known_by: S.list(ids(people.concat('all'), 'character_id'), { max: 12 }), weight: S.int(1, 3, 2), where: S.opt(ids(locs.concat(factPlaces(state)), 'location_id')) }), { max: 5 }),
       state: S.list(S.or(...kinds), { all: true, max: 16 }),
       relations: S.list(S.obj({ from: others, to: ids(Eng().cast(state), 'character_id'), delta: S.int(-15, 15, 5), reason: S.str('short reason') }), { max: 8 }),
       player_attitude: S.list(S.obj({ to: others, delta: S.int(-10, 10, -5), reason: S.str('short reason in past tense') }), { max: 4 }),
@@ -1390,6 +1405,7 @@ ${updateSiteIds(state)}${Object.keys(state.standees || {}).length ? `unnamed gro
       ['facts', '- known_by lists who witnessed or was told. Use ["all"] only when everyone at the location would know. Hidden actions are known only by the actor and anyone who caught them.'],
       ['facts', `- What ${pc} knows is limited to what they could see or hear in the narrated scene. Other characters' motives, plans and secrets are NOT known by ${pc} unless explicitly revealed; record those as known only by that character.`],
       ['facts', '- weight: 1 minor detail, 2 notable, 3 major turning point (injury, death, betrayal, discovery, confession).'],
+      ['facts', '- where: the room, region or site a fact belongs to, when it belongs to a place (something about that place, or that only matters there). Leave it out for facts about people or the whole world.'],
       ['facts', '- Anything listed under REVEALS should become a fact known by the revealer and whoever was told.'],
       ['state', `- state: only real changes.${sc.needs.length ? ' Eating or resting lowers needs (negative delta).' : ''} Repairs or sabotage can move clocks (negative delta delays, positive hastens). location: only for other characters who were seen leaving or arriving in the scene (where they went or came from). Never for ${pc}.`],
       ['state', "- groups: update a group's stance only when this turn's events would realistically change how that group sees things."],
@@ -1428,7 +1444,7 @@ Use [] for any list with nothing to record.`;
     const full = P.shapes.update(state);
     return S.obj(Object.fromEntries(P.UPDATE_PARTS[part].keys.filter((k) => full.props[k]).map((k) => [k, full.props[k]])));
   };
-  P.layouts.updatePart = ['validIds', 'whatHappened', 'sceneNarrated', 'updateCrisis', 'updatePartTask', 'updateEndings'];
+  P.layouts.updatePart = ['validIds', 'sceneFacts', 'whatHappened', 'sceneNarrated', 'updateCrisis', 'updatePartTask', 'updateEndings'];
   P.updatePart = (state, action, res, prose, present, cut, part) =>
     P.build('updatePart', { state, sc: state.scenario, action, res, prose, present, cut, part });
   B.updatePartTask = ({ state, sc, part }) => `

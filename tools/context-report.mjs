@@ -24,6 +24,7 @@ export function midGame(E, state) {
   }
   for (let n = 1; n <= 8; n++) state.chapters.push({ n, title: `Chapter ${n}`, summary: words(120, n) + '.', fromTurn: n * 5, toTurn: n * 5 + 4 });
   state.turn = 40;
+  E.Memory.freezeCore(state);
   state.recent = [{ turn: 40, action: 'Look around.', text: Array.from({ length: 4 }, (_, i) => words(65, i) + '.').join('\n\n') }];
 }
 

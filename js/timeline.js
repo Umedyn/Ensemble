@@ -177,7 +177,7 @@
     if (vis === 'hidden') {
       if (who.length) fact = E.Memory.addFact(state, { about: who, text, known_by: who, weight: 2 });
     } else {
-      fact = E.Memory.addFact(state, { about: who, text, known_by: ['all'], weight: 3 });
+      fact = E.Memory.addFact(state, { about: who, text, known_by: ['all'], weight: 3, where: region });
       res.events.push((vis === 'heard' ? '(heard from elsewhere; only a sound, call or message reaches the player) ' : '') + `[${scope}] ${text}`);
       state.news = state.news || [];
       state.news.push({ scope, text, time: E.fmtTime(state), effects, region });

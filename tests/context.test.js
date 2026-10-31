@@ -46,20 +46,21 @@ test('memory fills what the fixed parts leave: smaller budgets at 8K than the ol
   assert.deepEqual({ ...E.Memory.budgets(state) }, { facts: Math.floor(16384 * 0.2), story: Math.floor(16384 * 0.12), lore: Math.floor(16384 * 0.1), tier: 'standard' });
 });
 
-test('compact facts: about the player and major ones first, then the newest, in the order they happened; standard keeps every major fact', () => {
+test('the header\'s facts stay within the core\'s share at every tier: the newest kept, in the order they happened (task B-0)', () => {
   const { E, state } = newGame('zombie-holdout');
   at(E, 8192);
   const add = (i, w, about) => { const f = E.Memory.addFact(state, { about, text: `Fact ${i}: ${'word '.repeat(30)}.`, known_by: ['all'], weight: w }); f.turn = i; };
   for (let i = 0; i < 80; i++) add(i, i % 4 === 0 ? 3 : 1, i % 5 === 0 ? [state.player] : ['ortiz']);
+  E.Memory.freezeCore(state);
   const turns = (block) => block.split('\n').map((l) => Number(/^- \[T(\d+)\]/.exec(l)[1]));
-  const compact = turns(E.Memory.factsBlock(state));
-  assert.ok(E.estTokens(E.Memory.factsBlock(state)) <= E.Memory.budgets(state).facts);
-  assert.deepEqual(compact, compact.slice().sort((a, b) => a - b), 'in the order they happened');
-  assert.ok(compact.includes(76) && compact.includes(75), 'the newest major fact and the newest about the player');
-  assert.ok(!/Fact 0:/.test(E.Memory.factsBlock(state)), 'the oldest major fact gives way (the chapter summaries have it)');
-  at(E, 16384);
-  const standard = turns(E.Memory.factsBlock(state));
-  for (let i = 0; i < 80; i += 4) assert.ok(standard.includes(i), `standard keeps major fact ${i}`);
+  for (const ctx of [8192, 16384]) {
+    at(E, ctx);
+    const core = turns(E.Memory.factsBlock(state));
+    assert.ok(E.estTokens(E.Memory.factsBlock(state)) <= E.Memory.budgets(state).facts * E.Memory.CORE_SHARE);
+    assert.deepEqual(core, core.slice().sort((a, b) => a - b), 'in the order they happened');
+    assert.ok(core.includes(79), 'the newest');
+    assert.ok(!/Fact 0:/.test(E.Memory.factsBlock(state)), 'the oldest gives way (the chapter summaries have it)');
+  }
 });
 
 test('major facts alone over the budget don\'t close a chapter every two turns', () => {

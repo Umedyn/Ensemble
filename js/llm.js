@@ -295,14 +295,15 @@
   LLM.lastFinish = ''; // finish reason of the most recent call
 
   // A call that would overflow the backend's context (task G-4) loses parts of
-  // its user message, never the header (rule 7): the lore, then all but the
-  // end of the last scene, then the nearby regions. → { user, cut: [what went] }
+  // its user message, never the header (rule 7): the lore, the scene's facts,
+  // then all but the end of the last scene, then the nearby regions. → { user, cut: [what went] }
   LLM.squeeze = function (user, over) {
     let text = user;
     const cut = [];
     const tokens = () => E.estTokens(user) - E.estTokens(text);
     const steps = [
       ['lore', (t) => t.replace(/\n=== LORE\b[^\n]*===\n[\s\S]*?(?=\n=== |$)/, '')],
+      ["the scene's facts", (t) => t.replace(/\n=== FACTS THAT MATTER HERE\b[^\n]*===\n[\s\S]*?(?=\n=== |$)/, '')],
       ['the start of the last scene', (t) => t.replace(/(\n=== LAST SCENE ===\n)([\s\S]*?)(?=\n=== |$)/, (m, head, body) => {
         const paras = body.split(/\n\n+/);
         return paras.length > 2 ? head + '[…]\n\n' + paras.slice(-2).join('\n\n') : m;
