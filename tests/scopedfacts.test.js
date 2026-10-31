@@ -178,6 +178,20 @@ test('the update step gives a fact its home: a real place, else the room of a sc
   assert.ok(bad.report.rejected.some((r) => /atlantis/.test(JSON.stringify(r))), 'and reported');
 });
 
+test('the places a fact can be filed at leave out regions the player has not found', () => {
+  const { E, state } = newGame('zombie-holdout');
+  const ids = (s) => JSON.stringify(E.Prompts.shapes.update(s).props.facts);
+  const near = E.Engine.regionsAround(state);
+  assert.ok(near.length, 'this world has regions around the player');
+  const hidden = near.find((id) => id !== E.Engine.playerRegion(state)) || near[0];
+  const known = E.Engine.regionKnown;
+  E.Engine.regionKnown = (st, id) => id !== hidden;
+  const list = E.Prompts.update(state, 'Look.', { outcomes: [], events: [] }, 'You look.', [], false).match(/regions and sites around: (.*)/);
+  E.Engine.regionKnown = known;
+  assert.ok(!list || !list[1].split(', ').includes(hidden));
+  assert.ok(ids(state).length);
+});
+
 test('a fact with no home has no "where" at all', () => {
   const { E, state } = game();
   assert.ok(!('where' in add(E, state, 'x', { where: null })));

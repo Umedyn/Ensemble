@@ -402,7 +402,7 @@
     if (!Eng.hiddenRegions(state).size) return;
     const here = Eng.playerRegion(state);
     if (here && !Eng.regionKnown(state, here)) Eng.revealRegion(state, here, res, 'the player is there');
-    (state.facts || []).filter((f) => E.Memory.knows(f, state.player)).forEach((f) => Eng.revealNamed(state, f.text, res, 'the player knows a fact about it'));
+    (state.facts || []).filter((f) => E.Memory.knows(f, state.player) && !E.Memory.narrated(f)).forEach((f) => Eng.revealNamed(state, f.text, res, 'the player knows a fact about it'));
   };
   // ---------- where the player has been (task 7-7) ----------
   // Every region the player has been in, with the regions it is inside;
@@ -646,11 +646,11 @@
     // that are on and watched entrances on the way count too.
     const route = it.moveTo ? Eng.route(state, here, it.moveTo, { who: state.player }) : [here];
     const onRoute = route.length ? route : [here];
-    const eyes = Eng.STEALTH_SKILLS.includes(it.skill) ? onRoute.flatMap((r) => Eng.features(state, r).filter((f) => /camera/i.test(f.name) && f.state === 'on').map((f) => `${f.name} in ${state.locations[r].name}`))
+    const eyes = Eng.STEALTH_SKILLS.includes(it.skill) ? onRoute.flatMap((r) => Eng.ruleFeatures(state, r).filter((f) => /camera/i.test(f.name) && f.state === 'on').map((f) => `${f.name} in ${state.locations[r].name}`))
       .concat(E.Sites.entrances(state).filter((e) => e.watched && onRoute.includes(e.room)).map((e) => `watched ${e.kind || 'entrance'} in ${state.locations[e.room].name}`)) : [];
     // Worlds with watchers of any kind (groups, cameras, watched entrances).
     const watchful = Object.keys(state.standees || {}).length || E.Sites.entrances(state).some((e) => e.watched) ||
-      Object.keys(state.locations).some((r) => Eng.features(state, r).some((f) => /camera/i.test(f.name)));
+      Object.keys(state.locations).some((r) => Eng.ruleFeatures(state, r).some((f) => /camera/i.test(f.name)));
     if (Eng.STEALTH_SKILLS.includes(it.skill) && watchful) {
       const rooms = new Set(onRoute.flatMap((r) => [r].concat(Eng.linkedRooms(state, r))));
       const watchers = Object.values(state.standees || {}).filter((g) => rooms.has(g.location) && Eng.standeeActive(g) && !trusts(g));
@@ -816,8 +816,15 @@
   }
   // Features as they are now: [{ name, state, inferred }].
   Eng.features = (state, room) => ((state.locations[room] || {}).features || []).map((f) => ({
-    name: featName(f), state: (state.features || {})[`${room}|${featName(f)}`] ?? null, inferred: !!(f && f.inferred),
+    name: featName(f), state: (state.features || {})[`${room}|${featName(f)}`] ?? null, inferred: !!(f && f.inferred), narrated: !!(f && f.source === 'narration'),
   }));
+  // Narrated features (task B-0b) are on the map and in the scene, and never
+  // drive rules: conditions, sight, or the check that the player stayed put.
+  Eng.ruleFeatures = (state, room) => Eng.features(state, room).filter((f) => !f.narrated);
+  Eng.narratedFeature = function (state, key) {
+    const i = String(key).indexOf('|');
+    return ((state.locations || {})[String(key).slice(0, i)] || { features: [] }).features.some((f) => f && f.source === 'narration' && f.name === String(key).slice(i + 1));
+  };
   // Where a tracked feature may go from here (task 7-3): the states it may take
   // and, for each one held back by its "requires", what the scene shows instead.
   // → { states (null: any), blocked: {state: otherwise text} }.
@@ -875,7 +882,7 @@
       const shared = plan.rooms[here] && plan.rooms[to] && E.Layouts.sharesWall(plan.rooms[here], plan.rooms[to]);
       if (!target.outside && !shared) return { error: `${target.name} is not on the other side of a wall of ${room.name}` };
     }
-    room.features = (room.features || []).concat([{ name, inferred: true }]);
+    room.features = (room.features || []).concat([{ name, inferred: true, source: 'intent' }]);
     if (to) {
       const kind = /vent|duct/.test(name) ? 'vent' : /hatch/.test(name) ? 'hatch' : /door/.test(name) ? 'door' : 'window';
       room.links = (room.links || []).concat([{ to, kind, inferred: true }]);
@@ -2781,6 +2788,25 @@
     // bare (playtest-seiryo-goes-to-school: every fact lost its "about").
     const bare = (x) => (typeof x === 'string' ? x.replace(/^\s*(?:char|character|standee)\s*:\s*/i, '').trim() : x);
     const idList = (v) => (Array.isArray(v) ? v : typeof v === 'string' && v ? [v] : []).map(bare);
+    // An old fact saying the same, among those these people know.
+    const recorded = function (text, known) {
+      const words = contentWords(text);
+      return words.size >= 5 && state.facts.find((old) => {
+        const ow = contentWords(old.text);
+        if (ow.size < 5 || !(old.known_by.includes('all') || known.every((x) => x !== 'all' && old.known_by.includes(x)))) return false;
+        let hit = 0;
+        words.forEach((w) => { if (ow.has(w)) hit++; });
+        return hit / Math.min(words.size, ow.size) >= 0.75;
+      });
+    };
+    // A fact's home (task B-0): the place the model gives, if it's real, or
+    // the room when the scene stayed in one.
+    const home = function (f, what) {
+      const place = f.where == null || f.where === '' ? null : bare(f.where);
+      const real = place && (state.locations[place] || (state.regions || {})[place] || (state.sites || {})[place]);
+      if (place && !real) reject(`${what} where`, `dropped ${place}: no such place (${String(f.text).slice(0, 60)})`);
+      return real ? place : ctx.startLoc && ctx.startLoc === ctx.endLoc ? ctx.startLoc : null;
+    };
     (Array.isArray(upd.relations) ? upd.relations : []).forEach((r) => { if (r && typeof r === 'object') { r.from = bare(r.from); r.to = bare(r.to); } });
     (Array.isArray(upd.player_attitude) ? upd.player_attitude : []).forEach((a) => { if (a && typeof a === 'object') a.to = bare(a.to); });
 
@@ -2810,22 +2836,10 @@
       // someone else ("Okafor suspects Kit…") stay as given.
       let addedPlayer = false;
       if (!known.includes('all') && about.length && about.every((x) => x === state.player) && !known.includes(state.player)) { known.push(state.player); addedPlayer = true; }
-      const words = contentWords(f.text);
-      const same = words.size >= 5 && state.facts.find((old) => {
-        const ow = contentWords(old.text);
-        if (ow.size < 5 || !(old.known_by.includes('all') || known.every((x) => x !== 'all' && old.known_by.includes(x)))) return false;
-        let hit = 0;
-        words.forEach((w) => { if (ow.has(w)) hit++; });
-        return hit / Math.min(words.size, ow.size) >= 0.75;
-      });
+      const same = recorded(f.text, known);
       if (same) return reject('fact', `already recorded: "${E.shorten(same.text, 80)}" (${E.shorten(String(f.text), 60)})`);
-      // Its home (task B-0): the place the model gives, if it's real, or the
-      // room when the scene stayed in one.
-      const place = f.where == null || f.where === '' ? null : bare(f.where);
-      const real = place && (state.locations[place] || (state.regions || {})[place] || (state.sites || {})[place]);
-      if (place && !real) reject('fact where', `dropped ${place}: no such place (${String(f.text).slice(0, 60)})`);
-      const where = real ? place : ctx.startLoc && ctx.startLoc === ctx.endLoc ? ctx.startLoc : null;
-      const fact = E.Memory.addFact(state, { about, text: f.text, known_by: known, weight: f.weight, where });
+      const where = home(f, 'fact');
+      const fact = E.Memory.addFact(state, { about, text: f.text, known_by: known, weight: f.weight, where, source: 'intent' });
       if (fact.weight >= 3) state.flags.chapterWorthy = true;
       // An individual extra in a notable fact comes to matter (task 2-3).
       about.filter((x) => extraIds.has(x) && !state.extras[x].group && !state.extras[x].promote && fact.weight >= 2).forEach((x) => {
@@ -3028,7 +3042,104 @@
     applyNewExtras(state, upd.new_extras, ctx.turn ?? state.turn, ctx.endLoc || state.characters[state.player].status.location,
       (why) => reject('new_extras', why), (note) => report.extras.push(note));
 
+    // Narrated details (task B-0b), last: what they say is checked against
+    // where people are after this turn's moves, so a walk-in stays.
+    (Array.isArray(upd.details) ? upd.details : []).slice(0, Eng.DETAILS_MAX).forEach((d) => {
+      if (!d || !d.text) return reject('detail', 'no text');
+      const text = String(d.text).trim();
+      const short = E.shorten(text, 60);
+      const about = idList(d.about).filter((x) => named(x) || isStandee(state, x));
+      const where = home(d, 'detail');
+      if (!where && !about.length) return reject('detail', `no home: no place or person (${short})`);
+      if (scene != null && !saidIn(text, scene)) return reject('detail', `the scene doesn't say that (${short})`);
+      const same = recorded(text, witnesses);
+      if (same) return reject('detail', `already recorded: "${E.shorten(same.text, 80)}" (${short})`);
+      const room = state.locations[where] ? where : null;
+      const thing = typeof d.thing === 'string' ? d.thing.replace(/\s+/g, ' ').trim().toLowerCase().slice(0, 30) : '';
+      const told = typeof d.state === 'string' ? d.state.trim().toLowerCase().slice(0, 20) : '';
+      const wrong = Eng.detailProblem(state, { text, about, room, thing, state: told }, ctx);
+      if (wrong) return reject('detail', `${wrong} (${short})`);
+      const fact = E.Memory.addFact(state, { about, text, known_by: witnesses.slice(), weight: 1, where, source: 'narration' });
+      report.applied.push(`detail: ${fact.text}${where ? ` (at ${where})` : ''}`);
+      E.Memory.capDetails(state, fact).forEach((f) => reject('detail', `the oldest at this home gives way: "${E.shorten(f.text, 60)}"`));
+      if (!thing || !room) return;
+      const made = Eng.narrateFeature(state, room, thing, told, ctx);
+      if (made.error) reject('detail feature', `${made.error} (${short})`);
+      else if (made.note) report.applied.push(`feature: ${made.note}`);
+    });
+
     return report;
+  };
+
+  // ---------- narrated details (task B-0b) ----------
+  Eng.DETAILS_MAX = 3;
+  Eng.NARRATED_FEATURES_MAX = 3;
+  // The update step sees hidden actions too, so a detail has to be something
+  // the scene says: at least half its words are in the prose.
+  function saidIn(text, prose) {
+    const words = contentWords(text);
+    const said = contentWords(prose);
+    let hit = 0;
+    words.forEach((w) => { if (said.has(w)) hit++; });
+    return !words.size || hit / words.size >= 0.5;
+  }
+  const WAY_OPEN = /\b(?:door|hatch|gate)s?\b[^.!?]{0,30}\b(?:open|opened|ajar|unlocked|propped)\b|\b(?:open|opened|unlocked)\s+(?:door|hatch|gate)\b/i;
+  const AT_ROOM = /\b(?:is|are|stays?|waits?|sits?|stands?|sleeps?|remains?)\b[^.!?]{0,30}\b(?:in|at|inside)\b/i;
+  const HOLDS = /\b(?:has|holds|carries|keeps|owns|pockets)\b/i;
+  const PAST_ON = /\b(?:body|corpse|grave|dead|died|death|killed|buried|was|were|had|used to)\b/i;
+  // What a detail says against what the engine owns, after the turn's moves.
+  // d: { text, about, room, thing, state }. → the reason, or null. New things
+  // the engine doesn't track are never contradictions.
+  Eng.detailProblem = function (state, d, ctx) {
+    const person = (id) => state.characters[id] || (state.extras || {})[id];
+    const where = (id) => (state.characters[id] ? state.characters[id].status.location : ((state.extras || {})[id] || {}).location);
+    const dead = d.about.find((id) => state.characters[id] && state.characters[id].status.health === 'dead');
+    if (dead && !PAST_ON.test(d.text)) return `${state.characters[dead].name} is dead`;
+    const at = AT_ROOM.exec(d.text);
+    if (at) {
+      const rest = d.text.slice(at.index + at[0].length);
+      for (const id of d.about) {
+        const now = state.locations[where(id)];
+        if (!now || Eng.namesRoom(rest, now)) continue;
+        const other = Object.values(state.locations).find((l) => l.id !== now.id && Eng.namesRoom(rest, l));
+        if (other) return `${person(id).name} is in ${now.name}, not ${other.name}`;
+      }
+    }
+    if (WAY_OPEN.test(d.text)) {
+      const rooms = [...new Set([d.room, ctx.startLoc, ctx.endLoc].filter(Boolean))];
+      for (const r of rooms) {
+        const ways = Eng.linkedRooms(state, r).map((o) => ({ o, k: Eng.linkInfo(state, r, o) })).filter((w) => w.k && !['open', 'trip'].includes(w.k.kind));
+        const shut = ways.find((w) => w.k.locked && (Eng.namesRoom(d.text, state.locations[w.o]) || ways.every((x) => x.k.locked)));
+        if (shut) return `the way to ${state.locations[shut.o].name} is locked`;
+      }
+    }
+    if (/\bkeys?\b/i.test(d.text) && HOLDS.test(d.text)) {
+      for (const l of Object.values(state.locations)) {
+        for (const k of (l.links || []).filter((x) => (x.key || []).length && state.locations[x.to])) {
+          if (!Eng.namesRoom(d.text, state.locations[k.to])) continue;
+          const other = d.about.find((id) => !k.key.includes(id));
+          if (other) return `${person(other).name} doesn't hold the key to ${state.locations[k.to].name}`;
+        }
+      }
+    }
+    if (d.thing && d.room && d.state) {
+      const f = Eng.features(state, d.room).find((x) => x.name.toLowerCase() === d.thing);
+      if (f && f.state != null && f.state.toLowerCase() !== d.state) return `the ${f.name} is ${f.state}`;
+    }
+    return null;
+  };
+  // An object a detail names becomes a feature of its room, by the same limits
+  // as an inferred one, only where the scene was. One the room already has
+  // stays as it is. → { note } or { error }, or {} when there is nothing to add.
+  Eng.narrateFeature = function (state, room, name, told, ctx) {
+    const l = state.locations[room];
+    if (![ctx.startLoc, ctx.endLoc].includes(room)) return { error: 'nobody in the scene was there' };
+    if (Eng.features(state, room).some((f) => f.name.toLowerCase() === name)) return {};
+    if ((l.features || []).length >= Eng.FEATURES_MAX) return { error: `${l.name} already has ${Eng.FEATURES_MAX} features` };
+    if (Eng.features(state, room).filter((f) => f.narrated).length >= Eng.NARRATED_FEATURES_MAX) return { error: `${l.name} already has ${Eng.NARRATED_FEATURES_MAX} narrated features` };
+    l.features = (l.features || []).concat([{ name, inferred: true, source: 'narration' }]);
+    if (told) state.features[`${room}|${name}`] = told;
+    return { note: `${l.name}: + ${name}${told ? ` (${told})` : ''}` };
   };
 
   // True when a paragraph naming the character also shows someone leaving
@@ -3135,7 +3246,7 @@
     const reach = `${verbs}|reach|reaches|get to|gets to|make it to|crouch(?:es)? (?:behind|by|beside)|hide(?:s)? behind`;
     for (const l of Object.values(state.locations)) {
       if (allowed.has(l.id)) continue;
-      for (const f of Eng.features(state, l.id)) {
+      for (const f of Eng.ruleFeatures(state, l.id)) {
         const n = bare(f.name);
         if (n.length < 4 || mine.has(n)) continue;
         const esc = n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -4391,7 +4502,7 @@
   Eng.intentTokens = (state, front, due) => (front.length ? 260 : Eng.INTENT_ALONE) + 150 * front.length
     + 60 * Eng.standeesAt(state, state.characters[state.player].status.location).length + 80 * Eng.agendasDue(state).length
     + (due.regional ? 120 : 0) + (due.world ? 140 : 0) + 120 * (due.canon || []).length;
-  Eng.UPDATE_TOKENS = { base: 300, perPerson: 80, people: 6, step: { minute: 0, moment: 0, hour: 120, hours: 180, morning: 240, major: 240 } };
+  Eng.UPDATE_TOKENS = { base: 360, perPerson: 80, people: 6, step: { minute: 0, moment: 0, hour: 120, hours: 180, morning: 240, major: 240 } };
   Eng.updateTokens = (state, present, stepId) => {
     const U = Eng.UPDATE_TOKENS;
     const others = (present || []).filter((id) => id !== state.player).length;
@@ -4407,7 +4518,7 @@
   // fails the turn, as the single intent does.
   Eng.smallerCalls = (step) => !!E.LLM.backendFor(step).smaller;
   Eng.PAIR_ABOVE = 4; // more people than this in the scene: two to a call
-  Eng.SPLIT_TOKENS = { player: 200, person: 170, pair: 300, facts: 220, statePerPerson: 50, state: 120, feelings: 100, feelingsPerPerson: 40 };
+  Eng.SPLIT_TOKENS = { player: 200, person: 170, pair: 300, facts: 300, statePerPerson: 50, state: 120, feelings: 100, feelingsPerPerson: 40 };
   // The events call is skipped for a minute or a few minutes when nothing is
   // due: the single prompt already asks for none there.
   Eng.eventsDue = (state, stepId, due, action) => !['minute', 'moment'].includes(stepId) || !!(due.regional || due.world || (due.canon || []).length || due.crisis || due.reckoning)

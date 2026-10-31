@@ -1379,6 +1379,7 @@ ${factPlaces(state).length ? `regions and sites around: ${factPlaces(state).join
     const others = ids(Eng().cast(state, { includePlayer: false }), 'character_id');
     const shape = {
       facts: S.list(S.obj({ about: S.list(ids(people, 'character_id'), { max: 6 }), text: S.str('one short sentence using names, not pronouns'), known_by: S.list(ids(people.concat('all'), 'character_id'), { max: 12 }), weight: S.int(1, 3, 2), where: S.opt(ids(locs.concat(factPlaces(state)), 'location_id')) }), { max: 5 }),
+      details: S.opt(S.list(S.obj({ about: S.list(ids(people, 'character_id'), { max: 3 }), where: S.opt(ids(locs.concat(factPlaces(state)), 'location_id')), text: S.str('what the scene said, one short sentence'), thing: S.opt(S.str('the object, if it is about one')), state: S.opt(S.str('its state, if it has one')) }), { max: 3 })),
       state: S.list(S.or(...kinds), { all: true, max: 16 }),
       relations: S.list(S.obj({ from: others, to: ids(Eng().cast(state), 'character_id'), delta: S.int(-15, 15, 5), reason: S.str('short reason') }), { max: 8 }),
       player_attitude: S.list(S.obj({ to: others, delta: S.int(-10, 10, -5), reason: S.str('short reason in past tense') }), { max: 4 }),
@@ -1407,6 +1408,7 @@ ${factPlaces(state).length ? `regions and sites around: ${factPlaces(state).join
       ['facts', '- weight: 1 minor detail, 2 notable, 3 major turning point (injury, death, betrayal, discovery, confession).'],
       ['facts', '- where: the room, region or site a fact belongs to, when it belongs to a place (something about that place, or that only matters there). Leave it out for facts about people or the whole world.'],
       ['facts', '- Anything listed under REVEALS should become a fact known by the revealer and whoever was told.'],
+      ['facts', '- details: up to 3 lasting things the scene said about a place, an object or a person that should stay true later (a broken machine, a habit, a scar). Not events. For an object, give "thing" and any "state". Only what the scene says.'],
       ['state', `- state: only real changes.${sc.needs.length ? ' Eating or resting lowers needs (negative delta).' : ''} Repairs or sabotage can move clocks (negative delta delays, positive hastens). location: only for other characters who were seen leaving or arriving in the scene (where they went or came from). Never for ${pc}.`],
       ['state', "- groups: update a group's stance only when this turn's events would realistically change how that group sees things."],
       ['state', '- world values are short factual status (e.g. "degraded, about 70% output"). Only change one when that status actually changed this turn.'],
@@ -1436,7 +1438,7 @@ Use [] for any list with nothing to record.`;
   // header and the user message's opening (ids, what happened, the scene), so
   // KoboldCpp reprocesses only the task; each gets only its own guidelines.
   P.UPDATE_PARTS = {
-    facts: { keys: ['facts'], what: 'the facts this turn established: what happened or came out, and who knows it' },
+    facts: { keys: ['facts', 'details'], what: 'the facts this turn established: what happened or came out, and who knows it' },
     state: { keys: ['state', 'new_extras', 'ending'], what: "what changed this turn in people's state, the place and the world" },
     feelings: { keys: ['relations', 'player_attitude', 'reputation', 'group_role'], what: 'how feelings changed this turn' },
   };

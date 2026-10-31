@@ -213,7 +213,7 @@ test('the update grammar takes targets only for things in this game, and at most
   const shape = E.Prompts.shapeFor(E.Prompts.update(state, 'Look.', { outcomes: [], events: [] }, 'You look.', E.Engine.present(state), false));
   const g = E.Shape.gbnf(shape);
   const fact = { about: ['han'], text: 'Han looked.', known_by: ['han', 'pike'], weight: 2 };
-  const reply = (o) => JSON.stringify(Object.assign({ facts: [fact], state: [], relations: [], player_attitude: [] }, JSON.parse(E.Shape.sample(shape)), o));
+  const reply = (o) => JSON.stringify(Object.assign(JSON.parse(E.Shape.sample(shape)), { facts: [fact], state: [], relations: [], player_attitude: [] }, o));
   assert.ok(matches(g, reply({ facts: [fact], state: [{ target: 'char:han', field: 'mood', value: 'tired', reason: 'long day' }] })));
   assert.ok(matches(g, reply({ state: [{ target: 'char:albee', field: 'location', value: 'dock' }] })), 'a minor person may move');
   assert.ok(!matches(g, reply({ state: [{ target: 'char:albee', field: 'mood', value: 'tired', reason: 'x' }] })), 'but has no mood');

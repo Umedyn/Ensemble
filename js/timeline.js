@@ -70,7 +70,7 @@
     },
     // A tracked feature's state (task 7-3): {"feature": "room|name", "is": "shut down"}.
     feature: {
-      holds: (s, p) => String((s.features || {})[p.feature] ?? '').toLowerCase() === String(p.is).toLowerCase(),
+      holds: (s, p) => !Eng().narratedFeature(s, p.feature) && String((s.features || {})[p.feature] ?? '').toLowerCase() === String(p.is).toLowerCase(),
       say: (s, p) => {
         const i = p.feature.indexOf('|'), room = s.locations && s.locations[p.feature.slice(0, i)];
         return `the ${p.feature.slice(i + 1)} in ${room ? room.name : p.feature.slice(0, i)} is "${p.is}"`;
@@ -81,7 +81,8 @@
     known: {
       holds: (s, p) => {
         const by = p.by || s.player;
-        const facts = s.facts.filter((f) => E.Memory.knows(f, by));
+        // Narrated details never drive rules (task B-0b).
+        const facts = s.facts.filter((f) => E.Memory.knows(f, by) && !E.Memory.narrated(f));
         if (typeof p.known === 'string') return facts.some((f) => f.canon === p.known);
         return facts.some((f) => p.known.words.every((w) => E.Lore.matches(w, f.text)));
       },

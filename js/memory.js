@@ -15,6 +15,10 @@
     };
     // Its home (task B-0): a room, site or region id, beside the people in `about`.
     if (f.where) fact.where = f.where;
+    // Where it came from (task B-0b): "intent" (the update step's record of
+    // what happened) or "narration" (a detail the scene said); no field: the
+    // engine or the author.
+    if (f.source) fact.source = f.source;
     state.facts.push(fact);
     return fact;
   };
@@ -24,6 +28,20 @@
   // What memory can still put in a prompt: past timeline events are already in
   // the chapter-zero summary (task 5-2), so their facts are left out.
   Mem.liveFacts = (state) => Mem.playerFacts(state).filter((f) => !f.inSummary);
+  // Narrated details (task B-0b) count for consistency and never drive rules.
+  // They stay at their home through chapter closes, so they are neither in the
+  // core nor rolled up, and a close doesn't free them.
+  Mem.narrated = (f) => f.source === 'narration';
+  Mem.rollable = (state) => Mem.liveFacts(state).filter((f) => !Mem.narrated(f));
+  Mem.DETAILS_PER_HOME = 5;
+  // Past the cap the oldest detail at that home goes. → the dropped facts.
+  Mem.capDetails = function (state, fact) {
+    const home = (f) => f.where || (f.about || [])[0];
+    const same = state.facts.filter((f) => Mem.narrated(f) && home(f) === home(fact));
+    const gone = same.slice(0, Math.max(0, same.length - Mem.DETAILS_PER_HOME));
+    state.facts = state.facts.filter((f) => !gone.includes(f));
+    return gone;
+  };
   // Facts a given character knows that the player does not.
   Mem.privateFacts = (state, id) =>
     state.facts.filter((f) => !Mem.knows(f, state.player) && Mem.knows(f, id));
@@ -74,7 +92,7 @@
   // Both come out of the facts budget, which the tiers already leave room for.
   Mem.CORE_SHARE = 0.5;
   Mem.SCENE_SHARES = { place: 0.3, people: 0.3, named: 0.2, always: 0.2 };
-  Mem.freezeCore = (state) => { state.factCore = Mem.liveFacts(state).map((f) => f.id); };
+  Mem.freezeCore = (state) => { state.factCore = Mem.rollable(state).map((f) => f.id); };
 
   // The frozen facts that fit the core's share, newest kept, in the order they
   // happened. Older major facts live on in the chapter summaries, and come back
@@ -138,9 +156,12 @@
       else if (about(f).some((id) => here.has(id) || id === state.player)) homes.people.push(f);
       else others.push(f);
     });
-    // The people in the room before the player's own running record.
+    // The people in the room before the player's own running record, and a
+    // home's details first: what was said about a place has nowhere else to live.
     const local = (f) => (about(f).some((id) => here.has(id)) ? 1 : 0);
-    homes.people.sort((a, b) => local(b) - local(a));
+    const detail = (f) => (Mem.narrated(f) ? 1 : 0);
+    homes.place.sort((a, b) => detail(b) - detail(a));
+    homes.people.sort((a, b) => local(b) - local(a) || detail(b) - detail(a));
     const last = state.recent && state.recent[state.recent.length - 1];
     const scene = o.scene != null ? o.scene : last ? last.text : '';
     const ids = new Set(others.flatMap((f) => about(f).concat(f.where || [])));
@@ -220,17 +241,18 @@
     const budget = Mem.budgets(state).facts;
     // Over budget counts only when a close would free something: major facts
     // stay after it, so they alone would close a chapter every two turns.
-    if (turns >= 2 && E.estTokens(Mem.liveFacts(state).map(factLine).join('\n')) > budget && Mem.freeable(state) > 0) return 'size';
+    if (turns >= 2 && E.estTokens(Mem.rollable(state).map(factLine).join('\n')) > budget && Mem.freeable(state) > 0) return 'size';
     if (turns >= Mem.CHAPTER.minTurns && Mem.freeable(state) >= budget * Mem.CHAPTER.share) return 'size';
     if (turns >= E.settings.chapterLength) return 'length';
     return false;
   };
 
   Mem.chapterFacts = (state) =>
-    state.facts.filter((f) => f.chapter === state.chapter && Mem.knows(f, state.player));
+    state.facts.filter((f) => f.chapter === state.chapter && Mem.knows(f, state.player) && !Mem.narrated(f));
 
   // Roll the current chapter up: minor player-known facts are replaced by the
-  // summary; major (weight 3) and private facts are kept individually.
+  // summary; major (weight 3) and private facts and narrated details are kept
+  // individually.
   Mem.closeChapter = function (state, summary, reason) {
     const n = state.chapter;
     state.chapters.push({
@@ -242,7 +264,7 @@
       reason,
     });
     state.facts = state.facts.filter(
-      (f) => f.chapter !== n || f.weight >= 3 || !Mem.knows(f, state.player)
+      (f) => f.chapter !== n || f.weight >= 3 || !Mem.knows(f, state.player) || Mem.narrated(f)
     );
     state.chapter = n + 1;
     state.chapterStartTurn = state.turn + 1;

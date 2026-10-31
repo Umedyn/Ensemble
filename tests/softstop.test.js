@@ -159,14 +159,14 @@ test('the update cap grows with the people present and the step, within the repl
   const { E, state } = newGame('mars-station');
   const U = E.Engine.updateTokens;
   const others = E.Engine.cast(state, { includePlayer: false });
-  assert.equal(U(state, [], 'moment'), 300);
-  assert.equal(U(state, others.slice(0, 2), 'moment'), 460);
-  assert.equal(U(state, others.slice(0, 2), 'hour'), 580);
+  assert.equal(U(state, [], 'moment'), 360);
+  assert.equal(U(state, others.slice(0, 2), 'moment'), 520);
+  assert.equal(U(state, others.slice(0, 2), 'hour'), 640);
   assert.ok(U(state, others.slice(0, 3), 'hour') > U(state, others.slice(0, 2), 'hour'));
-  assert.equal(U(state, [state.player].concat(others.slice(0, 2)), 'hour'), 580, 'the player is not counted');
+  assert.equal(U(state, [state.player].concat(others.slice(0, 2)), 'hour'), 640, 'the player is not counted');
   assert.equal(U(state, others.concat(others), 'morning'), E.contextTier().reply, 'capped by the 8K tier');
   E.settings.backends.local.context = 32768;
-  assert.equal(U(state, others.concat(others), 'morning'), 300 + 80 * 6 + 240);
+  assert.equal(U(state, others.concat(others), 'morning'), 360 + 80 * 6 + 240);
 });
 
 test('the intent cap is bigger for a player alone than the old 260', () => {

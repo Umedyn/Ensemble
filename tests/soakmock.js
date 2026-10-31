@@ -95,9 +95,14 @@ function createMock(E, game, seed, opts = {}) {
     });
     // The player's own rest counts, as it would from a model reading the scene.
     if (/Eat|Sleep|rest/.test((game.plan || {}).action || '')) (state.scenario.needs || []).forEach((need) => { if (state.characters[pl].needs[need.id] != null) changes.push({ target: `char:${pl}`, field: 'need', need: need.id, delta: -0.5 }); });
+    // A detail in the scene's own words, as a model reading it would file one.
+    const details = [];
+    const said = ((state.recent || []).slice(-1)[0] || {}).text || '';
+    const sentence = (said.match(/[A-Z][^.!?\n]{20,120}[.!?]/) || [])[0];
+    if (sentence && state.turn % 3 === 0) details.push({ about: people.slice(0, 1), text: sentence });
     if (chance(errorRate)) facts.push({ about: ['nobody-at-all'], text: 'A person who does not exist did something.', known_by: ['nobody-at-all'], weight: 2 });
     if (chance(errorRate) && people.length) relations.push({ from: people[0], to: 'nobody-at-all', delta: 99, reason: 'a slip' });
-    return only({ facts, state: changes, relations, player_attitude: attitude, reputation: [], group_role: null, new_extras: [] }, shape);
+    return only({ facts, details, state: changes, relations, player_attitude: attitude, reputation: [], group_role: null, new_extras: [] }, shape);
   }
 
   function skip(shape) {
