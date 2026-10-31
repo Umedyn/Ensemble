@@ -223,3 +223,15 @@ test('promotion calls are their own routable step, World building', () => {
   assert.equal(E.LLM.backendFor('worldbuild').id, 'external');
   assert.equal(E.LLM.backendFor('worldbuild (retry)').id, 'external');
 });
+
+// Seiryo playtest: the master of Lantern kept becoming a full character,
+// because any action with "the" or "of" in it counted as naming him.
+test('the small words in a name don\'t name someone', () => {
+  const { E, state } = newGame('seiryo-high', 'hayakawa');
+  const master = state.extras.master;
+  assert.ok(master, 'the fixture has him');
+  E.Engine.noteExtraMentions(state, 'I pick up the rest of the dishes.', 1);
+  assert.equal(master.mentions, 0);
+  E.Engine.noteExtraMentions(state, 'I ask the master for a coffee.', 2);
+  assert.equal(master.mentions, 1, 'his real name still counts');
+});

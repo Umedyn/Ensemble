@@ -991,7 +991,7 @@
   Eng.moverNames = function (state, id) {
     const c = state.characters[id] || (state.extras || {})[id];
     if (c && c.name) {
-      const parts = String(c.name).replace(/["“][^"”]*["”]/g, ' ').replace(/^(dr|mr|mrs|ms|mx|prof|capt|sgt)\.?\s+/i, '').split(/\s+/).filter((w) => w.length >= 3);
+      const parts = String(c.name).replace(/["“][^"”]*["”]/g, ' ').replace(/^(dr|mr|mrs|ms|mx|prof|capt|sgt)\.?\s+/i, '').split(/\s+/).filter((w) => w.length >= 3 && !NAME_FILLER.has(w.toLowerCase()));
       return [c.name].concat(parts);
     }
     const g = (state.standees || {})[id];
@@ -1483,10 +1483,13 @@
     };
   }
 
-  // Words that identify a character in the player's text: id, first and last name.
+  // Words that identify a character in the player's text: id, first and last
+  // name. Not the small words in a name: "The master of Lantern" is not named
+  // by every action with "the" in it.
+  const NAME_FILLER = new Set(['the', 'a', 'an', 'of', 'and', 'in', 'at', 'on', 'from', 'de', 'du', 'la', 'le', 'von', 'van']);
   function nameTokens(c) {
     const parts = c.name.replace(/^(dr|mr|mrs|ms|mx|capt|sgt)\.?\s+/i, '').split(/\s+/);
-    return [c.id].concat(parts).filter((w) => w && w.length > 1).map((w) => w.toLowerCase());
+    return [c.id].concat(parts).filter((w) => w && w.length > 1).map((w) => w.toLowerCase()).filter((w) => !NAME_FILLER.has(w));
   }
   const mentions = (text, c) => {
     const t = ' ' + String(text || '').toLowerCase().replace(/[^a-z0-9']+/g, ' ') + ' ';
