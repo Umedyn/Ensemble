@@ -175,3 +175,12 @@ test('the intent cap is bigger for a player alone than the old 260', () => {
   assert.equal(E.Engine.intentTokens(state, [], due) - 60 * E.Engine.standeesAt(state, state.characters[state.player].status.location).length - 80 * E.Engine.agendasDue(state).length, 360);
   assert.equal(E.Engine.intentTokens(state, ['bauer'], due) - E.Engine.intentTokens(state, [], due), 410 - 360);
 });
+
+test('the scene is told the player\'s action has not happened yet; a scene being continued is not', () => {
+  const shots = Object.values(require('./fixtures/prompt-snapshots.json'));
+  const named = (re) => shots.flatMap((s) => Object.entries(s).filter(([k]) => re.test(k)).map(([, v]) => JSON.stringify(v)));
+  const fresh = named(/^narrate$/), more = named(/^narrateMore$/);
+  assert.ok(fresh.length && more.length);
+  fresh.forEach((p) => { assert.match(p, /not done yet/); assert.match(p, /the new scene starts here and plays it out/); });
+  more.forEach((p) => assert.doesNotMatch(p, /not done yet/));
+});

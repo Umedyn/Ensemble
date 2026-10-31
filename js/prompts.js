@@ -1045,7 +1045,11 @@ Ends: ${E.fmtTime(state)}, ${pc.name} ${moved ? `now in ${endLoc.name}` : `still
   // Narrator-side status (no secrets, notable needs only) for the player and statusIds.
   B.status = ({ state, statusIds }) => ['\n=== STATUS ===', statusLine(state, state.player, true, statusIds)]
     .concat(statusIds.map((id) => statusLine(state, id, true)));
-  B.sceneAction = ({ frame, action }) => `\n=== PLAYER ACTION (time span: ${frame.stepLabel}) ===\n"${action}"`;
+  // Not done yet (task L-4: NemoMix took the action as past and carried on from
+  // the last scene). A scene being continued has already played it.
+  B.sceneAction = ({ state, frame, action, fromMinutes }) => (fromMinutes != null
+    ? `\n=== PLAYER ACTION (time span: ${frame.stepLabel}) ===\n"${action}"`
+    : `\n=== PLAYER ACTION (not done yet; time span: ${frame.stepLabel}) ===\n"${action}"\n${name(state, state.player)} attempts this now. It has not happened yet: the new scene starts here and plays it out, as RESOLVED says.`);
   B.resolved = ({ state, res }) => '\n=== RESOLVED (final — narrate these faithfully) ===\n' + outcomeLines(state, res, true);
 
   // Steps with a loose length, where the beats should spread across the span.
