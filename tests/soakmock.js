@@ -124,12 +124,17 @@ function createMock(E, game, seed, opts = {}) {
     return only(out, shape);
   }
 
-  function narrate(frame) {
+  function narrate(frame, user) {
     const step = (game.plan || {}).step;
     const span = { minute: 1, moment: 15, hour: 60, hours: 180 }[step] || 60;
     const p = () => `${line(OPENERS, AFTERS)}, day ${++n}. ${line(HAPPENINGS, WHENS)}, and hour ${++n} goes by.`;
     if (frame) return `[+0d] ${p()}\n\n[+1d] ${p()}\n\n[+2d] ${p()}`;
-    return `[+0m] ${p()}\n\n[+${Math.round(span / 2)}m] ${p()}\n\n[+${Math.max(1, span - 5)}m] ${p()}`;
+    // Plays what RESOLVED says, as a model should, so the scene check (task L-4)
+    // doesn't rewrite every one-beat turn and shift the seeded dice.
+    const done = String(user || '').match(/=== PLAYER ACTION[^\n]*\n"([^\n]*)"/);
+    const resolved = (String(user || '').match(/=== RESOLVED[^\n]*\n([\s\S]*?)\n\n=== /) || [])[1] || '';
+    const played = `${done ? `You ${done[1]} ` : ''}${resolved.replace(/\s+/g, ' ').replace(/[[\]]/g, '')}`.trim();
+    return `[+0m] ${played} ${p()}\n\n[+${Math.round(span / 2)}m] ${p()}\n\n[+${Math.max(1, span - 5)}m] ${p()}`;
   }
 
   // ({ kind, user }) → the reply's text.
@@ -145,7 +150,7 @@ function createMock(E, game, seed, opts = {}) {
     if (/^update/.test(kind)) return JSON.stringify(update(shape));
     if (user.includes('=== DOWNTIME:')) return JSON.stringify(skip(shape));
     if (user.includes('=== DOWNTIME FRAME ===')) return narrate(true);
-    if (/^narrate/.test(kind)) return narrate(false);
+    if (/^narrate/.test(kind)) return narrate(false, user);
     if (kind === 'chapter') return JSON.stringify({ title: `Chapter ${++n}`, summary: `${line(OPENERS, AFTERS)}. ${line(HAPPENINGS, WHENS)}.` });
     if (user.includes('=== PLANNING AHEAD:')) {
       const m = /"when":\{"day":(\d+)/.exec(user);

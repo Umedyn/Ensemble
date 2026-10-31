@@ -2029,6 +2029,8 @@
     }
     list.forEach((it) => {
       const c = state.characters[it.id];
+      // Just "says" (a Seiryo reroll) reads badly in RESOLVED: "Kenji: says → happens".
+      if (it.says && /^(says?|speaks?|talks?|replies|answers)\.?$/i.test(String(it.action || '').trim())) it.action = 'speaks up';
       const o = { id: it.id, action: it.action, says: it.says, reveals: it.reveals, missing: it.missing, visible: it.visible, skill: it.skill, roll: null, moved: null };
       if (it.background) o.background = true;
       if (it.moveCancelled) o.note = it.moveCancelled;
@@ -4602,7 +4604,9 @@
   // that reaches the top word count; before a paragraph opening a beat past
   // the top or a marker past the span; and, once the scene has its lower
   // word count or beats, before a finished paragraph that is the player's
-  // own line or action. → { at, why } or null.
+  // own line or action. A beat past the top waits while t.unplayed(text) still
+  // lists something (task L-4: the stop cut scenes before their outcomes); the
+  // word count and the span still end them. → { at, why } or null.
   Eng.softStop = function (text, t) {
     const s = String(text || '');
     const words = (x) => x.replace(markRe('gi'), ' ').split(/\s+/).filter(Boolean).length;
@@ -4618,11 +4622,53 @@
       beats += (para.match(markRe('gi')) || []).length;
       if (said >= t.words[1]) return { at: m.index, why: `${said} words` };
       const next = Eng.markerAt(s.slice(start));
-      if (next != null && t.beats && beats >= t.beats[1]) return { at: m.index, why: `${beats} beat${beats > 1 ? 's' : ''}, all that was asked` };
+      const unplayed = () => t.unplayed && t.unplayed(s.slice(0, m.index)).length;
+      if (next != null && t.beats && beats >= t.beats[1] && !unplayed()) return { at: m.index, why: `${beats} beat${beats > 1 ? 's' : ''}, all that was asked` };
       if (next != null && t.span && next > t.span) return { at: m.index, why: `a marker past [+${t.span}m]` };
       before = m.index;
     }
     return null;
+  };
+  // What a scene left out (task L-4): the player's action, and anyone visible
+  // who speaks or rolls. NemoMix took the action as done and carried on from
+  // the last scene, so nothing was smiled at and no photo taken. Only what is
+  // clearly missing counts, since a rewrite costs a narrate call: a quoted line
+  // or a move is the narrator's to phrase (the room is checked elsewhere), and
+  // common verbs prove nothing. One-beat scenes only (Eng.oneBeat): a longer
+  // one compresses and paraphrases, and in the recordings the check there
+  // mostly fired on good scenes. → a list of things to say to the narrator.
+  const SCENE_STEM = (w) => w.replace(/(ing|ed|es|s)$/, '').replace(/e$/, '');
+  const SCENE_PLAIN = new Set('look talk speak answer reply try attempt want keep stay wait think decide go get ask say tell show help check'.split(' ').map(SCENE_STEM));
+  const KIN = { mother: ['mom', 'mum', 'mama'], father: ['dad', 'papa'], grandmother: ['grandma', 'granny'], grandfather: ['grandpa'] };
+  Eng.oneBeat = (stepId) => (E.Prompts.LENGTH.beats[stepId] || [])[1] === 1;
+  Eng.sceneMissing = function (state, prose, res, action) {
+    const said = new Set(String(prose || '').toLowerCase().match(/[a-z']+/g) || []);
+    const heard = new Set([...said].map(SCENE_STEM));
+    const me = state.characters[state.player];
+    const mine = new Set(namesOf(me).join(' ').split(/\s+/));
+    // Two words need both ("smile", "camera": the last scene left the camera
+    // in view); more need half. A name, or nickname, that is in the scene will do.
+    const shown = (t) => {
+      if ((String(t || '').slice(1).match(/[A-Z][a-z'-]+/g) || []).some((x) => prose.includes(x))) return true;
+      const all = [...contentWords(t)].filter((x) => !mine.has(x));
+      const w = [...new Set(all.map(SCENE_STEM))].filter((x) => !SCENE_PLAIN.has(x));
+      const hits = w.filter((x) => heard.has(x)).length;
+      return !w.length || (w.length > 2 ? hits * 2 >= w.length : hits === w.length);
+    };
+    const missing = [];
+    (res.outcomes || []).forEach((o) => {
+      const c = state.characters[o.id];
+      if (!c) return;
+      if (o.id === state.player) {
+        if (!o.moved && !/["“]/.test(action || '') && !shown(action) && !shown(o.action)) missing.push(`your action: ${action}`);
+        return;
+      }
+      if (o.visible === false || (!o.says && !o.roll)) return;
+      const words = namesOf(c).join(' ').split(/\s+/).concat([...contentWords(c.role)]);
+      words.slice().forEach((w) => (KIN[w] || []).forEach((k) => words.push(k)));
+      if (!words.some((w) => said.has(w)) && !(o.says && shown(o.says))) missing.push(`${c.name}: ${o.says ? `says ${o.says}` : o.action}`);
+    });
+    return missing;
   };
   // The low and top of a range in words ("100–200").
   const range = (r) => { const n = String(r).match(/\d+/g) || ['0']; return [Number(n[0]), Number(n[n.length - 1])]; };
@@ -4656,7 +4702,7 @@
     const { step, system } = n;
     const { present, action, frame, res } = p;
     phase('Writing the scene…');
-    const target = { words: range(frame.words || E.Prompts.LENGTH.scene.words), beats: E.Prompts.LENGTH.beats[frame.stepId] || E.Prompts.LENGTH.beats.hour, span: frame.spanMinutes };
+    const target = { words: range(frame.words || E.Prompts.LENGTH.scene.words), beats: E.Prompts.LENGTH.beats[frame.stepId] || E.Prompts.LENGTH.beats.hour, span: frame.spanMinutes, unplayed: Eng.oneBeat(frame.stepId) ? (text) => Eng.sceneMissing(state, text, res, action) : null };
     const narrateOnce = async () => Eng.cleanScene(await sceneCall(Object.assign({
       kind: frame.correction ? 'narrate (retry)' : 'narrate', system, user: E.Prompts.narrate(state, present, action, frame, res),
       maxTokens: Math.round(E.settings.narrateTokens * (step.lengthMult || 1)),
@@ -4684,6 +4730,17 @@
       }
     }
     if (!prose) throw new Error('The model returned an empty scene.');
+    // One rewrite for a turn (task L-4): after a relocation retry, the scene stands.
+    const left = strayed || !Eng.oneBeat(frame.stepId) ? [] : Eng.sceneMissing(state, prose, res, action);
+    if (left.length) {
+      guard(res, 'scene', 'outcome regenerated', `the first draft left out ${left.join('; ')}`);
+      phase('Rewriting the scene…');
+      frame.correction = `Your previous draft left this out: ${left.join('; ')}. It happens in this scene, as RESOLVED says.`;
+      const retry = await narrateOnce();
+      const better = retry && !Eng.findRelocation(state, retry, frame.startLoc, via) && Eng.sceneMissing(state, retry, res, action).length < left.length;
+      if (better) prose = retry;
+      else guard(res, 'scene', 'outcome still missing', 'the rewrite was no better, so the first draft stands');
+    }
 
     let beats = Eng.parseBeats(prose, frame.spanMinutes);
     let until;

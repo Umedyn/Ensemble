@@ -1061,7 +1061,7 @@ Ends: ${E.fmtTime(state)}, ${pc.name} ${moved ? `now in ${endLoc.name}` : `still
 === TASK ===
 Write the next scene in second person, present tense ("you" is ${pc.name}): ${PARA_GUIDE[frame.stepId] || PARA_GUIDE.hour} short paragraphs in all, each 2 to 4 sentences (${frame.words || P.LENGTH.scene.words} words). Bring the characters to life through dialogue and small actions in their own voices.
 Time: ${STEP_GUIDE[frame.stepId] || STEP_GUIDE.hour}
-Beats: ${BEAT_GUIDE[frame.stepId] || BEAT_GUIDE.hour} Start each beat on its own line with a time marker in brackets: minutes since the scene started, like [+0m], [+25m], [+50m] (use hours for long spans, like [+5h]). The last marker is at most [+${span}m].${spread} End each beat on something the player could react to, since the player may step in between beats.
+Beats: ${BEAT_GUIDE[frame.stepId] || BEAT_GUIDE.hour} Start each beat on its own line with a time marker in brackets: minutes since the scene started, like [+0m], [+25m], [+50m] (use hours for long spans, like [+5h]). ${(P.LENGTH.beats[frame.stepId] || [])[1] === 1 ? 'Use that one marker only.' : `The last marker is at most [+${span}m].`}${spread} End each beat on something the player could react to, since the player may step in between beats.
 Structure:
 1. The scene is set in ${moved ? `${startLoc.name}, then ${endLoc.name}` : (startLoc ? startLoc.name : frame.startLoc)}. Open with ${pc.name}'s action, carried out in the first paragraph.
 2. Then show how the others react to it and what they do, in the order that makes sense.

@@ -4,7 +4,8 @@
   },
   "mars-station": {
     "pinned:navarro/fatigue": "In the garage start Navarro is offstage: offstage people's needs only settle in long skips (ROADMAP > Engine systems).",
-    "pinned:navarro/hunger": "In the garage start Navarro is offstage: offstage people's needs only settle in long skips (ROADMAP > Engine systems)."
+    "pinned:navarro/hunger": "In the garage start Navarro is offstage: offstage people's needs only settle in long skips (ROADMAP > Engine systems).",
+    "statue:navarro": "People stay put offstage until routines arrive (G-7 to G-9); take this out then."
   },
   "oregon-trail": {
     "statue:*": "People stay put offstage until routines arrive (G-7 to G-9); take this out then.",
@@ -15,5 +16,8 @@
   },
   "zombie-holdout": {
     "statue:webb": "Webb keeps to the lot during the siege; the holdout gets no routines (ROADMAP > Routines)."
+  },
+  "your-story": {
+    "statue:lena-marsh": "People stay put offstage until routines arrive (G-7 to G-9); take this out then."
   }
 }
