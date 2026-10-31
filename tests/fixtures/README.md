@@ -73,6 +73,10 @@ test('Teo does not confess on the first question', async () => {
 
 `replay(fixtureOrName, { until })` returns `{ E, state, steps }`; each step has `index`, `action`, a copy of `state` after it, `result`, and `error` (for recorded failures).
 
+## Fixtures from the soak
+
+`npm run soak` writes a recording of the 20 turns before each new alarm to `soak-out/`, in this format, already replayed once. Copy one here, name it after the problem, and test it as above. It starts mid-game (`start` is the state then), so its first turns may lean on what came before. The turns come from the soak's mock model, so its text is filler: assert on what the engine did, not on the prose.
+
 ## Other fixtures
 
 - `legacy-scenario/` and `legacy-zombie-holdout/`: the bundled Ares Deep and Holdout at Harmon's in the old single-file format (`scenario.json` + `characters/`), frozen before they were converted to worlds. Legacy loading stays permanently (players' own scenarios use it); `tests/worlds.test.js` checks they still load, and that each converted world's default start begins the same game.

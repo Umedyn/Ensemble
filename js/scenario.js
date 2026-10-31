@@ -703,14 +703,29 @@
   // engine (Eng.regionChain and friends) and the prompts.
   S.REGION_DEPTH = 6;
   S.REGION_NEAR = 8;
-  // Built on every call: the creator edits regions in place.
+  // Kept per list and checked on every call, since the creator edits regions
+  // in place. Prompts ask thousands of times a turn: in a world of 730 regions,
+  // building it each time took 5 seconds a turn (found by the soak, task B-9).
+  const trees = new WeakMap();
+  const sameTree = (list, t) => {
+    if (list.length !== t.items.length) return false;
+    for (let i = 0; i < list.length; i++) {
+      const r = list[i];
+      if (r !== t.items[i] || r == null || r.id !== t.ids[i] || r.parent !== t.parents[i]) return false;
+    }
+    return true;
+  };
   function tree(list) {
     const regions = Array.isArray(list) ? list : [];
+    const kept = trees.get(regions);
+    if (kept && sameTree(regions, kept)) return kept;
     const byId = new Map();
     const kids = new Map([[null, []]]);
     regions.forEach((r) => { if (isObj(r) && r.id != null && !byId.has(r.id)) { byId.set(r.id, r); kids.set(r.id, []); } });
     byId.forEach((r) => (kids.get(r.parent != null && byId.has(r.parent) ? r.parent : null) || kids.get(null)).push(r.id));
-    return { byId, kids };
+    const built = { byId, kids, items: regions.slice(), ids: regions.map((r) => r && r.id), parents: regions.map((r) => r && r.parent) };
+    trees.set(regions, built);
+    return built;
   }
   // The region and its ancestors, nearest first (stops at a loop).
   S.regionChainIn = function (list, id) {

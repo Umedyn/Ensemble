@@ -258,6 +258,8 @@ Half the JSON calls in the Seiryo High playtests (2026-10-29, Impish_Bloodmoon 1
 - [ ] **Narration that stops at a paragraph** (L-2): streamed narration stopped at the first paragraph break past the word or beat target, so no mid-sentence cuts and no paying for text that is thrown away; token caps for the update and intent that grow with the turn.
 - [ ] **Smaller calls for the local model** (L-3): intent and update split into short, focused calls (the player, each character, events; facts, state, feelings), on by default for local presets if the measurements bear it out.
 
+- [ ] **The biggest single intent call at 8K** (from B-9): the Oregon Trail's intent, with a regional event due, the captain's orders and groups present, came to 8,338 estimated tokens at 8K, 146 over, with nothing left for `LLM.squeeze` to cut; the task text is the bulk (6,800 characters). Trim it (fewer event ideas at the compact tier, say) or add a squeeze step, then take the line out of `tests/soak-known.json`. Smaller calls (L-3) avoid it.
+
 ## Story tables (quality of life)
 
 Small models drift to the most likely beat. Genre-aware random tables fix that: **the engine rolls, the model interprets**, with no extra calls. Source: the 2026-10-23 story tables update (tasks T-1, T-2).
@@ -285,7 +287,8 @@ Decided 2026-10-30. The engine decides and the model only writes it up; results 
 - [ ] **Scoped memory** (B-0, first, since everything after stores into it): facts gain `where` beside `about`; a call opens the room and region chain, the people present, anyone named, and the weight-3 facts, with a budget for each; a stable core stays in the header, the rest moves to the user message.
 - [ ] **Narrated details become part of the world** (B-0b): what the narration says stays true. Details are filed at their home and object details become features; contradictions of engine state are dropped and shown in Debug; `source` marks them, and narration-only facts never drive rules.
 - [ ] **Breaking routine is a clue** (B-1, with routines G-7 to G-9): someone missing from where they always are, or somewhere they never are, gets noticed, at most once a scene, with the reason hidden.
-- [ ] **Headless run harness** (B-9, before B-2 and B-3): `npm run soak` plays hundreds of turns and reports clocks, needs, people, endings, budgets and guards that look wrong; runs in CI.
+- [x] **Headless run harness** (B-9, before B-2 and B-3): `npm run soak` plays hundreds of turns and reports clocks, needs, people, endings, budgets and guards that look wrong; runs in CI (`.github/workflows/ci.yml`, with `npm test` and `npm run check`). Alarms we accept are listed with why in `tests/soak-known.json`; the first runs found region lookups costing 5 seconds a turn in the 730-region world (fixed).
+- [ ] **Offstage needs** (from B-9): people offstage only eat and sleep in long skips, so over played turns their hunger and fatigue climb to the top and stay there (Navarro in the garage start). Settle them with routines (G-8), then take the two lines out of `tests/soak-known.json`.
 - [ ] **Beliefs and spreading** (B-2, B-3): facts pass between people who spend time together, with no model call; beliefs can be false, the player and the cast can lie, rumours blur, and lies can be exposed. Secrets never spread this way.
 - [ ] **Light and private places** (B-4, B-5): a derived light level feeds sneaking, sight and the scene; rooms can have owners, and being found there costs something.
 - [ ] **Items, promises, skills** (B-6, B-7, B-8, any order): named items and counted resources owned by the engine; promises both ways, kept or broken, feeding the reckoning; skills improve slowly with use.

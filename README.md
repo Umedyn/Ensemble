@@ -175,6 +175,7 @@ See `ROADMAP.md`: worlds with multiple starts, character creation, cast tiers, w
 ```
 npm install          # dev dependency for UI tests only
 npm test             # engine tests, no browser or model needed
+npm run soak -- all  # hundreds of mock turns on every world, reports what looks wrong (several minutes)
 npm run test:ui      # browser smoke tests against fake model servers (npx playwright install chromium once)
 npm run check        # syntax + scenario validation
 npm run mocks        # fake KoboldCpp on :5001 and fake API on :5002 for manual testing

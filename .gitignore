@@ -10,6 +10,9 @@ ensemble-*-turn*.json
 docs/tasks/
 .claude/
 
+# soak reports and fixtures (npm run soak)
+soak-out/
+
 # build-time downloads (npm run basemap)
 .cache/
 
