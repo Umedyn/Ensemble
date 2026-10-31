@@ -154,6 +154,18 @@ test('routines pause for the dead, the badly hurt, needs given out and an emerge
   assert.equal(g.where('aoi'), 'classroom');
 });
 
+test('someone whose needs gave out misses the slot, rests, and picks their day up', () => {
+  const g = game();
+  g.state.characters.aoi.tier = 'local';
+  g.state.characters.aoi.needs.hunger = 1;
+  advance(g, 1);
+  assert.equal(g.where('aoi'), 'aoi-room');
+  advance(g, 1);
+  assert.ok(g.state.characters.aoi.needs.hunger < 1, 'resting');
+  advance(g, 1);
+  assert.equal(g.where('aoi'), 'classroom');
+});
+
 test('a pressure firing near someone pauses them in that same hour', () => {
   const g = game();
   g.state.characters.sora.status.location = 'yard';

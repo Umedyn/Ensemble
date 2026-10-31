@@ -1031,6 +1031,7 @@ Ends: ${E.fmtTime(state)}, ${pc.name} ${moved ? `now in ${endLoc.name}` : `still
       ((back || []).length ? `\nIn the background (there, but with no part of their own this scene: at most a glance or a murmur): ${back.map((id) => name(state, id)).join(', ')}.` : '') +
       travelLines(state, pc, res && res.travel) +
       dayLines(pc, res && res.routineDay) +
+      (res && res.noticed ? `\n${pc.name} notices: ${res.noticed.line} Mention it in passing; nobody here knows why.` : '') +
       minorLine(state, [frame.startLoc, state.characters[state.player].status.location], res && res.engaged) +
       `\n${worldLines(state)}`;
   // The trip the engine planned (R-10): when the player arrives, or where the

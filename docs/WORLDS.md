@@ -258,6 +258,7 @@ Task G-7. Where people usually are, hour by hour, with no model call. Optional: 
 - **Cards** (task G-9). A card's details show today's slots ("Usually: 8–12 Class 1-C; 15–18 Sports Field"), without private ones.
 - **In the creator** (task G-9). The Routines tab edits named routines, and the character form picks one and fills its places (`home=sora-room, work=away`). Own `slots` are kept but edited in the file.
 - **Generated starts** (task G-9). The people step may give someone one of the world's routines; place words it doesn't fill with a room it made are off the map.
+- **Breaking routine** (task B-1). Someone who should be in the player's room and is in none of their slot's places, or someone there whose slot has them elsewhere, is noticed in one plain line and a small fact the player gains, never with the reason. One a scene at most, three turns apart, once a person a slot, only people the player has seen, never for private slots. A person with an agenda or a secret comes first.
 - **Bundled examples.** Seiryo High (school days, breaks, family and dorm routines, classes moving up each April) and Ares Deep (crew shifts). The holdout has none on purpose (`authorNote` in its world, a line only authors read).
 
 ### Presence and unknown regions

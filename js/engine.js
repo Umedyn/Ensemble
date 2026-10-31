@@ -2272,6 +2272,51 @@
     return !t ? null : t.away ? 'away' : t.room;
   };
 
+  // Breaking routine is a clue (task B-1): someone who should be in the room
+  // the scene ends in and is in none of their slot's places, or someone here
+  // whose slot has them elsewhere. Says that and nothing of why: at most one
+  // a scene, once a person a slot, three turns apart, people with an agenda
+  // or a secret first. Only people the player has seen, and only what a card
+  // would tell them. → { id, kind, room, line, fact } or null.
+  Eng.NOTICE_GAP = 3;
+  Eng.routineBreak = function (state, res, presentStart) {
+    const notes = state.routineNoticed || { turn: -Infinity, seen: {} };
+    if (state.turn - notes.turn < Eng.NOTICE_GAP) return null;
+    const here = state.characters[state.player].status.location;
+    const room = state.locations[here];
+    const touched = new Set((res.routineMoves || []).map((m) => m.id).concat(Object.keys(res.staying || {}), state.ask ? [state.ask.who] : []));
+    (res.outcomes || []).forEach((o) => { if (o.moved) touched.add(o.id); });
+    // What the player was shown explains itself.
+    (res.director || []).filter((d) => d.visibility !== 'hidden').forEach((d) => (d.who || []).forEach((id) => touched.add(id)));
+    const known = (id) => state.characters[id].status.health !== 'dead'
+      || !Eng.knownAbout(state, id).some((f) => /\b(dead|died|dies|killed)\b/i.test(f.text));
+    const found = [];
+    Eng.cast(state, { includePlayer: false }).forEach((id) => {
+      const c = state.characters[id];
+      const at = Eng.routineSlot(state, id, state.time);
+      if (!at || at.slot.private || touched.has(id) || !(state.known || {})[id] || !known(id) || notes.seen[id] === at.key) return;
+      // Where the story began them, or a day still catching up with the clock: no reason of note.
+      const rs = c.routineState;
+      if (!rs || rs.seeded || rs.trip || (rs.slot !== at.key && !routinePaused(state, id))) return;
+      const places = (at.slot.at || []).map((p) => routinePlace(state, id, p)).filter(Boolean);
+      const usual = c.status.away ? places.some((p) => p.away) : places.some((p) => p.room === c.status.location);
+      if (usual || !places.length) return;
+      if (places.some((p) => p.room === here)) found.push({ id, key: at.key, kind: 'absence' });
+      else if (Eng.isAt(state, id, here) && !presentStart.includes(id)) found.push({ id, key: at.key, kind: 'presence' });
+    });
+    if (!found.length) return null;
+    const rank = (x) => { const c = state.characters[x.id]; return activeAgenda(c) ? 0 : c.secret ? 1 : 2; };
+    const pick = found.slice().sort((a, b) => rank(a) - rank(b))[0];
+    const name = state.characters[pick.id].name;
+    state.routineNoticed = { turn: state.turn, seen: Object.assign(notes.seen, { [pick.id]: pick.key }) };
+    const absent = pick.kind === 'absence';
+    return {
+      id: pick.id, kind: pick.kind, room: here,
+      line: absent ? `${name} isn't here, though they usually are at this hour.` : `${name} is here, which isn't usual at this hour.`,
+      fact: absent ? `${name} wasn't in ${room.name} on ${E.fmtTime(state)}, though they usually are.` : `${name} was in ${room.name} on ${E.fmtTime(state)}, which isn't usual.`,
+    };
+  };
+
   // Off the map: `location` stays the room they left by, and they are nowhere.
   Eng.isAway = (state, id) => !!(state.characters[id] && state.characters[id].status.away);
   Eng.isAt = (state, id, room) => state.characters[id].status.location === room && !state.characters[id].status.away;
@@ -2319,7 +2364,8 @@
   function routinePaused(state, id, beforeFire) {
     const c = state.characters[id];
     if (c.status.health === 'badly_hurt') return true;
-    if (state.scenario.needs.some((n) => E.Scenario.hasNeed(c, n.id) && (c.needs[n.id] || 0) >= 1)) return true;
+    // Given out: they miss this slot and rest, then pick their day up again.
+    if (state.scenario.needs.some((n) => E.Scenario.hasNeed(c, n.id) && (c.needs[n.id] || 0) >= 1)) { c.routineRest = true; return true; }
     return !beforeFire && !!(state.crisis && state.crisis.turn >= state.turn - 1 && (state.crisis.who || []).includes(id));
   }
   // People here whose routine takes them elsewhere during a span (task G-8):
@@ -2436,6 +2482,7 @@
     if (routinePaused(state, id, res.beforeFire) || (res.staying || {})[id]) return;
     const walked = !newSlot && rs.trip ? rs.trip.minutes : 0;
     rs.slot = t.key;
+    delete rs.seeded;
     delete rs.trip;
     if (t.away) { c.status.away = t.away; rs.left = c.status.location; return; }
     const from = c.status.location;
@@ -2472,7 +2519,7 @@
     // Where they stand when a routine first sees them holds until the next slot.
     onRoutine.forEach((id) => {
       const c = state.characters[id];
-      if (!c.routineState) c.routineState = { slot: (Eng.routineSlot(state, id, clockBefore) || {}).key || null, left: c.status.location };
+      if (!c.routineState) c.routineState = { slot: (Eng.routineSlot(state, id, clockBefore) || {}).key || null, left: c.status.location, seeded: true };
     });
     state.time.hour += hours;
     while (state.time.hour >= 24) { state.time.hour -= 24; state.time.day += 1; }
@@ -2484,7 +2531,7 @@
         const v = c.needs[n.id] || 0;
         const unmet = id === state.player && climb.includes(n.id);
         // People in the background live their routine: needs settle, not climb.
-        const settles = !unmet && (routine || Eng.tier(state, id) === 'secondary' || (onRoutine.includes(id) && !Eng.isAt(state, id, here) && !routinePaused(state, id)));
+        const settles = !unmet && (routine || Eng.tier(state, id) === 'secondary' || (onRoutine.includes(id) && (c.routineRest || (!Eng.isAt(state, id, here) && (c.needs[n.id] || 0) < 1))));
         c.needs[n.id] = settles
           ? E.clamp(0.35 + (v - 0.35) * Math.exp(-hours / 24), 0, 1)
           : E.clamp(v + (n.perHour || 0) * hours, 0, 1);
@@ -2496,6 +2543,7 @@
         }
       });
     });
+    onRoutine.forEach((id) => { delete state.characters[id].routineRest; });
     Eng.stopClocks(state, res);
     const crisisBefore = state.crisis;
     const fireIn = Math.min(...state.clocks.filter((cl) => !cl.fired && !cl.stopped && cl.perHour > 0).map((cl) => (cl.max - cl.value) / cl.perHour), Infinity);
@@ -4101,6 +4149,8 @@
       state.recent = [{ turn: p.turn, action: p.action, text: beatsText(kept) + `\n\n[${state.characters[state.player].name} steps in here, at ${E.fmtTime(state)}.]` }];
     }
 
+    // A routine broken (task B-1), once the scene has played to its end.
+    if (!cut && p.res.noticed) E.Memory.addFact(state, { about: [p.res.noticed.id], text: p.res.noticed.fact, known_by: [state.player], weight: 1, where: p.res.noticed.room });
     phase('Updating memory…');
     const prose = beatsText(kept);
     let report;
@@ -5357,6 +5407,8 @@
     res.staying = Eng.routineStaying(state, action, present, res, intentObj && intentObj.intents, leaving);
     const before = timeSnapshot(state);
     Eng.advanceTime(state, step.hours, res);
+    res.noticed = Eng.routineBreak(state, res, present);
+    if (res.noticed) guard(res, 'resolve', 'routine noticed', `${res.noticed.line} (${Eng.inWords(state, res.noticed.id)})`);
     E.Sites.noteVisit(state, frame.startLoc);
     E.Sites.fade(state).forEach((t) => guard(res, 'resolve', 'site faded', t));
     E.Sites.noteRegionVisit(state, frame.startLoc);
