@@ -30,5 +30,10 @@
   },
   "groups": [
     "mission"
-  ]
+  ],
+  "routine": "crew-day",
+  "places": {
+    "work": "ops",
+    "second": "garage"
+  }
 }

@@ -40,5 +40,11 @@
       },
       "studies alone in the library until it closes, every day of exam week"
     ]
+  },
+  "routine": "student",
+  "places": {
+    "home": null,
+    "class": "classroom-1b",
+    "club": "library"
   }
 }

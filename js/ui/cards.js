@@ -242,6 +242,7 @@
     return `<div class="small muted">${who}</div>` +
       (c.description ? `<p class="desc">${esc(c.description)}</p>` : '') +
       (c.appearance ? `<p class="desc"><span class="muted">Looks:</span> ${esc(c.appearance)}</p>` : '') +
+      ((usual) => (usual ? `<p class="desc"><span class="muted">Usually:</span> ${esc(usual)}</p>` : ''))(E.Engine.routineWords(U.state, id)) +
       (interactive && id !== U.state.player && !dead ? cardPin(id, c) + cardFeelings(id, c) : '') +
       (interactive && id === U.state.player && U.state.scenario.madePlayer === id ? '<button type="button" class="small" data-save-char>Save this character</button>' : '') +
       cardNeeds(c, dead) +

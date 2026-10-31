@@ -34,5 +34,12 @@
       "role": "member"
     }
   ],
-  "agenda": null
+  "agenda": null,
+  "routine": "teacher",
+  "places": {
+    "home": null,
+    "teaching": "gym",
+    "desk": "staff-room",
+    "club": "field"
+  }
 }

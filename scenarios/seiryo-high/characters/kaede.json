@@ -26,5 +26,11 @@
     "haruna": 35,
     "riku": 40
   },
-  "groups": []
+  "groups": [],
+  "routine": "dorm-student",
+  "places": {
+    "home": "kaede-room",
+    "class": "classroom-1b",
+    "club": "library"
+  }
 }

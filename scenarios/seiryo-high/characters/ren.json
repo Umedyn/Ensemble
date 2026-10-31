@@ -46,5 +46,11 @@
       },
       "asks Rin Kagami to join the council and is told no"
     ]
+  },
+  "routine": "student",
+  "places": {
+    "home": null,
+    "class": "classroom-1a",
+    "club": "council-room"
   }
 }

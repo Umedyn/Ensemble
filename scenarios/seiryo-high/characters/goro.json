@@ -27,5 +27,11 @@
     "kazuha": 20,
     "takumi": 10
   },
-  "agenda": null
+  "agenda": null,
+  "routine": "dorm-student",
+  "places": {
+    "home": "goro-room",
+    "class": "classrooms-2",
+    "club": "judo-dojo"
+  }
 }

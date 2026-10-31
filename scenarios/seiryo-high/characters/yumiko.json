@@ -41,5 +41,11 @@
         "contact": true
       }
     ]
+  },
+  "routine": "bakery-shift",
+  "places": {
+    "home": "hayakawa-living",
+    "bed": "parents-room",
+    "work": null
   }
 }

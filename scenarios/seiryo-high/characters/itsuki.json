@@ -40,5 +40,11 @@
       },
       "asks Rin Kagami to tutor him, without ever saying please"
     ]
+  },
+  "routine": "student",
+  "places": {
+    "home": null,
+    "class": "classroom-1a",
+    "club": "gym"
   }
 }

@@ -255,6 +255,9 @@ test('converted bundled worlds start the same game as their legacy versions', ()
     [now, before].forEach((g) => Object.values(g.state.characters).forEach((c) => { delete c.tier; delete c.agenda; }));
     // Memberships of the groups (task G-6) too: Ares Deep's crew belong to Mission Control.
     Object.values(now.state.characters).forEach((c) => { delete c.groups; });
+    // Routines (task G-9) too: Ares Deep's crew keep their shifts.
+    Object.values(now.state.characters).forEach((c) => { delete c.routine; delete c.places; });
+    delete now.state.scenario.routines;
     // Regions (task 3-1) too: every location got a region, and the header a REGIONS block.
     Object.values(now.state.locations).forEach((l) => { delete l.region; });
     // And site layout data (task 3-3).

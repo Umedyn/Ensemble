@@ -33,5 +33,12 @@
       "role": "member"
     }
   ],
-  "agenda": null
+  "agenda": null,
+  "routine": "teacher",
+  "places": {
+    "home": null,
+    "teaching": "nurse",
+    "desk": "nurse",
+    "club": "nurse"
+  }
 }

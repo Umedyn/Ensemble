@@ -27,5 +27,11 @@
     "yumiko": 30,
     "kenji": 30
   },
-  "groups": []
+  "groups": [],
+  "routine": "student",
+  "places": {
+    "home": "sora-room",
+    "class": "classroom-1b",
+    "club": "library"
+  }
 }

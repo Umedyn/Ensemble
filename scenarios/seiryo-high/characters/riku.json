@@ -28,5 +28,9 @@
     "chiyo": 30,
     "haruna": 30
   },
-  "agenda": null
+  "agenda": null,
+  "routine": "village-school",
+  "places": {
+    "school": null
+  }
 }

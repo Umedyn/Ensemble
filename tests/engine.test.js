@@ -2,7 +2,7 @@
 // real 12B model; the comment says what went wrong before the rule existed.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { newGame, mockLLM, fixedRng, readScenario, loadEngine } = require('./helpers');
+const { newGame, mockLLM, fixedRng, readScenario, loadEngine, noRoutines } = require('./helpers');
 
 const intentOf = (o) => JSON.parse(JSON.stringify(o));
 const PRESENT = ['okafor', 'bauer'];
@@ -668,6 +668,7 @@ test('reroll keeps the rolls, positions, events and time, and replaces only the 
 
 test('reroll on a loose step settles the clock on the new scene', async () => {
   const { E, state } = newGame();
+  noRoutines(state);
   const t0 = minutesOf(state);
   rollingModel(E, ['[+0m] You open the panel.\n\n[+40m] Teo shrugs.', '[+0m] You open the panel.\n\n[+20m] Teo shrugs.\n\n[+55m] Okafor calls.']);
   await E.Engine.runTurn(state, 'Fix the recycler.', 'hour');
@@ -705,6 +706,7 @@ test('a failed reroll leaves the scene as it was', async () => {
 
 test('reroll of a downtime skip keeps the time jump and where everyone is', async () => {
   const { E, state } = newGame();
+  noRoutines(state);
   fixedRng(E, [0.995]);
   let n = 0;
   const calls = mockLLM(E, ({ kind }) => {

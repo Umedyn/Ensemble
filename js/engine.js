@@ -2275,7 +2275,26 @@
   // Off the map: `location` stays the room they left by, and they are nowhere.
   Eng.isAway = (state, id) => !!(state.characters[id] && state.characters[id].status.away);
   Eng.isAt = (state, id, room) => state.characters[id].status.location === room && !state.characters[id].status.away;
-  Eng.awayWords = (word) => (word === 'home' ? 'at home' : 'away');
+  Eng.awayWords = (word) => ({ home: 'at home', bed: 'at home', work: 'at work', school: 'at school' }[word] || 'away');
+  // Someone's usual day in words, for their card (task G-9): today's slots in
+  // order, private ones left out. → "8–12 Class 1-B; 12–13 Cafeteria or Courtyard", or null.
+  Eng.routineWords = function (state, id, day) {
+    const c = state.characters[id];
+    const today = day ?? state.time.day;
+    const seen = new Map();
+    for (let hour = 0; hour < 24; hour++) {
+      const at = Eng.routineSlot(state, id, { day: today, hour });
+      if (at && at.day === today && !at.slot.private) seen.set(at.key, at.slot);
+    }
+    const parts = [...seen.values()].sort((a, b) => a.from - b.from).map((s) => {
+      const names = [...new Set((s.at || []).map((p) => routinePlace(state, id, p)).filter(Boolean).map((p) => (p.away ? Eng.awayWords(p.away) : state.locations[p.room].name)))];
+      const said = names.length > 3 ? `${names.slice(0, 3).join(', ')} or elsewhere` : names.join(' or ');
+      return said ? { from: s.from, to: s.to, said } : null;
+    }).filter(Boolean);
+    const merged = [];
+    parts.forEach((p) => { const last = merged[merged.length - 1]; if (last && last.said === p.said && last.to === p.from) last.to = p.to; else merged.push(Object.assign({}, p)); });
+    return c && merged.length ? merged.map((p) => `${p.from}–${p.to} ${p.said}`).join('; ') : null;
+  };
   // Where someone is, in words for a prompt: "in the Commons", "at home".
   Eng.inWords = function (state, id) {
     const c = state.characters[id];

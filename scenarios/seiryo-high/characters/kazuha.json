@@ -35,5 +35,11 @@
       "role": "favored"
     }
   ],
-  "agenda": null
+  "agenda": null,
+  "routine": "dorm-student",
+  "places": {
+    "home": "kazuha-room",
+    "class": "classrooms-2",
+    "club": "council-room"
+  }
 }

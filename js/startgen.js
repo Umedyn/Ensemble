@@ -424,11 +424,20 @@
     const age = Math.round(Number(raw.age)) || plan.age;
     if (age > 0 && age < 130) c.age = age;
     sc.skills.forEach((k) => { c.skills[k] = E.clamp(Math.round(Number((raw.skills || {})[k]) || 0), 0, 4); });
+    // A routine from the world's named ones (task G-9): its place words filled
+    // from the rooms made here; any left out are off the map.
+    const known = new Set(rooms.map((r) => r.id).concat((sc.locations || []).map((l) => l && l.id)));
+    if (typeof raw.routine === 'string' && (sc.routines || {})[raw.routine]) {
+      const given = new Map((Array.isArray(raw.places) ? raw.places : []).filter(isObj).map((p) => [p.word, p.room]));
+      c.routine = raw.routine;
+      c.places = {};
+      E.Scenario.routineWords(sc.routines[raw.routine], known).forEach((w) => { c.places[w] = rooms.some((r) => r.id === given.get(w)) ? given.get(w) : null; });
+    }
     Object.keys(c).forEach((k) => c[k] === undefined && delete c[k]);
     const prose = [c.description, c.appearance, c.want, c.secret, c.voice].filter(Boolean).join(' ');
     const other = GEN.namesSomeoneElse(ctx, prose);
     if (other) return { error: `the sheet for ${plan.name} talks about ${other}, who isn't in this start; write about ${plan.name}` };
-    const problems = E.Scenario.characterProblems(c, sc, new Set(rooms.map((r) => r.id)), [id]);
+    const problems = E.Scenario.characterProblems(c, sc, known, [id]);
     return problems.length ? { error: problems.join('; ') } : { character: c };
   };
   // The one-call form (an API model): { people: [sheet with name] }.

@@ -107,7 +107,12 @@
       "yumiko": 35,
       "kenji": 35
     },
-    "keepDefault": false
+    "keepDefault": false,
+    "routine": "student",
+    "places": {
+      "home": "sora-room",
+      "club": "library"
+    }
   },
   "cast": [
     {
@@ -144,7 +149,11 @@
       "status": {
         "location": "hayakawa-entry"
       },
-      "joins": null
+      "joins": null,
+      "places": {
+        "home": "momo-room",
+        "bed": "momo-room"
+      }
     },
     {
       "id": "aoi",

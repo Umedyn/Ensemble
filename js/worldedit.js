@@ -54,6 +54,21 @@
         });
         return l.length ? { value: l } : { del: true };
       }
+      // Place words (task G-9): "home=sora-room, work=away" → {home: 'sora-room', work: null}.
+      case 'places': {
+        const out = {};
+        for (const x of s.split(',').map((y) => y.trim()).filter(Boolean)) {
+          const m = x.match(/^([^=\s]+)\s*=\s*(\S*)$/);
+          if (!m) return { error: 'write each as word=room-id, or word=away for off the map' };
+          out[m[1]] = !m[2] || m[2] === 'away' ? null : m[2];
+        }
+        return Object.keys(out).length ? { value: out } : { del: true };
+      }
+      // Dates (task G-9): "2026-07-21..2026-08-31, 2026-12-25".
+      case 'dates': {
+        const l = s.split(',').map((x) => x.trim()).filter(Boolean).map((x) => { const m = x.split('..'); return m.length === 2 ? { from: m[0].trim(), to: m[1].trim() } : x; });
+        return l.length ? { value: l } : { del: true };
+      }
       case 'features': {
         const l = s.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
           const m = x.match(/^(.+?)\s*=\s*(.+)$/);
@@ -76,6 +91,8 @@
     if (kind === 'lines') return Array.isArray(v) ? v.join('\n') : '';
     if (kind === 'csv') return Array.isArray(v) ? v.join(', ') : '';
     if (kind === 'groups') return Array.isArray(v) ? v.map((g) => (isObj(g) ? (g.role && g.role !== 'member' ? `${g.id}=${g.role}` : g.id) : g)).join(', ') : '';
+    if (kind === 'places') return isObj(v) ? Object.entries(v).map(([k, r]) => `${k}=${r == null ? 'away' : r}`).join(', ') : '';
+    if (kind === 'dates') return Array.isArray(v) ? v.map((d) => (isObj(d) ? `${d.from}..${d.to}` : d)).join(', ') : '';
     if (kind === 'features') return Array.isArray(v) ? v.map((f) => (isObj(f) ? (f.state != null ? `${f.name}=${f.state}` : f.name) : f)).join(', ') : '';
     if (kind === 'json') return v === undefined ? '' : JSON.stringify(v, null, 2);
     return v == null ? '' : String(v);
@@ -719,6 +736,61 @@
     const id = slug(label || 'need', (w.needs || []).map((n) => n.id), 'need');
     w.needs = (w.needs || []).concat([{ id, label: label || 'New need', perHour: 0.02 }]);
     return id;
+  };
+  // ---------- routines (task G-9) ----------
+  // Everyone who can name a routine: pool files, cast entries, player slots, timeline events.
+  const routineHolders = (files) => Object.keys(files).filter((k) => k.startsWith('characters/')).map((k) => files[k])
+    .concat(Object.values(WE.starts(files)).flatMap((s) => (s.cast || []).filter(isObj).concat(s.playerSlot ? [s.playerSlot] : [])), events(files).flatMap((ev) => ev.routines || []));
+  WE.addRoutine = function (files, name) {
+    const id = String(name || '').trim();
+    const w = WE.world(files);
+    if (!WE.ID_RE.test(id)) return 'names are lowercase letters, digits, - or _';
+    if ((w.routines || {})[id]) return `there is already a routine "${id}"`;
+    w.routines = Object.assign(w.routines || {}, { [id]: { slots: [{ from: 8, to: 17, at: ['work'] }, { from: 22, to: 7, at: ['home'] }] } });
+    return '';
+  };
+  WE.renameRoutine = function (files, from, to) {
+    to = String(to || '').trim();
+    const w = WE.world(files);
+    if (from === to) return '';
+    if (!WE.ID_RE.test(to)) return 'names are lowercase letters, digits, - or _';
+    if ((w.routines || {})[to]) return `there is already a routine "${to}"`;
+    w.routines = Object.fromEntries(Object.entries(w.routines || {}).map(([k, v]) => [k === from ? to : k, v]));
+    routineHolders(files).forEach((c) => { if (c.routine === from) c.routine = to; });
+    return '';
+  };
+  WE.removeRoutine = function (files, id) {
+    const w = WE.world(files);
+    delete w.routines[id];
+    if (!Object.keys(w.routines).length) delete w.routines;
+    routineHolders(files).forEach((c) => { if (c.routine === id) delete c.routine; });
+  };
+  // Types of day: the first one turns the plain slots list into that type's.
+  WE.addDayType = function (r, name) {
+    const id = String(name || '').trim();
+    if (!WE.ID_RE.test(id)) return 'names are lowercase letters, digits, - or _';
+    if ((r.dayTypes || {})[id]) return `there is already a type of day "${id}"`;
+    const first = !r.dayTypes;
+    r.dayTypes = Object.assign(r.dayTypes || {}, { [id]: first ? { default: true } : { days: [] } });
+    r.slots = first ? { [id]: Array.isArray(r.slots) ? r.slots : [] } : Object.assign(r.slots || {}, { [id]: [{ from: 8, to: 17, at: ['work'] }] });
+    return '';
+  };
+  WE.renameDayType = function (r, from, to) {
+    to = String(to || '').trim();
+    if (from === to) return '';
+    if (!WE.ID_RE.test(to)) return 'names are lowercase letters, digits, - or _';
+    if (r.dayTypes[to]) return `there is already a type of day "${to}"`;
+    const swap = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k === from ? to : k, v]));
+    r.dayTypes = swap(r.dayTypes);
+    r.slots = swap(r.slots || {});
+    return '';
+  };
+  // The last type of day going back leaves a plain list again.
+  WE.removeDayType = function (r, id) {
+    const list = (r.slots || {})[id];
+    delete r.dayTypes[id];
+    delete r.slots[id];
+    if (!Object.keys(r.dayTypes).length) { delete r.dayTypes; r.slots = list || []; }
   };
   WE.renameNeed = function (files, from, to) {
     to = String(to || '').trim();

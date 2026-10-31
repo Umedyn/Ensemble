@@ -294,7 +294,7 @@ await check('debug shows a turn report with tokens, prompt time and guards', asy
   // Smaller calls (task L-3), on by default for KoboldCpp: each step's parts under one row.
   const steps = await report.locator('tbody td:first-child').allTextContents();
   assert.deepEqual(steps.slice(0, 4), ['update · 3 calls', 'update:facts', 'update:state', 'update:feelings']);
-  assert.match(steps[4], /^intent · \d+ calls$/);
+  assert.match(steps[4], /^intent · \d+ calls?$/);
   assert.equal(steps[5], 'intent:player');
   assert.ok(steps.slice(6, -1).every((s) => s === 'intent:char'), 'one call per person; no events call on a quiet moment');
   assert.equal(steps[steps.length - 1], 'narrate stopped at a paragraph');
@@ -2113,6 +2113,33 @@ await check('creator: the top bar links back to the game', async (page) => {
   assert.match(await page.textContent('header.topbar'), /Ensemble Creator/);
   await page.click('header.topbar a[href="index.html"]');
   await page.waitForFunction(() => document.getElementById('btnNew'));
+});
+
+await check('creator: a routine made on the Routines tab, with problems shown as it is typed', async (page) => {
+  await page.goto(BASE + 'creator.html');
+  await page.waitForFunction(() => document.querySelectorAll('#cWorld option').length > 1);
+  await page.selectOption('#cWorld', 'server:mars-station');
+  await page.waitForSelector('#cSvg');
+  await page.click('#cTabs [data-tab="routines"]');
+  await page.waitForSelector('[data-rsel="crew-day"]');
+  await page.fill('#cNewRoutine', 'night-watch');
+  await page.click('#cAddRoutine');
+  await page.waitForSelector('[data-rsel="night-watch"][aria-pressed="true"]');
+  await page.fill('input[data-path="routines.night-watch.slots.0.at"]', 'ops');
+  await page.fill('input[data-path="routines.night-watch.slots.1.at"]', 'quarters');
+  assert.equal(await page.locator('#cRoutineProblems .bad').count(), 0, 'a good routine has no problems');
+  await page.fill('input[data-path="routines.night-watch.slots.0.to"]', '8');
+  await page.waitForFunction(() => /is empty/.test(document.getElementById('cRoutineProblems').textContent));
+  await page.fill('input[data-path="routines.night-watch.slots.0.to"]', '17');
+  await page.waitForFunction(() => !document.getElementById('cRoutineProblems').textContent.trim());
+  await page.fill('#cNewDayType', 'duty');
+  await page.click('#cAddDayType');
+  await page.waitForSelector('input[data-path="routines.night-watch.slots.duty.0.at"]');
+  await page.click('#cTabs [data-tab="characters"]');
+  await page.click('[data-csel="okafor"], #cCharList button:has-text("Okafor")');
+  await page.waitForSelector('select[data-af="routine"]');
+  assert.equal(await page.inputValue('select[data-af="routine"]'), 'crew-day');
+  assert.match(await page.inputValue('input[data-af="places"]'), /work=lab/);
 });
 
 await browser.close();

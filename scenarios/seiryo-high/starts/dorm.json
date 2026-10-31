@@ -105,7 +105,12 @@
       "haruna": 40,
       "riku": 45
     },
-    "keepDefault": false
+    "keepDefault": false,
+    "routine": "dorm-student",
+    "places": {
+      "home": "kaede-room",
+      "club": "library"
+    }
   },
   "cast": [
     {

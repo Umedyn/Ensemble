@@ -47,6 +47,8 @@
     { id: 'timeline', label: 'Timeline', render: renderTimelineTab },
     // Task 6-2.
     { id: 'characters', label: 'Characters', render: renderCharactersTab },
+    // Task G-9.
+    { id: 'routines', label: 'Routines', render: renderRoutinesTab },
     { id: 'starts', label: 'Starts', render: renderStartsTab },
     { id: 'portraits', label: 'Portraits', render: renderPortraitsTab },
   ];
@@ -187,6 +189,7 @@
     if (cui.sel) own($('cCharProblems'), `character "${cui.sel}"`);
     if (ui.tab === 'sites') renderSiteChecks();
     if (gui.sel) own($('cGroupProblems'), `"${gui.sel}"`);
+    if (rui.sel) own($('cRoutineProblems'), `routine "${rui.sel}"`);
     const wp = $('cWorldProblems');
     if (wp) wp.innerHTML = r.problems.filter((p) => !/^start "/.test(p)).map((p) => `<div class="bad small">${esc(p)}</div>`).join('');
   }
@@ -1783,6 +1786,74 @@
     Object.values(pool()).forEach((c) => { if (typeof c.portrait === 'string') out.add(c.portrait); });
     return [...out].filter(E.isImagePath);
   };
+  // ---------- the routines tab (task G-9) ----------
+  // Named routines shared by many people: types of day and slots. Who follows
+  // one, and their places, is on the Characters tab and a start's cast.
+  const rui = { sel: null, confirm: false };
+  function renderRoutinesTab() {
+    const names = Object.keys(world().routines || {});
+    if (!names.includes(rui.sel)) rui.sel = names[0] || null;
+    return `<div class="c-split">
+      <div class="c-scroll-col"><p class="muted small">Where people usually are, hour by hour, with no model call. Leave this empty for a tight story: a siege, an evacuation.</p>
+        <div class="c-list">${names.map((n) => `<button type="button" data-rsel="${esc(n)}" aria-pressed="${n === rui.sel}">${esc(n)}</button>`).join('')}</div>
+        <div class="c-kvrow"><input id="cNewRoutine" placeholder="student" aria-label="Name of a new routine"><button type="button" id="cAddRoutine" class="small">+ Routine</button></div></div>
+      <aside class="c-panel" id="cRoutineForm">${routineForm()}</aside></div>`;
+  }
+  function slotRows(F, path, list) {
+    return `${(list || []).map((s, k) => `<div class="c-kvrow">${fld(F, `${path}.${k}.from`, 'int', null, { aria: 'From hour', min: 0, maxv: 23 })}${fld(F, `${path}.${k}.to`, 'int', null, { aria: 'To hour', min: 0, maxv: 24 })}
+      ${fld(F, `${path}.${k}.at`, 'csv', null, { aria: 'Places', placeholder: 'class, cafeteria' })}${fld(F, `${path}.${k}.private`, 'bool', 'private')}${delBtn(F, path, k, 'slot')}</div>`).join('')}
+      ${addBtn(F, path, { from: 8, to: 17, at: ['work'] }, '+ Slot')}`;
+  }
+  function routineForm() {
+    const F = 'world.json', n = rui.sel;
+    const r = n && world().routines[n];
+    if (!r) return '<p class="muted">Pick a routine, or add one.</p>';
+    const p = `routines.${n}`;
+    const types = Object.keys(r.dayTypes || {});
+    return `<h3>${esc(n)}</h3><div id="cRoutineProblems"></div>
+      <label>Name <input value="${esc(n)}" data-idof="routine" data-old="${esc(n)}"></label><div class="muted small">People and timeline events that name it follow a rename.</div>
+      <p class="muted small">A slot runs from one whole hour to another (past midnight when "to" is smaller). Its places are room ids or place words like home, class or work, filled in per person; with several, each person picks one for the day. Private slots stay off the cards.</p>
+      ${types.length ? types.map((t) => `<section><div class="c-kvrow"><input value="${esc(t)}" data-daytype="${esc(t)}" aria-label="Type of day"><button type="button" class="small ghost" data-deltype="${esc(t)}" aria-label="Remove ${esc(t)}">✕</button></div>
+        ${fld(F, `${p}.dayTypes.${t}.days`, 'csv', 'Weekdays', { placeholder: 'Mon, Tue, Wed, Thu, Fri' })}
+        ${fld(F, `${p}.dayTypes.${t}.dates`, 'dates', 'Dates', { placeholder: '2026-12-24, 2026-07-21..2026-08-31', hint: 'these beat weekdays' })}
+        ${fld(F, `${p}.dayTypes.${t}.except`, 'dates', 'Except', { placeholder: '2026-07-21..2026-08-31' })}
+        ${fld(F, `${p}.dayTypes.${t}.default`, 'bool', 'Any other day')}
+        ${slotRows(F, `${p}.slots.${t}`, (r.slots || {})[t])}</section>`).join('') : `<section><h4 class="small">Every day</h4>${slotRows(F, `${p}.slots`, r.slots)}</section>`}
+      <div class="c-kvrow"><input id="cNewDayType" placeholder="${types.length ? 'weekend' : 'school'}" aria-label="Name of a new type of day"><button type="button" id="cAddDayType" class="small">+ Type of day</button></div>
+      <button type="button" id="cDelRoutine" class="small danger">${rui.confirm ? 'Click again to delete' : 'Delete routine'}</button>`;
+  }
+  $('cMain').addEventListener('click', (ev) => {
+    if (!cw || ui.tab !== 'routines') return;
+    const t = ev.target;
+    const sel = t.closest('[data-rsel]');
+    const say = (err) => { banner(err ? esc(err) : '', err ? 'bad' : ''); };
+    if (sel) { rui.sel = sel.dataset.rsel; rui.confirm = false; return render(); }
+    if (t.id === 'cAddRoutine') { const v = $('cNewRoutine').value.trim(); const err = WE.addRoutine(cw.files, v); say(err); if (!err) rui.sel = v; return changed(); }
+    if (t.id === 'cDelRoutine') {
+      if (!rui.confirm) { rui.confirm = true; return render(); }
+      WE.removeRoutine(cw.files, rui.sel);
+      rui.sel = null; rui.confirm = false;
+      return changed();
+    }
+    const r = rui.sel && world().routines[rui.sel];
+    if (t.id === 'cAddDayType' && r) { say(WE.addDayType(r, $('cNewDayType').value)); return changed(); }
+    if (t.dataset.deltype && r) { WE.removeDayType(r, t.dataset.deltype); return changed(); }
+  });
+  $('cMain').addEventListener('change', (ev) => {
+    if (!cw || ui.tab !== 'routines') return;
+    const t = ev.target;
+    if (t.dataset.idof === 'routine') {
+      const err = WE.renameRoutine(cw.files, t.dataset.old, t.value);
+      banner(err ? esc(`"${t.value}" can't be used: ${err}.`) : '', err ? 'bad' : '');
+      if (!err) rui.sel = t.value.trim();
+      changed();
+    } else if (t.dataset.daytype) {
+      const err = WE.renameDayType(world().routines[rui.sel], t.dataset.daytype, t.value);
+      banner(err ? esc(`"${t.value}" can't be used: ${err}.`) : '', err ? 'bad' : '');
+      changed();
+    }
+  });
+
   function renderCharactersTab() {
     const c = cui.sel && cw.files[`characters/${cui.sel}.json`];
     const main = cui.review ? reviewPanel() : c ? `<h3>${esc(c.name || cui.sel)} <span class="muted small">(${esc(cui.sel)})</span></h3>

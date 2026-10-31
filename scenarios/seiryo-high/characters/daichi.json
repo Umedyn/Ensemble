@@ -41,5 +41,11 @@
       },
       "winces through practice and tells Kodama it is nothing"
     ]
+  },
+  "routine": "student",
+  "places": {
+    "home": null,
+    "class": "classroom-1b",
+    "club": "field"
   }
 }

@@ -27,5 +27,11 @@
     "mio": 20,
     "daichi": 5
   },
-  "agenda": null
+  "agenda": null,
+  "routine": "student",
+  "places": {
+    "home": null,
+    "class": "classroom-1b",
+    "club": "gym"
+  }
 }

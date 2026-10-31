@@ -43,5 +43,12 @@
       "puts up a notice reminding students that part-time jobs need written permission",
       "patrols the station area after school looking for Seiryo uniforms where they shouldn't be"
     ]
+  },
+  "routine": "teacher",
+  "places": {
+    "home": null,
+    "teaching": "gate",
+    "desk": "staff-room",
+    "club": "staff-room"
   }
 }

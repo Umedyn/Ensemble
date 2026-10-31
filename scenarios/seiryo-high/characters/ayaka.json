@@ -28,5 +28,11 @@
     "kazuha": 15,
     "ogura": 10
   },
-  "agenda": null
+  "agenda": null,
+  "routine": "dorm-student",
+  "places": {
+    "home": "ayaka-room",
+    "class": "classroom-1b",
+    "club": "music-room"
+  }
 }

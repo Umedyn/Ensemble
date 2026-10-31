@@ -5,7 +5,7 @@
 // and replays; each part's grammar takes its own example.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { newGame, mockLLM, fixedRng } = require('./helpers');
+const { newGame, mockLLM, fixedRng, noRoutines } = require('./helpers');
 const { replay } = require('./replay');
 const { matches } = require('./gbnf');
 
@@ -44,6 +44,7 @@ function answer(E, opts = {}) {
 
 async function play(smaller, opts = {}) {
   const { E, state } = newGame('mars-station');
+  noRoutines(state);
   E.settings.backends.local.smallerCalls = smaller;
   if (opts.setup) opts.setup(E, state);
   fixedRng(E, [0.4, 0.6, 0.3, 0.7, 0.5]);

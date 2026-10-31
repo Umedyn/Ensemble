@@ -39,5 +39,11 @@
       },
       "brings home-made star-shaped cookies to the club room"
     ]
+  },
+  "routine": "student",
+  "places": {
+    "home": null,
+    "class": "classroom-1a",
+    "club": "club-room"
   }
 }

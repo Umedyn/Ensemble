@@ -28,5 +28,11 @@
     "momo": 35,
     "sora": 35
   },
-  "agenda": null
+  "agenda": null,
+  "routine": "office-worker",
+  "places": {
+    "home": "hayakawa-living",
+    "bed": "parents-room",
+    "work": null
+  }
 }

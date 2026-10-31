@@ -34,5 +34,11 @@
       "role": "leader"
     }
   ],
-  "agenda": null
+  "agenda": null,
+  "routine": "student",
+  "places": {
+    "home": null,
+    "class": "classrooms-3",
+    "club": "club-room"
+  }
 }

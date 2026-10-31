@@ -817,6 +817,58 @@
       "onBroken": "diverge"
     }
   ],
+  "routines": {
+    "crew-day": {
+      "slots": [
+        {
+          "from": 6,
+          "to": 8,
+          "at": [
+            "commons"
+          ]
+        },
+        {
+          "from": 8,
+          "to": 12,
+          "at": [
+            "work"
+          ]
+        },
+        {
+          "from": 12,
+          "to": 13,
+          "at": [
+            "commons"
+          ]
+        },
+        {
+          "from": 13,
+          "to": 18,
+          "at": [
+            "work",
+            "work",
+            "second"
+          ]
+        },
+        {
+          "from": 18,
+          "to": 22,
+          "at": [
+            "commons",
+            "commons",
+            "quarters"
+          ]
+        },
+        {
+          "from": 22,
+          "to": 6,
+          "at": [
+            "quarters"
+          ]
+        }
+      ]
+    }
+  },
   "characters": [
     "navarro",
     "okafor",

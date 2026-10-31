@@ -101,6 +101,13 @@ function newGame(folder = 'mars-station', startId) {
   return { E, state: E.Engine.newGame(sc) };
 }
 
+// For a test about something else: the crew stay where the test puts them.
+function noRoutines(state) {
+  delete state.scenario.routines;
+  Object.values(state.characters).forEach((c) => { delete c.routine; delete c.routineState; });
+  return state;
+}
+
 // Replaces the network with a handler: ({ kind, user, system }) => string | object.
 // Objects are JSON-encoded. Records every call in the returned array.
 function mockLLM(E, handler) {
@@ -120,4 +127,4 @@ function fixedRng(E, values) {
   E.rng = () => values[Math.min(i++, values.length - 1)];
 }
 
-module.exports = { ROOT, loadEngine, loadLibrary, packFiles, readPacks, worldFiles, readWorld, readScenario, scenarioFolders, newGame, mockLLM, fixedRng };
+module.exports = { ROOT, loadEngine, loadLibrary, packFiles, readPacks, worldFiles, readWorld, readScenario, scenarioFolders, newGame, noRoutines, mockLLM, fixedRng };

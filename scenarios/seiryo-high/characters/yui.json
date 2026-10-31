@@ -28,5 +28,11 @@
     "kotone": 10,
     "kenta": 0
   },
-  "agenda": null
+  "agenda": null,
+  "routine": "student",
+  "places": {
+    "home": null,
+    "class": "classroom-1b",
+    "club": "music-room"
+  }
 }

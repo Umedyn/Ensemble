@@ -28,5 +28,23 @@
     "ogura": 20,
     "ozaki": -20
   },
-  "agenda": null
+  "agenda": null,
+  "routine": "student",
+  "places": {
+    "home": null,
+    "class": "classroom-1b",
+    "club": "behind-gym"
+  },
+  "slots": {
+    "school": [
+      {
+        "from": 12,
+        "to": 13,
+        "at": [
+          "behind-gym"
+        ],
+        "private": true
+      }
+    ]
+  }
 }

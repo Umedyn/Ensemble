@@ -3,7 +3,7 @@
 // emergencies solved themselves off-screen and the crew never minded.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { newGame, mockLLM, fixedRng, readScenario, loadEngine } = require('./helpers');
+const { newGame, mockLLM, fixedRng, readScenario, loadEngine, noRoutines } = require('./helpers');
 
 const guards = (res, type) => (res.guards || []).filter((g) => g.type === type).map((g) => g.detail);
 
@@ -116,6 +116,7 @@ test('skipping past an emergency: it plays out without the player, hurts only th
 
 test('right after an emergency a random stop grows out of the people, lands where the player is, and hurts only those it reaches', async () => {
   const { E, state } = newGame();
+  noRoutines(state);
   fixedRng(E, [0.01]);
   quietSkip(state);
   state.clocks.forEach((c) => { c.perHour = 0; });

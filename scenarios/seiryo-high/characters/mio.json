@@ -50,5 +50,11 @@
         "contact": true
       }
     ]
+  },
+  "routine": "student",
+  "places": {
+    "home": null,
+    "class": "classroom-1b",
+    "club": "club-room"
   }
 }

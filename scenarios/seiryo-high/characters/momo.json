@@ -30,5 +30,13 @@
     "kenji": 30,
     "aoi": 20
   },
-  "agenda": null
+  "agenda": null,
+  "routine": "middle-school",
+  "places": {
+    "home": null,
+    "bed": null,
+    "school": null,
+    "class": "classroom-1c",
+    "club": "gym"
+  }
 }

@@ -1732,6 +1732,8 @@ Reply with JSON only: ${reply(S.obj({ people: S.list(S.obj({ name: S.str('Full N
     pronouns: S.str('she/her'), age: S.int(0, 999, 40), traits: TRAITS, want: S.str('what they want, one phrase'), secret: S.str('something they hide from the others'), guard: GUARD,
     voice: S.str('how they talk, one sentence'), appearance: S.str('one or two sentences, the first a good one-line look'), description: S.str('who they are, one or two sentences'),
     skills: skillsShape(sc.skills, 1), room: ids(genRooms(job), 'room-id'),
+    // The world's named routines (task G-9), and the rooms this start gives its place words.
+    ...(Object.keys(sc.routines || {}).length ? { routine: S.maybe(S.oneOf(Object.keys(sc.routines))), places: S.list(S.obj({ word: S.str('home'), room: S.maybe(ids(genRooms(job), 'room-id')) }), { n: 0, max: 5 }) } : {}),
   }));
   GEN_TASKS.person = ({ sc, job, index, reroll }) => {
     const p = job.steps.plan.people[index];

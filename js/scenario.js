@@ -17,7 +17,7 @@
   // World fields a start may override (merge rules below).
   const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'tagThresholds', 'portraitSet', 'factions', 'world',
     'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'regionLabels', 'routines', 'routeKinds', 'travelTimes', 'presence', 'reputation', 'mapFocus', 'tactical', 'standees', 'site', 'siteInfo', 'localMap', 'map', 'entrances', 'lore', 'loreTopics', 'timeline', 'projectTimeline', 'endings'];
-  const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'date', 'calendar', 'characters', 'starts', 'generatedStarts', 'generatedSites', 'generatedRegions', 'sites', 'lorePacks', ...OVERRIDABLE];
+  const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'date', 'calendar', 'authorNote', 'characters', 'starts', 'generatedStarts', 'generatedSites', 'generatedRegions', 'sites', 'lorePacks', ...OVERRIDABLE];
   const WORLD_RESERVED = [];
   const START_RESERVED = [];
   const CAST_FIELDS = ['id', 'status', 'needs', 'needsOff', 'groups', 'relations', 'knows', 'want', 'secret', 'guard', 'tags', 'tier', 'pinned', 'agenda', 'joins', 'routine', 'places', 'slots'];
@@ -240,6 +240,15 @@
       if (typeof c.joins !== 'string' || !ev) return problems.push(`${who} joins at "${c.joins}", which isn't one of the timeline's events`);
       if (c.id === sc.player) problems.push(`${who} is the player, who is in the story from the start (leave "joins" out)`);
       else if (isObj(ev.when) && E.Timeline.at(ev.when) <= start) problems.push(`${who} joins at "${ev.id}", which has already happened when this start begins (set "joins": null in this start's cast entry)`);
+    });
+    // A timeline event's "routines" (task G-9): someone's day from then on.
+    events.forEach((ev) => {
+      if (ev.routines == null) return;
+      if (!Array.isArray(ev.routines) || !ev.routines.every((r) => isObj(r) && typeof r.id === 'string')) return problems.push(`timeline "${ev.id}": "routines" must be a list of {id, routine, places}`);
+      ev.routines.filter((r) => (sc.characters || []).includes(r.id)).forEach((r) => {
+        if (r.routine != null && !(sc.routines || {})[r.routine]) problems.push(`timeline "${ev.id}" gives ${r.id} routine "${r.routine}", which doesn't exist`);
+        Object.entries(isObj(r.places) ? r.places : {}).forEach(([w, room]) => { if (room != null && !locIds.has(room)) problems.push(`timeline "${ev.id}" gives ${r.id} place "${w}", unknown room "${room}"`); });
+      });
     });
     events.forEach((ev) => {
       if (ev.moves == null) return;
@@ -717,6 +726,11 @@
       else problems.push(...slotsProblems(r.slots, types.length ? types.map(([t]) => t) : null, where));
     });
     return problems;
+  };
+  // The place words in a routine: every "at" that isn't one of these rooms.
+  S.routineWords = function (routine, locIds) {
+    const lists = (s) => (Array.isArray(s) ? s : isObj(s) ? Object.values(s).flat() : []).filter(isObj);
+    return [...new Set(lists(isObj(routine) ? routine.slots : null).flatMap((s) => (Array.isArray(s.at) ? s.at : [])))].filter((p) => !locIds.has(p));
   };
   // A person's routine, places and own slots (a character, or a playerSlot).
   S.personRoutineProblems = function (c, sc, locIds, who, isPlayerSlot) {

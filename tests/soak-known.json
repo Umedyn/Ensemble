@@ -2,22 +2,17 @@
   "frontier": {
     "statue:*": "People stay put offstage until routines arrive (G-7 to G-9); take this out then."
   },
-  "mars-station": {
-    "pinned:navarro/fatigue": "In the garage start Navarro is offstage: offstage people's needs only settle in long skips (ROADMAP > Engine systems).",
-    "pinned:navarro/hunger": "In the garage start Navarro is offstage: offstage people's needs only settle in long skips (ROADMAP > Engine systems).",
-    "statue:navarro": "People stay put offstage until routines arrive (G-7 to G-9); take this out then."
-  },
   "oregon-trail": {
     "statue:*": "People stay put offstage until routines arrive (G-7 to G-9); take this out then.",
     "overBudget:context": "A single intent call with a regional event due, the captain's orders and groups runs a little over 8K (ROADMAP > Local model reliability)."
-  },
-  "seiryo-high": {
-    "statue:*": "People stay put offstage until routines arrive (G-7 to G-9); take this out then."
   },
   "zombie-holdout": {
     "statue:webb": "Webb keeps to the lot during the siege; the holdout gets no routines (ROADMAP > Routines)."
   },
   "your-story": {
     "statue:lena-marsh": "People stay put offstage until routines arrive (G-7 to G-9); take this out then."
+  },
+  "seiryo-high": {
+    "statue:master": "The café master is a minor person who keeps his café; extras have no routines."
   }
 }

@@ -163,6 +163,14 @@
     // As written, its "moves" send people where it says (the third-years off to
     // Tokyo at graduation), wherever they are: the author's word, no route.
     const moved = [];
+    // Its "routines" change someone's day from now on (a new class, left for
+    // Tokyo), waiting people too: a place never moved to leaves them nothing.
+    if (how === 'fired') (Array.isArray(ev.routines) ? ev.routines : []).forEach((r) => {
+      const c = r && (state.characters[r.id] || (state.waiting || {})[r.id]);
+      if (!c) return;
+      if ('routine' in r) c.routine = r.routine;
+      if (r.places) c.places = Object.assign({}, c.places, r.places);
+    });
     if (how === 'fired') (Array.isArray(ev.moves) ? ev.moves : []).forEach((m) => {
       const c = m && state.characters[m.id];
       if (!c || m.id === state.player || !Eng().alive(state, m.id) || !state.locations[m.to] || Eng().isAt(state, m.id, m.to)) return;

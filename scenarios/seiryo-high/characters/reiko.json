@@ -46,5 +46,11 @@
       },
       "tells Kazuha she should run for president"
     ]
+  },
+  "routine": "student",
+  "places": {
+    "home": null,
+    "class": "classrooms-3",
+    "club": "council-room"
   }
 }

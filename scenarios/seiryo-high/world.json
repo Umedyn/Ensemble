@@ -254,6 +254,899 @@
     "days": 7,
     "max": 3
   },
+  "routines": {
+    "student": {
+      "dayTypes": {
+        "school": {
+          "days": [
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri"
+          ],
+          "except": [
+            {
+              "from": "2026-03-25",
+              "to": "2026-04-06"
+            },
+            {
+              "from": "2026-04-29",
+              "to": "2026-05-05"
+            },
+            {
+              "from": "2026-07-21",
+              "to": "2026-08-31"
+            },
+            {
+              "from": "2026-12-25",
+              "to": "2027-01-07"
+            },
+            {
+              "from": "2027-03-25",
+              "to": "2027-04-06"
+            },
+            {
+              "from": "2027-04-29",
+              "to": "2027-05-05"
+            },
+            {
+              "from": "2027-07-21",
+              "to": "2027-08-31"
+            },
+            {
+              "from": "2027-12-25",
+              "to": "2028-01-07"
+            },
+            {
+              "from": "2028-03-25",
+              "to": "2028-04-06"
+            },
+            {
+              "from": "2028-04-29",
+              "to": "2028-05-05"
+            },
+            {
+              "from": "2028-07-21",
+              "to": "2028-08-31"
+            },
+            {
+              "from": "2028-12-25",
+              "to": "2029-01-07"
+            },
+            {
+              "from": "2029-03-25",
+              "to": "2029-04-06"
+            },
+            {
+              "from": "2029-04-29",
+              "to": "2029-05-05"
+            },
+            {
+              "from": "2029-07-21",
+              "to": "2029-08-31"
+            },
+            {
+              "from": "2029-12-25",
+              "to": "2030-01-07"
+            }
+          ]
+        },
+        "free": {
+          "default": true
+        }
+      },
+      "slots": {
+        "school": [
+          {
+            "from": 7,
+            "to": 8,
+            "at": [
+              "gate",
+              "entrance",
+              "class"
+            ]
+          },
+          {
+            "from": 8,
+            "to": 12,
+            "at": [
+              "class"
+            ]
+          },
+          {
+            "from": 12,
+            "to": 13,
+            "at": [
+              "cafeteria",
+              "courtyard",
+              "rooftop",
+              "class"
+            ]
+          },
+          {
+            "from": 13,
+            "to": 15,
+            "at": [
+              "class"
+            ]
+          },
+          {
+            "from": 15,
+            "to": 18,
+            "at": [
+              "club"
+            ]
+          },
+          {
+            "from": 18,
+            "to": 20,
+            "at": [
+              "home",
+              "home",
+              "shopping-street",
+              "station-plaza",
+              "cafe"
+            ]
+          },
+          {
+            "from": 20,
+            "to": 7,
+            "at": [
+              "home"
+            ]
+          }
+        ],
+        "free": [
+          {
+            "from": 10,
+            "to": 17,
+            "at": [
+              "home",
+              "home",
+              "club",
+              "shopping-street",
+              "cafe",
+              "lake-senba",
+              "kairakuen"
+            ]
+          },
+          {
+            "from": 17,
+            "to": 10,
+            "at": [
+              "home"
+            ]
+          }
+        ]
+      }
+    },
+    "dorm-student": {
+      "dayTypes": {
+        "school": {
+          "days": [
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri"
+          ],
+          "except": [
+            {
+              "from": "2026-03-25",
+              "to": "2026-04-06"
+            },
+            {
+              "from": "2026-04-29",
+              "to": "2026-05-05"
+            },
+            {
+              "from": "2026-07-21",
+              "to": "2026-08-31"
+            },
+            {
+              "from": "2026-12-25",
+              "to": "2027-01-07"
+            },
+            {
+              "from": "2027-03-25",
+              "to": "2027-04-06"
+            },
+            {
+              "from": "2027-04-29",
+              "to": "2027-05-05"
+            },
+            {
+              "from": "2027-07-21",
+              "to": "2027-08-31"
+            },
+            {
+              "from": "2027-12-25",
+              "to": "2028-01-07"
+            },
+            {
+              "from": "2028-03-25",
+              "to": "2028-04-06"
+            },
+            {
+              "from": "2028-04-29",
+              "to": "2028-05-05"
+            },
+            {
+              "from": "2028-07-21",
+              "to": "2028-08-31"
+            },
+            {
+              "from": "2028-12-25",
+              "to": "2029-01-07"
+            },
+            {
+              "from": "2029-03-25",
+              "to": "2029-04-06"
+            },
+            {
+              "from": "2029-04-29",
+              "to": "2029-05-05"
+            },
+            {
+              "from": "2029-07-21",
+              "to": "2029-08-31"
+            },
+            {
+              "from": "2029-12-25",
+              "to": "2030-01-07"
+            }
+          ]
+        },
+        "free": {
+          "default": true
+        }
+      },
+      "slots": {
+        "school": [
+          {
+            "from": 7,
+            "to": 8,
+            "at": [
+              "dorm-kitchen",
+              "gate"
+            ]
+          },
+          {
+            "from": 8,
+            "to": 12,
+            "at": [
+              "class"
+            ]
+          },
+          {
+            "from": 12,
+            "to": 13,
+            "at": [
+              "cafeteria",
+              "courtyard",
+              "rooftop",
+              "class"
+            ]
+          },
+          {
+            "from": 13,
+            "to": 15,
+            "at": [
+              "class"
+            ]
+          },
+          {
+            "from": 15,
+            "to": 18,
+            "at": [
+              "club"
+            ]
+          },
+          {
+            "from": 18,
+            "to": 21,
+            "at": [
+              "dorm-lounge",
+              "dorm-study",
+              "dorm-kitchen"
+            ]
+          },
+          {
+            "from": 21,
+            "to": 7,
+            "at": [
+              "home"
+            ]
+          }
+        ],
+        "free": [
+          {
+            "from": 9,
+            "to": 18,
+            "at": [
+              "dorm-lounge",
+              "home",
+              "club",
+              "shopping-street",
+              "cafe",
+              "lake-senba",
+              "kairakuen"
+            ]
+          },
+          {
+            "from": 18,
+            "to": 21,
+            "at": [
+              "dorm-lounge",
+              "dorm-study",
+              "dorm-kitchen"
+            ]
+          },
+          {
+            "from": 21,
+            "to": 9,
+            "at": [
+              "home"
+            ]
+          }
+        ]
+      }
+    },
+    "teacher": {
+      "dayTypes": {
+        "school": {
+          "days": [
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri"
+          ],
+          "except": [
+            {
+              "from": "2026-03-25",
+              "to": "2026-04-06"
+            },
+            {
+              "from": "2026-04-29",
+              "to": "2026-05-05"
+            },
+            {
+              "from": "2026-07-21",
+              "to": "2026-08-31"
+            },
+            {
+              "from": "2026-12-25",
+              "to": "2027-01-07"
+            },
+            {
+              "from": "2027-03-25",
+              "to": "2027-04-06"
+            },
+            {
+              "from": "2027-04-29",
+              "to": "2027-05-05"
+            },
+            {
+              "from": "2027-07-21",
+              "to": "2027-08-31"
+            },
+            {
+              "from": "2027-12-25",
+              "to": "2028-01-07"
+            },
+            {
+              "from": "2028-03-25",
+              "to": "2028-04-06"
+            },
+            {
+              "from": "2028-04-29",
+              "to": "2028-05-05"
+            },
+            {
+              "from": "2028-07-21",
+              "to": "2028-08-31"
+            },
+            {
+              "from": "2028-12-25",
+              "to": "2029-01-07"
+            },
+            {
+              "from": "2029-03-25",
+              "to": "2029-04-06"
+            },
+            {
+              "from": "2029-04-29",
+              "to": "2029-05-05"
+            },
+            {
+              "from": "2029-07-21",
+              "to": "2029-08-31"
+            },
+            {
+              "from": "2029-12-25",
+              "to": "2030-01-07"
+            }
+          ]
+        },
+        "free": {
+          "default": true
+        }
+      },
+      "slots": {
+        "school": [
+          {
+            "from": 7,
+            "to": 8,
+            "at": [
+              "desk"
+            ]
+          },
+          {
+            "from": 8,
+            "to": 12,
+            "at": [
+              "teaching",
+              "teaching",
+              "desk"
+            ]
+          },
+          {
+            "from": 12,
+            "to": 13,
+            "at": [
+              "desk",
+              "cafeteria"
+            ]
+          },
+          {
+            "from": 13,
+            "to": 16,
+            "at": [
+              "teaching",
+              "teaching",
+              "desk"
+            ]
+          },
+          {
+            "from": 16,
+            "to": 18,
+            "at": [
+              "club",
+              "desk"
+            ]
+          },
+          {
+            "from": 18,
+            "to": 7,
+            "at": [
+              "home"
+            ]
+          }
+        ],
+        "free": [
+          {
+            "from": 0,
+            "to": 24,
+            "at": [
+              "home"
+            ]
+          }
+        ]
+      }
+    },
+    "dorm-mother": {
+      "slots": [
+        {
+          "from": 6,
+          "to": 22,
+          "at": [
+            "dorm-entrance",
+            "dorm-kitchen",
+            "dorm-lounge"
+          ]
+        },
+        {
+          "from": 22,
+          "to": 6,
+          "at": [
+            "dorm-entrance"
+          ]
+        }
+      ]
+    },
+    "office-worker": {
+      "dayTypes": {
+        "work": {
+          "days": [
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri"
+          ]
+        },
+        "off": {
+          "default": true
+        }
+      },
+      "slots": {
+        "work": [
+          {
+            "from": 7,
+            "to": 8,
+            "at": [
+              "home"
+            ]
+          },
+          {
+            "from": 8,
+            "to": 18,
+            "at": [
+              "work"
+            ]
+          },
+          {
+            "from": 18,
+            "to": 22,
+            "at": [
+              "home"
+            ]
+          },
+          {
+            "from": 22,
+            "to": 7,
+            "at": [
+              "bed"
+            ]
+          }
+        ],
+        "off": [
+          {
+            "from": 8,
+            "to": 22,
+            "at": [
+              "home",
+              "home",
+              "shopping-street"
+            ]
+          },
+          {
+            "from": 22,
+            "to": 8,
+            "at": [
+              "bed"
+            ]
+          }
+        ]
+      }
+    },
+    "bakery-shift": {
+      "dayTypes": {
+        "work": {
+          "days": [
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri",
+            "Sat"
+          ]
+        },
+        "off": {
+          "default": true
+        }
+      },
+      "slots": {
+        "work": [
+          {
+            "from": 6,
+            "to": 9,
+            "at": [
+              "home"
+            ]
+          },
+          {
+            "from": 9,
+            "to": 15,
+            "at": [
+              "work"
+            ]
+          },
+          {
+            "from": 15,
+            "to": 22,
+            "at": [
+              "home"
+            ]
+          },
+          {
+            "from": 22,
+            "to": 6,
+            "at": [
+              "bed"
+            ]
+          }
+        ],
+        "off": [
+          {
+            "from": 7,
+            "to": 22,
+            "at": [
+              "home",
+              "home",
+              "shopping-street"
+            ]
+          },
+          {
+            "from": 22,
+            "to": 7,
+            "at": [
+              "bed"
+            ]
+          }
+        ]
+      }
+    },
+    "middle-school": {
+      "dayTypes": {
+        "school": {
+          "days": [
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri"
+          ],
+          "except": [
+            {
+              "from": "2026-03-25",
+              "to": "2026-04-06"
+            },
+            {
+              "from": "2026-04-29",
+              "to": "2026-05-05"
+            },
+            {
+              "from": "2026-07-21",
+              "to": "2026-08-31"
+            },
+            {
+              "from": "2026-12-25",
+              "to": "2027-01-07"
+            },
+            {
+              "from": "2027-03-25",
+              "to": "2027-04-06"
+            },
+            {
+              "from": "2027-04-29",
+              "to": "2027-05-05"
+            },
+            {
+              "from": "2027-07-21",
+              "to": "2027-08-31"
+            },
+            {
+              "from": "2027-12-25",
+              "to": "2028-01-07"
+            },
+            {
+              "from": "2028-03-25",
+              "to": "2028-04-06"
+            },
+            {
+              "from": "2028-04-29",
+              "to": "2028-05-05"
+            },
+            {
+              "from": "2028-07-21",
+              "to": "2028-08-31"
+            },
+            {
+              "from": "2028-12-25",
+              "to": "2029-01-07"
+            },
+            {
+              "from": "2029-03-25",
+              "to": "2029-04-06"
+            },
+            {
+              "from": "2029-04-29",
+              "to": "2029-05-05"
+            },
+            {
+              "from": "2029-07-21",
+              "to": "2029-08-31"
+            },
+            {
+              "from": "2029-12-25",
+              "to": "2030-01-07"
+            }
+          ]
+        },
+        "free": {
+          "default": true
+        }
+      },
+      "slots": {
+        "school": [
+          {
+            "from": 8,
+            "to": 16,
+            "at": [
+              "school"
+            ]
+          },
+          {
+            "from": 16,
+            "to": 22,
+            "at": [
+              "home"
+            ]
+          },
+          {
+            "from": 22,
+            "to": 8,
+            "at": [
+              "bed"
+            ]
+          }
+        ],
+        "free": [
+          {
+            "from": 9,
+            "to": 22,
+            "at": [
+              "home",
+              "home",
+              "shopping-street"
+            ]
+          },
+          {
+            "from": 22,
+            "to": 9,
+            "at": [
+              "bed"
+            ]
+          }
+        ]
+      }
+    },
+    "inn-family": {
+      "slots": [
+        {
+          "from": 6,
+          "to": 22,
+          "at": [
+            "inn-front",
+            "inn-kitchen",
+            "inn-guest"
+          ]
+        },
+        {
+          "from": 22,
+          "to": 6,
+          "at": [
+            "inn-kitchen"
+          ]
+        }
+      ]
+    },
+    "village-school": {
+      "dayTypes": {
+        "school": {
+          "days": [
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri"
+          ],
+          "except": [
+            {
+              "from": "2026-03-25",
+              "to": "2026-04-06"
+            },
+            {
+              "from": "2026-04-29",
+              "to": "2026-05-05"
+            },
+            {
+              "from": "2026-07-21",
+              "to": "2026-08-31"
+            },
+            {
+              "from": "2026-12-25",
+              "to": "2027-01-07"
+            },
+            {
+              "from": "2027-03-25",
+              "to": "2027-04-06"
+            },
+            {
+              "from": "2027-04-29",
+              "to": "2027-05-05"
+            },
+            {
+              "from": "2027-07-21",
+              "to": "2027-08-31"
+            },
+            {
+              "from": "2027-12-25",
+              "to": "2028-01-07"
+            },
+            {
+              "from": "2028-03-25",
+              "to": "2028-04-06"
+            },
+            {
+              "from": "2028-04-29",
+              "to": "2028-05-05"
+            },
+            {
+              "from": "2028-07-21",
+              "to": "2028-08-31"
+            },
+            {
+              "from": "2028-12-25",
+              "to": "2029-01-07"
+            },
+            {
+              "from": "2029-03-25",
+              "to": "2029-04-06"
+            },
+            {
+              "from": "2029-04-29",
+              "to": "2029-05-05"
+            },
+            {
+              "from": "2029-07-21",
+              "to": "2029-08-31"
+            },
+            {
+              "from": "2029-12-25",
+              "to": "2030-01-07"
+            }
+          ]
+        },
+        "free": {
+          "default": true
+        }
+      },
+      "slots": {
+        "school": [
+          {
+            "from": 8,
+            "to": 15,
+            "at": [
+              "school"
+            ]
+          },
+          {
+            "from": 15,
+            "to": 8,
+            "at": [
+              "inn-bath",
+              "inn-front"
+            ]
+          }
+        ],
+        "free": [
+          {
+            "from": 0,
+            "to": 24,
+            "at": [
+              "inn-bath",
+              "inn-front",
+              "inn-kitchen"
+            ]
+          }
+        ]
+      }
+    }
+  },
   "characters": [
     "sora",
     "kaede",
@@ -1761,6 +2654,16 @@
           "id": "shinji",
           "to": "tokyo-campus"
         }
+      ],
+      "routines": [
+        {
+          "id": "reiko",
+          "routine": null
+        },
+        {
+          "id": "shinji",
+          "routine": null
+        }
       ]
     },
     {
@@ -1801,7 +2704,124 @@
         "world": {
           "weather": "cherry blossoms again"
         }
-      }
+      },
+      "routines": [
+        {
+          "id": "sora",
+          "places": {
+            "class": "classrooms-2"
+          }
+        },
+        {
+          "id": "kaede",
+          "places": {
+            "class": "classrooms-2"
+          }
+        },
+        {
+          "id": "aoi",
+          "places": {
+            "class": "classrooms-2"
+          }
+        },
+        {
+          "id": "rin",
+          "places": {
+            "class": "classrooms-2"
+          }
+        },
+        {
+          "id": "mio",
+          "places": {
+            "class": "classrooms-2"
+          }
+        },
+        {
+          "id": "kotone",
+          "places": {
+            "class": "classrooms-2"
+          }
+        },
+        {
+          "id": "daichi",
+          "places": {
+            "class": "classrooms-2"
+          }
+        },
+        {
+          "id": "kenta",
+          "places": {
+            "class": "classrooms-2"
+          }
+        },
+        {
+          "id": "natsuki",
+          "places": {
+            "class": "classrooms-2"
+          }
+        },
+        {
+          "id": "sayo",
+          "places": {
+            "class": "classrooms-2"
+          }
+        },
+        {
+          "id": "haru",
+          "places": {
+            "class": "classrooms-2"
+          }
+        },
+        {
+          "id": "yui",
+          "places": {
+            "class": "classrooms-2"
+          }
+        },
+        {
+          "id": "takumi",
+          "places": {
+            "class": "classrooms-2"
+          }
+        },
+        {
+          "id": "ren",
+          "places": {
+            "class": "classrooms-2"
+          }
+        },
+        {
+          "id": "ayaka",
+          "places": {
+            "class": "classrooms-2"
+          }
+        },
+        {
+          "id": "lena",
+          "places": {
+            "class": "classrooms-2"
+          }
+        },
+        {
+          "id": "kazuha",
+          "places": {
+            "class": "classrooms-3"
+          }
+        },
+        {
+          "id": "goro",
+          "places": {
+            "class": "classrooms-3"
+          }
+        },
+        {
+          "id": "momo",
+          "routine": "student",
+          "places": {
+            "class": "classroom-1c"
+          }
+        }
+      ]
     },
     {
       "id": "entrance-ceremony-2",
@@ -1962,6 +2982,16 @@
           "id": "goro",
           "to": "tokyo-campus"
         }
+      ],
+      "routines": [
+        {
+          "id": "kazuha",
+          "routine": null
+        },
+        {
+          "id": "goro",
+          "routine": null
+        }
       ]
     },
     {
@@ -1990,7 +3020,123 @@
         "world": {
           "weather": "cherry blossoms, the last spring"
         }
-      }
+      },
+      "routines": [
+        {
+          "id": "sora",
+          "places": {
+            "class": "classrooms-3"
+          }
+        },
+        {
+          "id": "kaede",
+          "places": {
+            "class": "classrooms-3"
+          }
+        },
+        {
+          "id": "aoi",
+          "places": {
+            "class": "classrooms-3"
+          }
+        },
+        {
+          "id": "rin",
+          "places": {
+            "class": "classrooms-3"
+          }
+        },
+        {
+          "id": "mio",
+          "places": {
+            "class": "classrooms-3"
+          }
+        },
+        {
+          "id": "kotone",
+          "places": {
+            "class": "classrooms-3"
+          }
+        },
+        {
+          "id": "daichi",
+          "places": {
+            "class": "classrooms-3"
+          }
+        },
+        {
+          "id": "kenta",
+          "places": {
+            "class": "classrooms-3"
+          }
+        },
+        {
+          "id": "natsuki",
+          "places": {
+            "class": "classrooms-3"
+          }
+        },
+        {
+          "id": "sayo",
+          "places": {
+            "class": "classrooms-3"
+          }
+        },
+        {
+          "id": "haru",
+          "places": {
+            "class": "classrooms-3"
+          }
+        },
+        {
+          "id": "yui",
+          "places": {
+            "class": "classrooms-3"
+          }
+        },
+        {
+          "id": "takumi",
+          "places": {
+            "class": "classrooms-3"
+          }
+        },
+        {
+          "id": "ren",
+          "places": {
+            "class": "classrooms-3"
+          }
+        },
+        {
+          "id": "ayaka",
+          "places": {
+            "class": "classrooms-3"
+          }
+        },
+        {
+          "id": "lena",
+          "places": {
+            "class": "classrooms-3"
+          }
+        },
+        {
+          "id": "momo",
+          "places": {
+            "class": "classrooms-2"
+          }
+        },
+        {
+          "id": "hikari",
+          "places": {
+            "class": "classrooms-2"
+          }
+        },
+        {
+          "id": "itsuki",
+          "places": {
+            "class": "classrooms-2"
+          }
+        }
+      ]
     },
     {
       "id": "sports-festival-3",
@@ -2099,7 +3245,73 @@
         "title": "Graduation",
         "kind": "bittersweet",
         "epilogue": "Three years, gone in a breath. Whatever comes next, college in Tokyo, work, or the inn up north, the people from these years stay. The story can go on from here."
-      }
+      },
+      "routines": [
+        {
+          "id": "sora",
+          "routine": null
+        },
+        {
+          "id": "kaede",
+          "routine": null
+        },
+        {
+          "id": "aoi",
+          "routine": null
+        },
+        {
+          "id": "rin",
+          "routine": null
+        },
+        {
+          "id": "mio",
+          "routine": null
+        },
+        {
+          "id": "kotone",
+          "routine": null
+        },
+        {
+          "id": "daichi",
+          "routine": null
+        },
+        {
+          "id": "kenta",
+          "routine": null
+        },
+        {
+          "id": "natsuki",
+          "routine": null
+        },
+        {
+          "id": "sayo",
+          "routine": null
+        },
+        {
+          "id": "haru",
+          "routine": null
+        },
+        {
+          "id": "yui",
+          "routine": null
+        },
+        {
+          "id": "takumi",
+          "routine": null
+        },
+        {
+          "id": "ren",
+          "routine": null
+        },
+        {
+          "id": "ayaka",
+          "routine": null
+        },
+        {
+          "id": "lena",
+          "routine": null
+        }
+      ]
     },
     {
       "id": "university-results-3",

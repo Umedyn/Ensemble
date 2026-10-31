@@ -40,5 +40,11 @@
       },
       "asks Kazuha Minase to help her with her kanji homework in the dorm"
     ]
+  },
+  "routine": "dorm-student",
+  "places": {
+    "home": "lena-room",
+    "class": "classroom-1b",
+    "club": "library"
   }
 }

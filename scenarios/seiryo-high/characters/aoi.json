@@ -28,5 +28,11 @@
     "daichi": 15,
     "sayo": -10
   },
-  "agenda": null
+  "agenda": null,
+  "routine": "student",
+  "places": {
+    "home": null,
+    "class": "classroom-1c",
+    "club": "field"
+  }
 }

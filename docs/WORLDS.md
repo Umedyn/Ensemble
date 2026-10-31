@@ -82,6 +82,7 @@ With no `starts` the picker offers only **✦ Make my own start** (as if the wor
 | `skillPenalties`, `revealPressure` | object, string[] | optional; roll penalties from health and needs, and which needs count as pressure on secrets. Defaults are today's values. Starts may override |
 | `factions` | | as today; starts may override `stance`. Optional `color` (1–8) picks one of eight theme colours for the regions a group holds on the world map; without it, one is picked from the id. Optional `allies` and `enemies` (group ids, task G-6): the player's standing with this group spreads to them, a quarter of each change, the same way and the other way |
 | `reputation` | object | optional (task G-6): the player's standing with each group at the start, `{group id: −100..100}` (default 0). Starts and `playerSlot` may override it by group. See [Standing with the groups](#standing-with-the-groups) |
+| `authorNote` | string | optional: a note for whoever edits the world; the game never reads it |
 | `routines` | object | optional (task G-7): named routines, where people usually are by type of day and hour. See [Routines](#routines) |
 | `world` | object | world-status defaults; starts may add or override keys |
 | `eventRates`, `eventSeeds`, `majorEventDays`, `majorHorizonDays`, `majorSeeds`, `revealSkills` | | as today; starts may override. An `eventSeeds` idea is text or `{text, region}` (a known region id); regional ideas for regions away from the player are left out of prompts |
@@ -253,6 +254,11 @@ Task G-7. Where people usually are, hour by hour, with no model call. Optional: 
 - **What pauses it.** Death, being badly hurt, a need at its worst, an emergency around them. They catch up when it ends.
 - **Away.** `status.away` holds the place word, and `location` stays the room they left by. They are not present anywhere or on the map, the card says "at home" or "away", and they come back through that room.
 - **Needs.** People following a routine offscreen settle their needs, like people in the background.
+- **Over the years** (task G-9). A timeline event's `routines`, `[{"id": "rin", "places": {"class": "classrooms-2"}}, {"id": "reiko", "routine": null}]`, changes someone's day from then on: a new class, a new routine, or none. It reaches people who haven't joined yet. A graduate moved by `moves` needs `"routine": null`, or the next slot brings them back.
+- **Cards** (task G-9). A card's details show today's slots ("Usually: 8–12 Class 1-C; 15–18 Sports Field"), without private ones.
+- **In the creator** (task G-9). The Routines tab edits named routines, and the character form picks one and fills its places (`home=sora-room, work=away`). Own `slots` are kept but edited in the file.
+- **Generated starts** (task G-9). The people step may give someone one of the world's routines; place words it doesn't fill with a room it made are off the map.
+- **Bundled examples.** Seiryo High (school days, breaks, family and dorm routines, classes moving up each April) and Ares Deep (crew shifts). The holdout has none on purpose (`authorNote` in its world, a line only authors read).
 
 ### Presence and unknown regions
 

@@ -296,7 +296,7 @@ test('validation says what is wrong with a routine in plain words', () => {
 });
 
 test('a world without routines gets no routine state', () => {
-  const { E, state } = newGame('mars-station');
+  const { E, state } = newGame('zombie-holdout');
   E.Engine.advanceTime(state, 30, { events: [] });
   assert.ok(Object.values(state.characters).every((c) => !c.routineState && !c.status.away));
 });

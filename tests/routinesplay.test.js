@@ -223,13 +223,10 @@ test('offstage people held from their routine say where they usually are, in the
 test('"I sit through class" from the gate at 07:09 goes to class', async () => {
   const g = newGame('seiryo-high', 'hayakawa');
   const { E, state } = g;
-  state.scenario.routines = { student: { slots: [{ from: 8, to: 12, at: ['class'] }, { from: 12, to: 13, at: ['cafeteria'] }] } };
-  Object.assign(state.characters.sora, { routine: 'student' });
-  delete state.characters.sora.places;
   state.characters.sora.status.location = 'gate';
   state.time.hour = 7 + 9 / 60;
   reply(g, { scene: '[+45m] Sora finds a seat in Class 1-B.\n\n[+170m] The lesson drags on.' });
   const out = await E.Engine.runTurn(state, 'I sit through class.', 'hours');
-  assert.equal(state.characters.sora.status.location, 'classroom-1b', 'the room their role names');
-  assert.ok(out.res.routineDay.stops[0].at <= 51, 'there by the bell');
+  assert.equal(state.characters.sora.status.location, 'classroom-1b');
+  assert.ok(out.res.routineDay.stops.some((s) => s.room === 'classroom-1b' && s.at <= 51), 'there by the bell');
 });

@@ -307,7 +307,7 @@
   // The character as a file to keep: what an authored character file holds,
   // without play state.
   CM.toFile = function (c) {
-    const keep = ['id', 'name', 'pronouns', 'role', 'people', 'age', 'traits', 'want', 'secret', 'guard', 'voice', 'description', 'appearance', 'portrait', 'skills', 'relations'];
+    const keep = ['id', 'name', 'pronouns', 'role', 'people', 'age', 'traits', 'want', 'secret', 'guard', 'voice', 'description', 'appearance', 'portrait', 'skills', 'routine', 'places', 'relations'];
     const out = {};
     keep.forEach((k) => { if (c[k] !== undefined) out[k] = E.clone(c[k]); });
     return out;
@@ -357,6 +357,8 @@
     f.needs = isObj(d.needs) ? Object.assign({}, d.needs) : {};
     f.needsOff = d.needsOff === true ? (sc.needs || []).map((n) => n.id) : Array.isArray(d.needsOff) ? d.needsOff.slice() : [];
     f.groups = E.WorldEdit ? E.WorldEdit.show('groups', d.groups) : '';
+    f.routine = typeof d.routine === 'string' ? d.routine : '';
+    f.places = E.WorldEdit ? E.WorldEdit.show('places', d.places) : '';
     return f;
   };
   // The form → { character } (a pool file) or { errors }. original: the file
@@ -414,8 +416,13 @@
     set('needsOff', CM.needsOffField(sc, f.needsOff));
     // Memberships (task G-6), as "resistance, vichy=favored".
     if (E.WorldEdit) { const g = E.WorldEdit.parse('groups', f.groups || ''); set('groups', g.value); }
+    // Their routine (task G-9), and the places it needs: "home=sora-room, work=away".
+    set('routine', f.routine || undefined);
+    if (E.WorldEdit) { const p = E.WorldEdit.parse('places', f.places || ''); set('places', p.value); }
     const locIds = new Set((sc.locations || []).map((l) => l.id));
     const check = Object.assign({}, c, { status: Object.assign({}, c.status, { location: sc.playerSlot.location }) });
+    // A person's places depend on the start's rooms: the world's own check covers them.
+    ['routine', 'places', 'slots'].forEach((k) => delete check[k]);
     errors.push(...E.Scenario.characterProblems(check, sc, locIds, sc.characters.concat(c.id)));
     return errors.length ? { errors } : { character: c };
   };

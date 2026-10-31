@@ -44,5 +44,10 @@
       "id": "mission",
       "role": "favored"
     }
-  ]
+  ],
+  "routine": "crew-day",
+  "places": {
+    "work": "lab",
+    "second": "ops"
+  }
 }
