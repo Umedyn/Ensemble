@@ -5036,6 +5036,17 @@
     });
     return missing;
   };
+  // How much of a scene is the last one again: the share of its content
+  // words the last scene had (0–1). Short scenes don't count.
+  Eng.REPEAT_SHARE = 0.8;
+  Eng.REPEAT_WARMER = 0.2;
+  Eng.sceneRepeats = function (state, prose) {
+    const last = state.recent && state.recent[state.recent.length - 1];
+    const prev = contentWords(last && last.text);
+    const w = [...contentWords(String(prose || '').replace(/\[\s*\+\s*\d[^\]]*\]/g, ''))];
+    if (prev.size < 8 || w.length < 10) return 0;
+    return w.filter((x) => prev.has(x)).length / w.length;
+  };
   // The low and top of a range in words ("100–200").
   const range = (r) => { const n = String(r).match(/\d+/g) || ['0']; return [Number(n[0]), Number(n[n.length - 1])]; };
   // A narration call's stopAt, and onText for the phase line ("… 140 words").
@@ -5069,10 +5080,10 @@
     const { present, action, frame, res } = p;
     phase('Writing the scene…');
     const target = { words: range(frame.words || E.Prompts.LENGTH.scene.words), beats: E.Prompts.LENGTH.beats[frame.stepId] || E.Prompts.LENGTH.beats.hour, span: frame.spanMinutes, unplayed: Eng.oneBeat(frame.stepId) ? (text) => Eng.sceneMissing(state, text, res, action) : null };
-    const narrateOnce = async () => Eng.cleanScene(await sceneCall(Object.assign({
+    const narrateOnce = async (temperature) => Eng.cleanScene(await sceneCall(Object.assign({
       kind: frame.correction ? 'narrate (retry)' : 'narrate', system, user: E.Prompts.narrate(state, present, action, frame, res),
       maxTokens: Math.round(E.settings.narrateTokens * (step.lengthMult || 1)),
-    }, streamOpts(state, phase, frame.correction ? 'Rewriting the scene…' : 'Writing the scene…', target)), res), res, state);
+    }, temperature != null ? { temperature } : {}, streamOpts(state, phase, frame.correction ? 'Rewriting the scene…' : 'Writing the scene…', target)), res), res, state);
     let prose = await narrateOnce();
     const playerOut = res.outcomes && res.outcomes.find((o) => o.id === state.player);
     const via = playerOut && playerOut.via ? [frame.startLoc].concat(playerOut.via) : null;
@@ -5096,8 +5107,24 @@
       }
     }
     if (!prose) throw new Error('The model returned an empty scene.');
-    // One rewrite for a turn (task L-4): after a relocation retry, the scene stands.
-    const left = strayed || !Eng.oneBeat(frame.stepId) ? [] : Eng.sceneMissing(state, prose, res, action);
+    // A near copy of the last scene (the owner's playtests on a 12B): one
+    // rewrite, a little warmer, kept only if it repeats less.
+    const copied = strayed ? 0 : Eng.sceneRepeats(state, prose);
+    if (copied >= Eng.REPEAT_SHARE) {
+      guard(res, 'scene', 'repeat regenerated', `${Math.round(copied * 100)}% of the first draft's words were the last scene's`);
+      phase('Rewriting the scene…');
+      frame.correction = 'Your previous draft repeated the last scene. Write what happens next, in new words.';
+      const retry = await narrateOnce(Math.min(1.3, (E.settings.temperature ?? 0.8) + Eng.REPEAT_WARMER));
+      if (retry && !Eng.findRelocation(state, retry, frame.startLoc, via) && Eng.sceneRepeats(state, retry) < copied) prose = retry;
+      else guard(res, 'scene', 'repeat still there', 'the rewrite repeated as much, so the first draft stands');
+    }
+    // One rewrite for a turn (task L-4): after a relocation or repeat retry,
+    // the scene stands. Only the player's own action left out costs a
+    // rewrite; someone else's line left out is only noted (the owner's guard
+    // tally: 41 of 96 rewrites were no better, most for others' lines).
+    const omitted = strayed || copied >= Eng.REPEAT_SHARE || !Eng.oneBeat(frame.stepId) ? [] : Eng.sceneMissing(state, prose, res, action);
+    const left = omitted.filter((m) => m.startsWith('your action: '));
+    if (omitted.length > left.length) guard(res, 'scene', 'outcome left out', omitted.filter((m) => !left.includes(m)).join('; '));
     if (left.length) {
       guard(res, 'scene', 'outcome regenerated', `the first draft left out ${left.join('; ')}`);
       phase('Rewriting the scene…');
@@ -5194,10 +5221,22 @@
     try {
       const old = E.Prefs.get(GUARD_TALLY) || {};
       const types = Object.assign({}, old.types);
-      guards.forEach((g) => { types[g.type] = (types[g.type] || 0) + 1; });
+      guards.forEach((g) => {
+        types[g.type] = (types[g.type] || 0) + 1;
+        const why = g.type === 'update rejected' && Eng.rejectReason(g.detail);
+        if (why) types[`update rejected: ${why}`] = (types[`update rejected: ${why}`] || 0) + 1;
+      });
       Promise.resolve(E.Prefs.set(GUARD_TALLY, { turns: (old.turns || 0) + 1, types })).catch(() => {});
     } catch (e) { /* a tally is never worth a turn */ }
   }
+  // Why the update step's change was refused, without what it named:
+  // "{…} — the player's mood comes from the player" → "the player's mood comes from the player".
+  Eng.rejectReason = function (detail) {
+    const s = String(detail || '');
+    const i = s.lastIndexOf(' — ');
+    if (i < 0) return null;
+    return s.slice(i + 3).replace(/\([^)]*\)/g, '').replace(/"[^"]*"/g, '…').replace(/\s+/g, ' ').trim().slice(0, 70) || null;
+  };
   // The tally as text, most fired first.
   Eng.guardTally = function () {
     const t = E.Prefs.get(GUARD_TALLY) || {};

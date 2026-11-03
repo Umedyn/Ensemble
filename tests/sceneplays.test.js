@@ -86,6 +86,15 @@ test('a rewrite no better than the first draft is dropped, and there is no third
   assert.match(JSON.stringify(out), /outcome still missing/);
 });
 
+test('someone else\'s line left out is only noted: no second call', async () => {
+  const { E } = firstDay();
+  const state = { characters: { me: { id: 'me', name: 'Sora Hayakawa' }, mom: { id: 'mom', name: 'Yumiko Hayakawa', role: 'mother' } }, player: 'me' };
+  const res = { outcomes: [{ id: 'me', action: 'waits' }, { id: 'mom', says: 'Breakfast is on the table', action: 'calls out' }] };
+  const left = E.Engine.sceneMissing(state, 'You wait by the door.', res, 'I wait.');
+  assert.ok(left.some((m) => m.startsWith('Yumiko')), 'the check still finds it');
+  assert.ok(!left.some((m) => m.startsWith('your action')));
+});
+
 test('a scene that played the action costs no second call, and a longer step is not checked', async () => {
   assert.equal((await playScenes([`[+0m] ${hit}`])).calls.length, 1);
   const { E } = firstDay();
