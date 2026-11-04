@@ -82,7 +82,7 @@
       holds: (s, p) => {
         const by = p.by || s.player;
         // Narrated details never drive rules (task B-0b).
-        const facts = s.facts.filter((f) => E.Memory.knows(f, by) && !E.Memory.narrated(f));
+        const facts = s.facts.filter((f) => E.Memory.knows(f, by) && !E.Memory.unproven(f));
         if (typeof p.known === 'string') return facts.some((f) => f.canon === p.known);
         return facts.some((f) => p.known.words.every((w) => E.Lore.matches(w, f.text)));
       },

@@ -1423,6 +1423,7 @@ ${factPlaces(state).length ? `regions and sites around: ${factPlaces(state).join
     const pc = name(state, state.player);
     const g = [
       ['facts', '- 1 to 5 facts: only what actually happened or was revealed. Skip trivia.'],
+      ['facts', '- Something only claimed or rumoured, not shown: start it with "People say" or the speaker\'s name and "says".'],
       ['facts', '- known_by: who witnessed or was told; ["all"] only when everyone at the location would know. Hidden actions: only the actor and anyone who caught them.'],
       ['facts', `- ${pc} knows only what they could see or hear in the scene. Others' motives, plans and secrets are known only by that character unless explicitly revealed.`],
       ['facts', '- weight: 1 minor detail, 2 notable, 3 major turning point (injury, death, betrayal, discovery, confession).'],

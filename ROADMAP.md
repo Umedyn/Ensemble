@@ -294,7 +294,7 @@ Decided 2026-10-30. The engine decides and the model only writes it up; results 
 **Small additions** (cut down 2026-10-31, owner's decision): interactions between turn-path systems caused most recent bugs, so each remaining system is a field on something that exists plus one engine check. Anything needing a new turn step, model call or rewind rule gets cut down first. After these, the work is UI, display and quality of life.
 - [x] **Skills improve with use** (B-8): a real-stakes success adds progress; enough raises the skill by one, capped, at most weekly.
 - [x] **Things spread** (B-2): one rule at commit copies a fact between people sharing a room (trust, one a room a turn, never secrets or anything to the player); no model call.
-- [ ] **Rumours** (B-3): a fact with `source: hearsay`, worded "people say…", that never counts as true (the same check as narration-only facts).
+- [x] **Rumours** (B-3): a fact with `source: hearsay`, worded "people say…", that never counts as true (the same check as narration-only facts).
 - [ ] **Items people carry** (B-6): an `items` list on characters, `{ name, amount? }`, the amount a loose word, never arithmetic; scenes add, the engine only drops clear contradictions.
 - [ ] **Promises** (B-7): a fact with who it's owed to, a due time and a cost the engine applies when broken. Dropped at the start if it only repeats memory and the reckoning.
 - ~~**Light and private places** (B-4, B-5)~~: dropped 2026-10-31; the model handles both from the time and place.

@@ -402,7 +402,7 @@
     if (!Eng.hiddenRegions(state).size) return;
     const here = Eng.playerRegion(state);
     if (here && !Eng.regionKnown(state, here)) Eng.revealRegion(state, here, res, 'the player is there');
-    (state.facts || []).filter((f) => E.Memory.knows(f, state.player) && !E.Memory.narrated(f)).forEach((f) => Eng.revealNamed(state, f.text, res, 'the player knows a fact about it'));
+    (state.facts || []).filter((f) => E.Memory.knows(f, state.player) && !E.Memory.unproven(f)).forEach((f) => Eng.revealNamed(state, f.text, res, 'the player knows a fact about it'));
   };
   // ---------- where the player has been (task 7-7) ----------
   // Every region the player has been in, with the regions it is inside;
@@ -2034,7 +2034,7 @@
   function leaksSecret(state, id, text) {
     const c = state.characters[id];
     if (!c || !text) return false;
-    const secretWords = contentWords([c.secret].concat(E.Memory.privateFacts(state, id).map((f) => f.text)).join(' '));
+    const secretWords = contentWords([c.secret].concat(E.Memory.privateFacts(state, id).filter((f) => !E.Memory.unproven(f)).map((f) => f.text)).join(' '));
     const said = contentWords(text);
     let hits = 0;
     said.forEach((w) => { if (secretWords.has(w)) hits++; });
@@ -2045,7 +2045,7 @@
   // character hides (their secret or private facts).
   function touchesSecret(state, id, text) {
     const c = state.characters[id];
-    const secretWords = contentWords([c.secret].concat(E.Memory.privateFacts(state, id).map((f) => f.text)).join(' '));
+    const secretWords = contentWords([c.secret].concat(E.Memory.privateFacts(state, id).filter((f) => !E.Memory.unproven(f)).map((f) => f.text)).join(' '));
     return [...contentWords(text)].some((w) => secretWords.has(w));
   }
 
@@ -3351,7 +3351,8 @@
       const same = recorded(f.text, known);
       if (same) return reject('fact', `already recorded: "${E.shorten(same.text, 80)}" (${E.shorten(String(f.text), 60)})`);
       const where = home(f, 'fact');
-      const fact = E.Memory.addFact(state, { about, text: f.text, known_by: known, weight: f.weight, where, source: 'intent' });
+      // Worded as said ("People say…", "Teo says…"): hearsay, never true for the engine (task B-3).
+      const fact = E.Memory.addFact(state, { about, text: f.text, known_by: known, weight: f.weight, where, source: E.Memory.saidWords(f.text) ? 'hearsay' : 'intent' });
       if (fact.weight >= 3) state.flags.chapterWorthy = true;
       // An individual extra in a notable fact comes to matter (task 2-3).
       about.filter((x) => extraIds.has(x) && !state.extras[x].group && !state.extras[x].promote && fact.weight >= 2).forEach((x) => {

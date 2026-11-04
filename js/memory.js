@@ -19,6 +19,8 @@
     // what happened) or "narration" (a detail the scene said); no field: the
     // engine or the author.
     if (f.source) fact.source = f.source;
+    // Hearsay (task B-3) always reads as said, never as fact.
+    if (fact.source === 'hearsay' && !Mem.saidWords(fact.text)) fact.text = E.clip(`People say ${fact.text.replace(/^(?:The|A|An|It|There|This|That|Someone|Somebody|He|She|They)\b/, (w) => w.toLowerCase())}`, 220);
     state.facts.push(fact);
     return fact;
   };
@@ -32,6 +34,18 @@
   // They stay at their home through chapter closes, so they are neither in the
   // core nor rolled up, and a close doesn't free them.
   Mem.narrated = (f) => f.source === 'narration';
+  // Hearsay (task B-3): what people are saying, recorded as said. Like a
+  // narrated detail it is never true for the engine: rules read only proven
+  // facts (`Mem.unproven` covers both sources).
+  Mem.hearsay = (f) => f.source === 'hearsay';
+  Mem.unproven = (f) => Mem.narrated(f) || Mem.hearsay(f);
+  // Text worded as said: "People say…", "Word is…", "Teo says…".
+  Mem.SAID = [
+    /^(?:people|everyone|everybody|someone|somebody|folks?|they)\b[^.;:]{0,30}?\b(?:say|says|said|claim|claims|reckon|whisper|whispers|swear)\b/i,
+    /^(?:word|rumou?r|the (?:rumou?r|word|talk|story)) (?:is|goes|has it)\b/i,
+    /^(?:[A-Z][\w.'-]*\s){1,3}(?:says|said|claims|claimed|insists|swears)\b/,
+  ];
+  Mem.saidWords = (text) => Mem.SAID.some((re) => re.test(String(text || '').trim()));
   Mem.rollable = (state) => Mem.liveFacts(state).filter((f) => !Mem.narrated(f));
   Mem.DETAILS_PER_HOME = 5;
   // Past the cap the oldest detail at that home goes. → the dropped facts.
