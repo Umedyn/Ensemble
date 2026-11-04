@@ -230,7 +230,7 @@
       const ts = k > 1 ? ` style="font-size:${n1(9.5 * k)}px"` : '';
       const badges = tags.map((t) => {
         const w = (t.length * 5.3 + 8) * k;
-        const out = `<rect class="region-tag" x="${n1(tx)}" y="${n1(ay + 7 * k)}" width="${n1(w)}" height="${n1(14 * k)}" rx="${n1(7 * k)}"/><text class="region-tag-text" x="${n1(tx + 4 * k)}" y="${n1(ay + 17.5 * k)}"${ts}>${esc(t)}</text>`;
+        const out = `<g class="region-badge" data-tag="${esc(t)}"><rect class="region-tag" x="${n1(tx)}" y="${n1(ay + 7 * k)}" width="${n1(w)}" height="${n1(14 * k)}" rx="${n1(7 * k)}"/><text class="region-tag-text" x="${n1(tx + 4 * k)}" y="${n1(ay + 17.5 * k)}"${ts}>${esc(t)}</text></g>`;
         tx += w + 4 * k;
         return out;
       }).join('');

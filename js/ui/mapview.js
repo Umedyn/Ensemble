@@ -333,7 +333,6 @@
   let mapSel = null; // the region picked for the info strip
   let curLevel = null; // the level drawn last (MapDraw.level)
   const viewBoxes = {}; // per level: the panned/zoomed viewBox, until reset or a new game
-  const pulsed = new Set(); // "id@turn": a change pulses once
   function mapViewAll() { try { return JSON.parse(store.get(MAPVIEW_KEY)) || {}; } catch (e) { return {}; } }
   const hasRegions = () => !!(U.state && (U.state.scenario.regions || []).length);
   // The level shown: "local", "root" (the world) or a region id. Saved
@@ -374,32 +373,31 @@
     }));
     return new Set([...tally].filter(([, t]) => t.closed && !t.open).map(([k]) => k));
   }
-  function levelHtml(levelId) {
+  // The beat being read: 0-based.
+  const beatShown = () => (U.uiCut || U.uiShown) - 1;
+  // A region level as of a beat of the scene being read (task A-11: a change
+  // shows on the beat that tells it; js/ui/motion.js plays it there).
+  function levelHtml(levelId, beat = beatShown()) {
     const sc = U.state.scenario;
     // Regions the player doesn't know of are left out (R-5); contested ones marked.
     const hidden = E.Engine.hiddenRegions(U.state);
     const lv = curLevel = E.MapDraw.level(sc, levelId, { hidden });
-    const contested = lv.regions.map((r) => r.id).filter((id) => E.Engine.presenceIn(U.state, id).contested);
+    const sr = E.Engine.sceneRegions(U.state, beat);
+    const contested = lv.regions.map((r) => r.id).filter((id) => (sr ? sr.contested.includes(id) : E.Engine.presenceIn(U.state, id).contested));
     // Where the player is at the beat being read (task G-11), so the pin moves
     // along a trip beat by beat (task A-10).
-    const where = sceneView().here;
+    const live = liveScene();
+    const at = live ? E.Engine.sceneAt(U.state, beat) : null;
+    const where = (at && at.player) || U.state.characters[U.state.player].status.location;
     const mine = E.Engine.regionOf(U.state, where);
     const branch = mine ? E.Engine.regionChain(U.state, mine) : [];
-    // A region changed this turn pulses once.
-    const pulse = (sc.regions || []).filter((r) => {
-      const ch = (U.state.regionChanged || {})[r.id];
-      const key = `${r.id}@${U.state.turn}`;
-      if (!ch || ch.turn !== U.state.turn || pulsed.has(key)) return false;
-      pulsed.add(key);
-      return true;
-    }).map((r) => r.id);
     // Rooms placed on the picture, at a leaf (as the regional view had them).
     const rooms = lv.leaf ? lv.rooms.filter((p) => U.state.locations[p.id] && U.state.seenRooms.includes(p.id)).map((p) => ({ x: p.x, y: p.y, name: U.state.locations[p.id].name })) : [];
     const key = levelId == null ? 'root' : levelId;
     // The pin stands on the player's room when the picture places it.
     const placed = lv.rooms.find((p) => p.id === where);
     return E.MapDraw.worldSvg({
-      g: lv.g, regions: lv.regions, now: U.state.regions, factions: U.state.factions, mine, branch, selected: mapSel, pulse, rooms, contested,
+      g: lv.g, regions: lv.regions, now: sr ? sr.regions : U.state.regions, factions: U.state.factions, mine, branch, selected: mapSel, rooms, contested,
       here: placed ? { x: placed.x, y: placed.y } : null,
       places: lv.picture ? E.MapDraw.placesOf(lv.picture) : [], dim: lv.dim, closed: lv.picture ? null : closedEdges(lv),
 
@@ -421,21 +419,25 @@
     if (!r) return '<div class="region-info muted">Pick a region to see who holds it.</div>';
     const now = U.state.regions[id];
     const ch = (U.state.regionChanged || {})[id];
-    const fc = factionClass(now.controller);
+    const shownNow = (E.Engine.sceneRegions(U.state, beatShown()) || { regions: U.state.regions }).regions[id] || now;
+    const fc = factionClass(shownNow.controller);
     // Where it sits in the tree (R-1): the regions it is inside, each a level to go to.
     const up = E.Engine.regionChain(U.state, id).slice(1);
     const label = E.Scenario.regionLabel(U.state.scenario, id);
     const inWords = up.length ? ` in ${up.map((x) => `<button type="button" class="linkish" data-maplevel="${esc(x)}">${esc(regionName(x))}</button>`).join(' › ')}` : '';
     const zoom = id !== lv.id ? ` <button type="button" class="small" data-maplevel="${esc(id)}">Zoom in ›</button>` : '';
     const bits = [`<b>${esc(r.name)}</b>${label ? `, ${/^[aeiou]/i.test(label) ? 'an' : 'a'} ${esc(label)}` : ''}${inWords}${id === E.Engine.playerRegion(U.state) ? ' (you are here)' : ''}${zoom}`,
-      `<span class="swatch ${fc}"></span>held by ${esc(E.Engine.regionHolder(U.state, id).text)}`];
-    if (now.status) bits.push(esc(now.status));
-    if (now.tags.length) bits.push(`tags: ${esc(now.tags.join(', '))}`);
+      `<span class="swatch ${fc}"></span>held by ${esc(shownNow.controller !== now.controller ? E.MapDraw.factionName(U.state.factions, shownNow.controller) : E.Engine.regionHolder(U.state, id).text)}`];
+    if (shownNow.status) bits.push(esc(shownNow.status));
+    if (shownNow.tags.length) bits.push(`tags: ${esc(shownNow.tags.join(', '))}`);
     // Who else is there (R-5).
     const present = E.Engine.presenceText(U.state, id);
     if (present) bits.push(`present: ${esc(present)}`);
     let html = `<div class="region-info" id="regionInfo">${bits.join(' · ')}`;
-    if (ch && ch.turn === U.state.turn) html += `<div class="changed">This turn: ${esc(ch.what.join(', '))}.</div>`;
+    // Only once the scene has told it (task A-11).
+    const sr = E.Engine.sceneRegions(U.state, beatShown());
+    const told = !sr || !sr.changes.some((c) => c.region === id && c.beat > beatShown());
+    if (ch && ch.turn === U.state.turn && told) html += `<div class="changed">This turn: ${esc(ch.what.join(', '))}.</div>`;
     if (r.lore) html += `<div class="muted">${esc(r.lore)}</div>`;
     if (lv.leaf && id === E.Engine.playerRegion(U.state)) {
       const placed = new Set(lv.rooms.map((p) => p.id));
@@ -685,5 +687,6 @@
     store.set(ELSEWHERE_KEY, JSON.stringify(all));
   }, true);
   const mapDrawn = () => drawn;
-  Object.assign(U, { localMapHtml, renderMap, restoreView, renderCast, sceneView, liveScene, mapDrawn });
+  const levelMapHtml = (levelId, beat) => levelHtml(levelId, beat);
+  Object.assign(U, { localMapHtml, renderMap, restoreView, renderCast, sceneView, liveScene, mapDrawn, levelMapHtml });
 })();

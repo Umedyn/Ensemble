@@ -243,4 +243,42 @@
     }));
     return out;
   };
+
+  // ---------- outlines that move (task A-11) ----------
+  // A ring as n points evenly spaced along its edge, from its first point.
+  G.resample = function (ring, n) {
+    const pts = ring.length && ring[0][0] === ring[ring.length - 1][0] && ring[0][1] === ring[ring.length - 1][1] ? ring.slice(0, -1) : ring.slice();
+    if (pts.length < 2 || n < 1) return pts.slice(0, n);
+    const seg = pts.map((a, i) => { const b = pts[(i + 1) % pts.length]; return Math.hypot(b[0] - a[0], b[1] - a[1]); });
+    const total = seg.reduce((s, x) => s + x, 0);
+    if (!total) return Array.from({ length: n }, () => pts[0].slice());
+    const out = [];
+    let i = 0, walked = 0;
+    for (let k = 0; k < n; k++) {
+      const want = (total * k) / n;
+      while (walked + seg[i] < want && i < pts.length - 1) { walked += seg[i]; i++; }
+      const a = pts[i], b = pts[(i + 1) % pts.length];
+      const t = seg[i] ? (want - walked) / seg[i] : 0;
+      out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+    }
+    return out;
+  };
+  const signed = (ring) => ring.reduce((s, a, i) => { const b = ring[(i + 1) % ring.length]; return s + a[0] * b[1] - b[0] * a[1]; }, 0);
+  // Two outlines as a function of t (0: the first, 1: the second): both
+  // resampled to the same number of points, the second turned the same way
+  // round and started at the point nearest the first's start, so the shape
+  // moves rather than twists.
+  G.morph = function (a, b, n) {
+    n = Math.max(3, n || Math.max(a.length, b.length));
+    const ra = G.resample(a, n);
+    let rb = G.resample(Math.sign(signed(a)) !== Math.sign(signed(b)) ? b.slice().reverse() : b, n);
+    let best = 0, bestD = Infinity;
+    for (let s = 0; s < n; s++) {
+      let d = 0;
+      for (let k = 0; k < n; k++) { const p = ra[k], q = rb[(k + s) % n]; d += (p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2; }
+      if (d < bestD) { bestD = d; best = s; }
+    }
+    rb = rb.slice(best).concat(rb.slice(0, best));
+    return (t) => ra.map((p, k) => [p[0] + (rb[k][0] - p[0]) * t, p[1] + (rb[k][1] - p[1]) * t]);
+  };
 })(typeof window !== 'undefined' ? window : globalThis);

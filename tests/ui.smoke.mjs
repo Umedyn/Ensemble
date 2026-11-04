@@ -2377,6 +2377,94 @@ await check('settings: Map motion, and Reduce motion keeping it to fades', async
   assert.equal(await page.evaluate(() => window.Ensemble.Motion.mode(window.Ensemble.settings.appearance)), 'off', 'the game reads it');
 });
 
+// Territory (task A-11): the Ridge takes the junction, next to Ridge town.
+// The mock's scene for "I check the windows" names the junction on its second beat.
+const TAKE = { text: 'Ridge militia trucks take the crossroads.', scope: 'regional', region: 'junction', visibility: 'heard',
+  effects: { control: [{ region: 'junction', to: 'ridge' }], add_tag: [{ region: 'junction', tag: 'checkpoint' }] } };
+async function withTakeover(page) {
+  await page.route('http://localhost:5001/v1/chat/completions', async (route) => {
+    const res = await route.fetch();
+    let text = await res.text();
+    try {
+      const j = JSON.parse(text);
+      const c = j.choices && j.choices[0] && j.choices[0].message;
+      // The events part (task L-3), with or without the mock's own world event.
+      if (c && typeof c.content === 'string' && c.content.includes('"events":[')) {
+        c.content = c.content.includes('"events":[]') ? c.content.replace('"events":[]', `"events":[${JSON.stringify(TAKE)}]`) : c.content.replace('"events":[', `"events":[${JSON.stringify(TAKE)},`);
+        text = JSON.stringify(j);
+      }
+    } catch (e) { /* a stream: the narration, left as it is */ }
+    await route.fulfill({ response: res, body: text });
+  });
+  await pickWorld(page, 'server:zombie-holdout');
+  await newGame(page);
+  await page.evaluate(() => { window.Ensemble.rng = () => 0.0001; });
+}
+const junctionClass = (page) => page.getAttribute('#worldSvg .region-g[data-region="junction"] .region-shape', 'class');
+const ridgeClass = (page) => page.evaluate(() => window.Ensemble.MapDraw.factionClass(window.Ensemble.UI.state.factions, 'ridge'));
+const readTo = async (page, n) => { for (let i = 1; i < n; i++) await page.click('button[data-next]'); };
+
+await check('territory: a control change waits for its beat, then sweeps in and ends in the new holder\'s colour', async (page) => {
+  await withTakeover(page);
+  await page.click('[data-maplevel="root"]');
+  await page.waitForSelector('#worldSvg .region-g[data-region="junction"]');
+  await act(page, 'I check the windows.');
+  assert.equal(await page.evaluate(() => window.Ensemble.UI.state.regions.junction.controller), 'ridge', 'the turn has played');
+  const ridge = await ridgeClass(page);
+  assert.ok(!(await junctionClass(page)).includes(ridge), 'first beat: the scene has not told it yet');
+  assert.ok(!/checkpoint/.test(await page.textContent('#worldSvg')), 'nor its tag');
+  await page.click('button[data-next]');
+  assert.equal(await page.locator('#worldSvg .region-was[data-sweep]').count(), 1, 'the old colour is wiped away from Ridge town\'s side');
+  await page.screenshot({ path: path.join(shots, 'territory-sweep.png') });
+  await page.waitForFunction(() => !document.querySelector('#worldSvg .region-was'), null, { timeout: 4000 });
+  assert.ok((await junctionClass(page)).includes(ridge), 'and it ends the Ridge\'s');
+  assert.equal(await page.locator('#worldSvg .region-g[data-region="junction"] .region-badge[data-tag="checkpoint"]').count(), 1, 'with its new tag');
+});
+
+await check('territory: with the floor plan up, the region level shows first, then the people', async (page) => {
+  await withTakeover(page);
+  await act(page, 'I check the windows.');
+  assert.equal(await page.locator('#mapPane svg.sd').count(), 1, 'the floor plan');
+  await page.click('button[data-next]');
+  assert.equal(await page.locator('#mapPane .map-detour #worldSvg').count(), 1, 'the world shifts first');
+  await page.waitForFunction(() => document.querySelector('#mapPane svg.sd') && !document.querySelector('#mapPane .map-detour'), null, { timeout: 5000 });
+  assert.ok(true, 'then back to where you are');
+});
+
+await check('territory: an unknown region never animates; it just appears when found', async (page) => {
+  await withTakeover(page);
+  await editSave(page, (s) => { s.regions.junction.known = false; });
+  await page.reload();
+  await sceneReady(page);
+  await page.evaluate(() => { window.Ensemble.rng = () => 0.0001; });
+  await page.click('[data-maplevel="root"]');
+  assert.equal(await page.locator('#worldSvg .region-g[data-region="junction"]').count(), 0, 'not on the map');
+  await act(page, 'I check the windows.');
+  await readTo(page, 3);
+  assert.equal(await page.locator('#worldSvg .region-was').count(), 0, 'no sweep');
+  assert.equal(await page.locator('#worldSvg .region-g[data-region="junction"]').count(), 1, 'found by the public event: on the map');
+});
+
+await check('territory: with map motion off, the map just updates', async (page) => {
+  await withTakeover(page);
+  await page.evaluate(() => { window.Ensemble.settings.appearance.mapMotion = 'off'; });
+  await page.click('[data-maplevel="root"]');
+  await act(page, 'I check the windows.');
+  await readTo(page, 3);
+  assert.equal(await page.locator('#worldSvg .region-was').count(), 0);
+  assert.ok((await junctionClass(page)).includes(await ridgeClass(page)), 'the Ridge\'s at once');
+});
+
+await check('phone: territory pops the map up on the region\'s level, then puts it away', async (page) => {
+  await withTakeover(page);
+  await act(page, 'I check the windows.');
+  await page.click('button[data-next]');
+  assert.ok(await page.locator('#story.map-pop').count(), 'the map pops up');
+  assert.equal(await page.locator('#mapPane .map-detour #worldSvg').count(), 1, 'on the region level');
+  await page.screenshot({ path: path.join(shots, 'territory-phone.png') });
+  await page.waitForFunction(() => !document.querySelector('#story.map-pop'), null, { timeout: 6000 });
+});
+
 // The landing page (task A-7).
 const landingReady = async (page) => { await page.goto(BASE); await pageReady(page); };
 for (const phone of [false, true]) {

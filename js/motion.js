@@ -40,8 +40,9 @@
   // Is now the scene read on from prev: the same place, and the next beats
   // of the same turn, or a new turn's first? Undo, a reroll, a step-in, a
   // load and a move to another place never animate.
-  M.forward = (prev, now) => !!(prev && now && prev.key === now.key && !now.cut &&
+  M.readOn = (prev, now) => !!(prev && now && !now.cut &&
     ((now.turn === prev.turn && now.shown > prev.shown) || (now.turn === prev.turn + 1 && now.shown === 1)));
+  M.forward = (prev, now) => !!(prev && now && prev.key === now.key && M.readOn(prev, now));
 
   // The beats now revealed for the first time (0-based).
   const revealed = (prev, now) => {
@@ -125,5 +126,33 @@
     });
     Object.entries(now.groups).forEach(([id, st]) => { if (id in prev.groups && prev.groups[id] !== st) out.groups.push(id); });
     return out;
+  };
+
+  // ---------- territory (task A-11) ----------
+  // The region changes on the beats just revealed (Eng.sceneRegions), the
+  // world shifting before the people move. Whichever map is drawn: the game
+  // shows the region's level first when the floor plan is up.
+  M.regionChanges = function (state, prev, now) {
+    if (!M.readOn(prev, now)) return [];
+    const beats = new Set(revealed(prev, now));
+    const sr = E.Engine.sceneRegions(state, now.shown - 1);
+    return sr ? sr.changes.filter((c) => beats.has(c.beat)) : [];
+  };
+  // The neighbour a new holder sweeps in from: a region next to this one that
+  // it holds (as the map shows it at this beat), or null for a crossfade.
+  M.front = function (state, id, holder, regions) {
+    if (!holder) return null;
+    const defs = state.scenario.regions || [];
+    const def = defs.find((r) => r.id === id) || {};
+    const near = new Set((def.neighbours || []).concat(defs.filter((r) => (r.neighbours || []).includes(id)).map((r) => r.id)));
+    return [...near].find((n) => n !== id && E.Engine.regionKnown(state, n) && ((regions || state.regions)[n] || {}).controller === holder) || null;
+  };
+  // The level to show the changes on: the deepest region all of them are
+  // drawn inside (each is drawn on its parent's level); null is the world.
+  M.level = function (state, ids) {
+    const parentOf = (id) => ((state.scenario.regions || []).find((r) => r.id === id) || {}).parent ?? null;
+    const chains = ids.map((id) => { const p = parentOf(id); return p == null ? [] : E.Engine.regionChain(state, p); });
+    if (!chains.length || chains.some((c) => !c.length)) return null;
+    return chains[0].find((x) => chains.every((c) => c.includes(x))) ?? null;
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -1023,6 +1023,55 @@
       .filter((id) => (id in people ? people[id] === player : Eng.isAt(state, id, player)));
     return { player, people, time: { day, hour }, with: withPlayer };
   };
+  // The region changes the player learns of in the scene being read (task
+  // A-11), the territory's equal of sceneMoves: read-only, changing no rule
+  // or prompt. A change shows on the first beat naming the region or the
+  // event behind it, else the first (the news says it from the start). Only regions known before the turn and
+  // now: one found this turn just appears, and an unknown one never shows.
+  // → { changes: [{ region, beat, controller: [was, is] | null, tagsAdded,
+  // tagsGone, status: bool, presence: bool, contested: [was, is] }],
+  // regions: { id: { controller, tags, status } } as of the beat, contested:
+  // [ids] as of the beat } or null with no scene being read.
+  Eng.sceneRegions = function (state, beat) {
+    const p = state.pending;
+    if (!p || !p.pre || !p.pre.regions || !state.regions) return null;
+    const beats = p.beats || [];
+    const last = Math.max(0, beats.length - 1);
+    const director = (p.res && p.res.director) || [];
+    const changes = [];
+    Object.keys(state.regions).forEach((id) => {
+      const was = p.pre.regions[id], is = state.regions[id];
+      if (!was || !Eng.regionKnown(state, id) || !Eng.regionKnown(p.pre, id)) return;
+      const wasC = Eng.presenceIn(p.pre, id).contested, isC = Eng.presenceIn(state, id).contested;
+      const strengths = (st) => JSON.stringify(Object.keys(st.presence || {}).sort().map((g) => [g, Number((st.presence[g] || {})[id]) || 0]).filter(([, v]) => v));
+      const presence = strengths(p.pre) !== strengths(state);
+      const ch = {
+        region: id,
+        controller: was.controller !== is.controller ? [was.controller, is.controller] : null,
+        tagsAdded: is.tags.filter((t) => !was.tags.includes(t)), tagsGone: was.tags.filter((t) => !is.tags.includes(t)),
+        status: was.status !== is.status, presence, contested: [wasC, isC],
+      };
+      if (!ch.controller && !ch.tagsAdded.length && !ch.tagsGone.length && !ch.status && !presence && wasC === isC) return;
+      const name = (Eng.regionDef(state, id) || {}).name || id;
+      const told = director.filter((d) => d.visibility !== 'hidden' && (d.region === id || (d.effects || []).some((x) => String(x).startsWith(name + ':'))));
+      const hit = beats.findIndex((b) => E.Lore.matches(name, b.text) || told.some((d) => {
+        const words = Eng.contentWords(d.text), seen = Eng.contentWords(b.text);
+        return [...words].filter((w) => seen.has(w)).length >= 2;
+      }));
+      changes.push(Object.assign(ch, { beat: hit < 0 ? 0 : hit }));
+    });
+    // beat -1: before any beat (the turn's start, for the map to play from).
+    const i = Math.max(-1, Math.min(beat, last));
+    const regions = {};
+    const contested = [];
+    Object.keys(state.regions).forEach((id) => {
+      const later = changes.find((c) => c.region === id && c.beat > i);
+      const src = later ? p.pre.regions[id] : state.regions[id];
+      regions[id] = Object.assign({}, state.regions[id], { controller: src.controller, tags: src.tags.slice(), status: src.status });
+      if (later ? later.contested[0] : Eng.presenceIn(state, id).contested) contested.push(id);
+    });
+    return { changes, regions, contested };
+  };
   // The words a scene uses for someone: their full name, a first name or
   // surname of 3+ letters, or a group's label ("the dead", "stragglers").
   Eng.moverNames = function (state, id) {

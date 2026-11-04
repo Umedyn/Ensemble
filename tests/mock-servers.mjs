@@ -106,6 +106,8 @@ function answer(user) {
   }
   if (user.includes('Write the next scene')) {
     if (/=== PLAYER ACTION[^\n]*\n"[^"\n]*tell me everything/i.test(user)) return LONG_SCENE;
+    // Task A-11: news from the junction on the second beat.
+    if (/=== PLAYER ACTION[^\n]*\n"[^"\n]*check the windows/i.test(user)) return '[+0m] You check the boards on the front windows.\n\n[+20m] Gunfire carries from the highway junction: Ridge militia trucks have taken the crossroads.\n\n[+40m] Dex swears quietly and goes to the back.';
     return '[+0m] You pry the access panel off the recycler. Teo hovers at your shoulder.\n\n[+30m] Okafor gathers her tablet and heads for Ops.\n\n[+55m] Teo hands you a spanner. "Probably just a sensor issue," he says, a little too fast.';
   }
   if (user.includes(' an agenda: what ')) return JSON.stringify({ routine: true });
