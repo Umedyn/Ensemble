@@ -229,9 +229,31 @@
       `<button type="button" class="small" data-floorplan="${esc(site)}">Show the floor plan</button></div>` + waysHtml(site) +
       `<ul class="sr-only" id="mapList"><li>${esc(l.name)} (you are here): ${esc(who.join(', ') || 'no one you know of')}</li></ul>`;
   }
+  // What the last drawing showed, for moving pieces (task A-10): the place
+  // drawn and how, the tokens by room, the rooms in view, and where rooms'
+  // middles and doors are in map units.
+  let drawn = null;
+  const mid = (b) => ({ x: b.x + b.w / 2, y: b.y + b.h / 2 });
+  function planGeom(plan) {
+    const rooms = {}, doors = {};
+    Object.entries(plan.rooms).forEach(([id, r]) => { rooms[id] = mid({ x: r.x * CELL, y: r.y * CELL, w: r.w * CELL, h: r.h * CELL }); });
+    plan.links.filter((k) => !k.remote && k.x != null).forEach((k) => { doors[[k.a, k.b].sort().join('|')] = { x: k.x * CELL, y: k.y * CELL }; });
+    return { rooms, doors };
+  }
+  function shapeGeom(site) {
+    const rooms = {}, doors = {};
+    E.Sites.rooms(U.state, site).forEach((l) => {
+      if (!l.shape || !l.shape.length) return;
+      const xs = l.shape.map((q) => q[0]), ys = l.shape.map((q) => q[1]);
+      rooms[l.id] = { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (Math.min(...ys) + Math.max(...ys)) / 2 };
+      (l.links || []).forEach((k) => { if (Array.isArray(k.at)) doors[[l.id, k.to].sort().join('|')] = { x: k.at[0], y: k.at[1] }; });
+    });
+    return { rooms, doors };
+  }
   function localMapHtml() {
     const here = sceneView().here;
     const tokens = mapTokens();
+    drawn = { key: null, tokens, inView: E.Engine.visibleRooms(U.state), geom: { rooms: {}, doors: {} } };
     const seen = (id) => U.state.seenRooms.includes(id);
     const roomName = (id) => (seen(id) ? U.state.locations[id].name : 'unknown room');
     const site = E.Sites.siteOf(U.state, here);
@@ -242,15 +264,21 @@
     if (U.state.locations[here].transit) return travelCardHtml(here);
     // A flavour place (R-8) is a scene card until the player asks for the plan.
     if (!im && !lm && !E.Sites.tactical(U.state, site) && !floorPlans.has(site)) return sceneCardHtml(site, here, tokens);
-    if (im) svg = imageMapSvg(site, im, here, tokens);
+    if (im) { svg = imageMapSvg(site, im, here, tokens); drawn.key = `${site}|image`; drawn.geom = shapeGeom(site); }
     else if (lm) {
+      drawn.key = `${site}|picture`;
+      Object.entries(lm.rooms).forEach(([id, r]) => { drawn.geom.rooms[id] = mid(r); });
       const url = U.portraitUrl(lm.image);
       const rooms = Object.entries(lm.rooms).map(([id, r]) => `<g class="map-room${id === here ? ' here' : ''}" tabindex="0" role="button" data-room="${esc(id)}" aria-label="${esc(roomName(id))}"><rect class="floor" x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" style="fill-opacity:0.15"/>${roomTokens(tokens[id] || [], r.x, r.y, r.w, r.h, id)}</g>`).join('');
       svg = `<svg class="map-svg" viewBox="0 0 ${lm.width} ${lm.height}" role="img" aria-label="Map">${url ? `<image href="${esc(url)}" x="0" y="0" width="${lm.width}" height="${lm.height}"/>` : ''}${rooms}</svg>`;
     } else if (E.settings.appearance.mapDetail !== 'simple') {
       svg = detailedMapSvg(here, tokens);
+      drawn.key = `${site}|detailed`;
+      drawn.geom = planGeom(mapPlan());
     } else {
       const plan = mapPlan();
+      drawn.key = `${site}|simple`;
+      drawn.geom = planGeom(plan);
       const W = plan.width * CELL, H = plan.height * CELL;
       const levels = plan.levels.length > 1 ? plan.levels.map((b) => `<text class="map-level" x="${b.x * CELL}" y="${b.y * CELL - 9}">${b.level === 0 ? 'ground floor' : b.level > 0 ? `level ${b.level}` : `below ${-b.level}`}</text>`).join('') : '';
       const rooms = Object.entries(plan.rooms).map(([id, r]) => {
@@ -272,7 +300,7 @@
         return `<line class="map-remote" x1="${(a.x + a.w / 2) * CELL}" y1="${(a.y + a.h / 2) * CELL}" x2="${(b.x + b.w / 2) * CELL}" y2="${(b.y + b.h / 2) * CELL}"/>`;
       }).join('');
       // Doors as they are now: unlocked, open or shut (task 3-6).
-      const marks = plan.links.filter((k) => !k.remote).map((k) => linkMark(Object.assign({}, k, { kind: E.Engine.linkShown(U.state, k.a, k.b) || k.kind }))).join('');
+      const marks = plan.links.filter((k) => !k.remote).map((k) => `<g class="map-link" data-link="${esc([k.a, k.b].sort().join('|'))}">${linkMark(Object.assign({}, k, { kind: E.Engine.linkShown(U.state, k.a, k.b) || k.kind }))}</g>`).join('');
       // Never smaller than about three quarters of full size (the pane scrolls).
       svg = `<svg class="map-svg" viewBox="-4 -4 ${W + 8} ${H + 8}" style="min-width:${Math.round(W * 0.75)}px" role="img" aria-label="Map">${remote}${rooms}${marks}${levels}</svg>`;
     }
@@ -352,7 +380,10 @@
     const hidden = E.Engine.hiddenRegions(U.state);
     const lv = curLevel = E.MapDraw.level(sc, levelId, { hidden });
     const contested = lv.regions.map((r) => r.id).filter((id) => E.Engine.presenceIn(U.state, id).contested);
-    const mine = E.Engine.playerRegion(U.state);
+    // Where the player is at the beat being read (task G-11), so the pin moves
+    // along a trip beat by beat (task A-10).
+    const where = sceneView().here;
+    const mine = E.Engine.regionOf(U.state, where);
     const branch = mine ? E.Engine.regionChain(U.state, mine) : [];
     // A region changed this turn pulses once.
     const pulse = (sc.regions || []).filter((r) => {
@@ -366,7 +397,6 @@
     const rooms = lv.leaf ? lv.rooms.filter((p) => U.state.locations[p.id] && U.state.seenRooms.includes(p.id)).map((p) => ({ x: p.x, y: p.y, name: U.state.locations[p.id].name })) : [];
     const key = levelId == null ? 'root' : levelId;
     // The pin stands on the player's room when the picture places it.
-    const where = U.state.characters[U.state.player].status.location;
     const placed = lv.rooms.find((p) => p.id === where);
     return E.MapDraw.worldSvg({
       g: lv.g, regions: lv.regions, now: U.state.regions, factions: U.state.factions, mine, branch, selected: mapSel, pulse, rooms, contested,
@@ -433,8 +463,13 @@
     const pane = $('mapPane');
     if (!U.state) { pane.innerHTML = ''; return; }
     const view = mapView();
+    // Moving pieces (task A-10, the game page only): what was on the map
+    // before, so tokens keep their elements and walk to where they are now.
+    const before = U.beforeMap ? U.beforeMap() : null;
+    drawn = { key: view === 'local' ? null : `level:${view}`, tokens: {}, inView: [], geom: { rooms: {}, doors: {} } };
     pane.innerHTML = (hasRegions() ? mapBarHtml(view) : '') + (view === 'local' ? localMapHtml() : levelHtml(view === 'root' ? null : view));
     sizeDetailedMap();
+    if (U.afterMap) U.afterMap(before);
   }
   // Zoom the map's viewBox around a point (in map units), within limits: the
   // world map, or a place's floor plan (task 7-2).
@@ -649,5 +684,6 @@
     all[U.state.scenario.worldId] = ev.target.open;
     store.set(ELSEWHERE_KEY, JSON.stringify(all));
   }, true);
-  Object.assign(U, { localMapHtml, renderMap, restoreView, renderCast, sceneView, liveScene });
+  const mapDrawn = () => drawn;
+  Object.assign(U, { localMapHtml, renderMap, restoreView, renderCast, sceneView, liveScene, mapDrawn });
 })();

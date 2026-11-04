@@ -98,8 +98,10 @@ test('decoration is visual only: no data the page could act on, and no feature n
     const decor = groups(svg, 'sd-decor');
     assert.ok(decor.length > 5, `${folder}: chairs, rocks and the like`);
     decor.forEach((g) => { assert.doesNotMatch(g, /data-|tabindex|role=|<title>|map-feature/, g); });
-    // Everything clickable is a room, a "?", a gameplay piece or a token.
-    [...svg.matchAll(/<g class="([^"]*)"[^>]*data-/g)].forEach((m) => assert.match(m[1], /map-room|map-feature/, m[1]));
+    // Everything clickable is a room, a "?", a gameplay piece or a token; a
+    // door carries only which link it is, so it can pulse when it changes (task A-10).
+    [...svg.matchAll(/<g class="([^"]*)"[^>]*data-/g)].forEach((m) => assert.match(m[1], /map-room|map-feature|sd-door/, m[1]));
+    [...svg.matchAll(/<g class="sd-door"([^>]*)>/g)].forEach((m) => assert.doesNotMatch(m[1], /tabindex|role=|data-(?!link=)/, m[1]));
     // Turned off (small or high visibility), decoration isn't drawn at all.
     assert.equal(groups(draw(E, state, allRooms(state), [], { decor: false }).svg, 'sd-decor').length, 0);
   }

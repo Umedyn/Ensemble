@@ -605,6 +605,14 @@ main.page > .settings { max-width: 40rem; margin: 0 auto; }
 .save-list { margin: 0; padding-left: 1.125rem; font-size: 0.8125rem; line-height: 1.5; }
 .save-list:empty { display: none; }
 button.danger { color: var(--bad); border-color: var(--bad); }
+/* moving pieces (task A-10): a ring of light, once, on what changed; on a
+   phone, the map over the story while a move plays */
+.map-pulse { animation: map-pulse 1.2s ease-out 1; }
+@keyframes map-pulse { 0% { filter: drop-shadow(0 0 0.375rem var(--accent)); } 100% { filter: none; } }
+@media (max-width: 860px) {
+  .story.map-pop .map-pane { display: block !important; position: fixed; left: 0.5rem; right: 0.5rem; top: 12dvh; height: 52dvh; z-index: 30;
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-l); box-shadow: 0 1.25rem 3rem var(--shadow); }
+}
 /* the landing page (task A-7): continue first, then everything else */
 .landing { max-width: 48rem; margin: 0 auto; display: flex; flex-direction: column; gap: 1.25rem; }
 .landing h3 { margin: 0.75rem 0 0.375rem; font-size: 0.875rem; color: var(--muted); font-weight: 600; }

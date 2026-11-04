@@ -2293,6 +2293,90 @@ await check('the game page with no save, or one that is not here, says so and li
   assert.ok(await page.locator('#actionInput').isDisabled());
 });
 
+// Moving pieces (task A-10): Okafor heads for Ops on the scene's second beat,
+// and Teo's routine takes him to Hydroponics on the third.
+const tokenAnims = (page, id) => page.evaluate((i) => {
+  const el = document.querySelector(`#mapPane .map-token[data-id="${i}"]`);
+  return el ? el.getAnimations().length : -1;
+}, id);
+const anyTokenAnims = (page) => page.evaluate(() => document.getAnimations().filter((a) => a.effect && a.effect.target && a.effect.target.closest && a.effect.target.closest('.map-token')).length);
+const inRoom = (page, name, who) => page.evaluate(([n, w]) => [...document.querySelectorAll('#mapList li')].some((li) => li.textContent.startsWith(n) && li.textContent.includes(w)), [name, who]);
+await check('moving pieces: a token keeps its element across a turn, walks on its beat and ends in the right room', async (page) => {
+  await newGame(page);
+  // A mark on the element itself, not an attribute (the map rewrites those).
+  const same = () => page.evaluate(() => document.querySelector('#mapPane .map-token[data-id="okafor"]').smokeMark === 'same');
+  await page.evaluate(() => { document.querySelector('#mapPane .map-token[data-id="okafor"]').smokeMark = 'same'; });
+  await act(page, 'I open up the recycler.');
+  assert.ok(await same(), 'the same element after the turn');
+  assert.equal(await anyTokenAnims(page), 0, 'nothing moved on the first beat');
+  await page.click('button[data-next]');
+  assert.ok(await tokenAnims(page, 'okafor') > 0, 'Okafor walks on the beat that shows her leaving');
+  assert.ok(await same(), 'still the same element while she walks');
+  assert.ok(await inRoom(page, 'Ops', 'Okafor'), 'and she ends in Ops');
+  await page.click('button[data-next]');
+  assert.ok(await tokenAnims(page, 'bauer') > 0, 'Teo walks on his own beat');
+  assert.ok(await inRoom(page, 'Hydroponics', 'Teo'), 'to Hydroponics');
+});
+
+await check('moving pieces: a covert move produces no animation', async (page) => {
+  await page.route('http://localhost:5001/v1/chat/completions', async (route) => {
+    const res = await route.fetch();
+    const body = (await res.text()).replace('\\"visible\\":true,\\"move_to\\":\\"ops\\"', '\\"visible\\":false,\\"move_to\\":\\"ops\\"');
+    await route.fulfill({ response: res, body });
+  });
+  await newGame(page);
+  await act(page, 'I open up the recycler.');
+  while (await page.locator('button[data-next]').count()) {
+    await page.click('button[data-next]');
+    assert.ok(await tokenAnims(page, 'okafor') <= 0, 'Okafor never walks: the player did not see her go');
+  }
+});
+
+await check('phone: the map pops up only when something visible moved, and goes away on its own', async (page) => {
+  await newGame(page);
+  await act(page, 'I open up the recycler.');
+  assert.ok(!(await page.locator('#story.map-pop').count()), 'no pop-up on a beat where nothing moved');
+  await page.click('button[data-next]');
+  assert.ok(await page.locator('#story.map-pop').count(), 'Okafor walks: the map pops up');
+  assert.ok(await page.isVisible('#mapPane'));
+  await page.screenshot({ path: path.join(shots, 'map-pop-phone.png') });
+  await page.waitForFunction(() => !document.querySelector('#story.map-pop'), null, { timeout: 4000 });
+  // A tap puts it away sooner.
+  await page.click('button[data-next]');
+  assert.ok(await page.locator('#story.map-pop').count(), 'Teo walks: up again');
+  await page.click('#mapPane');
+  assert.ok(!(await page.locator('#story.map-pop').count()), 'a tap closes it');
+});
+
+await check('moving pieces: with map motion off, positions update at once', async (page) => {
+  await newGame(page);
+  await page.evaluate(() => { window.Ensemble.settings.appearance.mapMotion = 'off'; });
+  await act(page, 'I open up the recycler.');
+  await page.click('button[data-next]');
+  assert.equal(await anyTokenAnims(page), 0, 'no walk');
+  assert.ok(await inRoom(page, 'Ops', 'Okafor'), 'Okafor is in Ops straight away');
+  // Reduced: a quick fade instead of a walk.
+  await page.evaluate(() => { window.Ensemble.settings.appearance.mapMotion = 'reduced'; });
+  await page.click('#btnUndo');
+  await act(page, 'I open up the recycler.');
+  await page.click('button[data-next]');
+  assert.ok(await tokenAnims(page, 'okafor') > 0, 'reduced: a fade');
+});
+
+await check('settings: Map motion, and Reduce motion keeping it to fades', async (page) => {
+  await viaSettings(page, async () => {
+    await openSection(page, 'appearance');
+    assert.equal(await page.inputValue('#aMapMotion'), 'on');
+    await page.selectOption('#aMotion', 'on');
+    assert.ok(await page.isVisible('#aMapMotionNote'), 'it says the map only fades');
+    await page.selectOption('#aMapMotion', 'off');
+    assert.ok(!(await page.isVisible('#aMapMotionNote')));
+  });
+  assert.equal(await page.evaluate(() => window.Ensemble.settings.appearance.mapMotion), 'off');
+  await newGame(page);
+  assert.equal(await page.evaluate(() => window.Ensemble.Motion.mode(window.Ensemble.settings.appearance)), 'off', 'the game reads it');
+});
+
 // The landing page (task A-7).
 const landingReady = async (page) => { await page.goto(BASE); await pageReady(page); };
 for (const phone of [false, true]) {

@@ -94,6 +94,8 @@ try { window.EnsembleAppearance(JSON.parse(localStorage.getItem('ensemble.appear
         <label>Story font <select id="aFont"><option value="serif">Serif (book-like)</option><option value="sans">Sans-serif (plain)</option></select></label>
         <label>Line spacing <select id="aSpacing"><option value="normal">Normal</option><option value="relaxed">Relaxed</option></select></label>
         <label>Reduce motion <select id="aMotion"><option value="system">Same as my device</option><option value="on">On</option><option value="off">Off</option></select></label>
+        <label>Map motion <select id="aMapMotion"><option value="on">People walk through the rooms when they move</option><option value="reduced">Reduced: quick fades, no pop-up</option><option value="off">Off: the map just updates</option></select></label>
+        <div id="aMapMotionNote" class="muted small hidden">Reduce motion is on, so the map only fades.</div>
         <label>Map detail <select id="aMapDetail"><option value="detailed">Detailed (floor plans)</option><option value="simple">Simple (boxes, lighter on old phones)</option></select></label>
         <label>Names in the story <select id="aStoryLinks"><option value="on">Linked: hover or tap for who or what they are</option><option value="off">Plain text</option></select></label>
       </fieldset>
@@ -141,6 +143,7 @@ try { window.EnsembleAppearance(JSON.parse(localStorage.getItem('ensemble.appear
 <script src="js/adapters.js"></script>
 <script src="js/jsonshape.js"></script>
 <script src="js/llm.js"></script>
+<script src="js/motion.js"></script>
 <script src="js/pagecheck.js"></script>
 <script src="js/ui/header.js"></script>
 <script src="js/settingspage.js"></script>

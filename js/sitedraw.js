@@ -485,7 +485,7 @@
         const box = k.orient === 'v' ? { x: k.x - 0.17, y: k.y - len / 2, w: 0.33, h: len } : { x: k.x - len / 2, y: k.y - 0.17, w: len, h: 0.33 };
         L.openings.push(featureSvg(lf.id, lf.f, svg, box, inView.has(lf.id), used));
       } else {
-        L.openings.push(`<g class="sd-door"><title>${esc(tip)}</title>${svg}</g>`);
+        L.openings.push(`<g class="sd-door" data-link="${esc([k.a, k.b].sort().join('|'))}"><title>${esc(tip)}</title>${svg}</g>`);
       }
       const unknown = !da ? k.a : !db ? k.b : null;
       if (unknown) {

@@ -97,6 +97,8 @@
     $('aSpacing').value = a.lineSpacing;
     $('aMotion').value = a.motion;
     $('aMapDetail').value = a.mapDetail === 'simple' ? 'simple' : 'detailed';
+    $('aMapMotion').value = ['reduced', 'off'].includes(a.mapMotion) ? a.mapMotion : 'on';
+    showMapMotion();
     $('aStoryLinks').value = a.storyLinks === 'off' ? 'off' : 'on';
   }
   function readAppearance() {
@@ -107,9 +109,20 @@
       lineSpacing: $('aSpacing').value,
       motion: $('aMotion').value,
       mapDetail: $('aMapDetail').value,
+      mapMotion: $('aMapMotion').value,
       storyLinks: $('aStoryLinks').value,
     };
   }
+
+  // Map motion sits under Reduce motion (task A-10): when that is in force,
+  // the map moves at most a little (E.Motion.mode), and the field says so.
+  function showMapMotion() {
+    const device = (() => { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } })();
+    const capped = E.Motion.mode({ motion: $('aMotion').value, mapMotion: $('aMapMotion').value }, device) !== $('aMapMotion').value;
+    $('aMapMotionNote').classList.toggle('hidden', !capped);
+  }
+  $('aMapMotion').addEventListener('change', showMapMotion);
+  $('aMotion').addEventListener('change', showMapMotion);
 
   // ---------- the whole form ----------
   function fill() {
