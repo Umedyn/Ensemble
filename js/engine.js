@@ -1351,6 +1351,38 @@
     return { d, total, dc, result };
   };
 
+  // Skills improve with use (task B-8): a success at normal difficulty or
+  // harder adds progress; enough raises the skill by one, up to the world's
+  // highest skill, at most once a skill an in-game week. Everyone grows the
+  // same way; no dice, so a replay grows the same.
+  Eng.SKILL_GROWTH = { need: 3, days: 7 };
+  // The world's highest skill: its player slot's, else its generated starts',
+  // else the cap for every character.
+  Eng.maxSkill = function (sc) {
+    const cap = (E.CharMaker && E.CharMaker.MAX_SKILL) || 4;
+    const v = Number((sc && sc.playerSlot && sc.playerSlot.maxSkill) || (sc && sc.generatedStarts && sc.generatedStarts.maxSkill));
+    return Number.isInteger(v) && v >= 1 ? Math.min(v, cap) : cap;
+  };
+  Eng.growSkills = function (state, res, turn) {
+    const g = Eng.SKILL_GROWTH, max = Eng.maxSkill(state.scenario);
+    (res.outcomes || []).forEach((o) => {
+      const c = state.characters[o.id];
+      if (!c || c.status.health === 'dead' || !o.skill || !o.roll || !/success/.test(o.roll.result) || o.roll.dc < DC.normal) return;
+      const now = Number(c.skills[o.skill]) || 0;
+      if (now >= max) return;
+      c.skillGrowth = c.skillGrowth || {};
+      const s = c.skillGrowth[o.skill] = c.skillGrowth[o.skill] || { progress: 0 };
+      s.progress = Math.min(g.need, s.progress + 1);
+      if (s.progress < g.need) return guard(res, 'memory', 'skill progress', `${c.name}: ${o.skill} ${s.progress}/${g.need}`);
+      if (s.raised != null && state.time.day < s.raised + g.days) return guard(res, 'memory', 'skill progress', `${c.name}: ${o.skill} ready, but raised on day ${s.raised}`);
+      c.skills[o.skill] = now + 1;
+      s.progress = 0;
+      s.raised = state.time.day;
+      c.improved = { skill: o.skill, turn: turn != null ? turn : state.turn, to: now + 1 };
+      guard(res, 'memory', 'skill improved', `${c.name}: ${o.skill} ${now} → ${now + 1}`);
+    });
+  };
+
   // Accepts a location id, a location name ("Hydroponics"), or — when allowed —
   // a character id meaning "wherever that character is".
   Eng.resolveLocation = function (state, v, allowCharacter) {
@@ -4310,6 +4342,8 @@
       guard(p.res, 'memory', 'update failed', err.message);
     }
     if (cut) report.applied.unshift(`interjected after beat ${cut} of ${total}`);
+    // The turn's rolls came before any beat, so a step-in keeps them (task B-8).
+    Eng.growSkills(state, p.res, p.turn);
     Eng.noteSeen(state, cut ? null : p.res, p.turn);
     // Tiers follow the scene as it played out. After a step-in the events may
     // not have reached the player, so only the people there count.

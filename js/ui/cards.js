@@ -204,13 +204,17 @@
     const mood = !isPlayer && c.mood
       ? `<div class="mood${U.state.turn - c.mood.turn > E.Engine.MOOD_STALE ? ' stale' : ''}" title="${esc(c.mood.reason ? 'Why: ' + c.mood.reason : '')}">${esc(c.mood.text)}</div>`
       : '';
+    // A skill raised by use (task B-8), noted on the player's own card for a while.
+    const grown = isPlayer && c.improved && U.state.turn - c.improved.turn <= E.Engine.MOOD_STALE
+      ? `<div class="mood">${esc(c.improved.skill.charAt(0).toUpperCase() + c.improved.skill.slice(1))} improved</div>`
+      : '';
     const derived = E.Engine.derivedTags(U.state, c).map((t) => `<span class="tag derived">${esc(t)}</span>`);
     const story = (c.tags || []).map((t) => {
       const tip = [t.reason, t.until != null ? `until turn ${t.until}` : ''].filter(Boolean).join(' · ');
       return `<span class="tag" title="${esc(tip)}">${esc(t.text)}</span>`;
     });
     const tags = derived.concat(story);
-    return mood + (tags.length ? `<div class="tags">${tags.join('')}</div>` : '');
+    return mood + grown + (tags.length ? `<div class="tags">${tags.join('')}</div>` : '');
   }
 
   function cardNeeds(c, dead) {

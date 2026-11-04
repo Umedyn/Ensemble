@@ -364,7 +364,7 @@ The bundled worlds use it: Ares Deep's crew belong to Mission Control (Okafor fa
 | `roles` | `{id, label, desc, skills, suggestedTraits, needsOff}` (`needsOff`: needs the role comes without, task G-5); at least one unless `freeform`. A role's `skills` fill in the point-buy (within its limits) and the player can change them |
 | `peoples` | optional, same shape without `skills`; a people or origin, stored as the character's `people` |
 | `freeform` | true lets the player write their own role (and people) |
-| `skillPoints`, `maxSkill` | required; the point-buy budget across the world's skills, and the highest any one skill can be (1–4) |
+| `skillPoints`, `maxSkill` | required; the point-buy budget across the world's skills, and the highest any one skill can be (1–4); also how far skills grow with use in play (task B-8), for everyone, where `generatedStarts.maxSkill` or 4 applies otherwise; a character written higher keeps it |
 | `relationsDefault` | the player's starting feelings toward the cast: a number, or `{id: n}` (−100..100; default 0). The form starts from these and the player can change them |
 | `castFeelings` | how the cast feels about the newcomer, same shape (default 0) |
 | `groups`, `reputation` | optional (task G-6): the made character's groups (as on a character) and the player's standing with each group, over the start's |
