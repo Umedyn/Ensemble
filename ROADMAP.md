@@ -297,7 +297,7 @@ Decided 2026-10-30. The engine decides and the model only writes it up; results 
 - [x] **Rumours** (B-3): a fact with `source: hearsay`, worded "people say…", that never counts as true (the same check as narration-only facts).
 - [x] **Items people carry** (B-6): an `items` list on characters, `{ name, amount? }`, the amount a loose word, never arithmetic; scenes add, the engine only drops clear contradictions.
 - [ ] **Items in the creator** (from B-6): an items box on the character form (author mode, the Characters tab) and on cast entries in the Starts tab; for now authors write `items` in the JSON.
-- [ ] **Promises** (B-7): a fact with who it's owed to, a due time and a cost the engine applies when broken. Dropped at the start if it only repeats memory and the reckoning.
+- ~~**Promises** (B-7)~~: dropped 2026-11-03; whether one was kept and when it falls due would both be guesses the engine enforces, and a promise already lives in memory as a fact the person owed can bring up. Revisit only with a playtest recording of a lapsed promise that mattered.
 - ~~**Light and private places** (B-4, B-5)~~: dropped 2026-10-31; the model handles both from the time and place.
 - **Director and arc memory** (B-10): later, when long campaigns need it, after T-1.
 
