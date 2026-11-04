@@ -6,14 +6,16 @@ A local, character-driven story sim in the spirit of Pax Historia, but at person
 
 1. For a local model, start KoboldCpp with any instruct or roleplay model. 8K context or more is recommended. Set the **chat completions adapter** to match your model's format (for Mistral Nemo-based models such as NemoMix, pick the Mistral/Nemo adapter). If the console says "Chat template heuristics failed… Alpaca will be used", the model is being prompted in the wrong format and quality will suffer. Using a hosted model instead? Skip this step; you only need an API key (see below).
 2. Double-click `start.bat` (Windows) or run `./start.sh`. This serves the folder at http://localhost:8000 (using Node if installed, otherwise Python) and opens your browser. With Node you can also run `npm run serve`.
-3. On your first visit, a short setup asks how you want to run the model (hosted, KoboldCpp, or both), checks whether KoboldCpp is running, and opens Settings where you finish up. **Settings → Setup guide** brings it back.
+3. On your first visit, a short setup asks how you want to run the model (hosted, KoboldCpp, or both), checks whether KoboldCpp is running, and opens the Settings page where you finish up. **Settings → Setup guide** brings it back.
 4. Pick a world (and, if it has more than one, where you start), press **New game**, and type what you do.
 
 No Python? Open `index.html` directly and use **Open folder** to pick the `scenarios` folder (or a single world folder). In Firefox, use `start.bat` or `start.sh` instead: opened straight from a file, it keeps each page's saves and settings apart, and the page tells you so.
 
 Each backend has its own context size: **Test** reads it from KoboldCpp, or from the provider's model list when it has one (OpenRouter does). Settings also has the memory cap, scene length, temperature and the most turns a chapter runs.
 
-**Settings → Appearance** sets the theme (Dark, Light, **High visibility** for low vision, or the same as your device), text size (90–150%), story font (serif or sans), line spacing, reduce motion, map detail (detailed floor plans, or simple boxes for older phones) and names in the story. Changes show as you pick them and are kept in this browser. With a screen reader, each new beat and note is read out as it appears.
+**Settings** is its own page (`settings.html`, the link at the top right of every page). Changes are kept as you make them, and **Back to the game** returns to the game you were playing with them applied. Its **Saved games** section lists every game kept in this browser: **Export all saves** downloads them as one file (games only, never settings or API keys), **Import saves** adds them back (a game that's here already keeps whichever copy was played last), and **Delete all saves** names every game it will delete and asks first.
+
+**Settings → Appearance** sets the theme (Dark, Light, **High visibility** for low vision, or the same as your device), text size (90–150%), story font (serif or sans), line spacing, reduce motion, map detail (detailed floor plans, or simple boxes for older phones) and names in the story. Changes show as you pick them, on the Settings page and in the game when you go back, and are kept in this browser. With a screen reader, each new beat and note is read out as it appears.
 
 **Names in the story.** People, places and lore terms in a scene are underlined: hover (or Tab to one) for a short note, click or tap for the whole entry, and a person opens their card. Only what you could know is linked: regions you know of, rooms you have seen, people in the story, and lore, never secrets. Settings → Appearance turns it off. The journal shows the latest chapter and folds the earlier ones to their titles.
 

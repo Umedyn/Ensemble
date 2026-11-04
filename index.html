@@ -40,7 +40,6 @@ try { window.EnsembleAppearance(JSON.parse(localStorage.getItem('ensemble.appear
     <button id="btnSave">Save</button>
     <label class="btn">Load<input type="file" id="loadInput" accept=".json,application/json" hidden></label>
     <button id="btnDebug">Debug</button>
-    <button id="btnSettings">Settings</button>
   </div>
   <div id="pickInfo" class="pick-info desktop-only"></div>
 </header>
@@ -155,90 +154,6 @@ try { window.EnsembleAppearance(JSON.parse(localStorage.getItem('ensemble.appear
   <form id="genForm" class="settings gen">
     <div class="row"><h3 id="genTitle">Make your own start</h3><div class="spacer"></div><button type="button" id="genClose" class="ghost" aria-label="Close (progress is kept)" title="Close (progress is kept)">✕</button></div>
     <div id="genBody" class="maker-body"></div>
-  </form>
-</dialog>
-
-<dialog id="settings">
-  <form method="dialog" class="settings">
-    <div class="row"><h3>Settings</h3><div class="spacer"></div><button type="button" id="btnSetup" class="ghost small">Setup guide</button><button value="cancel" type="submit" class="ghost" aria-label="Close without saving" title="Close without saving">✕</button></div>
-
-    <details class="section" data-section="external" open>
-      <summary>External model (API)</summary>
-      <fieldset class="backend" data-backend="external">
-        <label>Type <select class="bPreset"></select></label>
-        <div class="hint muted"></div>
-        <label>URL <input class="bUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false"></label>
-        <label class="keyRow">API key <input class="bKey" type="password" autocomplete="off" spellcheck="false"></label>
-        <label class="modelRow">Model <input class="bModel" type="text" autocomplete="off" spellcheck="false" placeholder="vendor/model-name"></label>
-        <label>Context size (tokens) <input class="bContext" type="number" min="2048" step="1024"></label>
-        <label class="check constrainRow"><input class="bConstrain" type="checkbox"> Constrain JSON <span class="muted small">(the API's JSON mode, for providers that have one)</span></label>
-        <label class="check"><input class="bSmaller" type="checkbox"> Smaller calls <span class="muted small">(characters and memory updates as several short requests; for small models and small contexts)</span></label>
-        <div class="row"><button type="button" class="bTest">Test</button><span class="bStatus muted"></span></div>
-        <div class="muted small">Test reads the context size when the provider lists it (OpenRouter does). Keys are stored only in this browser and are never written into save files.</div>
-      </fieldset>
-    </details>
-
-    <details class="section" data-section="local">
-      <summary>Local model</summary>
-      <fieldset class="backend" data-backend="local">
-        <label>Type <select class="bPreset"></select></label>
-        <div class="hint muted"></div>
-        <label>URL <input class="bUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false"></label>
-        <label class="keyRow">API key / password <input class="bKey" type="password" autocomplete="off" spellcheck="false"></label>
-        <label class="modelRow">Model <input class="bModel" type="text" autocomplete="off" spellcheck="false"></label>
-        <label>Context size (tokens) <input class="bContext" type="number" min="2048" step="1024"></label>
-        <label class="check constrainRow"><input class="bConstrain" type="checkbox"> Constrain JSON <span class="muted small">(a grammar that allows only the reply's shape)</span></label>
-        <label class="check"><input class="bSmaller" type="checkbox"> Smaller calls <span class="muted small">(characters and memory updates as several short requests: slower, but small models follow them better)</span></label>
-        <div class="row"><button type="button" class="bTest">Test</button><span class="bStatus muted"></span></div>
-        <div class="muted small">Test reads the context size from KoboldCpp.</div>
-      </fieldset>
-    </details>
-
-    <details class="section" data-section="routing" open>
-      <summary>Which model does what</summary>
-      <fieldset>
-        <div id="routing" class="routing"></div>
-        <div class="row wrap">
-          <button type="button" data-route="local">All local</button>
-          <button type="button" data-route="hybrid" title="Characters, events and narration external; bookkeeping local">Hybrid</button>
-          <button type="button" data-route="external">All external</button>
-        </div>
-      </fieldset>
-    </details>
-
-    <details class="section" data-section="appearance">
-      <summary>Appearance</summary>
-      <fieldset>
-        <label>Theme <select id="aTheme">
-          <option value="system">Same as my device</option>
-          <option value="dark">Dark</option>
-          <option value="light">Light</option>
-          <option value="hv">High visibility</option>
-        </select></label>
-        <label>Text size: <span id="aTextSizeOut">100%</span> <input id="aTextSize" type="range" min="90" max="150" step="10"></label>
-        <label>Story font <select id="aFont"><option value="serif">Serif (book-like)</option><option value="sans">Sans-serif (plain)</option></select></label>
-        <label>Line spacing <select id="aSpacing"><option value="normal">Normal</option><option value="relaxed">Relaxed</option></select></label>
-        <label>Reduce motion <select id="aMotion"><option value="system">Same as my device</option><option value="on">On</option><option value="off">Off</option></select></label>
-        <label>Map detail <select id="aMapDetail"><option value="detailed">Detailed (floor plans)</option><option value="simple">Simple (boxes, lighter on old phones)</option></select></label>
-        <label>Names in the story <select id="aStoryLinks"><option value="on">Linked: hover or tap for who or what they are</option><option value="off">Plain text</option></select></label>
-        <div class="muted small">Changes show right away; Save keeps them.</div>
-      </fieldset>
-    </details>
-
-    <details class="section" data-section="story">
-      <summary>Story</summary>
-      <fieldset>
-        <div id="sMemory" class="muted small"></div>
-        <label>Memory cap (tokens): the most context memory is planned for, even on bigger models <input id="sMemoryCap" type="number" min="4096" step="4096"></label>
-        <label>Scene length (max tokens, scaled by time step) <input id="sNarrate" type="number" min="150" max="1200" step="10"></label>
-        <label>Temperature <input id="sTemp" type="number" min="0" max="2" step="0.05"></label>
-        <label>Most turns per chapter (chapters close sooner when their facts fill the memory budget) <input id="sChapter" type="number" min="4" max="40"></label>
-      </fieldset>
-    </details>
-    <div id="sStatus" class="muted"></div>
-    <div class="row end">
-      <button value="save" class="primary">Save</button>
-    </div>
   </form>
 </dialog>
 

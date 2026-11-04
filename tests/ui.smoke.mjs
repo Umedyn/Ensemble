@@ -61,7 +61,27 @@ const editSave = (page, fn) => page.evaluate(async (src) => {
   (0, eval)(src)(s);
   await Saves.save(id, s);
 }, `(${fn})`);
-const sceneReady = (page) => page.waitForFunction(() => document.getElementById('sceneBar').textContent.trim() !== '');
+const sceneReady = (page) => page.waitForFunction(() => { const bar = document.getElementById('sceneBar'); return bar && bar.textContent.trim() !== ''; });
+// Settings has its own page (task A-4): the header's link there, the page's
+// Back link home. fn sets controls there; each change is kept as it is made.
+const settingsReady = (page) => page.waitForFunction(() => /settings\.html/.test(location.pathname) && document.getElementById('sSaves') && document.getElementById('sSaves').textContent !== '');
+async function viaSettings(page, fn) {
+  const playing = await page.evaluate(() => document.getElementById('sceneBar').textContent.trim() !== '');
+  await page.click('#btnSettings');
+  await settingsReady(page);
+  if (fn) {
+    await page.evaluate(() => { document.getElementById('sStatus').textContent = ''; });
+    await fn(page);
+    await page.waitForFunction(() => document.getElementById('sStatus').textContent === 'Saved.');
+  }
+  await page.click('#sBack');
+  await page.waitForFunction(() => document.getElementById('btnNew') && document.querySelectorAll('#scenarioSelect option').length > 0);
+  if (playing) await sceneReady(page);
+}
+const openSection = async (page, id) => {
+  const section = page.locator(`#settings details[data-section="${id}"]`);
+  if (!(await section.evaluate((d) => d.open))) await section.locator('summary').click();
+};
 
 // Act is only enabled at the end of a scene or after choosing "Step in here",
 // so unless a test picked a step-in point, read the scene to the end first.
@@ -255,13 +275,13 @@ await check('names in the story: a box on hover, the entry or a card on a click;
   const journal = await page.locator('#journal details.journal-entry').evaluateAll((ds) => ds.map((d) => [d.dataset.journal, d.open]));
   assert.deepEqual(journal.slice(0, 2), [['2', true], ['1', false]]);
   assert.ok(journal.slice(1).every(([, open]) => !open));
-  // Plain text when the setting says so.
-  await page.click('#btnSettings');
-  await page.locator('details.section:has(#aStoryLinks)').evaluate((d) => { d.open = true; });
-  await page.selectOption('#aStoryLinks', 'off');
-  assert.equal(await page.locator('.turn-current .term').count(), 0);
-  await page.click('#settings button[value="save"]');
-  assert.equal(await page.locator('.turn-current .term').count(), 0);
+  // Plain text when the setting says so, back from the Settings page.
+  await viaSettings(page, async () => {
+    await openSection(page, 'appearance');
+    await page.selectOption('#aStoryLinks', 'off');
+  });
+  await page.waitForFunction(() => /Aoi points/.test(document.getElementById('log').textContent));
+  assert.equal(await page.locator('#log .term').count(), 0);
 });
 
 // Endings: a story that reached one shows it and an end card; Keep playing goes on.
@@ -396,11 +416,14 @@ await check('first run: setup picks a hosted model and opens its settings', asyn
   await page.waitForSelector('#setup[open]');
   await page.waitForFunction(() => /KoboldCpp is running here/.test(document.getElementById('setupLocal').textContent));
   await page.click('#setup button[value="external"]');
-  await page.waitForSelector('#settings[open]');
+  await settingsReady(page);
   assert.ok(await page.locator('details[data-section="external"]').evaluate((d) => d.open), 'external section open');
   assert.equal(await page.inputValue('#routing [data-step="narrate"]'), 'external');
   assert.equal(await page.evaluate(() => document.activeElement.className), 'bKey', 'cursor in the API key field');
-  await page.click('#settings button[value="cancel"]');
+  assert.match(await page.textContent('#sSetupNote'), /Paste your API key/);
+  await page.click('#sBack');
+  await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
+  assert.equal(await page.evaluate(() => window.Ensemble.settings.routing.narrate), 'external', 'the game has the setup\'s routing');
   await page.reload();
   await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
   assert.equal(await page.locator('#setup[open]').count(), 0, 'asked only once');
@@ -409,6 +432,7 @@ await check('first run: setup picks a hosted model and opens its settings', asyn
 await check('settings: API key errors and hybrid routing', async (page) => {
   mocks.log.length = 0;
   await page.click('#btnSettings');
+  await settingsReady(page);
   const ext = 'fieldset[data-backend="external"]';
   await page.selectOption(`${ext} .bPreset`, 'custom');
   await page.fill(`${ext} .bUrl`, 'http://localhost:5002/v1');
@@ -424,7 +448,9 @@ await check('settings: API key errors and hybrid routing', async (page) => {
   assert.ok(await page.isChecked('fieldset[data-backend="local"] .bConstrain'), 'on for KoboldCpp');
   assert.ok(await page.locator(`${ext} .constrainRow`).evaluate((r) => r.classList.contains('hidden')), 'not offered for another API');
   await page.click('button[data-route="hybrid"]');
-  await page.click('button[value="save"]');
+  await page.waitForFunction(() => document.getElementById('sStatus').textContent === 'Saved.');
+  await page.click('#sBack');
+  await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
   await newGame(page);
   await act(page, 'Ask Teo about the rattle.');
   await act(page, 'Nod.', 'moment');
@@ -1795,23 +1821,24 @@ await check('screen readers hear each new beat', async (page) => {
   await page.waitForFunction(() => /Your turn\.\)$/.test(document.getElementById('srAnnounce').textContent));
 });
 
-// Settings › Appearance (task 1-9). Sets the controls, then Save or cancel.
-async function setAppearance(page, { theme, textSize, font, spacing, motion, mapDetail }, save = true) {
-  await page.click('#btnSettings');
-  const section = page.locator('#settings details[data-section="appearance"]');
-  if (!(await section.evaluate((d) => d.open))) await section.locator('summary').click();
-  if (theme) await page.selectOption('#aTheme', theme);
-  if (font) await page.selectOption('#aFont', font);
-  if (spacing) await page.selectOption('#aSpacing', spacing);
-  if (motion) await page.selectOption('#aMotion', motion);
-  if (mapDetail) await page.selectOption('#aMapDetail', mapDetail);
-  if (textSize) await page.locator('#aTextSize').evaluate((el, v) => { el.value = String(v); el.dispatchEvent(new Event('input', { bubbles: true })); }, textSize);
-  await page.click(save ? '#settings button[value="save"]' : '#settings button[value="cancel"]');
+// Settings › Appearance (task 1-9), on the Settings page (task A-4), then back.
+async function setAppearance(page, { theme, textSize, font, spacing, motion, mapDetail }) {
+  await viaSettings(page, async () => {
+    await openSection(page, 'appearance');
+    if (theme) await page.selectOption('#aTheme', theme);
+    if (font) await page.selectOption('#aFont', font);
+    if (spacing) await page.selectOption('#aSpacing', spacing);
+    if (motion) await page.selectOption('#aMotion', motion);
+    if (mapDetail) await page.selectOption('#aMapDetail', mapDetail);
+    if (textSize) await page.locator('#aTextSize').evaluate((el, v) => { el.value = String(v); el.dispatchEvent(new Event('input', { bubbles: true })); }, textSize);
+    // The page shows the change at once, before going back.
+    if (theme) assert.equal(await page.getAttribute('html', 'data-theme'), theme === 'system' ? 'dark' : theme);
+  });
 }
 const rootAttr = (page, name) => page.evaluate((n) => document.documentElement.getAttribute(n), name);
 const bodyBg = (page) => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
 
-await check('appearance: themes, text size and story font apply, survive a reload, and cancel restores', async (page) => {
+await check('appearance: themes, text size and story font apply on return from Settings, and survive a reload', async (page) => {
   await newGame(page);
   await act(page, 'Look around.');
   assert.equal(await rootAttr(page, 'data-theme'), 'dark', 'dark by default');
@@ -1831,9 +1858,6 @@ await check('appearance: themes, text size and story font apply, survive a reloa
   await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
   assert.equal(await rootAttr(page, 'data-theme'), 'light', 'saved and applied on load');
   assert.equal(await rootAttr(page, 'data-spacing'), 'relaxed');
-  // previewing then closing without Save puts the saved look back
-  await setAppearance(page, { theme: 'hv' }, false);
-  await page.waitForFunction(() => document.documentElement.getAttribute('data-theme') === 'light', null, { timeout: 2000 });
 });
 
 // Task 3-7: the detailed map in every theme, on desktop and phone; "Map
@@ -1844,8 +1868,10 @@ for (const phone of [false, true]) {
     await newGame(page);
     await sceneReady(page);
     if (phone) await page.click('#btnMapPhone');
+    const mapShown = async () => { if (phone && !(await page.isVisible('#mapPane'))) await page.click('#btnMapPhone'); };
     for (const theme of ['dark', 'light', 'hv']) {
       await setAppearance(page, { theme });
+      await mapShown();
       assert.ok(await page.isVisible('#mapPane svg.sd'), theme);
       assert.equal(await page.locator('#mapPane svg.sd .map-room').count(), 6, `${theme}: the holdout's six rooms`);
       assert.equal(await page.locator('#mapPane svg.sd .map-feature').count(), 14, `${theme}: all fourteen features`);
@@ -1856,6 +1882,7 @@ for (const phone of [false, true]) {
     await page.locator('#mapPane .map-feature[data-feature="generator"]').click();
     assert.equal(await page.inputValue('#actionInput'), 'Look at the generator.');
     await setAppearance(page, { mapDetail: 'simple' });
+    await mapShown();
     assert.ok(!(await page.locator('#mapPane svg.sd').count()) && (await page.locator('#mapPane g.map-room').count()) === 6, 'simple: the boxes (a room that grew has a box for each part)');
   });
 }
@@ -2006,6 +2033,29 @@ const fileUrl = (name) => pathToFileURL(path.join(here, '..', name)).href;
   try {
     await page.goto(fileUrl('index.html'));
     await page.waitForFunction(() => window.Ensemble.Prefs.ready());
+    await page.click('#btnSettings');
+    await settingsReady(page);
+    await openSection(page, 'appearance');
+    await page.selectOption('#aTheme', 'light');
+    await page.waitForFunction(() => document.getElementById('sStatus').textContent === 'Saved.');
+    await page.click('#sBack');
+    await page.waitForFunction(() => document.getElementById('btnNew') && window.Ensemble && window.Ensemble.Prefs.ready());
+    assert.equal(await page.getAttribute('html', 'data-theme'), 'light');
+    assert.equal(await page.evaluate(() => window.Ensemble.settings.appearance.theme), 'light');
+    assert.deepEqual(errors, []);
+    console.log('✓ from disk in Chromium: a change on the settings page is seen by the game');
+  } catch (e) { failures++; console.error('✕ from disk: settings page\n  ' + e.message); }
+  await ctx.close();
+}
+{
+  const ctx = await browser.newContext({ viewport: { width: 1360, height: 900 } });
+  await ctx.addInitScript(() => localStorage.setItem('ensemble.setupDone', '1'));
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  try {
+    await page.goto(fileUrl('index.html'));
+    await page.waitForFunction(() => window.Ensemble.Prefs.ready());
     await page.setInputFiles('#folderInput', path.join(here, '..', 'scenarios', 'zombie-holdout'));
     await page.waitForFunction(() => document.querySelector('#scenarioSelect option[value^="disk:"]'));
     await newGame(page);
@@ -2112,6 +2162,7 @@ await check('the theme button changes the theme, keeps it, and leaves other sett
   await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
   assert.equal(await page.getAttribute('html', 'data-theme'), 'hv');
   await page.click('#btnSettings');
+  await settingsReady(page);
   assert.equal(await page.inputValue('#aTheme'), 'hv', 'Settings shows it too');
 });
 
@@ -2120,9 +2171,105 @@ await check('creator: the header has the status and the theme button, and the th
   await page.waitForFunction(() => document.getElementById('conn') && !/offline/.test(document.getElementById('conn').textContent));
   await page.click('#headerTheme');
   await page.waitForFunction(async () => /"theme":"light"/.test(await window.Ensemble.Store.get('ensemble.settings')));
+  assert.equal(await page.getAttribute('header.topbar #btnSettings', 'target'), '_blank', 'Settings opens beside the creator, whose working copy isn\'t kept');
   await page.goto(BASE);
   assert.equal(await page.getAttribute('html', 'data-theme'), 'light');
 });
+
+// The Settings page (task A-4).
+await check('settings page: a change there is seen by the game on return, in the same game', async (page) => {
+  await newGame(page);
+  await act(page, 'I open up the recycler.');
+  const id = await page.evaluate(() => window.Ensemble.UI.saveId);
+  assert.equal(new URL(page.url()).searchParams.get('save'), id, 'the save id is in the address');
+  // A newer game, as if from another tab: the address still names this one.
+  await page.evaluate(async () => {
+    const E = window.Ensemble;
+    const s = await E.Saves.load(E.UI.saveId);
+    s.turn = 99;
+    await E.Saves.save('zz-newer', s);
+  });
+  await page.click('#btnSettings');
+  await settingsReady(page);
+  assert.equal(new URL(page.url()).searchParams.get('back'), `index.html?save=${id}`);
+  await openSection(page, 'story');
+  await page.fill('#sTemp', '0.35');
+  await page.waitForFunction(() => document.getElementById('sStatus').textContent === 'Saved.');
+  await page.click('#sBack');
+  await sceneReady(page);
+  assert.equal(await page.evaluate(() => window.Ensemble.settings.temperature), 0.35, 'the change is seen');
+  assert.equal(await page.evaluate(() => window.Ensemble.UI.saveId), id, 'the same game');
+  await page.reload();
+  await sceneReady(page);
+  assert.equal(await page.evaluate(() => window.Ensemble.UI.saveId), id, 'and after a refresh');
+  assert.match(await page.textContent('#sceneBar'), /turn 1$/);
+  await act(page, 'I look around.');
+  assert.equal(await page.evaluate(async () => (await window.Ensemble.Saves.load('zz-newer')).turn), 99, 'the other game is left alone');
+});
+
+await check('settings page: export all, delete all (named first), import all brings every save back', async (page) => {
+  await newGame(page);
+  await act(page, 'I open up the recycler.');
+  page.once('dialog', (d) => d.accept());
+  await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+  await newGame(page);
+  await page.waitForFunction(async () => (await window.Ensemble.Saves.list()).length === 2);
+  const before = await page.evaluate(async () => JSON.stringify(await window.Ensemble.Saves.list()));
+  const games = await page.evaluate(async () => { const E = window.Ensemble; const out = {}; for (const m of await E.Saves.list()) out[m.id] = await E.Store.get('save.' + m.id); return out; });
+  await page.click('#btnSettings');
+  await settingsReady(page);
+  await openSection(page, 'storage');
+  assert.match(await page.textContent('#sSaves'), /^2 saved games/);
+  assert.equal(await page.locator('#sSaveList li').count(), 2);
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#sExport')]);
+  assert.match(dl.suggestedFilename(), /^ensemble-saves-\d{4}-\d\d-\d\d\.json$/);
+  const file = fs.readFileSync(await dl.path(), 'utf8');
+  const [ask] = await Promise.all([page.waitForEvent('dialog'), page.click('#sClear')]);
+  const asked = ask.message();
+  await ask.dismiss();
+  assert.match(asked, /^Delete all 2 saved games[\s\S]*Holdout at Harmon's[\s\S]*Ares Deep[\s\S]*can't be undone[\s\S]*Settings and API keys stay/);
+  assert.equal(await page.evaluate(async () => (await window.Ensemble.Saves.list()).length), 2, 'nothing goes until asked');
+  const [sure] = await Promise.all([page.waitForEvent('dialog'), page.click('#sClear')]);
+  await sure.accept();
+  await page.waitForFunction(() => document.getElementById('sSaves').textContent === 'No saved games yet.');
+  assert.ok(await page.locator('#sExport').isDisabled());
+  assert.equal(await page.evaluate(async () => (await window.Ensemble.Store.list('save')).length), 0);
+  await page.setInputFiles('#sImport', { name: 'saves.json', mimeType: 'application/json', buffer: Buffer.from(file) });
+  await page.waitForFunction(() => /^Imported: 2 added\.$/.test(document.getElementById('sStoreStatus').textContent));
+  assert.equal(await page.evaluate(async () => JSON.stringify(await window.Ensemble.Saves.list())), before, 'the same list');
+  assert.deepEqual(await page.evaluate(async (ids) => { const out = {}; for (const id of ids) out[id] = await window.Ensemble.Store.get('save.' + id); return out; }, Object.keys(games)), games, 'every game as it was');
+  await page.setInputFiles('#sImport', { name: 'x.json', mimeType: 'application/json', buffer: Buffer.from('{"scenario":{}}') });
+  await page.waitForFunction(() => /not an Ensemble saves file/.test(document.getElementById('sStoreStatus').textContent));
+  await page.click('#sBack');
+  await sceneReady(page);
+  assert.match(await page.textContent('#sceneBar'), /turn 0$/, 'back in the game');
+});
+
+for (const phone of [false, true]) {
+  await check(`${phone ? 'phone: ' : ''}the settings page in every theme, with nothing off the screen`, async (page) => {
+    await newGame(page);
+    await page.click('#btnSettings');
+    await settingsReady(page);
+    await openSection(page, 'appearance');
+    await openSection(page, 'storage');
+    const width = phone ? 390 : 1360;
+    for (const theme of ['light', 'hv', 'dark']) {
+      await page.selectOption('#aTheme', theme);
+      assert.equal(await page.getAttribute('html', 'data-theme'), theme);
+      assert.match(await page.getAttribute('#headerTheme', 'title'), new RegExp(theme === 'hv' ? 'High visibility' : theme, 'i'), 'the header follows');
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      assert.ok(overflow <= 0, `${theme}: no sideways scrolling (${overflow}px too wide)`);
+      await page.screenshot({ path: path.join(shots, `settings-${phone ? 'phone-' : ''}${theme}.png`), fullPage: true });
+    }
+    for (const id of ['#sBack', '#conn', '#sExport', '#sClear', 'fieldset[data-backend="external"] .bTest']) {
+      await page.locator(id).scrollIntoViewIfNeeded();
+      const b = await page.locator(id).boundingBox();
+      assert.ok(b && b.x >= 0 && b.x + b.width <= width, `${id} is on screen`);
+    }
+    await page.click('#sBack');
+    await sceneReady(page);
+  });
+}
 
 // A second page's title, links and settings from the creator.
 await check('creator: the top bar links back to the game', async (page) => {

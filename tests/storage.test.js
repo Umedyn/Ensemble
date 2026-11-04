@@ -104,8 +104,8 @@ test('API keys leave localStorage; only the appearance stays there, for the them
   assert.ok(!JSON.stringify(globals.localStorage.items).includes('sk-secret'));
 });
 
-test('both pages read the appearance copy before first paint, and the old settings on the very first', () => {
-  for (const page of ['index.html', 'creator.html']) {
+test('every page reads the appearance copy before first paint, and the old settings on the very first', () => {
+  for (const page of ['index.html', 'creator.html', 'settings.html']) {
     const html = fs.readFileSync(path.join(ROOT, page), 'utf8');
     assert.match(html, /localStorage\.getItem\('ensemble\.appearance'\)\) \|\| \(JSON\.parse\(localStorage\.getItem\('ensemble\.settings'\)\)/, page);
     assert.ok(html.indexOf('js/util.js') < html.indexOf('js/adapters.js'), page);
@@ -196,7 +196,64 @@ test('a refused write is reported and never throws', async () => {
 
 test('saves move to no other key: nothing writes the old autosave or settings keys to localStorage', () => {
   const ui = fs.readdirSync(path.join(ROOT, 'js', 'ui')).map((f) => 'ui/' + f);
-  for (const f of [...ui, 'creator.js', 'util.js']) {
+  for (const f of [...ui, 'creator.js', 'settingspage.js', 'util.js']) {
     assert.ok(!/localStorage\./.test(fs.readFileSync(path.join(ROOT, 'js', f), 'utf8')), f);
   }
+});
+
+// Settings › Saved games (task A-4).
+test('export all, clear, import all restores every save', async () => {
+  const E = await boot(browser({}));
+  const a = newGame().state, b = newGame('zombie-holdout').state;
+  b.turn = 4;
+  await E.Saves.save('a', a);
+  await new Promise((r) => setTimeout(r, 5));
+  await E.Saves.save('b', b);
+  E.settings.backends.external.key = 'sk-secret';
+  await E.saveSettings();
+  const before = [...(await E.Saves.list())];
+  const file = JSON.parse(JSON.stringify(await E.Saves.exportAll()));
+  assert.equal(file.format, 'ensemble-saves');
+  assert.deepEqual(file.saves.map((s) => s.meta.id), ['b', 'a'], 'newest first');
+  assert.ok(!JSON.stringify(file).includes('sk-secret'), 'no settings or keys in the export');
+  assert.equal(await E.Saves.clearAll(), 2);
+  assert.deepEqual([...(await E.Saves.list())], []);
+  assert.equal(await E.Store.get('save.a'), null);
+  assert.ok(E.Prefs.get('ensemble.settings').includes('sk-secret'), 'clearing saves leaves the settings');
+  assert.deepEqual({ ...(await E.Saves.importAll(file)) }, { added: 2, updated: 0, kept: 0, refused: 0 });
+  assert.deepEqual(JSON.parse(JSON.stringify(await E.Saves.list())), JSON.parse(JSON.stringify(before)), 'the same list, dates and all');
+  assert.equal((await E.Saves.load('b')).turn, 4);
+  assert.equal(JSON.stringify(await E.Saves.load('a')), JSON.stringify(a));
+});
+
+test('importing saves keeps whichever copy was played last, and refuses what is not a game', async () => {
+  const E = await boot(browser({}));
+  const g = newGame().state;
+  await E.Saves.save('g', g);
+  const file = JSON.parse(JSON.stringify(await E.Saves.exportAll()));
+  await new Promise((r) => setTimeout(r, 5));
+  g.turn = 9;
+  await E.Saves.save('g', g);
+  file.saves.push({ meta: { id: 'x' }, game: { a: 1 } }, { meta: { id: '../evil' }, game: g }, null);
+  assert.deepEqual({ ...(await E.Saves.importAll(file)) }, { added: 0, updated: 0, kept: 1, refused: 3 });
+  assert.equal((await E.Saves.load('g')).turn, 9, 'the newer game here stays');
+  const newer = JSON.parse(JSON.stringify(await E.Saves.exportAll()));
+  newer.saves[0].game.turn = 12;
+  newer.saves[0].meta.date += 1000;
+  assert.equal((await E.Saves.importAll(newer)).updated, 1);
+  assert.equal((await E.Saves.list())[0].turn, 12, 'the list shows the imported game');
+  await assert.rejects(E.Saves.importAll({ scenario: {}, characters: {}, player: 'p' }), (e) => /not an Ensemble saves file/.test(e.message), 'a single game is Load, not import');
+});
+
+test('a key changed by another page reads again', async () => {
+  const globals = browser({});
+  const E = await boot(globals);
+  await E.Store.set('ensemble.settings', JSON.stringify({ temperature: 0.3 }));
+  assert.equal(E.Prefs.get('ensemble.settings'), null, 'not seen until read again');
+  await E.Prefs.reload('ensemble.settings');
+  E.loadSettings();
+  assert.equal(E.settings.temperature, 0.3);
+  await E.Store.remove('ensemble.settings');
+  assert.equal(await E.Prefs.reload('ensemble.settings'), null);
+  assert.equal(E.Prefs.get('ensemble.settings'), null);
 });

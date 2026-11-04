@@ -115,7 +115,14 @@
   };
 
   E.saveSettings = function () {
-    E.writeSettings(E.settings);
+    return E.writeSettings(E.settings);
+  };
+  // Which model does each step, for the setup's three choices: local,
+  // external, or hybrid (characters and narration external, bookkeeping local).
+  E.routingFor = function (mode) {
+    const out = {};
+    E.routeSteps.forEach((r) => { out[r.id] = mode === 'hybrid' ? (['intent', 'narrate', 'worldbuild'].includes(r.id) ? 'external' : 'local') : mode; });
+    return out;
   };
 
   E.clamp = (v, a, b) => Math.max(a, Math.min(b, v));

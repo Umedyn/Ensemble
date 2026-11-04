@@ -4,7 +4,21 @@
   const U = E.UI;
   const { $, esc, store } = U;
 
-  E.Header.mount({ title: 'Ensemble' });
+  // A setting changed on the Settings page shows here on return.
+  E.Header.mount({ title: 'Ensemble', settingsChanged: () => { if (U.state) U.renderAll(); } });
+
+  // The game's save id stays in the address (task A-4), so Settings, refresh
+  // and back come back to this game.
+  const query = (() => { try { return new URLSearchParams(location.search); } catch (e) { return new URLSearchParams(); } })();
+  function setQuery() {
+    const q = query.toString();
+    try { history.replaceState(null, '', location.pathname + (q ? '?' + q : '')); } catch (e) { /* a file:// page that can't */ }
+  }
+  function showSaveId() {
+    if (!U.saveId || U.TEST_PLAY || query.get('save') === U.saveId) return;
+    query.set('save', U.saveId);
+    setQuery();
+  }
 
   // ---------- mobile side sheet ----------
   $('btnSide').addEventListener('click', () => $('side').classList.add('open'));
@@ -46,7 +60,6 @@
   async function boot() {
     await E.Store.ready();
     E.pageCheck();
-    U.restoreSections();
     const firstRun = store.get('ensemble.settings') === null && store.get('ensemble.setupDone') === null;
     E.loadSettings();
     U.applyAppearance(E.settings.appearance);
@@ -58,21 +71,30 @@
       if (shared) E.Scenario.library = await E.Library.load(shared.id);
     } catch (e) { /* no library/: worlds use their own maps */ }
     await U.loadServerList();
-    if (firstRun) U.openSetup();
+    // Settings › Setup guide comes here as ?setup=1, once.
+    if (firstRun || query.has('setup')) {
+      U.openSetup();
+      if (query.has('setup')) { query.delete('setup'); setQuery(); }
+    }
     else E.Header.checkConnection(false);
     if (TEST_PLAY) return startTestPlay();
-    const last = await E.Saves.last();
-    const saved = last && await E.Saves.load(last.id);
+    let id = query.get('save');
+    let saved = id && await E.Saves.load(id);
+    if (!saved) {
+      id = ((await E.Saves.last()) || {}).id;
+      saved = id && await E.Saves.load(id);
+    }
     if (saved) {
       try {
         U.state = E.Engine.migrate(saved);
-        U.saveId = last.id;
+        U.saveId = id;
+        showSaveId();
         U.restoreView();
         U.showPickInfo(false);
         U.renderAll();
       } catch (e) { U.state = null; }
     }
   }
-  Object.assign(U, { TEST_PLAY });
+  Object.assign(U, { TEST_PLAY, showSaveId });
   boot();
 })();

@@ -14,8 +14,6 @@
     suggested: null, // suggested actions: { state, key, list } (see renderSuggestions)
     uiShown: 1, // beats of the live scene revealed so far
     gen: null, // the generated start being made
-    mapDetailPreview: null, // Settings › Map detail while the dialog is open
-    storyLinksPreview: null, // Settings › Names in the story, likewise
     libraryAssets: {},
     openTurns: new Set(), // folded earlier turns the player has opened
     openChapters: new Set(), // closed chapters the player has opened

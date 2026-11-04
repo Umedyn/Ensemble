@@ -239,7 +239,7 @@
       const url = U.portraitUrl(lm.image);
       const rooms = Object.entries(lm.rooms).map(([id, r]) => `<g class="map-room${id === here ? ' here' : ''}" tabindex="0" role="button" data-room="${esc(id)}" aria-label="${esc(roomName(id))}"><rect class="floor" x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" style="fill-opacity:0.15"/>${roomTokens(tokens[id] || [], r.x, r.y, r.w, r.h, id)}</g>`).join('');
       svg = `<svg class="map-svg" viewBox="0 0 ${lm.width} ${lm.height}" role="img" aria-label="Map">${url ? `<image href="${esc(url)}" x="0" y="0" width="${lm.width}" height="${lm.height}"/>` : ''}${rooms}</svg>`;
-    } else if ((U.mapDetailPreview || E.settings.appearance.mapDetail) !== 'simple') {
+    } else if (E.settings.appearance.mapDetail !== 'simple') {
       svg = detailedMapSvg(here, tokens);
     } else {
       const plan = mapPlan();

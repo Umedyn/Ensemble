@@ -15,6 +15,7 @@
     if (!U.state || U.TEST_PLAY) return;
     if (!U.saveId) U.saveId = E.Saves.newId();
     E.Saves.save(U.saveId, U.state);
+    U.showSaveId();
   }
 
   // obj: a Blob as it is, or anything else as JSON.
@@ -426,7 +427,7 @@
   // shows a short box, a click or tap opens the whole entry, and a person's
   // opens their card.
   function storyHtml(text) {
-    const on = (U.storyLinksPreview || E.settings.appearance.storyLinks) !== 'off';
+    const on = E.settings.appearance.storyLinks !== 'off';
     return on && U.state ? E.Glossary.markup(U.state, text, esc) : esc(text);
   }
   const termInfo = (el) => E.Glossary.info(U.state, E.Glossary.parse(el.dataset.term));

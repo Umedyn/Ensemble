@@ -15,8 +15,8 @@ for (const f of scripts) {
   try { execFileSync(process.execPath, ['--check', path.join(root, 'js', f)], { stdio: 'pipe' }); }
   catch (e) { failed++; console.error(`✕ js/${f}\n${e.stderr}`); }
 }
-// Every script and stylesheet the pages load exists (the game and the creator, task 3-5).
-for (const page of ['index.html', 'creator.html']) {
+// Every script and stylesheet the pages load exists (the game, the creator and settings; tasks 3-5, A-4).
+for (const page of ['index.html', 'creator.html', 'settings.html']) {
   const html = fs.readFileSync(path.join(root, page), 'utf8');
   for (const m of html.matchAll(/<(?:script[^>]+src|link[^>]+href)="([^"]+\.(?:js|css))"/g)) {
     if (!fs.existsSync(path.join(root, m[1]))) { failed++; console.error(`✕ ${page} loads ${m[1]}, which doesn't exist`); }

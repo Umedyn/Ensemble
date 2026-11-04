@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1a1d22">
+<title>Settings · Ensemble</title>
+<link rel="stylesheet" href="css/style.css">
+<script>
+// The appearance settings, applied before first paint, as in index.html.
+window.EnsembleAppearance = function (a) {
+  a = a || {};
+  var el = document.documentElement, mq = function (q) { try { return window.matchMedia(q).matches; } catch (e) { return false; } };
+  var theme = a.theme === 'system' ? (mq('(prefers-color-scheme: light)') ? 'light' : 'dark') : (a.theme || 'dark');
+  var motion = a.motion === 'on' || (a.motion !== 'off' && mq('(prefers-reduced-motion: reduce)')) ? 'reduce' : 'full';
+  el.setAttribute('data-theme', theme);
+  el.setAttribute('data-font', a.storyFont === 'sans' ? 'sans' : 'serif');
+  el.setAttribute('data-spacing', a.lineSpacing === 'relaxed' ? 'relaxed' : 'normal');
+  el.setAttribute('data-motion', motion);
+  el.style.setProperty('--text-scale', String(Math.min(150, Math.max(90, Number(a.textSize) || 100)) / 100));
+};
+try { window.EnsembleAppearance(JSON.parse(localStorage.getItem('ensemble.appearance')) || (JSON.parse(localStorage.getItem('ensemble.settings')) || {}).appearance); } catch (e) { window.EnsembleAppearance(); }
+</script>
+</head>
+<body class="page-settings">
+<header class="topbar">
+  <div class="group">
+    <a id="sBack" class="btn hidden" href="index.html">← Back</a>
+  </div>
+  <div class="spacer"></div>
+  <div class="group"></div>
+</header>
+
+<main class="page">
+  <form id="settings" class="settings" autocomplete="off" onsubmit="return false">
+    <div class="row"><h2>Settings</h2><div class="spacer"></div><a id="btnSetup" class="btn ghost small" href="index.html?setup=1">Setup guide</a></div>
+    <div id="sSetupNote" class="setup-note hidden" role="note"></div>
+    <div class="muted small">Changes are kept as you make them and apply when you go back.</div>
+
+    <details class="section" data-section="external" open>
+      <summary>External model (API)</summary>
+      <fieldset class="backend" data-backend="external">
+        <label>Type <select class="bPreset"></select></label>
+        <div class="hint muted"></div>
+        <label>URL <input class="bUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false"></label>
+        <label class="keyRow">API key <input class="bKey" type="password" autocomplete="off" spellcheck="false"></label>
+        <label class="modelRow">Model <input class="bModel" type="text" autocomplete="off" spellcheck="false" placeholder="vendor/model-name"></label>
+        <label>Context size (tokens) <input class="bContext" type="number" min="2048" step="1024"></label>
+        <label class="check constrainRow"><input class="bConstrain" type="checkbox"> Constrain JSON <span class="muted small">(the API's JSON mode, for providers that have one)</span></label>
+        <label class="check"><input class="bSmaller" type="checkbox"> Smaller calls <span class="muted small">(characters and memory updates as several short requests; for small models and small contexts)</span></label>
+        <div class="row"><button type="button" class="bTest">Test</button><span class="bStatus muted"></span></div>
+        <div class="muted small">Test reads the context size when the provider lists it (OpenRouter does). Keys are stored only in this browser and are never written into save files.</div>
+      </fieldset>
+    </details>
+
+    <details class="section" data-section="local">
+      <summary>Local model</summary>
+      <fieldset class="backend" data-backend="local">
+        <label>Type <select class="bPreset"></select></label>
+        <div class="hint muted"></div>
+        <label>URL <input class="bUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false"></label>
+        <label class="keyRow">API key / password <input class="bKey" type="password" autocomplete="off" spellcheck="false"></label>
+        <label class="modelRow">Model <input class="bModel" type="text" autocomplete="off" spellcheck="false"></label>
+        <label>Context size (tokens) <input class="bContext" type="number" min="2048" step="1024"></label>
+        <label class="check constrainRow"><input class="bConstrain" type="checkbox"> Constrain JSON <span class="muted small">(a grammar that allows only the reply's shape)</span></label>
+        <label class="check"><input class="bSmaller" type="checkbox"> Smaller calls <span class="muted small">(characters and memory updates as several short requests: slower, but small models follow them better)</span></label>
+        <div class="row"><button type="button" class="bTest">Test</button><span class="bStatus muted"></span></div>
+        <div class="muted small">Test reads the context size from KoboldCpp.</div>
+      </fieldset>
+    </details>
+
+    <details class="section" data-section="routing" open>
+      <summary>Which model does what</summary>
+      <fieldset>
+        <div id="routing" class="routing"></div>
+        <div class="row wrap">
+          <button type="button" data-route="local">All local</button>
+          <button type="button" data-route="hybrid" title="Characters, events and narration external; bookkeeping local">Hybrid</button>
+          <button type="button" data-route="external">All external</button>
+        </div>
+      </fieldset>
+    </details>
+
+    <details class="section" data-section="appearance">
+      <summary>Appearance</summary>
+      <fieldset>
+        <label>Theme <select id="aTheme">
+          <option value="system">Same as my device</option>
+          <option value="dark">Dark</option>
+          <option value="light">Light</option>
+          <option value="hv">High visibility</option>
+        </select></label>
+        <label>Text size: <span id="aTextSizeOut">100%</span> <input id="aTextSize" type="range" min="90" max="150" step="10"></label>
+        <label>Story font <select id="aFont"><option value="serif">Serif (book-like)</option><option value="sans">Sans-serif (plain)</option></select></label>
+        <label>Line spacing <select id="aSpacing"><option value="normal">Normal</option><option value="relaxed">Relaxed</option></select></label>
+        <label>Reduce motion <select id="aMotion"><option value="system">Same as my device</option><option value="on">On</option><option value="off">Off</option></select></label>
+        <label>Map detail <select id="aMapDetail"><option value="detailed">Detailed (floor plans)</option><option value="simple">Simple (boxes, lighter on old phones)</option></select></label>
+        <label>Names in the story <select id="aStoryLinks"><option value="on">Linked: hover or tap for who or what they are</option><option value="off">Plain text</option></select></label>
+      </fieldset>
+    </details>
+
+    <details class="section" data-section="story">
+      <summary>Story</summary>
+      <fieldset>
+        <div id="sMemory" class="muted small"></div>
+        <label>Memory cap (tokens): the most context memory is planned for, even on bigger models <input id="sMemoryCap" type="number" min="4096" step="4096"></label>
+        <label>Scene length (max tokens, scaled by time step) <input id="sNarrate" type="number" min="150" max="1200" step="10"></label>
+        <label>Temperature <input id="sTemp" type="number" min="0" max="2" step="0.05"></label>
+        <label>Most turns per chapter (chapters close sooner when their facts fill the memory budget) <input id="sChapter" type="number" min="4" max="40"></label>
+      </fieldset>
+    </details>
+
+    <details class="section" data-section="voice">
+      <summary>Voice</summary>
+      <fieldset>
+        <div id="sVoice" class="muted small">Reading the story aloud isn't available yet.</div>
+      </fieldset>
+    </details>
+
+    <details class="section" data-section="storage" open>
+      <summary>Saved games</summary>
+      <fieldset>
+        <div id="sSaves" class="muted small"></div>
+        <ul id="sSaveList" class="save-list"></ul>
+        <div class="row wrap">
+          <button type="button" id="sExport" title="Download every saved game as one file">Export all saves</button>
+          <label class="btn" title="Add the games from an exported saves file">Import saves<input type="file" id="sImport" accept=".json,application/json" hidden></label>
+          <div class="spacer"></div>
+          <button type="button" id="sClear" class="danger" title="Delete every saved game from this browser">Delete all saves</button>
+        </div>
+        <div id="sStoreStatus" class="muted small" aria-live="polite"></div>
+        <div class="muted small">Saves live in this browser. The export holds your games only: no settings and no API keys.</div>
+      </fieldset>
+    </details>
+
+    <div id="sStatus" class="muted small" aria-live="polite"></div>
+  </form>
+</main>
+
+<script src="js/util.js"></script>
+<script src="js/adapters.js"></script>
+<script src="js/jsonshape.js"></script>
+<script src="js/llm.js"></script>
+<script src="js/pagecheck.js"></script>
+<script src="js/ui/header.js"></script>
+<script src="js/settingspage.js"></script>
+</body>
+</html>

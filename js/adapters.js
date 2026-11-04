@@ -155,6 +155,12 @@
     set(k, v) { prefs.set(k, v); return E.Store.set(k, v); },
     remove(k) { prefs.delete(k); return E.Store.remove(k); },
     keys: () => Array.from(prefs.keys()),
+    // Reads a key again, when another page may have changed it (Settings).
+    async reload(k) {
+      const v = await E.Store.get(k);
+      if (v === null) prefs.delete(k); else prefs.set(k, v);
+      return v;
+    },
   };
 
   // ---------- settings ----------
@@ -172,6 +178,7 @@
   // savemeta.<id> what a list shows, so listing never reads a whole game.
   // Each save has its own keys, so two tabs can't drop each other's from the
   // list. API keys live in settings, never in `state`.
+  const SAVES_FORMAT = 'ensemble-saves';
   E.Saves = {
     newId: () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
     meta(id, state) {
@@ -208,6 +215,42 @@
       return out.filter(Boolean).sort((a, b) => b.date - a.date);
     },
     last: async () => (await E.Saves.list())[0] || null,
+
+    // Every save as one file (Settings › Storage, task A-4): the games as
+    // they are kept, newest first. Settings and API keys are never in it.
+    async exportAll() {
+      const saves = [];
+      for (const meta of await E.Saves.list()) {
+        const game = await E.Saves.load(meta.id);
+        if (game) saves.push({ meta, game });
+      }
+      return { format: SAVES_FORMAT, version: 1, exported: new Date().toISOString(), saves };
+    },
+    // → { added, updated, kept, refused }. A save already here keeps
+    // whichever copy was played last; anything that isn't a game is refused.
+    async importAll(file) {
+      if (!file || file.format !== SAVES_FORMAT || !Array.isArray(file.saves)) throw new Error('That file is not an Ensemble saves file.');
+      const out = { added: 0, updated: 0, kept: 0, refused: 0 };
+      const have = new Map((await E.Saves.list()).map((m) => [m.id, m]));
+      for (const s of file.saves) {
+        const id = s && s.meta && typeof s.meta.id === 'string' && /^[\w-]{1,64}$/.test(s.meta.id) ? s.meta.id : null;
+        const g = s && s.game;
+        if (!id || !g || !g.scenario || !g.characters || !g.player) { out.refused++; continue; }
+        const mine = have.get(id);
+        if (mine && mine.date >= (s.meta.date || 0)) { out.kept++; continue; }
+        const meta = Object.assign(E.Saves.meta(id, g), { date: s.meta.date || Date.now() });
+        const ok = (await E.Store.set('save.' + id, JSON.stringify(g))) && (await E.Store.set('savemeta.' + id, JSON.stringify(meta)));
+        if (!ok) { out.refused++; continue; }
+        out[mine ? 'updated' : 'added']++;
+      }
+      return out;
+    },
+    // Removes every save, and gives how many went.
+    async clearAll() {
+      const ids = new Set((await E.Store.list('savemeta.')).map((k) => k.slice(9)).concat((await E.Store.list('save.')).map((k) => k.slice(5))));
+      for (const id of ids) await E.Saves.remove(id);
+      return ids.size;
+    },
   };
 
   // ---------- E.Backend ----------
