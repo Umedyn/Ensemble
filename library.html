@@ -46,9 +46,19 @@ try { window.EnsembleAppearance(JSON.parse(localStorage.getItem('ensemble.appear
           <option value="">All worlds</option>
           <option value="server">Comes with Ensemble</option>
           <option value="stored">Opened by you</option>
+          <option value="remote">From your lists</option>
         </select></label>
       </div>
       <div id="lGrid" class="lib-grid" aria-live="polite"><div class="muted lib-loading">Loading worlds…</div></div>
+
+      <h3 id="lListsTitle">Lists</h3>
+      <div class="muted small">Someone can share a list of worlds as a link. Add it here to see its worlds above and download them; nothing is fetched while you play.</div>
+      <form id="lListForm" class="row wrap lib-list-form">
+        <input type="url" id="lListUrl" placeholder="https://…/list.json" aria-labelledby="lListsTitle" required>
+        <button type="submit" id="lListAdd">Add list</button>
+      </form>
+      <div id="lListNote" class="muted small hidden">Opened from a file, Ensemble can only read lists that allow any site to read them (GitHub's raw files do).</div>
+      <ul id="lLists" class="lib-lists"></ul>
     </section>
 
     <section id="lDetails" class="lib-details hidden" aria-labelledby="lTitle"></section>
@@ -74,6 +84,7 @@ try { window.EnsembleAppearance(JSON.parse(localStorage.getItem('ensemble.appear
 <script src="js/geo.js"></script>
 <script src="js/layouts.js"></script>
 <script src="js/zip.js"></script>
+<script src="js/remote.js"></script>
 <script src="js/pagecheck.js"></script>
 <script src="js/ui/header.js"></script>
 <script src="js/librarypage.js"></script>

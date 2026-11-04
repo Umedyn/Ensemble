@@ -441,7 +441,8 @@
         if (opts && opts.raw) return b.files;
         return Object.assign(E.Scenario.prepareWorld(b.folder, b.files), { assets: await blobs(name) });
       },
-      // raw: { folder, files, assets? }. → { id, status: 'added' | 'same' | 'updated', world? }
+      // raw: { folder, files, assets?, from? } (from: the list and version a
+      // download came from, task A-8). → { id, status: 'added' | 'same' | 'updated', world? }
       async keep(kind, raw) {
         const name = String(raw.folder || '').trim();
         if (!name || name.includes('/')) throw new Error('A world or pack needs a folder name.');
@@ -456,7 +457,7 @@
         const world = E.Scenario.prepareWorld(name, raw.files);
         const id = entry('world', 'stored', name).id;
         const old = await readJSON('bundlemeta.' + name);
-        if (old && old.hash === hash) return { id, status: 'same', world };
+        if (old && old.hash === hash && JSON.stringify(old.from || null) === JSON.stringify(raw.from || null)) return { id, status: 'same', world };
         const paths = Object.keys(raw.assets || {});
         const fail = () => { throw new Error(`This browser didn't keep "${world.title}" (is it out of space?).`); };
         for (const p of paths) if (!(await E.Store.set(`bundleblob.${name}/${p}`, asBlob(raw.assets[p], p)))) fail();
@@ -467,6 +468,7 @@
           author: world.author || '', credit: world.credit || '', license: world.license || '', cover: world.cover || '',
           mapImage: (top.map && top.map.image) || '', starts: world.starts.length, generate: world.generate,
           size, hash, added: old ? old.added : Date.now(), updated: Date.now(),
+          from: raw.from || null,
         };
         if (!(await E.Store.set('bundlemeta.' + name, JSON.stringify(meta)))) fail();
         // Pictures the new copy no longer has.

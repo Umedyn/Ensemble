@@ -669,6 +669,12 @@ main.page > .newgame { max-width: 40rem; margin: 0 auto; }
 .lib-start > div { min-width: 0; line-height: 1.45; }
 .lib-start .btn { flex: none; }
 .lib-packs li { border-bottom: 1px solid var(--line); padding: 0.375rem 0; }
+/* remote lists (task A-8) */
+.lib-get { color: var(--accent); }
+.lib-list-form input { flex: 1 1 16rem; min-width: 0; }
+.lib-lists { list-style: none; margin: 0.5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.lib-list { display: flex; gap: 0.75rem; justify-content: space-between; align-items: flex-start; border: 1px solid var(--line); border-radius: var(--radius-l); padding: 0.5rem 0.625rem; background: var(--panel); overflow-wrap: anywhere; }
+.lib-list > div:first-child { min-width: 0; line-height: 1.45; }
 @media (max-width: 860px) {
   .lib-start { flex-direction: column; align-items: stretch; }
   .lib-start .btn { text-align: center; }

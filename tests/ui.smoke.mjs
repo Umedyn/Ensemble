@@ -2742,6 +2742,99 @@ await check('the header links the library from every page', async (page) => {
   }
 });
 
+// Remote lists (task A-8): a fake list server on another origin.
+const LISTS = 'https://lists.example.org/';
+async function listServer(page, files) {
+  const hits = [];
+  await page.route(`${LISTS}**`, async (route) => {
+    const url = route.request().url();
+    hits.push(url);
+    const body = files[url];
+    if (body == null) return route.fulfill({ status: 404, body: 'not found', headers: { 'access-control-allow-origin': '*' } });
+    await route.fulfill({ status: 200, body: typeof body === 'string' ? body : Buffer.from(body), headers: { 'access-control-allow-origin': '*', 'content-type': typeof body === 'string' ? 'application/json' : 'application/zip' } });
+  });
+  return hits;
+}
+const remoteList = (worlds) => JSON.stringify({ format: 'ensemble-list', version: 1, title: 'Community worlds', worlds });
+const harmon = (o) => Object.assign({ id: 'harmon', title: 'Harmon, downloaded', summary: 'The holdout, from a list.', tags: ['survival'], credit: 'Ensemble', license: 'CC BY 4.0', url: 'harmon.zip', version: '1.0' }, o);
+
+await check('remote lists: none on a fresh install; add one, download a world, play it with no list traffic', async (page) => {
+  const files = { [`${LISTS}list.json`]: remoteList([harmon()]), [`${LISTS}harmon.zip`]: zipOf('zombie-holdout', 'harmon') };
+  const hits = await listServer(page, files);
+  await page.goto(BASE + 'library.html');
+  await libraryReady(page);
+  assert.match(await page.textContent('#lLists'), /No lists yet/);
+  assert.equal(await page.evaluate(() => window.Ensemble.Remote.lists().length), 0);
+  await page.fill('#lListUrl', `${LISTS}list.json`);
+  await page.click('#lListAdd');
+  await page.waitForFunction(() => /Added "Community worlds": 1 world/.test(document.getElementById('lStatus').textContent));
+  const card = page.locator('.lib-card[data-world^="remote:"]');
+  assert.equal(await card.count(), 1);
+  assert.match(await card.textContent(), /Harmon, downloaded[\s\S]*From Community worlds[\s\S]*Download/);
+  await page.selectOption('#lSource', 'remote');
+  assert.equal(await page.locator('.lib-card').count(), 1, 'the filter for lists');
+  await card.click();
+  await page.click('#lDetails [data-get]');
+  await page.waitForFunction(() => new URLSearchParams(location.search).get('world') === 'stored:harmon');
+  assert.match(await page.textContent('#lStatus'), /Downloaded "Holdout at Harmon's"/);
+  assert.match(await page.textContent('#lDetails'), /Downloaded from Community worlds/);
+  await page.click('#lDetails a[data-all]');
+  await page.selectOption('#lSource', '');
+  assert.equal(await page.locator('.lib-card[data-world^="remote:"]').count(), 0, 'no second card for it');
+  await page.click('.lib-card[data-world="stored:harmon"]');
+  // Play it: no request to the list's server from New game or the game.
+  await page.locator('#lDetails [data-play]').first().click();
+  await pageReady(page);
+  hits.length = 0;
+  await newGame(page);
+  await act(page, 'I look around.');
+  await page.reload();
+  await sceneReady(page);
+  assert.deepEqual(hits, [], 'no list traffic while playing');
+});
+
+await check('remote lists: refresh shows an update, a failed list and a broken zip explain themselves, and removing a list keeps its worlds', async (page) => {
+  const files = { [`${LISTS}list.json`]: remoteList([harmon(), harmon({ id: 'junk', title: 'Not a zip', url: 'junk.zip' })]), [`${LISTS}harmon.zip`]: zipOf('zombie-holdout', 'harmon'), [`${LISTS}junk.zip`]: 'this is not a zip' };
+  await listServer(page, files);
+  await page.goto(BASE + 'library.html');
+  await libraryReady(page);
+  await page.fill('#lListUrl', `${LISTS}missing.json`);
+  await page.click('#lListAdd');
+  await page.waitForFunction(() => /HTTP 404/.test(document.getElementById('lStatus').textContent));
+  assert.equal(await page.evaluate(() => window.Ensemble.Remote.lists().length), 0, 'nothing added');
+  await page.fill('#lListUrl', `${LISTS}list.json`);
+  await page.click('#lListAdd');
+  await page.waitForFunction(() => /Added "Community worlds": 2 worlds/.test(document.getElementById('lStatus').textContent));
+  await page.click('.lib-card[data-world$=":junk"]');
+  await page.click('#lDetails [data-get]');
+  await page.waitForFunction(() => /isn't a zip Ensemble can read/.test(document.getElementById('lStatus').textContent));
+  assert.equal(await page.evaluate(async () => (await window.Ensemble.Store.list('bundlemeta.')).length), 0, 'nothing kept');
+  await page.click('#lDetails a[data-all]');
+  await page.click('.lib-card[data-world$=":harmon"]');
+  await page.click('#lDetails [data-get]');
+  await page.waitForFunction(() => new URLSearchParams(location.search).get('world') === 'stored:harmon');
+  // The list has a new version: Refresh, then the card says so, and Update.
+  files[`${LISTS}list.json`] = remoteList([harmon({ version: '1.1' })]);
+  await page.click('#lDetails a[data-all]');
+  await page.click('[data-list-refresh]');
+  await page.waitForFunction(() => /Refreshed "Community worlds"/.test(document.getElementById('lStatus').textContent));
+  assert.match(await page.textContent('.lib-card[data-world="stored:harmon"]'), /Update available/);
+  await page.click('.lib-card[data-world="stored:harmon"]');
+  await page.click('#lDetails [data-get]');
+  await page.waitForFunction(() => /^Updated "Holdout at Harmon's"/.test(document.getElementById('lStatus').textContent));
+  // A list that fails later keeps what it had and says why.
+  files[`${LISTS}list.json`] = null;
+  await page.click('#lDetails a[data-all]');
+  await page.click('[data-list-refresh]');
+  await page.waitForFunction(() => /couldn't be refreshed[\s\S]*HTTP 404/.test(document.getElementById('lStatus').textContent));
+  assert.match(await page.textContent('#lLists'), /The last refresh failed/);
+  page.once('dialog', (d) => d.accept());
+  await page.click('[data-list-remove]');
+  await page.waitForFunction(() => /No lists yet/.test(document.getElementById('lLists').textContent));
+  assert.equal(await page.locator('.lib-card[data-world="stored:harmon"]').count(), 1, 'the downloaded world stays');
+  await page.screenshot({ path: path.join(shots, 'library-lists.png'), fullPage: true });
+});
+
 // The Settings page (task A-4).
 await check('settings page: a change there is seen by the game on return, in the same game', async (page) => {
   await newGame(page);
