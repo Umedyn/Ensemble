@@ -437,6 +437,28 @@ const toPx = (f, rings, tol) => rings.map((r) => G.simplify(open(r).map((p) => f
   .map((r) => r.map((p) => [Math.round(Math.max(0, Math.min(f.width, p[0]))), Math.round(Math.max(0, Math.min(f.height, p[1])))]))
   .filter((r) => r.length >= 3 && G.area(r) >= 2);
 const shapeOf = (rings) => (rings.length === 1 ? { polygon: rings[0] } : { polygons: rings });
+// The Oregon Trail's gold camp (task 7-7) on the map: a dot until the company
+// holds it, then a camp, then a town along its street as lots go up.
+const HOLDS = { controls: { region: 'poormans-gulch', group: 'company' } };
+const GROWS = {
+  'oregon-trail': {
+    'poormans-gulch': [
+      { name: 'camp', when: HOLDS, size: [7, 4], turn: -25 },
+      { name: 'town', when: [HOLDS, { built: { place: 'poormans-gulch', atLeast: 2 } }], size: [12, 6], turn: -25 },
+      { name: 'founded', when: [HOLDS, { built: { place: 'poormans-gulch', atLeast: 4 } }], size: [18, 8], turn: -25 },
+    ],
+  },
+};
+// A rounded, slightly uneven outline around a point, rx by ry pixels,
+// turned (degrees) along the gulch: twelve corners, the same every build.
+const blob = ([x, y], [rx, ry], turn) => {
+  const t = (turn * Math.PI) / 180;
+  return Array.from({ length: 12 }, (_, i) => {
+    const a = (i / 12) * 2 * Math.PI, wob = 1 + 0.12 * Math.sin(i * 2.7);
+    const px = Math.cos(a) * rx * wob, py = Math.sin(a) * ry * wob;
+    return [Math.round(x + px * Math.cos(t) - py * Math.sin(t)), Math.round(y + px * Math.sin(t) + py * Math.cos(t))];
+  });
+};
 // The parts of a line where test(point) holds (sampled; decoration only).
 function sampled(line, test, step) {
   const out = [];
@@ -616,6 +638,13 @@ const SECTION_ROUTES = [['northeast', 'midwest'], ['northeast', 'south'], ['midw
     if (!parent) throw new Error(`${name}: in no state`);
     america.regions[id] = { point: G.toPixel(america, [lon, lat]).map(Math.round) };
     put(Object.assign({ id, name, parent, label, routes: [] }, 'controller' in x ? { controller: x.controller } : {}, x.notable ? { notable: true } : {}));
+  });
+  // Outlines that move (task A-11A): a place on the map that grows in the
+  // story, from its dot to each stage while the stage's conditions hold.
+  Object.entries(GROWS[path.basename(WORLD)] || {}).forEach(([id, stages]) => {
+    const at = america.regions[id] && america.regions[id].point;
+    if (!at) throw new Error(`${id}: grows, but isn't a point on the map`);
+    america.regions[id].outlines = stages.map((st) => ({ name: st.name, when: st.when, polygon: blob(at, st.size, st.turn) }));
   });
   // Routes, on the region they leave from (both ways).
   const byId = new Map(regions.map((r) => [r.id, r]));

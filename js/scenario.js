@@ -1364,6 +1364,8 @@
     .flatMap((m) => (m && Array.isArray(m.places) ? m.places : []));
   // The world's map (the root's) and any region's own map (R-3): the same
   // format; a region's map outlines only regions inside it.
+  // Conditions about the player alone, which a map everyone sees can't follow.
+  S.OUTLINE_PRIVATE = ['known', 'reputation', 'role', 'reached'];
   function mapProblems(sc, locIds) {
     const problems = sc.map == null ? [] : oneMapProblems(sc, sc.map, 'map', null, locIds);
     const list = Array.isArray(sc.regions) ? sc.regions.filter(isObj) : [];
@@ -1379,20 +1381,46 @@
     if (!isObj(m) || !E.isImagePath(m.image) || !(m.width > 0) || !(m.height > 0)) return [`"${at}" needs an "image" in the world folder, a "width" and a "height"`];
     const regionIds = new Set((Array.isArray(sc.regions) ? sc.regions : []).map((r) => r && r.id));
     const inside = (p) => Array.isArray(p) && p.length === 2 && p.every((n) => typeof n === 'number') && p[0] >= 0 && p[1] >= 0 && p[0] <= m.width && p[1] <= m.height;
-    Object.entries(isObj(m.regions) ? m.regions : {}).forEach(([id, shape]) => {
-      req(regionIds.has(id), `${at}: unknown region "${id}"`);
-      if (within && regionIds.has(id)) req(within.ids.has(id), `${at}: "${id}" isn't inside ${within.name}`);
+    const shapeProblems = (shape, what) => {
       if (isObj(shape) && shape.polygon != null) {
-        req(Array.isArray(shape.polygon) && shape.polygon.length >= 3, `${at}: region "${id}" polygon needs at least 3 points`);
-        req(Array.isArray(shape.polygon) && shape.polygon.every(inside), `${at}: region "${id}" polygon has a point outside the image`);
+        req(Array.isArray(shape.polygon) && shape.polygon.length >= 3, `${what} polygon needs at least 3 points`);
+        req(Array.isArray(shape.polygon) && shape.polygon.every(inside), `${what} polygon has a point outside the image`);
       } else if (isObj(shape) && shape.polygons != null) {
         // A region in several pieces (islands; task 4-5).
         const ok = Array.isArray(shape.polygons) && shape.polygons.length && shape.polygons.every((r) => Array.isArray(r) && r.length >= 3);
-        req(ok, `${at}: region "${id}" "polygons" must be a list of pieces, each of at least 3 points`);
-        if (ok) req(shape.polygons.every((r) => r.every(inside)), `${at}: region "${id}" has a point outside the image`);
+        req(ok, `${what} "polygons" must be a list of pieces, each of at least 3 points`);
+        if (ok) req(shape.polygons.every((r) => r.every(inside)), `${what} has a point outside the image`);
       } else if (isObj(shape) && shape.point != null) {
-        req(inside(shape.point), `${at}: region "${id}" point is outside the image`);
-      } else problems.push(`${at}: region "${id}" needs a "polygon", "polygons" or a "point"`);
+        req(inside(shape.point), `${what} point is outside the image`);
+      } else problems.push(`${what} needs a "polygon", "polygons" or a "point"`);
+    };
+    const groupIds = new Set((Array.isArray(sc.factions) ? sc.factions : []).map((f) => f && f.id));
+    Object.entries(isObj(m.regions) ? m.regions : {}).forEach(([id, shape]) => {
+      req(regionIds.has(id), `${at}: unknown region "${id}"`);
+      if (within && regionIds.has(id)) req(within.ids.has(id), `${at}: "${id}" isn't inside ${within.name}`);
+      shapeProblems(shape, `${at}: region "${id}"`);
+      if (!isObj(shape)) return;
+      // Drawn as a line over the others (task A-11A: a zone's border).
+      req(shape.border == null || typeof shape.border === 'boolean', `${at}: region "${id}" "border" must be true or false`);
+      // Outlines that move (task A-11A): stages drawn while their conditions hold.
+      if (shape.outlines == null) return;
+      if (!Array.isArray(shape.outlines)) return problems.push(`${at}: region "${id}" "outlines" must be a list of {name, when, polygon | polygons | point}`);
+      const names = new Set();
+      shape.outlines.forEach((st, i) => {
+        const what = `${at}: region "${id}" outline ${isObj(st) && typeof st.name === 'string' ? `"${st.name}"` : i + 1}`;
+        if (!isObj(st)) return problems.push(`${what} must be {name, when, polygon | polygons | point}`);
+        req(typeof st.name === 'string' && /^[a-z0-9][a-z0-9_-]*$/.test(st.name), `${what}: "name" must be lowercase letters, digits, - or _`);
+        req(!names.has(st.name), `${what} is listed twice`);
+        names.add(st.name);
+        const conds = st.when == null ? [] : [].concat(st.when);
+        req(conds.length, `${what}: "when" must be a condition, or a list of them, for when it is drawn`);
+        conds.forEach((c) => {
+          problems.push(...E.Timeline.preconditionProblems(c, what, { regions: regionIds, groups: groupIds }));
+          const own = isObj(c) && S.OUTLINE_PRIVATE.find((k) => k in c);
+          if (own) problems.push(`${what}: "when" can't use "${own}": an outline follows what everyone can see, not what the player knows or is`);
+        });
+        shapeProblems(st, what);
+      });
     });
     // Where the image is on the globe (task 4-5), and named places on it:
     // capitals and cities with no rooms, which the story knows by name.

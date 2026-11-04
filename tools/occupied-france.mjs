@@ -130,6 +130,9 @@ const LINE = [[-1.3, 42.7], [-1.28, 43.11], [-1.05, 43.33], [-0.78, 43.49], [-0.
   [1.0, 47.18], [0.99, 47.33], [1.18, 47.34], [1.38, 47.27], [1.55, 47.27], [2.07, 47.22], [2.45, 47.1], [2.7, 46.9], [3.0, 46.72], [3.33, 46.55], [3.68, 46.52],
   [3.98, 46.48], [4.12, 46.45], [4.24, 46.58], [4.47, 46.75], [4.85, 46.78], [5.25, 46.78], [5.55, 46.8], [5.75, 46.78], [5.91, 46.7], [5.95, 46.45], [5.9, 46.25],
   [5.83, 46.11], [5.97, 46.15], [6.3, 46.2]];
+// The Italian zone from November 1942, east of the Rhône: its mainland
+// départements (Corsica too, but an island isn't part of the line).
+const ITALIAN_ZONE = ['alpes-maritimes', 'var', 'basses-alpes', 'hautes-alpes', 'savoie', 'haute-savoie', 'isere', 'drome'];
 // The occupied side of the line: the line, then round by the north and west.
 const OCCUPIED_SIDE = LINE.concat([[20, 46.2], [20, 60], [-20, 60], [-20, 42.7]]);
 const FREE_SIDE = LINE.concat([[20, 46.2], [20, 30], [-20, 30], [-20, 42.7]]);
@@ -367,6 +370,18 @@ function build() {
   const dist = (d, lon, lat) => Math.min(...d.rings.flatMap((r) => r.map((p) => Math.hypot(p[0] - lon, p[1] - lat))));
   const holder = (lon, lat) => deptRegions.find((d) => G.insideAny([lon, lat], d.rings.map(open)))
     || deptRegions.slice().sort((a, b) => dist(a, lon, lat) - dist(b, lon, lat))[0];
+
+  // The demarcation line, drawn as the free zone's border on France's map
+  // (task A-11A): its mainland, from the free zone's départements. Once the
+  // Germans hold Vichy (11 November 1942, the "anton" event) the line moves
+  // south and east to the Rhône: the border becomes the Italian zone's.
+  const biggest = (rings) => rings.slice().sort((a, b) => G.area(b) - G.area(a))[0];
+  const freeLonLat = union(deptRegions.filter((d) => d.zone === 'free').map((d) => d.rings));
+  const freeRing = biggest(freeLonLat.length ? freeLonLat : intersect(biggest(countryRings.france), FREE_SIDE));
+  const italianRing = biggest(union(ITALIAN_ZONE.map((id) => deptLonLat[id])));
+  const onFrance = (ring) => biggest(round([ring], france, { tol: 1.2, minArea: 3 }));
+  france.regions.free = { polygon: onFrance(freeRing), border: true,
+    outlines: [{ name: 'italian-zone', when: { controls: { region: 'vichy', group: 'germany' } }, polygon: onFrance(italianRing) }] };
 
   // Cities with a point, and pins.
   CITY_POINTS.forEach((c) => {

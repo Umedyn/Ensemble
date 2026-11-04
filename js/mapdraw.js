@@ -20,8 +20,9 @@
 
   // Shapes and anchors for a world map: the image's polygons and points, or
   // the automatic node map. regions: the definitions; map: the world's map
-  // (or null); seed: the world id.
-  D.geometry = function (regions, map, seed) {
+  // (or null); seed: the world id; stages: { region id: the outline stage
+  // drawn now } (task A-11A, Engine.regionStages).
+  D.geometry = function (regions, map, seed, stages) {
     // A region with regions inside it (R-1) is drawn only when the map gives
     // it a shape of its own; otherwise its children stand for it, and it gets
     // no automatic point or node. Parents go first, so children sit on top.
@@ -32,9 +33,15 @@
       const anchors = E.Layouts.regionAnchors(regions, map);
       const shapes = {};
       regions.forEach((r) => {
-        const sh = map.regions && map.regions[r.id];
+        const entry = map.regions && map.regions[r.id];
+        // The stage drawn now, if it has stages and one holds (task A-11A).
+        const name = stages && stages[r.id];
+        const st = name && entry && Array.isArray(entry.outlines) ? entry.outlines.find((x) => x && x.name === name) : null;
+        const sh = st || entry;
         // A region in several pieces (islands; task 4-5) is one shape.
-        shapes[r.id] = sh && (sh.polygon || sh.polygons) ? { polygons: E.Geo.pieces(sh) } : { circle: anchors[r.id], r: 4 };
+        shapes[r.id] = sh && (sh.polygon || sh.polygons) ? { polygons: E.Geo.pieces(sh) } : { circle: st && st.point ? st.point : anchors[r.id], r: 4 };
+        // Drawn as a line over the others: a zone's border (task A-11A).
+        if (entry && entry.border && shapes[r.id].polygons) shapes[r.id].border = true;
       });
       return { image: map, anchors, shapes, edges: [], full: [0, 0, map.width, map.height] };
     }
@@ -77,7 +84,7 @@
       // its map (task 7-1: départements on France's, not as stray points on Europe's).
       const deeper = (x) => chainOf(x).slice(1).some((c) => c !== owner && inside(c, owner) && def(c).map);
       const regions = list.filter((r) => inside(r.id, owner) && !deeper(r.id));
-      const g = D.geometry(regions, picture, seed);
+      const g = D.geometry(regions, picture, seed, opts && opts.stages);
       const focus = id == null || id === owner ? null : (leaf ? [id] : list.filter((r) => inside(r.id, id)).map((r) => r.id).filter((x) => g.shapes[x]));
       // A leaf: as the regional view was, twice its size within what's near it.
       const near = leaf ? [id].concat(S.regionNearIn(list, id)).filter((x) => g.shapes[x]) : [];
@@ -157,6 +164,8 @@
     const size = (id) => {
       if (!sizes.has(id)) {
         const sh = g.shapes[id];
+        // A border (a zone's line) is drawn over what is inside it, not instead.
+        if (sh && sh.border) { sizes.set(id, null); return null; }
         const big = sh && sh.polygons && sh.polygons.slice().sort((a, b) => E.Geo.area(b) - E.Geo.area(a))[0];
         const b = big && E.Geo.bbox([big]);
         sizes.set(id, b ? Math.max(b[2] - b[0], b[3] - b[1]) : sh ? Infinity : null);
@@ -217,7 +226,16 @@
     const zoomable = new Set(o.zoomable || []);
     const pulse = new Set(o.pulse || []);
     const parents = new Set((o.regions || []).map((r) => r.parent).filter((p) => p != null));
-    const body = (o.regions || []).filter((r) => g.shapes[r.id] && shown(r)).sort((a, b) => parents.has(b.id) - parents.has(a.id)).map((r) => {
+    // Borders (task A-11A): a heavy line over the regions, no fill, no label,
+    // and clicks go through to what is under it. A single ring is a polygon,
+    // so it can morph when its stage changes.
+    const borders = (o.regions || []).filter((r) => g.shapes[r.id] && g.shapes[r.id].border).map((r) => {
+      const rings = g.shapes[r.id].polygons;
+      const line = rings.length === 1 ? `<polygon class="region-border" points="${rings[0].map((p) => p.join(',')).join(' ')}"/>`
+        : `<path class="region-border" d="${rings.map((ring) => 'M' + ring.map((p) => p.join(',')).join('L') + 'Z').join('')}"/>`;
+      return `<g class="region-border-g" data-region="${esc(r.id)}" aria-hidden="true">${line}</g>`;
+    }).join('');
+    const body = (o.regions || []).filter((r) => g.shapes[r.id] && !g.shapes[r.id].border && shown(r)).sort((a, b) => parents.has(b.id) - parents.has(a.id)).map((r) => {
       const now = (o.now || {})[r.id] || { controller: r.controller || null, tags: r.tags || [] };
       const fc = D.factionClass(o.factions, now.controller);
       const cls = `region-shape ${fc}${fc === 'none' ? ' none' : ''}${(o.contested || []).includes(r.id) ? ' contested' : ''}${r.id === o.mine ? ' here' : ''}${(o.branch || []).includes(r.id) && r.id !== o.mine ? ' branch' : ''}${r.id === o.selected ? ' selected' : ''}`;
@@ -264,6 +282,6 @@
     }
     const img = o.imageUrl && g.image ? `<image href="${esc(o.imageUrl)}" x="0" y="0" width="${g.image.width}" height="${g.image.height}"/>` : '';
     const vb = vbox.map((n) => Math.round(n)).join(' ');
-    return `<svg class="world-svg" id="${esc(o.id || 'worldSvg')}" data-view="${esc(o.view || 'world')}" viewBox="${vb}" role="img" aria-label="${esc(o.label || 'World map')}">${img}${edges}${body}${places}${rooms}${you}${o.overlay || ''}</svg>`;
+    return `<svg class="world-svg" id="${esc(o.id || 'worldSvg')}" data-view="${esc(o.view || 'world')}" viewBox="${vb}" role="img" aria-label="${esc(o.label || 'World map')}">${img}${edges}${body}${borders}${places}${rooms}${you}${o.overlay || ''}</svg>`;
   };
 })(typeof window !== 'undefined' ? window : globalThis);

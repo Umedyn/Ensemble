@@ -281,7 +281,8 @@ Small models drift to the most likely beat. Genre-aware random tables fix that: 
 - [ ] **Remote lists** (A-8): the library can add a list URL for downloadable worlds, validated and stored as bundles, fetched only in the library, never in play. None configured by default.
 - [ ] **Polish** (A-9): consistent spacing and type, plain empty states, loading states.
 - [x] **Moving pieces** (A-10, A-11): tokens walk the real path on the beat they move, only for what the player saw, with a phone pop-up and a Map motion setting (done, A-10: `E.Motion` in `js/motion.js`); region control, presence, tags and drawn outlines shift on the map the same way (done, A-11: the world shifts first in a beat, then the people).
-- [ ] **Outlines that move** (A-11A): an effect that switches a region to one of its authored outlines, so the demarcation line moves south in November 1942 and the Oregon Trail's town grows when founded; the morph is built (A-11), the triggers aren't.
+- [x] **Outlines that move** (A-11A, done: stages chosen by conditions rather than a new effect, `border` for a zone's line): an effect that switches a region to one of its authored outlines, so the demarcation line moves south in November 1942 and the Oregon Trail's town grows when founded; the morph is built (A-11), the triggers aren't.
+- [ ] **Outline stages in the creator** (from A-11A): the Map tab keeps a region's `outlines` and `border` when it is redrawn, but can't draw or edit stages yet; for now they are written in the JSON (or by a world's map builder).
 
 ## Engine systems
 

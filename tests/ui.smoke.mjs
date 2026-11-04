@@ -2465,6 +2465,78 @@ await check('phone: territory pops the map up on the region\'s level, then puts 
   await page.waitForFunction(() => !document.querySelector('#story.map-pop'), null, { timeout: 6000 });
 });
 
+// Outlines that move (task A-11A).
+const pointsOf = (page, sel) => page.evaluate((q) => { const el = document.querySelector(q); return el ? el.getAttribute('points') : null; }, sel);
+const stagePoints = (page, map, region, stage) => page.evaluate(([m, r, st]) => {
+  const sc = window.Ensemble.UI.state.scenario;
+  const pic = m ? sc.regions.find((x) => x.id === m).map : sc.map;
+  return pic.regions[r].outlines.find((x) => x.name === st).polygon.map((q) => q.join(',')).join(' ');
+}, [map, region, stage]);
+// Occupied France an hour before 11 November 1942, on France's map.
+async function eveOfAnton(page, motion) {
+  await pickWorld(page, 'server:occupied-france');
+  await newGame(page);
+  await editSave(page, (s) => { const a = s.scenario.timeline.find((e) => e.id === 'anton'); s.time = { day: a.when.day, hour: a.when.hour - 1 }; });
+  await page.evaluate(() => window.Ensemble.Prefs.set('ensemble.mapview', JSON.stringify({ 'occupied-france': 'france' })));
+  await page.reload();
+  await sceneReady(page);
+  if (motion) await page.evaluate((m) => { window.Ensemble.settings.appearance.mapMotion = m; }, motion);
+  await page.waitForSelector('#worldSvg .region-border-g[data-region="free"] polygon');
+}
+const LINE = '#worldSvg .region-border-g[data-region="free"] polygon';
+await check('outlines: the demarcation line moves to the Rhône on the beat the news comes, and ends there', async (page) => {
+  await eveOfAnton(page);
+  const before = await pointsOf(page, LINE);
+  const rhone = await stagePoints(page, 'france', 'free', 'italian-zone');
+  assert.notEqual(before, rhone);
+  await page.fill('#actionInput', 'I listen to the news.');
+  await page.click('#btnAct');
+  await turnDone(page);
+  assert.equal(await page.evaluate(() => window.Ensemble.UI.state.regions.vichy.controller), 'germany', 'the Germans hold Vichy');
+  const mid = await pointsOf(page, LINE);
+  assert.ok(mid !== rhone && mid !== before, 'part way: morphing');
+  await page.screenshot({ path: path.join(shots, 'outline-morph.png') });
+  await page.waitForFunction(([q, want]) => document.querySelector(q).getAttribute('points') === want, [LINE, rhone], { timeout: 4000 });
+});
+
+await check('outlines: with map motion off, the line is at the Rhône at once', async (page) => {
+  await eveOfAnton(page, 'off');
+  const rhone = await stagePoints(page, 'france', 'free', 'italian-zone');
+  await act(page, 'I listen to the news.');
+  assert.equal(await pointsOf(page, LINE), rhone);
+});
+
+await check('outlines: the gold camp grows from a dot when the company takes it', async (page) => {
+  const take = { text: 'The Mercer company stakes the gulch.', scope: 'regional', region: 'poormans-gulch', visibility: 'heard', effects: { control: [{ region: 'poormans-gulch', to: 'company' }] } };
+  await page.route('http://localhost:5001/v1/chat/completions', async (route) => {
+    const res = await route.fetch();
+    let text = await res.text();
+    try {
+      const j = JSON.parse(text);
+      const c = j.choices && j.choices[0] && j.choices[0].message;
+      if (c && typeof c.content === 'string' && c.content.includes('"events":[')) {
+        c.content = c.content.includes('"events":[]') ? c.content.replace('"events":[]', `"events":[${JSON.stringify(take)}]`) : c.content.replace('"events":[', `"events":[${JSON.stringify(take)},`);
+        text = JSON.stringify(j);
+      }
+    } catch (e) { /* a stream */ }
+    await route.fulfill({ response: res, body: text });
+  });
+  await pickWorld(page, 'server:oregon-trail');
+  await newGame(page);
+  await editSave(page, (s) => { delete s.regions['poormans-gulch'].known; delete s.regions['wind-river'].known; });
+  await page.evaluate(() => window.Ensemble.Prefs.set('ensemble.mapview', JSON.stringify({ 'oregon-trail': 'wind-river' })));
+  await page.reload();
+  await sceneReady(page);
+  await page.evaluate(() => { window.Ensemble.rng = () => 0.0001; });
+  const gulch = '#worldSvg .region-g[data-region="poormans-gulch"]';
+  await page.waitForSelector(`${gulch} circle.region-shape`);
+  await act(page, 'I wait by the wagons.');
+  assert.equal(await page.evaluate(() => window.Ensemble.UI.state.regions['poormans-gulch'].controller), 'company');
+  const camp = await stagePoints(page, null, 'poormans-gulch', 'camp');
+  await page.waitForSelector(`${gulch} polygon.region-shape`);
+  await page.waitForFunction(([q, want]) => document.querySelector(q).getAttribute('points') === want, [`${gulch} polygon.region-shape`, camp], { timeout: 4000 });
+});
+
 // The landing page (task A-7).
 const landingReady = async (page) => { await page.goto(BASE); await pageReady(page); };
 for (const phone of [false, true]) {

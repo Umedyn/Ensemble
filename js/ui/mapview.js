@@ -381,8 +381,10 @@
     const sc = U.state.scenario;
     // Regions the player doesn't know of are left out (R-5); contested ones marked.
     const hidden = E.Engine.hiddenRegions(U.state);
-    const lv = curLevel = E.MapDraw.level(sc, levelId, { hidden });
     const sr = E.Engine.sceneRegions(U.state, beat);
+    // Each region's outline stage as of the beat (task A-11A).
+    const stages = sr ? Object.fromEntries(Object.entries(sr.regions).map(([id, r]) => [id, r.outline])) : E.Engine.regionStages(U.state);
+    const lv = curLevel = E.MapDraw.level(sc, levelId, { hidden, stages });
     const contested = lv.regions.map((r) => r.id).filter((id) => (sr ? sr.contested.includes(id) : E.Engine.presenceIn(U.state, id).contested));
     // Where the player is at the beat being read (task G-11), so the pin moves
     // along a trip beat by beat (task A-10).

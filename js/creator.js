@@ -465,6 +465,9 @@
     banner(esc(`${(world().regions || []).find((r) => r.id === id).name} isn't inside ${ownerRegion().name}, so it can't go on ${mapName()}. Pick a region inside it, or switch to the map it belongs on.`), 'bad');
     return true;
   }
+  // A region's new shape, keeping what else its map entry says (task A-11A:
+  // its outline stages and whether it is drawn as a border).
+  const reshaped = (old, shape) => Object.assign(Object.fromEntries(Object.entries(old || {}).filter(([k]) => !['polygon', 'polygons', 'point'].includes(k))), shape);
   function finishDrawing() {
     const w = world();
     if (ui.drawing.length < 3 || !mh().map) return;
@@ -473,8 +476,8 @@
     mh().map.regions = mh().map.regions || {};
     const had = E.Geo.pieces(mh().map.regions[id]);
     // "Add as another piece": an island or an exclave of the same region.
-    if (ui.addPiece && had.length) { mh().map.regions[id] = { polygons: had.concat([ui.drawing.slice()]) }; ui.piece = had.length; }
-    else { mh().map.regions[id] = { polygon: ui.drawing.slice() }; ui.piece = null; }
+    if (ui.addPiece && had.length) { mh().map.regions[id] = reshaped(mh().map.regions[id], { polygons: had.concat([ui.drawing.slice()]) }); ui.piece = had.length; }
+    else { mh().map.regions[id] = reshaped(mh().map.regions[id], { polygon: ui.drawing.slice() }); ui.piece = null; }
     // Places inside it that belong to no region yet are in it now.
     (mh().map.places || []).forEach((pl) => { if (!pl.region && E.Geo.inside(pl.at, ui.drawing)) pl.region = id; });
     ui.drawing = [];
@@ -545,7 +548,7 @@
       if (!ui.sel) return banner('Pick a region first, then place it.');
       if (notHere(ui.sel)) return;
       mh().map.regions = mh().map.regions || {};
-      mh().map.regions[ui.sel] = { point: p };
+      mh().map.regions[ui.sel] = reshaped(mh().map.regions[ui.sel], { point: p });
       return changed();
     }
     if (ui.mode === 'place') {
@@ -632,7 +635,7 @@
     if (t.id === 'cRemovePiece') {
       const sh = mh().map.regions[ui.sel];
       sh.polygons.splice(ui.piece, 1);
-      if (sh.polygons.length === 1) mh().map.regions[ui.sel] = { polygon: sh.polygons[0] };
+      if (sh.polygons.length === 1) mh().map.regions[ui.sel] = reshaped(sh, { polygon: sh.polygons[0] });
       ui.piece = null;
       return changed();
     }

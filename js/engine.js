@@ -1023,15 +1023,39 @@
       .filter((id) => (id in people ? people[id] === player : Eng.isAt(state, id, player)));
     return { player, people, time: { day, hour }, with: withPlayer };
   };
+  // Outlines that move (task A-11A): a region's map entry may list stages,
+  // { name, when, shape }, each drawn while its conditions hold (the
+  // timeline's precondition grammar, about what everyone can see). The last
+  // that holds wins; null is the entry's own outline. Read-only.
+  const stagedEntries = (state) => {
+    const sc = state.scenario;
+    const out = {};
+    [sc.map].concat((sc.regions || []).map((r) => r && r.map)).forEach((m) => {
+      Object.entries((m && m.regions) || {}).forEach(([id, e]) => { if (e && Array.isArray(e.outlines) && e.outlines.length) out[id] = e.outlines; });
+    });
+    return out;
+  };
+  Eng.regionStage = function (state, id, staged) {
+    const list = (staged || stagedEntries(state))[id] || [];
+    let name = null;
+    list.forEach((st) => { if ([].concat(st.when).every((c) => E.Timeline.holds(state, c))) name = st.name; });
+    return name;
+  };
+  // { region id: stage name or null } for every region with stages.
+  Eng.regionStages = function (state) {
+    const staged = stagedEntries(state);
+    return Object.fromEntries(Object.keys(staged).map((id) => [id, Eng.regionStage(state, id, staged)]));
+  };
   // The region changes the player learns of in the scene being read (task
   // A-11), the territory's equal of sceneMoves: read-only, changing no rule
   // or prompt. A change shows on the first beat naming the region or the
   // event behind it, else the first (the news says it from the start). Only regions known before the turn and
   // now: one found this turn just appears, and an unknown one never shows.
   // → { changes: [{ region, beat, controller: [was, is] | null, tagsAdded,
-  // tagsGone, status: bool, presence: bool, contested: [was, is] }],
-  // regions: { id: { controller, tags, status } } as of the beat, contested:
-  // [ids] as of the beat } or null with no scene being read.
+  // tagsGone, status: bool, presence: bool, contested: [was, is], outline:
+  // [was, is] | null (task A-11A) }], regions: { id: { controller, tags,
+  // status, outline } } as of the beat, contested: [ids] as of the beat } or
+  // null with no scene being read.
   Eng.sceneRegions = function (state, beat) {
     const p = state.pending;
     if (!p || !p.pre || !p.pre.regions || !state.regions) return null;
@@ -1039,6 +1063,7 @@
     const last = Math.max(0, beats.length - 1);
     const director = (p.res && p.res.director) || [];
     const changes = [];
+    const stagesWas = Eng.regionStages(p.pre), stagesNow = Eng.regionStages(state);
     Object.keys(state.regions).forEach((id) => {
       const was = p.pre.regions[id], is = state.regions[id];
       if (!was || !Eng.regionKnown(state, id) || !Eng.regionKnown(p.pre, id)) return;
@@ -1050,8 +1075,9 @@
         controller: was.controller !== is.controller ? [was.controller, is.controller] : null,
         tagsAdded: is.tags.filter((t) => !was.tags.includes(t)), tagsGone: was.tags.filter((t) => !is.tags.includes(t)),
         status: was.status !== is.status, presence, contested: [wasC, isC],
+        outline: (stagesWas[id] ?? null) !== (stagesNow[id] ?? null) ? [stagesWas[id] ?? null, stagesNow[id] ?? null] : null,
       };
-      if (!ch.controller && !ch.tagsAdded.length && !ch.tagsGone.length && !ch.status && !presence && wasC === isC) return;
+      if (!ch.controller && !ch.tagsAdded.length && !ch.tagsGone.length && !ch.status && !presence && wasC === isC && !ch.outline) return;
       const name = (Eng.regionDef(state, id) || {}).name || id;
       const told = director.filter((d) => d.visibility !== 'hidden' && (d.region === id || (d.effects || []).some((x) => String(x).startsWith(name + ':'))));
       const hit = beats.findIndex((b) => E.Lore.matches(name, b.text) || told.some((d) => {
@@ -1067,7 +1093,7 @@
     Object.keys(state.regions).forEach((id) => {
       const later = changes.find((c) => c.region === id && c.beat > i);
       const src = later ? p.pre.regions[id] : state.regions[id];
-      regions[id] = Object.assign({}, state.regions[id], { controller: src.controller, tags: src.tags.slice(), status: src.status });
+      regions[id] = Object.assign({}, state.regions[id], { controller: src.controller, tags: src.tags.slice(), status: src.status, outline: (later ? stagesWas[id] : stagesNow[id]) ?? null });
       if (later ? later.contested[0] : Eng.presenceIn(state, id).contested) contested.push(id);
     });
     return { changes, regions, contested };

@@ -29,14 +29,20 @@
   const boxMid = (el) => { try { const b = el.getBBox(); return { x: b.x + b.width / 2, y: b.y + b.height / 2, b }; } catch (e) { return null; } };
   // The "You are here" pin on a region map: the middle of its box.
   const pinAt = (root) => { const pin = (root || $('mapPane')).querySelector('.you-here'); return pin ? boxMid(pin) : null; };
-  // A region map's regions as drawn: id → { shape (a copy), outline, badges: {tag: copy} }.
+  // A region map's regions as drawn, borders too (task A-11A): id → { shape
+  // (a copy), outline (a polygon's points, "d:" a path, "C x,y,r" a point),
+  // badges: {tag: copy} }.
+  const shapeOf = (g) => g.querySelector('.region-shape, .region-border');
+  const outlineOf = (el) => (!el ? null : el.tagName === 'circle' ? `C ${el.getAttribute('cx')},${el.getAttribute('cy')},${el.getAttribute('r')}`
+    : el.getAttribute('points') || `d:${el.getAttribute('d')}`);
+  const regionG = (root, id) => root.querySelector(`.region-g[data-region="${CSS.escape(id)}"], .region-border-g[data-region="${CSS.escape(id)}"]`);
   function regionsIn(root) {
     const out = new Map();
-    root.querySelectorAll('.region-g[data-region]').forEach((g) => {
-      const shape = g.querySelector('.region-shape');
+    root.querySelectorAll('.region-g[data-region], .region-border-g[data-region]').forEach((g) => {
+      const shape = shapeOf(g);
       const badges = {};
       g.querySelectorAll('.region-badge[data-tag]').forEach((b) => { badges[b.dataset.tag] = b.cloneNode(true); });
-      out.set(g.dataset.region, { shape: shape && shape.cloneNode(true), outline: shape && (shape.getAttribute('points') || shape.getAttribute('d')), badges });
+      out.set(g.dataset.region, { shape: shape && shape.cloneNode(true), outline: outlineOf(shape), badges });
     });
     return out;
   }
@@ -165,11 +171,11 @@
     const at = (E.Engine.sceneRegions(U.state, (U.uiCut || U.uiShown) - 1) || {}).regions;
     let longest = 0;
     changes.forEach((c) => {
-      const g = svg.querySelector(`.region-g[data-region="${CSS.escape(c.region)}"]`);
+      const g = regionG(svg, c.region);
       const was = before.get(c.region);
       if (!g || !was) return;
-      const shape = g.querySelector('.region-shape');
-      if (c.controller && shape && was.shape) {
+      const shape = shapeOf(g);
+      if (c.controller && shape && was.shape && !g.classList.contains('region-border-g')) {
         const old = was.shape.cloneNode(true);
         old.classList.add('region-was');
         old.classList.remove('selected', 'here', 'branch');
@@ -178,9 +184,20 @@
         const fg = front && svg.querySelector(`.region-g[data-region="${CSS.escape(front)}"] .region-shape`);
         longest = Math.max(longest, fg ? sweep(svg, old, fg) : fade(old, m === 'on' ? 700 : 300, true));
       }
-      // An outline that moved (task A-11A will give events a way to move one).
-      const outline = shape && (shape.getAttribute('points') || shape.getAttribute('d'));
-      if (m === 'on' && shape && was.outline && outline !== was.outline && shape.tagName === 'polygon' && /^[\d.\s,-]+$/.test(was.outline)) longest = Math.max(longest, morph(shape, was.outline, outline));
+      // An outline that moved to another stage (task A-11A): a polygon morphs
+      // from the old one, or grows from the point it was; anything else
+      // (pieces, a path) crossfades.
+      const outline = outlineOf(shape);
+      if (c.outline && shape && was.outline && outline !== was.outline) {
+        const ring = /^[\d.\s,-]+$/.test(was.outline) || /^C /.test(was.outline);
+        if (m === 'on' && shape.tagName === 'polygon' && ring) longest = Math.max(longest, morph(shape, was.outline, outline));
+        else if (was.shape) {
+          const old = was.shape.cloneNode(true);
+          old.classList.add('region-was');
+          shape.after(old);
+          longest = Math.max(longest, fade(old, m === 'on' ? 700 : 300, true));
+        }
+      }
       c.tagsAdded.forEach((t) => {
         const badge = g.querySelector(`.region-badge[data-tag="${CSS.escape(t)}"]`);
         if (badge) { badge.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500 }); badge.classList.add('map-pulse'); setTimeout(() => badge.classList.remove('map-pulse'), 1500); }
@@ -249,7 +266,13 @@
   // An outline moving from where it was drawn to where it is now (E.Geo.morph). → ms
   function morph(shape, from, to) {
     const ring = (s) => s.trim().split(/\s+/).map((p) => p.split(',').map(Number));
-    const f = E.Geo.morph(ring(from), ring(to));
+    // A point grows from a small ring around it.
+    const start = (s) => {
+      if (!/^C /.test(s)) return ring(s);
+      const [x, y, r] = s.slice(2).split(',').map(Number);
+      return Array.from({ length: 24 }, (_, i) => [x + Math.cos((i / 24) * 2 * Math.PI) * r, y + Math.sin((i / 24) * 2 * Math.PI) * r]);
+    };
+    const f = E.Geo.morph(start(from), ring(to));
     const t0 = performance.now(), ms = 1200;
     const step = (now) => {
       const s = Math.min(1, (now - t0) / ms);
