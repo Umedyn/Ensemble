@@ -2037,4 +2037,23 @@ ${facts}`;
 === TASK ===
 Write a short journal entry summarizing this chapter for ${pc.name}'s story. Use only the events listed. Third person, past tense, 2 to 4 sentences, keep names and the most important consequences. Also give the chapter a short evocative title.
 Reply with JSON only: ${reply(S.obj({ title: S.str(), summary: S.str() }))}`;
+
+  // ---------- arcs and the canon past (task B-10) ----------
+  // An arc: older chapters (and arcs) folded into one summary, so they stay in
+  // the header instead of dropping out. Only what they say.
+  P.layouts.arc = ['arcParts', 'arcTask'];
+  P.arc = (state, entries) => P.build('arc', { state, entries, pc: state.characters[state.player] });
+  B.arcParts = ({ entries }) => `=== THE CHAPTERS TO FOLD TOGETHER ===\n${entries.map((e) => `- ${e.line}`).join('\n')}`;
+  B.arcTask = ({ pc, entries }) => `
+=== TASK ===
+Write one summary of these ${entries.length} parts of ${pc.name}'s story, so the story can remember them in less space. Use only what they say. Third person, past tense, 3 to 5 sentences: keep names, turning points and the consequences that still matter; leave out passing moments. Also give it a short evocative title.
+Reply with JSON only: ${reply(S.obj({ title: S.str(), summary: S.str() }))}`;
+  // The canon past rewritten to fit: what matters to the whole story.
+  P.layouts.history = ['historyText', 'historyTask'];
+  P.history = (state, words) => P.build('history', { state, words });
+  B.historyText = ({ state }) => `=== BEFORE THE STORY ===\n${E.Memory.canon(state).summary}`;
+  B.historyTask = ({ words }) => `
+=== TASK ===
+Rewrite this history in at most ${words} words. Keep the events that matter to the whole story: wars, disasters, who rules or holds what, what changed the place and the times. Leave out events that concern only one person. Keep the order and the dates that matter, past tense. Use only what it says; add nothing.
+Reply with JSON only: ${reply(S.obj({ summary: S.str() }))}`;
 })(typeof window !== 'undefined' ? window : globalThis);

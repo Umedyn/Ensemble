@@ -28,6 +28,7 @@ const LIMITS = {
   squeezed: 0.2, // share of calls that had to be cut to fit
   overStretch: 1.5, // facts or chapters this far over their budget
   overTurns: 10, // ...this many turns in a row
+  droppedTurns: 3, // a chapter out of the header this many turns in a row (a fold may fail once)
   guardShare: 0.5,
   repeatCount: 4, // the same event this many times...
   repeatWindow: 20, // ...within this many turns
@@ -99,6 +100,8 @@ function sample(E, state, t, life, plan, calls) {
     counts: { facts: state.facts.length, promptFacts: facts ? facts.split('\n').length : 0, extras: Object.keys(state.extras || {}).length, standees: Object.keys(state.standees || {}).length, clocks: Eng.liveClocks(state).length, tags: Object.values(state.characters).reduce((a, c) => a + (c.tags || []).length, 0) },
     tokens: { facts: E.estTokens(facts), story: E.estTokens(M.storyBlock(state)) },
     budgets: { facts: budgets.facts, story: budgets.story },
+    // Summaries the header should carry, and how many it does (task B-10).
+    story: { entries: M.storyEntries(state).length, shown: M.storyBlock(state).split('\n').filter((l) => /^Chapters? \d/.test(l) && !/^Chapter 0 /.test(l)).length },
     guards: last ? last.guards.map((g) => g.type) : [],
     events: res ? (res.director || []).map((d) => d.text).concat(res.major ? [res.major.text] : []) : [],
     calls: calls.splice(0),
@@ -313,6 +316,10 @@ const LIFE_ALARMS = {
     if (over.length) out.push({ id: 'overBudget', subject: 'context', t: over[0].t, detail: `${over.length} calls ran past the context window (largest ${Math.max(...over.map((c) => c.tokens))} tokens, ${over[0].kind})` });
     const cut = calls.filter((c) => c.squeezed);
     if (calls.length >= L.minTurns && cut.length / calls.length >= L.squeezed) out.push({ id: 'overBudget', subject: 'squeezed', t: cut[0].t, detail: `${cut.length} of ${calls.length} calls had to be cut to fit` });
+    // A chapter fell out of the header: folding into arcs should keep them all (task B-10).
+    let gone = 0;
+    const lost = ss.find((s) => { gone = s.story && s.story.shown < s.story.entries ? gone + 1 : 0; return gone >= L.droppedTurns; });
+    if (lost) out.push({ id: 'chapterDropped', subject: 'story', t: lost.t, detail: `the header showed ${lost.story.shown} of ${lost.story.entries} chapters and arcs for ${L.droppedTurns} turns` });
     ['facts', 'story'].forEach((k) => {
       let n = 0, done = false;
       ss.forEach((s) => {

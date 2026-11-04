@@ -221,19 +221,103 @@
     c.push(...Object.values(by));
   };
 
+  // ---------- the story so far: the canon past, arcs, chapters (task B-10) ----------
+  // A game is long when its summaries outgrow the story budget, which goes by
+  // turns and facts, never in-game time. Then the oldest fold into an arc
+  // (one call at a chapter close) instead of dropping out of the header. The
+  // canon past ("Before the story") is authored, so the model never folds it:
+  // it comes first with up to CANON_SHARE of the budget, rewritten once to fit
+  // when it runs over (personal events stay as facts about the people in them).
+  Mem.CANON_SHARE = 0.5;
+  Mem.canon = (state) => state.chapters.find((c) => c.n === 0) || null;
+  const canonLine = (c, text) => `Chapter 0 — ${c.title}: ${text}`;
+  const chapterLine = (c) => `Chapter ${c.n} — ${c.title}: ${c.summary}`;
+  const arcLine = (a) => `Chapters ${a.from}–${a.to} — ${a.title}: ${a.summary}`;
+  // Tokens the canon past may take, and its text as shown: the rewrite, else
+  // the original, else (over its share, not rewritten yet) its newest sentences.
+  Mem.canonShare = (state) => Math.floor(Mem.budgets(state).story * Mem.CANON_SHARE);
+  // A rewrite stands while it still fits (the budget moves a little with the
+  // header); over it again, the history is rewritten from the original.
+  const canonBase = (c) => (c.fitted ? c.fitted.text : c.summary);
+  Mem.canonOver = function (state) {
+    const c = Mem.canon(state);
+    return !!c && E.estTokens(canonLine(c, canonBase(c))) > Mem.canonShare(state);
+  };
+  Mem.canonText = function (state) {
+    const c = Mem.canon(state);
+    if (!c) return null;
+    return Mem.fitSentences(canonBase(c), Mem.canonShare(state) - E.estTokens(canonLine(c, '')));
+  };
+  // The newest sentences of a text that fit in so many tokens (it is in time order).
+  Mem.fitSentences = function (text, tokens) {
+    if (E.estTokens(text) <= tokens) return text;
+    const parts = String(text).split(/(?<=[.!?])\s+/);
+    const out = [];
+    for (let i = parts.length - 1; i >= 0; i--) {
+      if (E.estTokens(out.concat(parts[i]).join(' ')) > tokens) break;
+      out.unshift(parts[i]);
+    }
+    return out.join(' ');
+  };
+  // What the block lists after the canon past, oldest first: arcs not folded
+  // into another, then chapters not folded into an arc.
+  Mem.storyEntries = function (state) {
+    const arcs = (state.arcs || []).filter((a) => a.into == null).map((a) => ({ kind: 'arc', n: a.n, fromTurn: a.fromTurn, line: arcLine(a), item: a }));
+    const chapters = state.chapters.filter((c) => c.n !== 0 && c.arc == null).map((c) => ({ kind: 'chapter', n: c.n, fromTurn: c.fromTurn, line: chapterLine(c), item: c }));
+    return arcs.concat(chapters).sort((a, b) => a.fromTurn - b.fromTurn);
+  };
   Mem.storyBlock = function (state) {
     const budget = Mem.budgets(state).story;
+    const c = Mem.canon(state);
+    const text = c && Mem.canonText(state);
+    const head = text ? canonLine(c, text) : null;
+    let used = head ? E.estTokens(head) : 0;
     const out = [];
-    let used = 0;
-    for (let i = state.chapters.length - 1; i >= 0; i--) {
-      const c = state.chapters[i];
-      const line = `Chapter ${c.n} — ${c.title}: ${c.summary}`;
-      const cost = E.estTokens(line);
+    const entries = Mem.storyEntries(state);
+    for (let i = entries.length - 1; i >= 0; i--) {
+      const cost = E.estTokens(entries[i].line);
       if (used + cost > budget) break;
-      out.unshift(line);
+      out.unshift(entries[i].line);
       used += cost;
     }
-    return out.join('\n');
+    return (head ? [head] : []).concat(out).join('\n');
+  };
+  // Entries to fold into an arc when they no longer all fit: the oldest half
+  // (at least two). → [] when everything fits.
+  Mem.needsArc = function (state) {
+    const budget = Mem.budgets(state).story;
+    const c = Mem.canon(state);
+    const text = c && Mem.canonText(state);
+    const head = text ? E.estTokens(canonLine(c, text)) : 0;
+    const entries = Mem.storyEntries(state);
+    // Counted line by line, as the block counts them.
+    if (entries.length < 2 || entries.reduce((n, e) => n + E.estTokens(e.line), head) <= budget) return [];
+    return entries.slice(0, Math.max(2, Math.floor(entries.length / 2)));
+  };
+  Mem.foldArc = function (state, sum, entries) {
+    state.arcs = state.arcs || [];
+    const n = state.arcs.length + 1;
+    const chapterNs = (e) => (e.kind === 'chapter' ? [e.n] : [e.item.from, e.item.to]);
+    const ns = entries.flatMap(chapterNs);
+    const arc = {
+      n,
+      title: String(sum.title || `Chapters ${Math.min(...ns)}–${Math.max(...ns)}`).slice(0, 80),
+      summary: E.clip(sum.summary || '', 900),
+      from: Math.min(...ns),
+      to: Math.max(...ns),
+      fromTurn: entries[0].item.fromTurn,
+      toTurn: entries[entries.length - 1].item.toTurn,
+    };
+    state.arcs.push(arc);
+    entries.forEach((e) => { e.item[e.kind === 'chapter' ? 'arc' : 'into'] = n; });
+    return arc;
+  };
+  // The canon past rewritten to fit its share. Past events about particular
+  // people go back to being facts, which the scene opens when they are there.
+  Mem.fitCanon = function (state, text) {
+    const c = Mem.canon(state);
+    c.fitted = { text, share: Mem.canonShare(state) };
+    state.facts.forEach((f) => { if (f.canon && f.inSummary && (f.about || []).length) delete f.inSummary; });
   };
 
   Mem.turnsInChapter = (state) => state.turn - state.chapterStartTurn + 1;

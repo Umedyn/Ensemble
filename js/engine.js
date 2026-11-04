@@ -4493,6 +4493,69 @@
     return report;
   };
 
+  // The story so far (task B-10), before the turn's first call, so the header
+  // changes only here and at a chapter close (rule 7): the canon past
+  // rewritten once to fit its share, then the oldest summaries folded into an
+  // arc when they no longer all fit. A refused or failed call changes nothing
+  // and is tried again next turn; the canon past is cut to its newest
+  // sentences after HISTORY_TRIES.
+  Eng.HISTORY_TRIES = 2;
+  Eng.ARC_SHRINK = 0.7;
+  Eng.fitStory = async function (state, phase, res) {
+    const M = E.Memory;
+    if (M.canonOver(state)) {
+      const c = M.canon(state);
+      const share = M.canonShare(state);
+      c.fitTries = c.fitTries && c.fitTries.share === share ? c.fitTries : { share, n: 0 };
+      if (c.fitTries.n >= Eng.HISTORY_TRIES) {
+        M.fitCanon(state, M.canonText(state));
+        guard(res, 'memory', 'history cut', `"Before the story" cut to its newest sentences to fit ${share} tokens`);
+      } else {
+        c.fitTries.n++;
+        phase('Fitting the history…');
+        try {
+          const r = await E.LLM.chatJSON({ kind: 'history', system: E.Prompts.header(state), user: E.Prompts.history(state, Math.max(30, Math.floor(share * 0.6))), maxTokens: share + 80, temperature: 0.3 });
+          const why = historyProblem(state, r, share);
+          if (why) guard(res, 'memory', 'history refused', why);
+          else {
+            M.fitCanon(state, String(r.summary).trim());
+            guard(res, 'memory', 'history fitted', `"Before the story" rewritten to fit ${share} tokens; past events about people are facts again`);
+          }
+        } catch (err) {
+          guard(res, 'memory', 'history failed', err.message);
+        }
+      }
+    }
+    const fold = M.needsArc(state);
+    if (!fold.length) return;
+    phase('Folding old chapters…');
+    try {
+      const sum = await E.LLM.chatJSON({ kind: 'arc', system: E.Prompts.header(state), user: E.Prompts.arc(state, fold), maxTokens: 320, temperature: 0.4 });
+      const text = sum && typeof sum.summary === 'string' ? sum.summary.trim() : '';
+      const was = E.estTokens(fold.map((e) => e.line).join('\n'));
+      if (!text) return guard(res, 'memory', 'arc refused', 'no summary');
+      if (E.estTokens(text) > was * Eng.ARC_SHRINK) return guard(res, 'memory', 'arc refused', `${E.estTokens(text)} tokens for ${was}: not shorter`);
+      const arc = M.foldArc(state, Object.assign({}, sum, { summary: text }), fold);
+      guard(res, 'memory', 'arc', `chapters ${arc.from}–${arc.to} folded into "${arc.title}" (${was} → ${E.estTokens(arc.summary)} tokens)`);
+    } catch (err) {
+      guard(res, 'memory', 'arc failed', err.message);
+    }
+  };
+  // A rewrite of the canon past fits its share and keeps to what it said: most
+  // of its words are the original's.
+  function historyProblem(state, r, share) {
+    const text = r && typeof r.summary === 'string' ? r.summary.trim() : '';
+    if (!text) return 'no summary';
+    const c = E.Memory.canon(state);
+    const cost = E.estTokens(`Chapter 0 — ${c.title}: ${text}`);
+    if (cost > share) return `${cost} tokens, over the ${share} it has`;
+    const own = contentWords(c.summary);
+    const words = [...contentWords(text)];
+    const kept = words.filter((w) => own.has(w)).length;
+    if (words.length && kept / words.length < 0.6) return `only ${kept} of ${words.length} words are the history's own`;
+    return null;
+  }
+
   // An extra who has come to matter becomes a full character: one
   // "worldbuild" call per turn at most, checked like a character file. The id
   // stays, so facts about them still hold. They join as local, in the header's
@@ -5620,6 +5683,7 @@
     Eng.clearTransit(state);
     // Facts the player learned last turn may name a hidden region (R-5).
     const early = { guards: [] };
+    await Eng.fitStory(state, phase, early);
     Eng.revealAround(state, early);
     // A flavour place where danger has come grows into a tactical one (R-8).
     (await E.Sites.growIfDanger(state, phase)).forEach((t) => guard(early, 'resolve', 'site grown', t));

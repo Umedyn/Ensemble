@@ -83,6 +83,11 @@ test('prompts past the context, cut to fit, or over their budgets trip overBudge
   assert.deepEqual(keys(log(15, (i) => ({ tokens: { facts: i % 5 ? 200 : 0, story: 0 } }))), [], 'a moment over is not an alarm');
 });
 
+test('a chapter out of the header for a few turns trips chapterDropped; one turn while a fold waits does not', () => {
+  assert.deepEqual(keys(log(10, (i) => ({ story: { entries: 6, shown: i >= 5 ? 5 : 6 } }))), ['chapterDropped:story']);
+  assert.deepEqual(keys(log(10, (i) => ({ story: { entries: 6, shown: i === 5 ? 5 : 6 } }))), []);
+});
+
 test('a guard firing on most turns trips constantGuard; routine ones never do', () => {
   assert.deepEqual(keys(log(40, () => ({ guards: ['update rejected'] }))), ['constantGuard:update rejected']);
   assert.deepEqual(keys(log(40, () => ({ guards: ['cast tier'] }))), []);

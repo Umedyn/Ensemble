@@ -164,11 +164,16 @@ test('a made character takes the authored player\'s place, keys and all', () => 
 test('both starts play a turn with the dates of 1942 in the prompt', async () => {
   for (const id of ['roquette', 'traboules']) {
     const { E, state } = newGame(WORLD, id);
-    const calls = mockLLM(E, ({ kind }) => (kind === 'intent' ? { player: { needs_roll: false }, intents: [], events: [] } : 'You listen to the street.'));
+    // At Traboules the history runs over its share of the story at 8K, so the
+    // first turn rewrites it to fit (task B-10).
+    const calls = mockLLM(E, ({ kind }) => (kind === 'intent' ? { player: { needs_roll: false }, intents: [], events: [] }
+      : kind === 'history' ? { summary: 'In June 1940 Pétain\'s government signed the armistice: the north and the coast occupied, the south left to Vichy\'s "French State". Germany invaded the Soviet Union in June 1941, and in March 1942 the first train of deported Jews left Drancy for the east.' }
+        : 'You listen to the street.'));
     await E.Engine.runTurn(state, 'Listen.', 'moment');
     assert.equal(state.turn, 1);
-    assert.match(calls[0].user, /=== NOW: Thursday 16 April 1942, \d\d:00 ===/);
-    assert.match(calls[0].system, /Chapter 0 — Before the story: Tuesday 18 June 1940/);
+    const intent = calls.find((c) => c.kind === 'intent');
+    assert.match(intent.user, /=== NOW: Thursday 16 April 1942, \d\d:00 ===/);
+    assert.match(intent.system, id === 'roquette' ? /Chapter 0 — Before the story: Tuesday 18 June 1940/ : /Chapter 0 — Before the story: In June 1940 Pétain's government signed the armistice/);
   }
 });
 

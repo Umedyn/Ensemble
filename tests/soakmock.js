@@ -152,6 +152,13 @@ function createMock(E, game, seed, opts = {}) {
     if (user.includes('=== DOWNTIME FRAME ===')) return narrate(true);
     if (/^narrate/.test(kind)) return narrate(false, user);
     if (kind === 'chapter') return JSON.stringify({ title: `Chapter ${++n}`, summary: `${line(OPENERS, AFTERS)}. ${line(HAPPENINGS, WHENS)}.` });
+    // Arcs and the canon past (task B-10): the parts' own words, shorter.
+    if (kind === 'arc') return JSON.stringify({ title: `Arc ${++n}`, summary: user.split('\n').filter((l) => l.startsWith('- ')).map((l) => l.replace(/^- [^:]*: /, '').split(/\s+/).slice(0, 6).join(' ')).join('; ') + '.' });
+    if (kind === 'history') {
+      const words = Number((/at most (\d+) words/.exec(user) || [])[1]) || 60;
+      const past = (/=== BEFORE THE STORY ===\n([^\n]*)/.exec(user) || [])[1] || '';
+      return JSON.stringify({ summary: past.split(/\s+/).slice(-Math.floor(words * 0.8)).join(' ') });
+    }
     if (user.includes('=== PLANNING AHEAD:')) {
       const m = /"when":\{"day":(\d+)/.exec(user);
       return JSON.stringify({ events: m ? [{ when: { day: Number(m[1]), hour: 10 }, scope: 'world', region: null, text: `${line(HAPPENINGS, WHENS)}.`, visibility: 'heard', effects: null }] : [] });

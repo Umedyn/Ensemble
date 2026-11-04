@@ -311,17 +311,26 @@
     }
     // The latest chapter is shown in full; earlier ones fold to their title
     // and stay as the player leaves them.
-    const latest = U.state.chapters[U.state.chapters.length - 1].n;
-    $('journal').innerHTML = U.state.chapters.slice().reverse().map((c) =>
-      `<details class="journal-entry" data-journal="${c.n}"${c.n === latest || U.openJournal.has(c.n) ? ' open' : ''}><summary><b>${c.n}. ${esc(c.title)}</b> <span class="turns">turns ${c.fromTurn}–${c.toTurn}</span></summary><div>${esc(c.summary)}</div></details>`
-    ).join('');
+    // Arcs (task B-10) hold the chapters folded into them, every one in its
+    // own words; the canon past shows in full as authored.
+    const latest = String(U.state.chapters[U.state.chapters.length - 1].n);
+    const arcs = U.state.arcs || [];
+    const entry = (key, head, turns, body) =>
+      `<details class="journal-entry" data-journal="${key}"${key === latest || U.openJournal.has(key) ? ' open' : ''}><summary><b>${head}</b>${turns ? ` <span class="turns">${turns}</span>` : ''}</summary><div>${body}</div></details>`;
+    const chapter = (c) => entry(String(c.n), `${c.n}. ${esc(c.title)}`, `turns ${c.fromTurn}–${c.toTurn}`, esc(c.summary));
+    const arc = (a) => entry(`a${a.n}`, `${a.from}–${a.to}. ${esc(a.title)}`, `turns ${a.fromTurn}–${a.toTurn}`,
+      esc(a.summary) + parts(a.n).map((p) => (p.from != null ? arc(p) : chapter(p))).join(''));
+    // What an arc holds, newest first: chapters and arcs folded into it.
+    const parts = (n) => arcs.filter((a) => a.into === n).concat(U.state.chapters.filter((c) => c.arc === n)).sort((x, y) => y.fromTurn - x.fromTurn);
+    const top = arcs.filter((a) => a.into == null).concat(U.state.chapters.filter((c) => c.arc == null)).sort((x, y) => y.fromTurn - x.fromTurn || (y.n === 0 ? -1 : 1));
+    $('journal').innerHTML = top.map((p) => (p.from != null ? arc(p) : chapter(p))).join('');
   }
   $('journal').addEventListener('toggle', (ev) => {
     const d = ev.target;
     if (!d.matches || !d.matches('details.journal-entry') || !U.state || !U.state.chapters.length) return;
-    const n = Number(d.dataset.journal);
-    if (n === U.state.chapters[U.state.chapters.length - 1].n) return;
-    if (d.open) U.openJournal.add(n); else U.openJournal.delete(n);
+    const key = d.dataset.journal;
+    if (key === String(U.state.chapters[U.state.chapters.length - 1].n)) return;
+    if (d.open) U.openJournal.add(key); else U.openJournal.delete(key);
   }, true);
   Object.assign(U, { diskAssets, portraitUrl, siteMapUrl, assetUrl, failedUrls, isMinimized, cardMini, cardHeader, cardStatus, cardDetails, cardBody, renderJournal });
 })();

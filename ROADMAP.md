@@ -284,7 +284,7 @@ Small models drift to the most likely beat. Genre-aware random tables fix that: 
 
 ## Engine systems
 
-Decided 2026-10-30. The engine decides and the model only writes it up; results reach prompts in the user message only; each system is optional per world and the minimum-world test stays green. **Everything has a home, and the scene decides which homes are opened**: new state (facts, details, items, beliefs) is stored at its home and loaded by what the scene touches, never added to every prompt. Separate from the pages work: the two tracks can run side by side. Listed in build order (tasks B-0 to B-10).
+Decided 2026-10-30. The engine decides and the model only writes it up; results reach prompts in the user message only; each system is optional per world and the minimum-world test stays green. **Everything has a home, and the scene decides which homes are opened**: new state (facts, details, items, beliefs) is stored at its home and loaded by what the scene touches, never added to every prompt. Separate from the pages work: the two tracks can run side by side. Listed in build order (tasks B-0 to B-11).
 
 - [ ] **Scoped memory** (B-0, first, since everything after stores into it): facts gain `where` beside `about`; a call opens the room and region chain, the people present, anyone named, and the weight-3 facts, with a budget for each; a stable core stays in the header, the rest moves to the user message.
 - [ ] **Narrated details become part of the world** (B-0b): what the narration says stays true. Details are filed at their home and object details become features; contradictions of engine state are dropped and shown in Debug; `source` marks them, and narration-only facts never drive rules.
@@ -299,7 +299,8 @@ Decided 2026-10-30. The engine decides and the model only writes it up; results 
 - [ ] **Items in the creator** (from B-6): an items box on the character form (author mode, the Characters tab) and on cast entries in the Starts tab; for now authors write `items` in the JSON.
 - ~~**Promises** (B-7)~~: dropped 2026-11-03; whether one was kept and when it falls due would both be guesses the engine enforces, and a promise already lives in memory as a fact the person owed can bring up. Revisit only with a playtest recording of a lapsed promise that mattered.
 - ~~**Light and private places** (B-4, B-5)~~: dropped 2026-10-31; the model handles both from the time and place.
-- **Director and arc memory** (B-10): later, when long campaigns need it, after T-1.
+- [x] **Arc memory** (B-10): when chapter summaries outgrow the story budget, the oldest fold into an arc instead of silently dropping out of the header; major facts kept word for word. A game is long by turns and facts, not in-game time.
+- [ ] **Director** (B-11, with T-1): engine-side pacing for small models: event rates nudged by tension within the genre, where quiet means nothing changing, never a lively conversation.
 
 ## Worlds as a library
 

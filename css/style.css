@@ -488,6 +488,7 @@ details.rolls li { margin: 2px 0; }
 .journal-entry > div { margin-top: 4px; }
 .journal-entry b { font-family: var(--story-font); font-size: 0.875rem; }
 .journal-entry .turns { color: var(--muted); font-size: 0.7188rem; }
+.journal-entry .journal-entry { margin: 6px 0 0 0.75rem; }
 /* names in the story: a hover box and a popup */
 .term { text-decoration: underline dotted; text-decoration-color: var(--muted); text-underline-offset: 0.18em; cursor: pointer; border-radius: 3px; }
 .term:hover { text-decoration-color: var(--accent); }
