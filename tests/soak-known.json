@@ -1,18 +1,8 @@
 {
-  "frontier": {
-    "statue:*": "People stay put offstage until routines arrive (G-7 to G-9); take this out then."
-  },
   "oregon-trail": {
-    "statue:*": "People stay put offstage until routines arrive (G-7 to G-9); take this out then.",
     "overBudget:context": "A single intent call with a regional event due, the captain's orders and groups runs a little over 8K (ROADMAP > Local model reliability)."
   },
   "zombie-holdout": {
-    "statue:webb": "Webb keeps to the lot during the siege; the holdout gets no routines (ROADMAP > Routines)."
-  },
-  "your-story": {
-    "statue:lena-marsh": "People stay put offstage until routines arrive (G-7 to G-9); take this out then."
-  },
-  "seiryo-high": {
-    "statue:master": "The café master is a minor person who keeps his café; extras have no routines."
+    "statue:webb": "Webb keeps to the lot during the siege: the holdout is a fixed world (\"routines\": \"fixed\")."
   }
 }

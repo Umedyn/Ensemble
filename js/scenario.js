@@ -703,8 +703,8 @@
     return dates.every((d) => E.calendarDay1({ day1: d }) != null);
   });
   S.routinesProblems = function (sc) {
-    if (sc.routines == null) return [];
-    if (!isObj(sc.routines)) return ['"routines" must map names to routines'];
+    if (sc.routines == null || sc.routines === 'fixed') return [];
+    if (!isObj(sc.routines)) return ['"routines" must map names to routines, or be "fixed" for a world without schedules'];
     const problems = [];
     Object.entries(sc.routines).forEach(([name, r]) => {
       const where = `routine "${name}"`;
@@ -736,8 +736,10 @@
   S.personRoutineProblems = function (c, sc, locIds, who, isPlayerSlot) {
     if (c.routine == null && c.places == null && c.slots == null) return [];
     const problems = [];
-    const routine = c.routine != null ? (sc.routines || {})[c.routine] : null;
-    if (c.routine != null && !routine) problems.push(`${who}: routine "${c.routine}" doesn't exist`);
+    const own = isObj(sc.routines) ? sc.routines : {};
+    const builtIn = (E.Engine && E.Engine.ROUTINES) || {};
+    const routine = c.routine != null && c.routine !== 'fixed' ? own[c.routine] || builtIn[c.routine] : null;
+    if (c.routine != null && c.routine !== 'fixed' && !routine) problems.push(`${who}: routine "${c.routine}" doesn't exist`);
     if (c.routine == null && c.slots != null) problems.push(`${who}: "slots" need a "routine"`);
     if (c.places != null && !isObj(c.places)) problems.push(`${who}: "places" must map place words to rooms (null: away, off the map)`);
     const places = isObj(c.places) ? c.places : {};
@@ -746,7 +748,8 @@
     const lists = (s) => (Array.isArray(s) ? s : isObj(s) ? Object.values(s).flat() : []).filter(isObj);
     const seen = new Set();
     lists(isObj(routine) ? routine.slots : null).concat(lists(c.slots)).forEach((s) => (Array.isArray(s.at) ? s.at : []).forEach((p) => {
-      if (seen.has(p) || locIds.has(p) || p in places || (isPlayerSlot && p === 'class')) return;
+      // The built-in words fill themselves in: home where they begin, work nearby.
+      if (seen.has(p) || locIds.has(p) || p in places || ['home', 'work', 'class', 'wander'].includes(p)) return;
       seen.add(p);
       problems.push(`${who}: "${p}" in their routine is neither a room nor one of their places`);
     }));

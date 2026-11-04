@@ -1,5 +1,7 @@
 {
   "format": 2,
+  "authorNote": "No routines on purpose: six hours to get off a dying station leave no ordinary day.",
+  "routines": "fixed",
   "id": "vesper-station",
   "title": "Vesper Station",
   "date": {

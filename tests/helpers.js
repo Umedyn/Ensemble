@@ -103,7 +103,7 @@ function newGame(folder = 'mars-station', startId) {
 
 // For a test about something else: the crew stay where the test puts them.
 function noRoutines(state) {
-  delete state.scenario.routines;
+  state.scenario.routines = 'fixed';
   Object.values(state.characters).forEach((c) => { delete c.routine; delete c.routineState; });
   return state;
 }

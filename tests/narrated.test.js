@@ -136,7 +136,8 @@ test('a home keeps five details: the oldest gives way, and Debug says so', () =>
   things.forEach((text) => { last = file(E, state, [{ text, about: [] }]); });
   assert.equal(details(E, state).filter((f) => f.where === here).length, 5);
   assert.ok(!state.facts.some((f) => f.text === things[0]));
-  assert.ok(rejected(last, /gives way/));
+  assert.ok(last.applied.some((r) => /gives way/.test(r)), 'reported, but not as a refusal');
+  assert.ok(!rejected(last, /gives way/));
 });
 
 test('a room takes three narrated features at most; the detail stays', () => {

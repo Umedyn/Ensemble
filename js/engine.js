@@ -2203,7 +2203,48 @@
   // default } }, slots: { school: [{ from, to, at }] } }, or a plain slots list
   // for a world where every day is alike. Their own `slots` come first; their
   // `places` fill in the place words (`home`, `class`; null: away, off the map).
-  const routineOf = (state, c) => (c && c.routine && (state.scenario.routines || {})[c.routine]) || null;
+  // Built-in routines (task G-10), for any world, under its own: every day
+  // alike, with the place words home, work and class, and wander (a room
+  // next door, now and then).
+  Eng.ROUTINES = {
+    worker: { slots: [{ from: 7, to: 8, at: ['home'] }, { from: 8, to: 17, at: ['work'] }, { from: 17, to: 22, at: ['home', 'home', 'wander'] }, { from: 22, to: 7, at: ['home'] }] },
+    homebody: { slots: [{ from: 8, to: 22, at: ['home', 'wander'] }, { from: 22, to: 8, at: ['home'] }] },
+    shopkeeper: { slots: [{ from: 7, to: 20, at: ['work'] }, { from: 20, to: 7, at: ['home'] }] },
+    farmhand: { slots: [{ from: 5, to: 7, at: ['home'] }, { from: 7, to: 12, at: ['work'] }, { from: 12, to: 13, at: ['home'] }, { from: 13, to: 19, at: ['work', 'wander'] }, { from: 19, to: 5, at: ['home'] }] },
+    student: { slots: [{ from: 8, to: 15, at: ['class'] }, { from: 15, to: 18, at: ['wander', 'home'] }, { from: 18, to: 8, at: ['home'] }] },
+    'night-shift': { slots: [{ from: 20, to: 6, at: ['work'] }, { from: 6, to: 20, at: ['home'] }] },
+    wander: { slots: [{ from: 0, to: 24, at: ['wander'] }] },
+  };
+  Eng.BUILT_IN_WORDS = ['home', 'work', 'class', 'wander'];
+  // A world with no schedules at all ("routines": "fixed": a siege, an evacuation).
+  Eng.fixedWorld = (state) => state.scenario.routines === 'fixed';
+  const worldRoutines = (state) => (state.scenario.routines && typeof state.scenario.routines === 'object' ? state.scenario.routines : {});
+  Eng.routineNames = (state) => [...new Set(Object.keys(worldRoutines(state)).concat(Object.keys(Eng.ROUTINES)))];
+  // Anyone without a routine follows a worker's day (task G-10), until the
+  // update step or an author gives them one; never the player, a fixed
+  // person, or anyone in a fixed world.
+  const routineOf = (state, c) => {
+    if (!c || Eng.fixedWorld(state) || c.routine === 'fixed' || (c.id === state.player && !c.routine)) return null;
+    const name = c.routine || 'worker';
+    return worldRoutines(state)[name] || Eng.ROUTINES[name] || null;
+  };
+  // The room with the most ways out near someone's own: where a worker without places works.
+  Eng.busyRoom = function (state, room) {
+    const site = (state.locations[room] || {}).site;
+    const near = Object.values(state.locations).filter((l) => l.id !== room && !l.transit && l.site === site);
+    near.sort((a, b) => Eng.linkedRooms(state, b.id).length - Eng.linkedRooms(state, a.id).length || (a.id < b.id ? -1 : 1));
+    return near.length ? near[0].id : room;
+  };
+  // The built-in place words for someone who hasn't got them: home is where
+  // they began, work and class the busy room near it.
+  function fallbackRoom(state, id, place) {
+    const c = state.characters[id];
+    const rs = c.routineState || {};
+    const home = rs.home || c.status.location;
+    if (place === 'home') return home;
+    if (place === 'work' || place === 'class') return rs.work || Eng.busyRoom(state, home);
+    return null;
+  }
   // Today's type of day for a routine: named dates, then weekdays, then the default.
   Eng.dayType = function (state, routine, day) {
     const types = Object.entries(routine.dayTypes || {});
@@ -2249,13 +2290,24 @@
     const c = state.characters[id];
     const own = !!c.places && Object.prototype.hasOwnProperty.call(c.places, place);
     if (own && c.places[place] == null) return { away: place, own };
+    if (place === 'wander') return { wander: true };
     let room = own ? c.places[place] : place;
     // A made character's class: the room their role names (the way Eng.ownRooms finds it).
     if (!own && place === 'class' && id === state.player) {
       const role = String(c.role || '').toLowerCase();
       room = (Eng.ownRooms(state).find((l) => role.includes(String(l.name).toLowerCase())) || {}).id;
     }
+    if (!own && !state.locations[room] && Eng.BUILT_IN_WORDS.includes(place)) room = fallbackRoom(state, id, place);
     return state.locations[room] ? { room, own } : null;
+  }
+  // Wandering: each hour, stay or step into a room next door, by a hash of
+  // the person, the day and the hour (never dice).
+  function wanderRoom(state, id, time) {
+    const here = state.characters[id].status.location;
+    const doors = Eng.linkedRooms(state, here).filter((r) => state.locations[r] && !state.locations[r].transit
+      && state.locations[r].site === (state.locations[here] || {}).site && Eng.passable(state, here, r, id));
+    const choices = [here, here].concat(doors.sort());
+    return choices[hashText(`${id}|${time.day}|${Math.floor(time.hour)}`) % choices.length];
   }
   // The choice among a slot's places: fixed for the person and the day, never
   // dice, so reroll, undo and replays agree. The player's is their own entry,
@@ -2266,6 +2318,7 @@
     const places = (at.slot.at || []).map((p) => routinePlace(state, id, p)).filter(Boolean);
     if (!places.length) return null;
     const place = id === state.player ? places.find((p) => p.own) || places[0] : places[hashText(`${id}|${at.day}|${at.slot.from}`) % places.length];
+    if (place.wander) return { key: `${at.key}:w${Math.floor(time.hour)}`, room: wanderRoom(state, id, time), wander: true };
     return Object.assign({ key: at.key }, place);
   }
   // Where someone should be at a time, whether or not they are following it:
@@ -2297,7 +2350,7 @@
     Eng.cast(state, { includePlayer: false }).forEach((id) => {
       const c = state.characters[id];
       const at = Eng.routineSlot(state, id, state.time);
-      if (!at || at.slot.private || touched.has(id) || !(state.known || {})[id] || !known(id) || notes.seen[id] === at.key) return;
+      if (!at || at.slot.private || (at.slot.at || []).includes('wander') || touched.has(id) || !(state.known || {})[id] || !known(id) || notes.seen[id] === at.key) return;
       // Where the story began them, or a day still catching up with the clock: no reason of note.
       const rs = c.routineState;
       if (!rs || rs.seeded || rs.trip || (rs.slot !== at.key && !routinePaused(state, id))) return;
@@ -2320,6 +2373,16 @@
     };
   };
 
+  // People the update step may give a routine (task G-10): in the story,
+  // alive, with none yet, in a world with schedules; those here first.
+  Eng.ROUTINE_ASKS = 4;
+  Eng.routineGaps = function (state) {
+    if (Eng.fixedWorld(state)) return [];
+    const here = state.characters[state.player].status.location;
+    return Eng.cast(state, { alive: true, includePlayer: false }).filter((id) => !state.characters[id].routine)
+      .sort((a, b) => Eng.isAt(state, b, here) - Eng.isAt(state, a, here)).slice(0, Eng.ROUTINE_ASKS);
+  };
+
   // Off the map: `location` stays the room they left by, and they are nowhere.
   Eng.isAway = (state, id) => !!(state.characters[id] && state.characters[id].status.away);
   Eng.isAt = (state, id, room) => state.characters[id].status.location === room && !state.characters[id].status.away;
@@ -2335,7 +2398,7 @@
       if (at && at.day === today && !at.slot.private) seen.set(at.key, at.slot);
     }
     const parts = [...seen.values()].sort((a, b) => a.from - b.from).map((s) => {
-      const names = [...new Set((s.at || []).map((p) => routinePlace(state, id, p)).filter(Boolean).map((p) => (p.away ? Eng.awayWords(p.away) : state.locations[p.room].name)))];
+      const names = [...new Set((s.at || []).map((p) => routinePlace(state, id, p)).filter(Boolean).map((p) => (p.away ? Eng.awayWords(p.away) : p.wander ? 'nearby' : state.locations[p.room].name)))];
       const said = names.length > 3 ? `${names.slice(0, 3).join(', ')} or elsewhere` : names.join(' or ');
       return said ? { from: s.from, to: s.to, said } : null;
     }).filter(Boolean);
@@ -2522,7 +2585,7 @@
     // Where they stand when a routine first sees them holds until the next slot.
     onRoutine.forEach((id) => {
       const c = state.characters[id];
-      if (!c.routineState) c.routineState = { slot: (Eng.routineSlot(state, id, clockBefore) || {}).key || null, left: c.status.location, seeded: true };
+      if (!c.routineState) c.routineState = { slot: (Eng.routineSlot(state, id, clockBefore) || {}).key || null, left: c.status.location, seeded: true, home: c.status.location, work: Eng.busyRoom(state, c.status.location) };
     });
     state.time.hour += hours;
     while (state.time.hour >= 24) { state.time.hour -= 24; state.time.day += 1; }
@@ -3378,6 +3441,25 @@
     report.standing = [];
     E.Standing.applyUpdate(state, upd, present, ctx, reject, (line) => report.standing.push(line));
 
+    // A usual day for someone without one (task G-10): a routine the world or
+    // the engine has, and rooms that exist; null is off the map.
+    const gaps = new Set(Eng.routineGaps(state));
+    (Array.isArray(upd.routines) ? upd.routines : []).slice(0, Eng.ROUTINE_ASKS).forEach((r) => {
+      const c = r && state.characters[r.id];
+      const label = `routine for ${(r && r.id) || '?'}`;
+      if (!c || !gaps.has(r.id)) return reject(label, 'they need no routine from the update step');
+      if (!Eng.routineNames(state).includes(r.routine)) return reject(label, `"${r.routine}" is not one of the routines`);
+      const places = {};
+      for (const w of ['home', 'work']) {
+        if (r[w] === undefined) continue;
+        if (r[w] !== null && (!state.locations[r[w]] || state.locations[r[w]].transit)) return reject(label, `${w} "${r[w]}" is not a room`);
+        places[w] = r[w];
+      }
+      c.routine = r.routine;
+      if (Object.keys(places).length) c.places = Object.assign({}, c.places, places);
+      gaps.delete(r.id);
+      report.applied.push(`${c.name}: usually ${r.routine}`);
+    });
     applyNewExtras(state, upd.new_extras, ctx.turn ?? state.turn, ctx.endLoc || state.characters[state.player].status.location,
       (why) => reject('new_extras', why), (note) => report.extras.push(note));
 
@@ -3400,7 +3482,8 @@
       if (wrong) return reject('detail', `${wrong} (${short})`);
       const fact = E.Memory.addFact(state, { about, text, known_by: witnesses.slice(), weight: 1, where, source: 'narration' });
       report.applied.push(`detail: ${fact.text}${where ? ` (at ${where})` : ''}`);
-      E.Memory.capDetails(state, fact).forEach((f) => reject('detail', `the oldest at this home gives way: "${E.shorten(f.text, 60)}"`));
+      // Not a refusal: the new detail stands, and the oldest at its home makes room.
+      E.Memory.capDetails(state, fact).forEach((f) => report.applied.push(`detail dropped: the oldest at this home gives way: "${E.shorten(f.text, 60)}"`));
       if (!thing || !room) return;
       const made = Eng.narrateFeature(state, room, thing, told, ctx);
       if (made.error) reject('detail feature', `${made.error} (${short})`);

@@ -104,7 +104,7 @@ test('the bundled examples: routines where a day has a shape, none in the siege'
   const E = loadEngine();
   assert.ok(readWorld('seiryo-high', E).starts.every((s) => !s.error));
   assert.ok(readWorld('mars-station', E).starts.every((s) => !s.error));
-  assert.equal(worldFiles('zombie-holdout')['world.json'].routines, undefined);
+  assert.equal(worldFiles('zombie-holdout')['world.json'].routines, 'fixed', 'a siege has no ordinary day (task G-10)');
 });
 
 test('a routine made in the creator plays', () => {
@@ -169,9 +169,9 @@ test('a generated person can take a routine, its words filled from the rooms mad
   assert.equal(out.error, undefined);
   assert.equal(out.character.routine, 'student');
   assert.equal(out.character.places.home, 'den');
-  assert.equal(out.character.places.class, null, 'a word with no real room is off the map');
+  assert.equal(out.character.places.class, undefined, 'a built-in word with no real room fills itself in (task G-10)');
   const none = E.StartGen.cleanPerson(Object.assign({}, sheet, { routine: 'pirate' }), { name: 'Nao Abe', role: 'first-year' }, ctx, new Set());
-  assert.equal(none.character.routine, undefined, 'only the world\'s named routines');
+  assert.equal(none.character.routine, 'worker', 'a routine nobody has becomes a worker\'s day (task G-10)');
 });
 
 test('a routine\'s place words are what isn\'t a room', () => {

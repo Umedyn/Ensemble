@@ -64,6 +64,8 @@ async function replay(fixture, opts = {}) {
   if (opts.setup) opts.setup(E);
   E.LLM.perf = async () => null;
   const state = E.Engine.migrate(JSON.parse(JSON.stringify(fixture.start)));
+  // Recorded before routines (G-7 to G-10): its replies assume nobody moved on their own.
+  if (state.scenario && state.scenario.routines == null) state.scenario.routines = 'fixed';
   const actions = fixture.actions || [];
   const until = Math.min(opts.until ?? actions.length, actions.length);
   const steps = [];

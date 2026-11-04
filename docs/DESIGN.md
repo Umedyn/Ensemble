@@ -323,6 +323,8 @@ Each whole hour that passes also runs routines (task G-7, `routineHour` under `E
 
 In a scene (task G-8), `Eng.routineLeaving` says who is due out during the span, `Eng.routineStaying` says who keeps their place (`res.staying`, used by the hourly moves and a step-in), and `res.routineMoves` holds what the player sees, with the minute, for the scene frame, the map and `state.known`. A scene can't settle before those moves or the last stop of a routine day. `Eng.routineDay` plans the player's day; `res.routineDay` goes to the frame, the relocation check, the settling and step-in. A pressure firing inside a step only stops routines from the hour it fires.
 
+Everyone has a schedule (task G-10): `routineOf` falls back to the built-in `worker` for anyone without a routine (never the player; never in a `"fixed"` world or for a fixed person), with home and work filled in from where they began. The update step's `routines` field (only while `Eng.routineGaps` has someone, at most four a turn) gives a real one, checked in `Eng.applyUpdate`. Recordings made before routines replay as fixed worlds (`tests/replay.js`), since their replies assume nobody moved.
+
 Breaking routine (task B-1): `Eng.routineBreak` runs after the step's time, on the room the scene ends in, and sets `res.noticed`. The frame gets one plain line and the fact goes in at commit; a step-in earlier than the end drops the fact, since the player may not have noticed yet. The line carries a name and nothing else, so an agenda step can't reach the narrator through it. Skips have none.
 
 | step | span | narration | events |

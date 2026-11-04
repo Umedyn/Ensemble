@@ -1406,6 +1406,12 @@ ${factPlaces(state).length ? `regions and sites around: ${factPlaces(state).join
       shape.group_role = S.maybe(S.obj({ group: S.oneOf(rep, 'group_id'), role: S.oneOf(['member', 'favored', 'leader', 'none'], 'member|favored|leader|none'), quote: S.str('4+ words from the scene that show it') }));
     }
     if (sc.inventExtras) shape.new_extras = newExtras(state);
+    // A usual day for people without one (task G-10).
+    const gaps = Eng().routineGaps(state);
+    if (gaps.length) {
+      const rooms = ids(Object.keys(state.locations).filter((l) => !state.locations[l].transit), 'room_id');
+      shape.routines = S.opt(S.list(S.obj({ id: S.oneOf(gaps), routine: S.oneOf(Eng().routineNames(state)), home: S.maybe(rooms), work: S.maybe(rooms) }), { n: 0, max: gaps.length }));
+    }
     // A judged ending the scene shows (B.updateEndings asks for it outside the example).
     const endings = Eng().judgedEndings(state).map((e) => e.id);
     if (endings.length) shape.ending = S.opt(S.obj({ id: S.oneOf(endings), quote: S.str('the exact words from the scene that show it') }), false);
@@ -1436,6 +1442,8 @@ ${factPlaces(state).length ? `regions and sites around: ${factPlaces(state).join
     if (Object.keys(state.standees || {}).length) g.push(['state', '- unnamed groups: count goes down for members killed, captured or gone (it only goes up if an event brought more); state when the scene shows them change (fled: they leave for good); location only one linked room, when seen leaving.']);
     const site = siteGuide(state).replace(/^\n/, '');
     if (site) g.push(['state', site]);
+    const gaps = Eng().routineGaps(state);
+    if (gaps.length) g.push(['state', `- routines: a usual day for ${gaps.map((id) => `${id} (${state.characters[id].role || '?'}, ${Eng().inWords(state, id)})`).join(', ')}: "routine" one of ${Eng().routineNames(state).join(', ')}; "home" and "work" room ids, or null when it is off the map.`]);
     if (sc.inventExtras) g.push(['state', '- new_extras: only if the scene clearly brought in a new minor person or group not listed above: {"name","role","location","group":false}. At most 1.']);
     return g;
   }
@@ -1453,7 +1461,7 @@ Use [] for any list with nothing to record.`;
   // KoboldCpp reprocesses only the task; each gets only its own guidelines.
   P.UPDATE_PARTS = {
     facts: { keys: ['facts', 'details'], what: 'the facts this turn established: what happened or came out, and who knows it' },
-    state: { keys: ['state', 'new_extras', 'ending'], what: "what changed this turn in people's state, the place and the world" },
+    state: { keys: ['state', 'new_extras', 'routines', 'ending'], what: "what changed this turn in people's state, the place and the world" },
     feelings: { keys: ['relations', 'player_attitude', 'reputation', 'group_role'], what: 'how feelings changed this turn' },
   };
   P.shapes.updatePart = function (state, part) {
@@ -1728,7 +1736,7 @@ Reply with JSON only: ${reply(S.obj({ people: S.list(S.obj({ name: S.str('Full N
     voice: S.str('how they talk, one sentence'), appearance: S.str('one or two sentences, the first a good one-line look'), description: S.str('who they are, one or two sentences'),
     skills: skillsShape(sc.skills, 1), room: ids(genRooms(job), 'room-id'),
     // The world's named routines (task G-9), and the rooms this start gives its place words.
-    ...(Object.keys(sc.routines || {}).length ? { routine: S.maybe(S.oneOf(Object.keys(sc.routines))), places: S.list(S.obj({ word: S.str('home'), room: S.maybe(ids(genRooms(job), 'room-id')) }), { n: 0, max: 5 }) } : {}),
+    ...(sc.routines !== 'fixed' ? { routine: S.oneOf([...new Set(Object.keys(sc.routines && typeof sc.routines === 'object' ? sc.routines : {}).concat(Object.keys(Eng().ROUTINES)))], 'worker'), places: S.list(S.obj({ word: S.str('work'), room: S.maybe(ids(genRooms(job), 'room-id')) }), { n: 0, max: 5 }) } : {}),
   }));
   GEN_TASKS.person = ({ sc, job, index, reroll }) => {
     const p = job.steps.plan.people[index];

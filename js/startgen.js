@@ -427,11 +427,18 @@
     // A routine from the world's named ones (task G-9): its place words filled
     // from the rooms made here; any left out are off the map.
     const known = new Set(rooms.map((r) => r.id).concat((sc.locations || []).map((l) => l && l.id)));
-    if (typeof raw.routine === 'string' && (sc.routines || {})[raw.routine]) {
+    // Everyone has one (task G-10): a worker's day when the sheet names none.
+    if (sc.routines !== 'fixed') {
+      const own = isObj(sc.routines) ? sc.routines : {};
+      const name = typeof raw.routine === 'string' && (own[raw.routine] || E.Engine.ROUTINES[raw.routine]) ? raw.routine : 'worker';
       const given = new Map((Array.isArray(raw.places) ? raw.places : []).filter(isObj).map((p) => [p.word, p.room]));
-      c.routine = raw.routine;
-      c.places = {};
-      E.Scenario.routineWords(sc.routines[raw.routine], known).forEach((w) => { c.places[w] = rooms.some((r) => r.id === given.get(w)) ? given.get(w) : null; });
+      c.routine = name;
+      c.places = { home: room.id };
+      E.Scenario.routineWords(own[name] || E.Engine.ROUTINES[name], known).filter((w) => w !== 'wander').forEach((w) => {
+        if (rooms.some((r) => r.id === given.get(w))) c.places[w] = given.get(w);
+        else if (given.has(w) && given.get(w) === null) c.places[w] = null;
+        else if (!E.Engine.BUILT_IN_WORDS.includes(w)) c.places[w] = null;
+      });
     }
     Object.keys(c).forEach((k) => c[k] === undefined && delete c[k]);
     const prose = [c.description, c.appearance, c.want, c.secret, c.voice].filter(Boolean).join(' ');
