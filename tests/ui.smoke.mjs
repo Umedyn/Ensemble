@@ -2309,10 +2309,14 @@ await check('moving pieces: a token keeps its element across a turn, walks on it
   await act(page, 'I open up the recycler.');
   assert.ok(await same(), 'the same element after the turn');
   assert.equal(await anyTokenAnims(page), 0, 'nothing moved on the first beat');
+  // The people panel agrees with the map (task A-9): she hasn't left yet.
+  const okaforCard = () => page.textContent('#cast .card[data-id="okafor"] .meta');
+  assert.equal((await okaforCard()).trim(), 'Commons', 'her card: still here');
   await page.click('button[data-next]');
   assert.ok(await tokenAnims(page, 'okafor') > 0, 'Okafor walks on the beat that shows her leaving');
   assert.ok(await same(), 'still the same element while she walks');
   assert.ok(await inRoom(page, 'Ops', 'Okafor'), 'and she ends in Ops');
+  assert.match(await okaforCard(), /last seen in Ops & Comms/, 'and her card says so now');
   await page.click('button[data-next]');
   assert.ok(await tokenAnims(page, 'bauer') > 0, 'Teo walks on his own beat');
   assert.ok(await inRoom(page, 'Hydroponics', 'Teo'), 'to Hydroponics');
@@ -2413,7 +2417,9 @@ await check('territory: a control change waits for its beat, then sweeps in and 
   const ridge = await ridgeClass(page);
   assert.ok(!(await junctionClass(page)).includes(ridge), 'first beat: the scene has not told it yet');
   assert.ok(!/checkpoint/.test(await page.textContent('#worldSvg')), 'nor its tag');
+  assert.ok(!/Ridge militia trucks/.test(await page.textContent('#news')), 'nor the News (task A-9)');
   await page.click('button[data-next]');
+  assert.match(await page.textContent('#news'), /Ridge militia trucks take the crossroads/, 'the News on the beat that tells it');
   assert.equal(await page.locator('#worldSvg .region-was[data-sweep]').count(), 1, 'the old colour is wiped away from Ridge town\'s side');
   await page.screenshot({ path: path.join(shots, 'territory-sweep.png') });
   await page.waitForFunction(() => !document.querySelector('#worldSvg .region-was'), null, { timeout: 4000 });
@@ -2834,6 +2840,31 @@ await check('remote lists: refresh shows an update, a failed list and a broken z
   assert.equal(await page.locator('.lib-card[data-world="stored:harmon"]').count(), 1, 'the downloaded world stays');
   await page.screenshot({ path: path.join(shots, 'library-lists.png'), fullPage: true });
 });
+
+// Polish (task A-9): every page, desktop and phone, every theme, with no
+// sideways scroll; the screenshots land in tests/screenshots/pages/.
+fs.mkdirSync(path.join(shots, 'pages'), { recursive: true });
+for (const phone of [false, true]) {
+  await check(`${phone ? 'phone: ' : ''}every page in every theme, with nothing off the side`, async (page) => {
+    await newGame(page);
+    await act(page, 'I open up the recycler.');
+    const id = await page.evaluate(() => window.Ensemble.UI.saveId);
+    const pages = [['landing', ''], ['new', 'new.html'], ['play', `play.html?save=${id}`], ['library', 'library.html'], ['library-world', 'library.html?world=server:mars-station'], ['settings', 'settings.html']]
+      .concat(phone ? [] : [['creator', 'creator.html']]);
+    const wide = [];
+    for (const [name, url] of pages) {
+      await page.goto(BASE + url);
+      await page.waitForFunction(() => document.body && (document.body.dataset.ready === '1' || document.querySelector('#sSaves:not(:empty)') || document.querySelector('#cWorld option + option') || (document.getElementById('lGrid') && !document.querySelector('#lGrid .lib-loading'))), null, { timeout: 15000 });
+      for (const theme of ['dark', 'light', 'hv']) {
+        await page.evaluate((t) => window.EnsembleAppearance({ theme: t }), theme);
+        const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+        if (over > 0) wide.push(`${name} (${theme}): ${over}px too wide`);
+        await page.screenshot({ path: path.join(shots, 'pages', `${name}-${phone ? 'phone' : 'desktop'}-${theme}.png`) });
+      }
+    }
+    assert.deepEqual(wide, [], 'no sideways scroll');
+  });
+}
 
 // The Settings page (task A-4).
 await check('settings page: a change there is seen by the game on return, in the same game', async (page) => {

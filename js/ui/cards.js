@@ -164,9 +164,12 @@
       `<div class="meta">${esc(whereText(id, isPlayer, loc))}</div>`;
   }
   // Where the card says someone is (task 3-3): where you last saw them, so a
-  // covert move never shows.
+  // covert move never shows; while a scene is read, where its beat has them
+  // (task A-9, as the map does: someone who leaves later is still here).
   function whereText(id, isPlayer, loc) {
-    if (isPlayer) return loc ? loc.name : '?';
+    const view = U.sceneView();
+    if (isPlayer) { const here = U.state.locations[view.here] || loc; return here ? here.name : '?'; }
+    if (view.later[id] && U.state.locations[view.later[id]]) return U.state.locations[view.later[id]].name;
     const kw = E.Engine.knownWhere(U.state, id);
     if (kw && kw.away) return kw.away;
     const room = kw && U.state.locations[kw.loc];

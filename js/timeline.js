@@ -189,7 +189,7 @@
       fact = E.Memory.addFact(state, { about: who, text, known_by: ['all'], weight: 3, where: region });
       res.events.push((vis === 'heard' ? '(heard from elsewhere; only a sound, call or message reaches the player) ' : '') + `[${scope}] ${text}`);
       state.news = state.news || [];
-      state.news.push({ scope, text, time: E.fmtTime(state), effects, region });
+      state.news.push({ scope, text, time: E.fmtTime(state), effects, region, turn: state.turn });
       if (state.news.length > 12) state.news.shift();
       if (scope === 'world') state.flags.chapterWorthy = true;
     }

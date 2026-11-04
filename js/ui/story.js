@@ -495,9 +495,12 @@
     const top = log.scrollTop;
     renderLog();
     renderControls();
-    // People who move in this beat move on the map and the people panel now (task G-11).
+    // People who move in this beat move on the map and the people panel now
+    // (task G-11), and what the beat tells shows in Situation and News (task A-9).
     U.renderMap();
     U.renderCast();
+    renderSituation();
+    renderNews();
     renderSceneBar();
     log.scrollTop = top;
     if (nextBtn) {
@@ -542,25 +545,35 @@
       const standing = r ? ` <span class="standing">· you: <span class="rel-${E.Standing.word(r.value)}">${E.Standing.word(r.value)} ${r.value > 0 ? '+' : ''}${r.value}</span>${role ? ` (${role === 'leader' ? 'you lead it' : role})` : ''}${r.why ? ` <span class="muted">${esc(r.why)}</span>` : ''}</span>` : '';
       return `<div title="${esc(f.desc)}" data-group="${esc(f.id)}"><b>${esc(f.name)}</b>: ${esc(f.stance)}${standing}</div>`;
     }).join('');
-    $('situation').innerHTML = clocks + `<div class="world">${world}</div>` + regionHtml() + (groups ? `<div class="world groups">${groups}</div>` : '');
+    const region = regionHtml();
+    $('situation').innerHTML = clocks || world || region || groups
+      ? clocks + `<div class="world">${world}</div>` + region + (groups ? `<div class="world groups">${groups}</div>` : '')
+      : '<div class="muted">Nothing pressing right now.</div>';
   }
 
   // The player's region (task 3-1): who holds it, its tags and status. The map views come later.
   function regionHtml() {
     const id = E.Engine.playerRegion(U.state);
     const def = id && E.Engine.regionDef(U.state, id);
-    const r = def && U.state.regions && U.state.regions[id];
-    if (!r) return '';
+    const now = def && U.state.regions && U.state.regions[id];
+    if (!now) return '';
+    // As the scene has told it so far (task A-9: like the map, Eng.sceneRegions).
+    const r = (E.Engine.sceneRegions(U.state, beatShown()) || { regions: U.state.regions }).regions[id] || now;
     const present = E.Engine.presenceText(U.state, id);
-    const bits = [`held by ${E.Engine.regionHolder(U.state, id).text}`].concat(present ? [`present: ${present}`] : [], r.tags.length ? [r.tags.join(', ')] : [], r.status ? [r.status] : []);
+    const bits = [`held by ${r.controller !== now.controller ? E.MapDraw.factionName(U.state.factions, r.controller) : E.Engine.regionHolder(U.state, id).text}`].concat(present ? [`present: ${present}`] : [], r.tags.length ? [r.tags.join(', ')] : [], r.status ? [r.status] : []);
     // The regions it is inside (R-1): "in Harmon County".
     const up = E.Engine.regionChain(U.state, id).slice(1).map((x) => E.Engine.regionDef(U.state, x).name);
     return `<div class="world groups" title="${esc(def.lore || '')}"><b>${esc(def.name)}</b>${up.length ? ` <span class="muted">(in ${esc(up.join(', '))})</span>` : ''}: ${esc(bits.join('; '))}</div>`;
   }
 
   const newsRegion = (id) => { const d = id && E.Engine.regionDef(U.state, id); return d ? ` · ${esc(d.name)}` : ''; };
+  // This turn's news waits for the beat that tells its region's change, as
+  // the map does (task A-9); older news, and news with no such change, shows.
+  const beatShown = () => (U.uiCut || U.uiShown) - 1;
   function renderNews() {
-    const news = (U.state.news || []).slice().reverse().slice(0, 6);
+    const sr = E.Engine.sceneRegions(U.state, beatShown());
+    const later = (n) => sr && n.turn === U.state.turn && n.region && sr.changes.some((c) => c.region === n.region && c.beat > beatShown());
+    const news = (U.state.news || []).filter((n) => !later(n)).reverse().slice(0, 6);
     $('newsPanel').classList.toggle('hidden', !news.length);
     $('news').innerHTML = news.map((n) =>
       `<div class="news-item"><span class="muted">${n.scope === 'world' ? '🌍' : '🗺️'} ${esc(n.time)}${newsRegion(n.region)}</span><div>${esc(n.text)}</div>` +

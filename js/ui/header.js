@@ -41,9 +41,9 @@
     bar.prepend(brand);
     const conn = document.createElement('span');
     conn.id = 'conn';
-    conn.className = 'conn off';
+    conn.className = 'conn';
     conn.title = 'Model connection';
-    conn.textContent = '● offline';
+    conn.textContent = '● checking…';
     const theme = document.createElement('button');
     theme.id = 'headerTheme';
     theme.type = 'button';

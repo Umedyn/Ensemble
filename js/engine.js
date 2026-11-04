@@ -2093,7 +2093,7 @@
         res.events.push((vis === 'heard' ? '(heard from elsewhere; only a sound, call or message reaches the player) ' : '') + tag + text);
         if (scope !== 'local') {
           E.Memory.addFact(state, { about: who, text, known_by: ['all'], weight: scope === 'world' ? 3 : 2, where: scope === 'regional' ? region : null });
-          state.news.push({ scope, text, time: E.fmtTime(state), effects, region });
+          state.news.push({ scope, text, time: E.fmtTime(state), effects, region, turn: state.turn });
           if (state.news.length > 12) state.news.shift();
         }
       }
@@ -5033,7 +5033,7 @@
       Eng.applyHarm(state, m.harm, hit, res, 'the major event');
       res.events.push(`[major] ${text}`);
       E.Memory.addFact(state, { about: (m.who || []).filter((id) => state.characters[id]), text, known_by: ['all'], weight: 3 });
-      if (scope !== 'local') { state.news.push({ scope, text, time: E.fmtTime(state), effects, region }); state.tierLast[scope] = absHours(state); }
+      if (scope !== 'local') { state.news.push({ scope, text, time: E.fmtTime(state), effects, region, turn: state.turn }); state.tierLast[scope] = absHours(state); }
       res.major = { text, scope, effects, region };
     } else {
       // The planned clock's own text: model events were applied after it (playtest-agenda-skips).
