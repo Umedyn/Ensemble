@@ -757,7 +757,7 @@ await check('make my own start: generate a place and people, retry a failed step
   await page.fill('#genNote', 'quiet and tense');
   await page.click('#genGo');
   await page.waitForSelector('#genRetry', { timeout: 20000 });
-  assert.match(await page.textContent('#genBody'), /rooms: make 3 to 6 rooms \(got 0\)/);
+  assert.match(await page.textContent('#genBody'), /rooms: make 5 to 10 rooms \(got 0\)/);
   assert.equal(await page.locator('.gen-step.done').count(), 1, 'your character is kept');
   await page.click('#genRetry');
   await genDone(page);
@@ -792,6 +792,15 @@ await check('your own story: describe a world, generate a start there, review it
   await genDone(page);
   assert.match(await page.textContent('.gen-steps'), /Your world/);
   assert.match(await page.inputValue('[data-rv="setting||setting"]'), /Scottish island in the 1950s/);
+  // A world with no regions: the area around, its places and the ways between them.
+  assert.match(await page.textContent('.gen-steps'), /The area around/);
+  const area = await page.locator('.rv-section', { hasText: 'The area around' }).textContent();
+  assert.match(area, /Gillies Croft.*you start here/);
+  assert.match(area, /Ways to Portcorran \(road, 20m\), Mains Farm \(track, 10m\)/);
+  await page.fill('[data-rv="region|mains-farm|name"]', 'Portcorran');
+  assert.match(await page.locator('[data-rv="region|mains-farm|name"] ~ .rv-err').textContent(), /Another place has that name/);
+  await page.fill('[data-rv="region|mains-farm|name"]', 'Achmore Farm');
+  await page.locator('.rv-section', { hasText: 'The area around' }).screenshot({ path: path.join(shots, 'generated-start-area.png') });
   await page.click('#genPlay');
   await gameStarted(page);
   assert.match(await page.textContent('#log'), /Rain drums on the diner roof/);

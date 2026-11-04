@@ -24,6 +24,7 @@
   GEN.STEPS = [
     { id: 'setting', label: 'Your world' },
     { id: 'player', label: 'Your character' },
+    { id: 'area', label: 'The area around' },
     { id: 'rooms', label: 'Places' },
     { id: 'plan', label: 'Who is here' },
     { id: 'cast', label: 'Characters' },
@@ -35,6 +36,11 @@
   // Local lore (task 5-6): entries per start, and their length in words
   // (40–80 asked; shorter ones are dropped, longer ones sent back).
   GEN.LORE = { min: 3, max: 5, minWords: 25, maxWords: 100 };
+  // The area around (a world with no regions): the wider area and the places
+  // in it, the start's among them, with the ways between them in minutes.
+  GEN.AREA = { min: 3, max: 7, ways: 4, minutes: [1, 600], fallback: 30 };
+  // The start's own rooms: the building and the grounds right around it.
+  GEN.ROOMS = { min: 3, ask: 5, max: 10 }; // fewer than asked still plays
   GEN.TRIES = 3; // one call plus two reruns with the problem named
   GEN.PLAYER_FEELING = 25; // the cast has only just met the player
   GEN.PLURAL = /\b(couple|family|pair|twins|group|kids|children|people|men|women|survivors|neighbou?rs|brothers|sisters)\b/i;
@@ -100,9 +106,10 @@
 
   // The world composed with an empty start in a region: the context every
   // step sees (setting, rules, regions, groups), and what the 4-1 form needs.
-  GEN.contextScenario = function (loaded, region) {
+  // area: the area step's regions (a world with none of its own), the start's.
+  GEN.contextScenario = function (loaded, region, area) {
     const w = loaded.bundle.world;
-    const sc = E.Scenario.compose(w, { id: 'generated', cast: [], region }, {}, loaded.folder);
+    const sc = E.Scenario.compose(w, Object.assign({ id: 'generated', cast: [], region }, area ? { regions: E.clone(area.regions) } : {}), {}, loaded.folder);
     sc.skills = sc.skills || E.DEFAULT_SKILLS.slice();
     sc.needs = sc.needs || [];
     // The date: the world's setting for generated starts, its date, the
@@ -244,12 +251,16 @@
     return {
       v: 1, world: loaded.id, folder: loaded.folder, id: 'gen-' + Math.random().toString(36).slice(2, 8),
       region, note: text(o.note, 400), line: o.character ? '' : text(o.line, 300), place: place || '', worldText,
+      // A world with no regions: the start sketches the area around it first.
+      area: !(loaded.bundle.world.regions || []).length,
       onePass: o.onePass != null ? !!o.onePass : !E.LLM.backendFor('worldbuild').kobold,
       steps: o.character ? { player: { character: E.clone(o.character) } } : {},
       partial: {}, log: [], failed: null,
     };
   };
-  GEN.order = (job) => GEN.STEPS.filter((s) => (s.id !== 'player' || job.line || (job.steps.player && job.steps.player.character)) && (s.id !== 'setting' || job.worldText)).map((s) => s.id);
+  GEN.order = (job) => GEN.STEPS.filter((s) => (s.id !== 'player' || job.line || (job.steps.player && job.steps.player.character)) && (s.id !== 'setting' || job.worldText) && (s.id !== 'area' || job.area)).map((s) => s.id);
+  // Where the start is: the region picked, or the place the area step made.
+  GEN.startRegion = (job) => job.region || (job.steps.area && job.steps.area.region) || null;
   GEN.done = (job) => GEN.order(job).every((id) => job.steps[id]);
   GEN.nextStep = (job) => GEN.order(job).find((id) => !job.steps[id]) || null;
 
@@ -325,14 +336,89 @@
     return out.errors ? { error: out.errors.join(' ') } : { character: out.character };
   };
 
-  C.rooms = function (raw, ctx) {
-    const list = isObj(raw) && Array.isArray(raw.rooms) ? raw.rooms.filter(isObj) : [];
-    if (list.length < 3) return { error: `make 3 to 6 rooms (got ${list.length})` };
+  // The area around (a world with no regions): the wider area as the top
+  // region, the places in it under it, and the ways between them as routes
+  // with minutes. → { regions, region (the start's), warnings }.
+  C.area = function (raw, ctx) {
+    if (!isObj(raw)) return { error: 'reply with one JSON object' };
+    const A = GEN.AREA;
     const warnings = [];
-    if (list.length > 6) warnings.push(`kept the first 6 of ${list.length} rooms`);
+    const used = new Set(ctx.taken.ids);
+    const newId = (given, name, fallback) => {
+      let id = ID.test(String(given || '')) && String(given).length <= 24 ? String(given) : slug(name) || fallback;
+      for (let n = 2; used.has(id); n++) id = `${slug(name) || fallback}-${n}`;
+      used.add(id);
+      return id;
+    };
+    const top = isObj(raw.area) ? raw.area : {};
+    const topName = text(top.name, 40);
+    if (!topName) return { error: 'give the wider area a "name" (the county, valley, district or station it is all in)' };
+    const area = { id: newId(top.id, topName, 'area'), name: topName };
+    const topLabel = text(top.label, 30);
+    if (topLabel) area.label = topLabel;
+    const topLore = clip(top.lore, 400);
+    if (topLore) area.lore = topLore;
+    const list = (Array.isArray(raw.places) ? raw.places : []).filter(isObj);
+    if (list.length < A.min) return { error: `make ${A.min} to ${A.max} places, the start's among them (got ${list.length})` };
+    if (list.length > A.max) warnings.push(`kept the first ${A.max} of ${list.length} places`);
+    const places = [];
+    for (const p of list.slice(0, A.max)) {
+      const name = text(p.name, 40);
+      if (!name) return { error: 'every place needs a "name"' };
+      if (norm(name) === norm(topName)) return { error: `"${name}" is the wider area's name; give the place its own` };
+      const place = { id: newId(p.id, name, 'place'), name, parent: area.id, _ways: Array.isArray(p.ways) ? p.ways : [], _alias: [String(p.id || ''), name] };
+      const label = text(p.label, 30);
+      if (label) place.label = label;
+      const lore = clip(p.lore, 400);
+      if (lore) place.lore = lore;
+      places.push(place);
+    }
+    if (new Set(places.map((p) => norm(p.name))).size < places.length) return { error: 'two places have the same name' };
+    const leak = places.concat(area).find((p) => p.lore && GEN.pressureLeak(ctx.job, p.lore));
+    if (leak) return { error: `what ${leak.name} says gives away a secret; places are public knowledge` };
+    const find = (ref) => places.find((p) => p._alias.some((a) => a && norm(a) === norm(ref)) || p.id === ref);
+    // Ways: one route per pair (a route goes both ways), in minutes.
+    const linked = (a, b) => (a.routes || []).some((x) => x.to === b.id) || (b.routes || []).some((x) => x.to === a.id);
+    const [lo, hi] = A.minutes;
+    places.forEach((p) => p._ways.slice(0, A.ways).forEach((w) => {
+      const to = find(isObj(w) ? w.to : w);
+      if (!to || to === p || linked(p, to)) return;
+      const n = Math.round(parseFloat(isObj(w) ? w.minutes : NaN));
+      const mins = Number.isFinite(n) ? E.clamp(n, lo, hi) : A.fallback;
+      if (!Number.isFinite(n)) warnings.push(`the way from ${p.name} to ${to.name} had no minutes; ${A.fallback} it is`);
+      (p.routes = p.routes || []).push({ to: to.id, kind: text(isObj(w) && w.kind, 30).toLowerCase() || 'road', time: `${mins}m` });
+    }));
+    const start = find(raw.start) || (ctx.job.place && places.find((p) => norm(p.name).includes(norm(ctx.job.place)))) || places[0];
+    if (!find(raw.start)) warnings.push(`"start" ${raw.start ? `"${raw.start}" is not one of the places` : 'missing'}; the story starts at ${start.name}`);
+    // Places nobody can get to get a road from the start (rule 1).
+    const reach = new Set([start.id]);
+    for (let grew = true; grew;) {
+      grew = false;
+      places.forEach((p) => (p.routes || []).forEach((x) => {
+        if (reach.has(p.id) !== reach.has(x.to)) { reach.add(p.id); reach.add(x.to); grew = true; }
+      }));
+    }
+    places.filter((p) => !reach.has(p.id)).forEach((p) => {
+      warnings.push(`no way to ${p.name}; a road from ${start.name}, ${A.fallback} minutes`);
+      (start.routes = start.routes || []).push({ to: p.id, kind: 'road', time: `${A.fallback}m` });
+    });
+    places.forEach((p) => { delete p._ways; delete p._alias; });
+    return { regions: [area].concat(places), region: start.id, warnings };
+  };
+
+  // The rooms of the place the story starts: the building and the grounds
+  // right around it, laid out by size, floor and the kind of each way through.
+  GEN.roomLinks = () => E.Scenario.LINK_KINDS.filter((k) => k !== 'locked door');
+  C.rooms = function (raw, ctx) {
+    const R = GEN.ROOMS;
+    const LINKS = GEN.roomLinks();
+    const list = isObj(raw) && Array.isArray(raw.rooms) ? raw.rooms.filter(isObj) : [];
+    if (list.length < R.min) return { error: `make ${R.ask} to ${R.max} rooms (got ${list.length})` };
+    const warnings = [];
+    if (list.length > R.max) warnings.push(`kept the first ${R.max} of ${list.length} rooms`);
     const used = new Set(ctx.taken.ids);
     const rooms = [];
-    for (const r of list.slice(0, 6)) {
+    for (const r of list.slice(0, R.max)) {
       const name = text(r.name, 40);
       if (!name) return { error: 'every room needs a "name"' };
       const desc = clip(r.desc, 240);
@@ -340,18 +426,41 @@
       let id = ID.test(String(r.id || '')) && String(r.id).length <= 24 ? String(r.id) : slug(name) || 'room';
       for (let n = 2; used.has(id); n++) id = `${slug(name) || 'room'}-${n}`;
       used.add(id);
-      const room = { id, name, desc, connects: [], _raw: (Array.isArray(r.connects) ? r.connects : []).map(String), _alias: [String(r.id || ''), name] };
+      // Ways through: "connects" (ids or names) and "links" ({to, kind}).
+      const ways = [].concat(Array.isArray(r.connects) ? r.connects : [], Array.isArray(r.links) ? r.links : [])
+        .map((w) => (isObj(w) ? { to: String(w.to || ''), kind: text(w.kind, 20).toLowerCase() } : { to: String(w), kind: '' }));
+      const room = { id, name, desc, connects: [], _raw: ways, _alias: [String(r.id || ''), name] };
       if (r.outside === true) room.outside = true;
-      if (['small', 'medium', 'large'].includes(r.size)) room.size = r.size;
+      if (E.Scenario.ROOM_SIZES.includes(r.size)) room.size = r.size;
+      const level = Math.round(Number(r.level));
+      if (Number.isFinite(level) && level !== 0) {
+        if (level >= -3 && level <= 5) room.level = level;
+        else warnings.push(`${name} was on floor ${r.level}; put on the ground floor`);
+      }
       rooms.push(room);
     }
     if (new Set(rooms.map((r) => norm(r.name))).size < rooms.length) return { error: 'two rooms have the same name' };
     const find = (ref) => rooms.find((r) => r._alias.some((a) => a && norm(a) === norm(ref)) || r.id === ref);
-    rooms.forEach((r) => r._raw.forEach((ref) => {
-      const to = find(ref);
+    rooms.forEach((r) => r._raw.forEach((w) => {
+      const to = find(w.to);
       if (!to || to === r) return;
       if (!r.connects.includes(to.id)) r.connects.push(to.id);
       if (!to.connects.includes(r.id)) to.connects.push(r.id);
+      if (!w.kind || w.kind === 'open' || (r.links || []).concat(to.links || []).some((k) => k.to === to.id || k.to === r.id)) return;
+      // A locked door nobody holds the key to would shut everyone out.
+      const kind = w.kind === 'locked door' ? 'door' : LINKS.includes(w.kind) ? w.kind : null;
+      if (!kind) return warnings.push(`the way from ${r.name} to ${to.name} was a "${w.kind}"; left open`);
+      (r.links = r.links || []).push({ to: to.id, kind });
+    }));
+    // Rooms on different floors meet by stairs.
+    rooms.forEach((r) => (r.links || []).forEach((k) => {
+      const to = rooms.find((x) => x.id === k.to);
+      if ((r.level || 0) !== (to.level || 0) && !['stairs', 'hatch'].includes(k.kind)) k.kind = 'stairs';
+    }));
+    rooms.forEach((r) => r.connects.forEach((c) => {
+      const to = rooms.find((x) => x.id === c);
+      if ((r.level || 0) === (to.level || 0) || (r.links || []).concat(to.links || []).some((k) => k.to === c || k.to === r.id)) return;
+      (r.links = r.links || []).push({ to: c, kind: 'stairs' });
     }));
     const start = find(raw.player_room) || rooms[0];
     if (!find(raw.player_room)) warnings.push(`"player_room" ${raw.player_room ? `"${raw.player_room}" is not one of the rooms` : 'missing'}; the player starts in ${start.name}`);
@@ -655,7 +764,7 @@
     return out;
   };
   // The regions a local entry may be about: the start's and those it is inside.
-  GEN.loreRegions = (ctx) => (ctx.job.region ? E.Scenario.regionChainIn(ctx.sc.regions, ctx.job.region).map((id) => (ctx.sc.regions || []).find((r) => r.id === id)).filter(Boolean) : []);
+  GEN.loreRegions = (ctx) => (GEN.startRegion(ctx.job) ? E.Scenario.regionChainIn(ctx.sc.regions, GEN.startRegion(ctx.job)).map((id) => (ctx.sc.regions || []).find((r) => r.id === id)).filter(Boolean) : []);
   // Timeline events still to come at the start (the narrator must not know them yet).
   GEN.futureEvents = (sc) => (Array.isArray(sc.timeline) ? sc.timeline : [])
     .filter((ev) => isObj(ev) && ev.draft !== true && ev.when && E.Timeline.at(ev.when) > E.Timeline.at(sc.start || GEN.DATE));
@@ -741,11 +850,13 @@
 
   // ---------- running ----------
   GEN.context = function (loaded, job) {
-    const sc = GEN.withSetting(GEN.contextScenario(loaded, job.region), job);
+    const sc = GEN.withSetting(GEN.contextScenario(loaded, GEN.startRegion(job), job.steps.area), job);
     const taken = GEN.taken(loaded);
+    // The area's ids are taken for the rooms and people made after it.
+    if (job.steps.area) job.steps.area.regions.forEach((r) => taken.ids.add(r.id));
     return { loaded, job, sc, taken, header: E.Prompts.genHeader(sc, taken) };
   };
-  const tokens = { player: 600, rooms: 700, plan: 400, cast: 700, castAll: 2400, ties: 700, extras: 500, opening: 900, lore: 650, setting: 450 };
+  const tokens = { player: 600, area: 800, rooms: 1100, plan: 400, cast: 700, castAll: 2400, ties: 700, extras: 500, opening: 900, lore: 650, setting: 450 };
 
   // One call (with up to TRIES attempts) → checked data. A failed check is
   // named in the next attempt; every attempt is logged on the job.
@@ -854,6 +965,7 @@
     opening: { title: ['text', 60, true], summary: ['prose', 300, true], opening: ['opening'], facts: ['facts'] },
     setting: { setting: ['prose', 900, true], tags: ['tags'], toneNote: ['prose', 300, false] },
     lore: { title: ['text', 80, true], text: ['prose', 800, true], keywords: ['keywords'] },
+    region: { name: ['text', 40, true], lore: ['prose', 400, false] },
   };
   GEN.FIELDS = FIELDS;
   // The object an edit changes: a room, a person (the player too), a
@@ -866,6 +978,7 @@
     if (kind === 'opening') return s.opening;
     if (kind === 'setting') return s.setting;
     if (kind === 'lore') return s.lore && s.lore.entries.find((e) => e.id === id);
+    if (kind === 'region') return s.area && s.area.regions.find((r) => r.id === id);
     return null;
   };
   // One field → { value } (stored) or { error } (nothing changed).
@@ -920,6 +1033,7 @@
       if (others.includes(norm(out)) || GEN.taken(loaded).names.has(out)) return { error: 'Someone already has that name.' };
     }
     if (field === 'name' && kind === 'room' && job.steps.rooms.rooms.some((r) => r.id !== id && norm(r.name) === norm(out))) return { error: 'Another room has that name.' };
+    if (field === 'name' && kind === 'region' && job.steps.area.regions.some((r) => r.id !== id && norm(r.name) === norm(out))) return { error: 'Another place has that name.' };
     if (field === 'secret' && kind === 'person' && !out && id !== GEN.player(job).id) return { error: 'Everyone here keeps a secret; write one.' };
     if (out === null || out === '') {
       delete obj[field];
@@ -1066,13 +1180,16 @@
       facts: s.opening.facts.slice(),
       opening: s.opening.opening,
     };
-    if (job.region) start.region = job.region;
+    if (GEN.startRegion(job)) start.region = GEN.startRegion(job);
+    // The area around (a world with no regions) is the start's own map: its
+    // rooms are in the start's place, and the others are built on a visit.
+    if (s.area) start.regions = s.area.regions.map((r) => E.clone(r));
     // Local lore (task 5-6) is the start's own, so it is in the game's
     // scenario, its saves and Save as start.
     if (s.lore && s.lore.entries.length) start.lore = s.lore.entries.map((e) => E.clone(e));
     // The start's regional ideas replace the world's (a shallow merge), so the
     // world's own go after them.
-    const ideas = (s.ties.events || []).map((t) => (job.region ? { text: t, region: job.region } : t));
+    const ideas = (s.ties.events || []).map((t) => (GEN.startRegion(job) ? { text: t, region: GEN.startRegion(job) } : t));
     if (ideas.length) start.eventSeeds = { regional: ideas.concat(E.clone(((w.eventSeeds || {}).regional) || [])) };
     const characters = {};
     all.forEach((c) => { characters[c.id] = c; });

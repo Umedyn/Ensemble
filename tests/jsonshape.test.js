@@ -150,6 +150,9 @@ function genStepPrompts(E) {
   const custom = readWorld('your-story', E);
   const cjob = GEN.newJob(custom, { world: genMock.WORLD, line: 'a fisher' });
   out.setting = P.genStep(GEN.context(custom, cjob), 'setting');
+  // A world with no regions sketches the area around first.
+  cjob.steps.player = job.steps.player;
+  out.area = P.genStep(GEN.context(custom, cjob), 'area');
   return out;
 }
 
@@ -176,7 +179,7 @@ test('every JSON prompt in every bundled world: its grammar takes its own exampl
       const E = loadEngine();
       const w = readWorld(folder, E);
       const ctx = E.StartGen.context(w, E.StartGen.newJob(w, { region: (E.StartGen.regions(w.bundle.world)[0] || {}).id, line: 'someone new', world: genMock.WORLD }));
-      ['player', 'rooms'].forEach((step) => checkPrompt(E, `${folder} start step ${step}`, E.Prompts.genStep(ctx, step)));
+      ['player', 'area', 'rooms'].forEach((step) => checkPrompt(E, `${folder} start step ${step}`, E.Prompts.genStep(ctx, step)));
       continue;
     }
     const { E, state } = newGame(folder);

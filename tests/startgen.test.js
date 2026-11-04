@@ -78,7 +78,7 @@ test('rooms: names or ids link both ways, unreachable rooms join the start, clas
   assert.deepEqual(plain(clash.rooms.map((r) => r.id)), ['floor-2', 'roof-2', 'lot-2'], 'the holdout start already has floor, roof and lot');
   assert.equal(clash.playerRoom, 'floor-2');
   assert.match(clash.warnings[0], /"attic" is not one of the rooms/);
-  assert.match(GEN.check.rooms({ rooms: [{ name: 'A', desc: 'x' }] }, ctx).error, /3 to 6 rooms \(got 1\)/);
+  assert.match(GEN.check.rooms({ rooms: [{ name: 'A', desc: 'x' }] }, ctx).error, /5 to 10 rooms \(got 1\)/);
   assert.match(GEN.check.rooms({ rooms: [{ name: 'A', desc: 'x' }, { name: 'B' }, { name: 'C', desc: 'z' }] }, ctx).error, /room "B" needs a "desc"/);
 });
 
@@ -238,8 +238,8 @@ test('a bad reply is retried with the problem named; three bad replies stop the 
   await GEN.run(w, job);
   const rooms = calls.filter((c) => /rooms/.test(c.kind));
   assert.equal(rooms.length, 2);
-  assert.match(rooms[1].user, /Your last reply had a problem: make 3 to 6 rooms \(got 1\)\. Fix it/);
-  assert.deepEqual(plain(job.log.filter((l) => l.step === 'rooms').map((l) => l.error)), ['make 3 to 6 rooms (got 1)', null]);
+  assert.match(rooms[1].user, /Your last reply had a problem: make 5 to 10 rooms \(got 1\)\. Fix it/);
+  assert.deepEqual(plain(job.log.filter((l) => l.step === 'rooms').map((l) => l.error)), ['make 5 to 10 rooms (got 1)', null]);
 
   const t = setup();
   mock(t.E, { plan: { people: [] } });

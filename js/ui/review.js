@@ -266,6 +266,15 @@
       field('opening', '', 'summary', o.summary, { label: 'Summary (shown in the picker)', rows: 2 }) +
       field('opening', '', 'opening', o.opening, { label: 'Opening scene', rows: 8 }) +
       field('opening', '', 'facts', (o.facts || []).join('\n'), { label: 'Facts everyone knows (one per line)', rows: 3 }) + '</section>';
+    // The area around (a world with no regions): the places nearby, and the ways between them.
+    if (s.area) {
+      const placeName = (id) => (s.area.regions.find((r) => r.id === id) || {}).name || id;
+      const ways = (r) => s.area.regions.flatMap((x) => (x.routes || []).filter((w) => x.id === r.id || w.to === r.id).map((w) => `${placeName(x.id === r.id ? w.to : x.id)} (${w.kind}, ${E.Scenario.sayHours(E.Scenario.parseHours(w.time)) || 'next door'})`));
+      html += '<section class="rv-section"><div class="rv-head"><h4>The area around</h4></div>' +
+        s.area.regions.map((r) => `<div class="rv-card"><div class="rv-head"><b>${esc(r.name)}</b>${r.label ? ` <span class="muted small">${esc(r.label)}</span>` : ''}${r.id === s.area.region ? ' <span class="tag">you start here</span>' : ''}</div>` +
+          field('region', r.id, 'name', r.name, { label: 'Name' }) + field('region', r.id, 'lore', r.lore, { label: 'What anyone here knows about it', rows: 2 }) +
+          (r.parent ? `<div class="muted small">${ways(r).length ? `Ways to ${esc(ways(r).join(', '))}` : 'No ways out'}</div>` : '<div class="muted small">The places below are all in it.</div>') + '</div>').join('') + '</section>';
+    }
     html += '<section class="rv-section"><div class="rv-head"><h4>Places</h4></div>' +
       `<div id="rvMap" class="rv-map">${previewMapHtml()}</div>` +
       // One of the world's own places (task 7-4): shown, not edited here.
@@ -300,7 +309,7 @@
     // Local lore (task 5-6): public notes the story keeps to; editable, and
     // one can be taken out. A step that failed leaves a note, not a blocked start.
     const lore = s.lore || { entries: [] };
-    const regionName = (id) => ((U.gen.world.bundle.world.regions || []).find((r) => r.id === id) || {}).name || id;
+    const regionName = (id) => ([].concat(U.gen.world.bundle.world.regions || [], (s.area && s.area.regions) || []).find((r) => r.id === id) || {}).name || id;
     html += `<section class="rv-section"><div class="rv-head"><h4>Local lore</h4>${reroll('data-rv-redo="lore"', 'Reroll', 'New notes on this place; everything else stays')}</div>` +
       (lore.dropped ? `<div class="muted small">No local lore this time (${esc(lore.dropped)}). The start plays without it; Reroll to try again.</div>` : '') +
       lore.entries.map((e) => `<div class="rv-card"><div class="rv-head"><b>${esc(e.title)}</b> <span class="muted small">about ${esc(e.level === 'region' ? regionName(e.ref) : roomName(e.ref))}${(e.topics || []).length ? ` · ${esc(e.topics.join(', '))}` : ''}</span><button type="button" class="small ghost" data-rv-lore-del="${esc(e.id)}"${off} aria-label="Remove ${esc(e.title)}">✕</button></div>` +

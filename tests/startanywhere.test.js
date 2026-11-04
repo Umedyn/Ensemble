@@ -85,7 +85,7 @@ test('playtest-r7-tessk-workshop: where exactly is the place the rooms are made 
   assert.ok(!calls.some((c) => /region/.test(c.kind)), 'no region call');
   const rooms = calls.find((c) => c.kind === 'worldbuild (start: rooms)').user;
   assert.match(rooms, /Where exactly: the player starts at Engineer workshop and flat, in Tessk Crossing\./);
-  assert.match(rooms, /Invent where the story starts, at Engineer workshop and flat:/);
+  assert.match(rooms, /Lay out where the story starts, at Engineer workshop and flat,/);
   const { start } = E.StartGen.toStart(w, job);
   assert.equal(start.regions, undefined, 'no new region');
   assert.equal(start.region, 'tessk-crossing');

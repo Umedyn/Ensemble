@@ -17,6 +17,16 @@ function replies(over = {}) {
       { name: 'Back Lot', desc: 'Gravel, bins and a dead car.', connects: [] },
       { id: 'booths', name: 'Booths', desc: 'Torn vinyl booths by the windows.', connects: [] },
     ], player_room: 'counter' },
+    // The area around (a world with no regions, so not the holdout): the start's
+    // place, a neighbour, the town and the woods, with one way listed twice
+    // and one with no minutes.
+    area: { area: { name: 'Corran Parish', label: 'parish', lore: 'A parish of crofts and grazing along one coast road.' },
+      places: [
+        { id: 'the-croft', name: 'Gillies Croft', label: 'croft', lore: 'A stone croft house above the shore, with a byre and a vegetable patch.', ways: [{ to: 'harbour-town', kind: 'road', minutes: 20 }, { to: 'Mains Farm', kind: 'track', minutes: 10 }] },
+        { id: 'mains-farm', name: 'Mains Farm', label: 'farm', lore: 'The biggest farm in the parish, with the only tractor for miles.', ways: [{ to: 'the-croft', kind: 'track', minutes: 10 }] },
+        { id: 'harbour-town', name: 'Portcorran', label: 'town', lore: 'The harbour town: the pier, the shop, the kirk and the school.', ways: [{ to: 'birch-wood', kind: 'path', minutes: 'soon' }] },
+        { id: 'birch-wood', name: 'Birch Wood', label: 'woods', lore: 'A steep wood of birch and bracken where the burn comes down.', ways: [] },
+      ], start: 'the-croft' },
     plan: { people: [{ name: 'Lena Marsh', role: 'diner cook', hook: 'trades with the wrong people' }, { name: 'Owen Pruitt', role: 'sheriff\'s deputy', hook: 'ran once' }, { name: 'Kay Dunbar', role: 'runaway teenager', hook: 'hiding a bite' }] },
     person: (user) => SHEETS[/sheet for ([^,]+),/.exec(user)[1]],
     cast: { people: Object.entries(SHEETS).map(([name, s]) => Object.assign({ name }, s)) },
@@ -66,6 +76,7 @@ function replies(over = {}) {
 }
 const STEP_OF = [
   ['TASK: THE WORLD', 'setting'],
+  ['TASK: THE AREA AROUND', 'area'],
   ['TASK: LOCAL LORE', 'lore'],
   ["THE PLAYER'S CHARACTER", 'player'], ['TASK: THE PLACE AND WHO IS THERE', 'siteFlavour'], ['TASK: MORE OF THIS PLACE', 'siteGrow'], ['TASK: THE PLACE', 'rooms'], ['TASK: WHO IS HERE', 'plan'], ['TASK: WRITE ONE PERSON', 'person'],
   ['TASK: WRITE THE PEOPLE', 'cast'], ['TASK: A NEW REGION', 'region'],

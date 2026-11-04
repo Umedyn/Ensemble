@@ -1651,7 +1651,7 @@ ${S.example(shape)}
   P.genStep = (ctx, step, index) => P.build('gen', Object.assign({}, ctx, { step, index }));
   P.layouts.gen = ['genPlace', 'genSoFar', 'genTask'];
   B.genPlace = ({ sc, job }) => {
-    const r = (sc.regions || []).find((x) => x.id === job.region);
+    const r = (sc.regions || []).find((x) => x.id === E.StartGen.startRegion(job));
     const lines = ['=== WHERE THIS STARTS ==='];
     if (r) {
       const holder = (sc.factions || []).find((f) => f.id === r.controller);
@@ -1732,12 +1732,40 @@ Reply with JSON only: ${reply(S.obj({
       description: S.str('who they are, one or two sentences'), skills: skillsShape(sc.skills, 1),
     }))}`;
   };
-  GEN_TASKS.rooms = ({ sc, job }) => {
-    const r = (sc.regions || []).find((x) => x.id === job.region);
-    return `=== TASK: THE PLACE ===
-Invent where the story starts${job.place ? `, at ${job.place}` : r ? `, somewhere in ${r.name}` : ''}: 3 to 6 rooms or areas the player can walk between (inside one building, or a few spots close together outdoors). Each needs a short id (lowercase, dashes), a name, one sentence of description and the rooms it connects to. Every room must be reachable. Pick the room the player starts in.
+  // The area around (a world with no regions): a small map of places the
+  // player can travel between, before the rooms of the one where they start.
+  GEN_TASKS.area = ({ job }) => {
+    const A = E.StartGen.AREA;
+    return `=== TASK: THE AREA AROUND ===
+Sketch the area around where the story starts${job.place ? ` (${job.place})` : ''}, as a small map of places the player could go: the place the story starts (the player's home, work or wherever their description puts them) and ${A.min - 1} to ${A.max - 1} places near it that fit the setting and the player. Think of where these people would really go in a week. For a family farm: the neighbours' farms, the town with its shops and school, the creek or the woods. For a flat in a city: the block, the corner shop, the station, the park. For a ship or a station: its decks and the port.
+- "area": what they are all in (a county, a valley, a district, a whole station), with a one-word label for what kind of place it is and one sentence about it.
+- "places": each with a short id (lowercase, dashes), a name, a one-word label (farm, town, woods, shop...) and one sentence about it that anyone living here would know. No secrets and nothing that hasn't happened yet.
+- "ways": from each place, the places right next to it, how you get there (road, track, path, river, rail, corridor...) and how many minutes it takes. Keep it close: a walk, a ride or a short drive, not a journey. Every place must be reachable.
+- "start": the id of the place where the story starts. Its rooms come next; the other places are built when the player goes there.
 Reply with JSON only: ${reply(S.obj({
-      rooms: S.list(S.obj({ id: S.str('back-room'), name: S.str('Back Room'), desc: S.str('One sentence.'), connects: S.list(S.str('shop-floor'), { max: 6 }), outside: S.bool(false) }), { min: 3, max: 6 }),
+      area: S.obj({ name: S.str('Area Name'), label: S.str('county'), lore: S.str('One sentence.') }),
+      places: S.list(S.obj({
+        id: S.str('place-id'), name: S.str('Place Name'), label: S.str('farm'), lore: S.str('One sentence.'),
+        ways: S.list(S.obj({ to: S.str('other-place-id'), kind: S.str('road'), minutes: S.int(A.minutes[0], A.minutes[1], 15) }), { min: 1, max: A.ways }),
+      }), { min: A.min, max: A.max }),
+      start: S.str('place-id'),
+    }))}`;
+  };
+  GEN_TASKS.rooms = ({ sc, job }) => {
+    const r = (sc.regions || []).find((x) => x.id === E.StartGen.startRegion(job));
+    const R = E.StartGen.ROOMS;
+    return `=== TASK: THE PLACE ===
+Lay out ${job.steps.area && r && !job.place ? `${r.name}, where the story starts,` : `where the story starts${job.place ? `, at ${job.place}` : r ? `, somewhere in ${r.name}` : ''},`} like a simple floor plan: ${R.ask} to ${R.max} rooms and areas the player can walk between. Take the main building room by room (the rooms people really use), then the grounds right around it as outside areas ("outside": true): a yard, a garden, the street out front, outbuildings. A farm: the kitchen, the front room, the bedrooms upstairs, the porch, the farmyard, the barn, the coop. A city flat: its rooms, the stairwell, the street outside. A shop: the shop floor, the back room, the office, the alley.${job.steps.area ? ' Only this place: the other places nearby are built when the player goes there.' : ''}
+- id: short, lowercase, dashes. name. desc: one sentence of what someone standing there notices.
+- size: small (a closet, a bathroom), medium (a kitchen, an office) or large (a barn, a yard, a hall).
+- level: 0 for the ground floor, 1 upstairs, -1 a cellar. Outside areas are 0.
+- links: the rooms right next to it and the way through: "door", "open" (no door, or across open ground), "stairs" (to another level), "window" or "hatch". Every room must be reachable.
+Pick the room the player starts in.
+Reply with JSON only: ${reply(S.obj({
+      rooms: S.list(S.obj({
+        id: S.str('back-room'), name: S.str('Back Room'), desc: S.str('One sentence.'), size: S.oneOf(E.Scenario.ROOM_SIZES, 'medium'), level: S.int(-3, 5, 0), outside: S.bool(false),
+        links: S.list(S.obj({ to: S.str('shop-floor'), kind: S.oneOf(E.StartGen.roomLinks(), 'door') }), { max: 6 }),
+      }), { min: R.min, max: R.max }),
       player_room: S.str('back-room'),
     }))}`;
   };

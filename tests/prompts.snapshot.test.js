@@ -98,7 +98,7 @@ function researchPrompts(E, folder) {
 
 // Generated starts (task 4-2): every step's prompt, each step filled from the
 // shared mock replies before the next. Empty for worlds without them.
-const GEN_KEYS = ['genHeader', 'genSetting', 'genPlayer', 'genRooms', 'genPlan', 'genPerson1', 'genPerson2', 'genCastAll', 'genTies', 'genExtras', 'genOpening'];
+const GEN_KEYS = ['genHeader', 'genSetting', 'genPlayer', 'genArea', 'genRooms', 'genPlan', 'genPerson1', 'genPerson2', 'genCastAll', 'genTies', 'genExtras', 'genOpening'];
 function genPrompts(E, folder) {
   const w = readWorld(folder, E);
   const out = {};
@@ -125,6 +125,12 @@ function genPrompts(E, folder) {
     const skills = {};
     (w.bundle.world.skills || E.DEFAULT_SKILLS).forEach((k) => { skills[k] = Math.min(gs.maxSkill || 3, left); left -= skills[k]; });
     job.steps.player = GEN.check.player(Object.assign({}, r.player, { skills }), ctx);
+  }
+  // A world with no regions: the area around comes before the rooms.
+  if (job.area) {
+    out.genArea = P.genStep(ctx, 'area');
+    job.steps.area = GEN.check.area(r.area, ctx);
+    ctx = GEN.context(w, job);
   }
   out.genRooms = P.genStep(ctx, 'rooms');
   job.steps.rooms = GEN.check.rooms(r.rooms, ctx);
