@@ -35,7 +35,8 @@ async function check(name, fn) {
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   try {
-    await page.goto(BASE);
+    // Most checks play a game, so they begin on New game; the landing page has its own.
+    await page.goto(BASE + 'new.html');
     await pageReady(page);
     await fn(page);
     assert.deepEqual(errors, [], 'no page errors');
@@ -92,7 +93,8 @@ const openSection = async (page, id) => {
 const pageReady = (page) => page.waitForFunction(() => document.body && document.body.dataset.ready === '1');
 async function toNewGame(page) {
   if (/\/new\.html/.test(page.url())) return;
-  await page.goto(BASE + 'new.html');
+  // Served or from disk, whichever this page is.
+  await page.goto(new URL('new.html', page.url()).href);
   await pageReady(page);
 }
 async function pickWorld(page, id) {
@@ -1369,7 +1371,7 @@ await check('creator: draw a region on a map image, export, and play the export'
   assert.deepEqual(JSON.parse(JSON.stringify(audit.preconditions)), [{ world: 'comms', is: 'online, 14-minute delay' }]);
   assert.equal(audit.onBroken, 'diverge');
   // Play it: open the exported folder in the game and look at the world map.
-  await page.goto(BASE);
+  await page.goto(BASE + 'new.html');
   await pageReady(page);
   await page.setInputFiles('#folderInput', path.join(out, 'mars-station'));
   await page.waitForFunction(() => [...document.querySelectorAll('#scenarioSelect option')].some((o) => o.value === 'stored:mars-station'));
@@ -1703,7 +1705,7 @@ await check('creator: draw a site map on a battlemap, save it to the world, and 
   assert.deepEqual(map.rooms[0].shape, [[0, 0], [300, 0], [300, 400], [0, 400]], 'snapped to the grid');
   assert.ok(fs.existsSync(path.join(out, 'zombie-holdout', 'sites', 'new-site.svg')), 'the image is in the export');
   // Play it.
-  await page.goto(BASE);
+  await page.goto(BASE + 'new.html');
   await pageReady(page);
   await page.setInputFiles('#folderInput', path.join(libDir, 'new-site-library'));
   await page.setInputFiles('#folderInput', path.join(out, 'zombie-holdout'));
@@ -1916,7 +1918,7 @@ await check('phone: high visibility at 150% fits the screen', async (page) => {
   await act(page, 'Look around.');
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   assert.ok(overflow <= 0, `no sideways scrolling (${overflow}px too wide)`);
-  for (const id of ['#btnSettings', '#btnNewGame', '#btnAct', '#btnUndo', '#btnSide']) {
+  for (const id of ['#btnSettings', '#btnHome', '#btnAct', '#btnUndo', '#btnSide']) {
     const b = await page.locator(id).boundingBox();
     assert.ok(b && b.x >= 0 && b.x + b.width <= 390, `${id} is on screen`);
   }
@@ -1962,6 +1964,8 @@ await check('an old autosave and old settings move over and play on', async (pag
   }, old);
   const second = await ctx.newPage();
   await second.goto(BASE);
+  await second.waitForSelector('#btnContinue');
+  await second.click('#btnContinue');
   await sceneReady(second);
   assert.match(await second.textContent('#sceneBar'), /Ares Deep/);
   assert.equal(await second.getAttribute('html', 'data-theme'), 'light');
@@ -1985,9 +1989,11 @@ await check('an old autosave and old settings move over and play on', async (pag
     await page.goto(BASE);
     await pageReady(page);
     assert.match(await page.textContent('#storeNotice'), /isn't letting Ensemble keep anything/);
+    await page.goto(BASE + 'new.html');
+    await pageReady(page);
     // With nothing kept, a game can't move from New game to the game page (task A-6): it says so.
     await page.click('#btnNew');
-    await page.waitForFunction(() => /play\.html/.test(location.pathname) && document.body.dataset.ready === '1');
+    await page.waitForFunction(() => /play\.html/.test(location.pathname) && document.body && document.body.dataset.ready === '1');
     assert.match(await page.textContent('#log'), /isn't keeping anything[\s\S]*normal window/);
     assert.match(await page.textContent('#storeNotice'), /isn't letting Ensemble keep anything/);
     assert.deepEqual(errors, []);
@@ -2018,7 +2024,7 @@ await check('an old autosave and old settings move over and play on', async (pag
   });
   const page = await ctx.newPage();
   try {
-    await page.goto(BASE);
+    await page.goto(BASE + 'new.html');
     await pageReady(page);
     assert.deepEqual(await page.locator('#scenarioSelect option').evaluateAll((els) => els.map((o) => o.value)), ['fake:one']);
     await newGame(page);
@@ -2084,7 +2090,7 @@ const fileUrl = (name) => pathToFileURL(path.join(here, '..', name)).href;
     assert.match(await page.textContent('#lHelp'), /Open folder[\s\S]*scenarios/, 'says how to add worlds');
     await page.setInputFiles('#lFolder', path.join(here, '..', 'scenarios', 'zombie-holdout'));
     await page.waitForFunction(() => /world=stored/.test(location.search));
-    await page.goto(fileUrl('index.html'));
+    await page.goto(fileUrl('new.html'));
     await page.waitForSelector('#scenarioSelect option[value="stored:zombie-holdout"]', { state: 'attached' });
     await pickWorld(page, 'stored:zombie-holdout');
     await newGame(page);
@@ -2101,7 +2107,7 @@ const fileUrl = (name) => pathToFileURL(path.join(here, '..', name)).href;
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   try {
-    await page.goto(fileUrl('index.html'));
+    await page.goto(fileUrl('new.html'));
     await pageReady(page);
     await page.setInputFiles('#folderInput', path.join(here, '..', 'scenarios', 'zombie-holdout'));
     await page.waitForFunction(() => document.querySelector('#scenarioSelect option[value^="stored:"]'));
@@ -2111,6 +2117,30 @@ const fileUrl = (name) => pathToFileURL(path.join(here, '..', name)).href;
     assert.deepEqual(errors, []);
     console.log('✓ from disk: open a world folder and play a turn');
   } catch (e) { failures++; console.error('✕ from disk: open a world folder\n  ' + e.message); }
+  await ctx.close();
+}
+{
+  const ctx = await browser.newContext({ viewport: { width: 1360, height: 900 } });
+  await ctx.addInitScript(() => localStorage.setItem('ensemble.setupDone', '1'));
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  try {
+    for (const p of ['index.html', 'new.html', 'play.html', 'library.html', 'settings.html', 'creator.html']) {
+      await page.goto(fileUrl(p));
+      await page.waitForFunction(() => window.Ensemble && window.Ensemble.Prefs && window.Ensemble.Prefs.ready());
+      await page.waitForTimeout(300);
+      assert.deepEqual(errors, [], p);
+    }
+    // With nothing opened yet, the pages that need worlds say how to get them.
+    await page.goto(fileUrl('new.html'));
+    await pageReady(page);
+    assert.match(await page.textContent('#scenarioSelect'), /use Open folder/);
+    await page.goto(fileUrl('library.html'));
+    await libraryReady(page);
+    assert.match(await page.textContent('#lHelp'), /Open folder/);
+    console.log('✓ from disk in Chromium: every page opens with no errors');
+  } catch (e) { failures++; console.error('✕ from disk: every page\n  ' + e.message); }
   await ctx.close();
 }
 let firefoxBrowser = null;
@@ -2184,7 +2214,7 @@ await check('New game and the game keep every control, and Creator opens in a ne
   for (const id of ['btnNewGame', 'conn', 'btnSave', 'loadInput', 'btnDebug', 'btnSettings']) assert.equal(await page.locator('header.topbar #' + id).count(), 1, id);
   await page.waitForFunction(() => /test\/story|koboldcpp|●/.test(document.getElementById('conn').textContent));
   assert.equal(await page.getAttribute('header.topbar a[href="creator.html"]', 'target'), '_blank');
-  assert.equal(await page.locator('header.topbar a[href="index.html"]').count(), 0, 'no Game link on the game');
+  assert.equal(await page.locator('header.topbar a#btnHome[href="index.html"]').count(), 1, 'Home, on the game too');
 });
 
 await check('phone: the top bar stays as it was: no title and no Creator link', async (page) => {
@@ -2263,23 +2293,67 @@ await check('the game page with no save, or one that is not here, says so and li
   assert.ok(await page.locator('#actionInput').isDisabled());
 });
 
-await check('old links land somewhere useful: index.html opens the last game, a save, or New game with a world picked', async (page) => {
-  assert.match(page.url(), /new\.html$/, 'no saves yet: New game');
+// The landing page (task A-7).
+const landingReady = async (page) => { await page.goto(BASE); await pageReady(page); };
+for (const phone of [false, true]) {
+  await check(`${phone ? 'phone: ' : ''}the main path: landing, library, new game, a turn, back to landing, continue`, async (page) => {
+    await landingReady(page);
+    assert.match(await page.textContent('#lContinue'), /No saves yet\. Pick a world to start\./);
+    for (const theme of ['light', 'hv', 'dark']) {
+      await page.evaluate((t) => window.EnsembleAppearance({ theme: t }), theme);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      assert.ok(overflow <= 0, `${theme}: no sideways scrolling (${overflow}px too wide)`);
+      await page.screenshot({ path: path.join(shots, `landing-empty-${phone ? 'phone-' : ''}${theme}.png`) });
+    }
+    await page.click('.land-tile[href="library.html"]');
+    await libraryReady(page);
+    await page.click('.lib-card[data-world="server:mars-station"]');
+    await page.waitForSelector('#lDetails:not(.hidden) [data-play]');
+    await page.locator('#lDetails [data-play]').first().click();
+    await pageReady(page);
+    assert.equal(await page.inputValue('#scenarioSelect'), 'server:mars-station');
+    await newGame(page);
+    await act(page, 'I open up the recycler.');
+    const id = await page.evaluate(() => window.Ensemble.UI.saveId);
+    await page.click('#btnHome');
+    await pageReady(page);
+    assert.match(await page.textContent('#lContinue'), /Ares Deep · Sol 214: the recycler[\s\S]*Kit Navarro, turn 1/);
+    for (const theme of ['light', 'hv', 'dark']) {
+      await page.evaluate((t) => window.EnsembleAppearance({ theme: t }), theme);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      assert.ok(overflow <= 0, `${theme}: no sideways scrolling (${overflow}px too wide)`);
+      await page.screenshot({ path: path.join(shots, `landing-${phone ? 'phone-' : ''}${theme}.png`) });
+    }
+    const b = await page.locator('#btnContinue').boundingBox();
+    assert.ok(b && b.x >= 0 && b.x + b.width <= (phone ? 390 : 1360), 'Continue is on screen');
+    await page.click('#btnContinue');
+    await sceneReady(page);
+    assert.equal(await page.evaluate(() => window.Ensemble.UI.saveId), id, 'the same game');
+    assert.match(await page.textContent('#sceneBar'), /turn 1$/);
+  });
+}
+
+await check('the landing page lists recent games, newest first, and old links still land where they meant', async (page) => {
   await newGame(page);
-  const id = await page.evaluate(() => window.Ensemble.UI.saveId);
-  await page.goto(BASE);
+  const first = await page.evaluate(() => window.Ensemble.UI.saveId);
+  await pickWorld(page, 'server:zombie-holdout');
+  await newGame(page);
+  const second = await page.evaluate(() => window.Ensemble.UI.saveId);
+  await landingReady(page);
+  assert.equal(await page.getAttribute('#btnContinue', 'href'), `play.html?save=${second}`, 'Continue is the newest');
+  assert.match(await page.textContent('#lContinue'), /Holdout at Harmon's/);
+  assert.deepEqual(await page.locator('#lRecent a').evaluateAll((as) => as.map((a) => a.getAttribute('href'))), [`play.html?save=${first}`]);
+  assert.match(await page.textContent('#lMore'), /Settings › Saved games/);
+  await page.goto(BASE + `index.html?save=${first}`);
   await sceneReady(page);
-  assert.equal(new URL(page.url()).pathname + new URL(page.url()).search, `/play.html?save=${id}`, 'the last game');
-  await page.goto(BASE + `index.html?save=${id}`);
-  await sceneReady(page);
-  assert.ok(page.url().endsWith(`/play.html?save=${id}`), page.url());
+  assert.ok(page.url().endsWith(`/play.html?save=${first}`), page.url());
   await page.goto(BASE + 'index.html?world=server:zombie-holdout&start=herd');
   await pageReady(page);
   assert.match(page.url(), /new\.html\?world=/);
   assert.equal(await page.inputValue('#scenarioSelect'), 'server:zombie-holdout');
   assert.equal(await page.inputValue('#startSelect'), 'herd');
   await page.goBack();
-  assert.ok(!/index\.html/.test(page.url()), 'Back never bounces through the doorway');
+  assert.ok(!/index\.html\?world/.test(page.url()), 'Back never bounces through the old link');
 });
 
 for (const phone of [false, true]) {
@@ -2345,7 +2419,7 @@ await check('library: a world opened from a folder is kept, once, plays, and its
   await page.goto(BASE + 'library.html?world=stored:zombie-holdout');
   await libraryReady(page);
   await page.locator('#lDetails [data-play]').first().click();
-  await page.waitForFunction(() => /new\.html/.test(location.pathname) && document.body.dataset.ready === '1');
+  await page.waitForFunction(() => /new\.html/.test(location.pathname) && document.body && document.body.dataset.ready === '1');
   assert.equal(await page.inputValue('#scenarioSelect'), 'stored:zombie-holdout', 'New game, with that world picked');
   await newGame(page);
   await act(page, 'I look around.');
@@ -2526,7 +2600,8 @@ await check('creator: the top bar links back to the game', async (page) => {
   await page.waitForFunction(() => document.querySelectorAll('#cWorld option').length > 1);
   assert.match(await page.textContent('header.topbar'), /Ensemble Creator/);
   await page.click('header.topbar a[href="index.html"]');
-  await page.waitForFunction(() => document.getElementById('btnNew'));
+  await pageReady(page);
+  assert.match(await page.textContent('#lContinue'), /No saves yet/);
 });
 
 await check('creator: a routine made on the Routines tab, with problems shown as it is typed', async (page) => {

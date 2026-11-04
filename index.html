@@ -23,13 +23,30 @@ window.EnsembleAppearance = function (a) {
 try { window.EnsembleAppearance(JSON.parse(localStorage.getItem('ensemble.appearance')) || (JSON.parse(localStorage.getItem('ensemble.settings')) || {}).appearance); } catch (e) { window.EnsembleAppearance(); }
 </script>
 </head>
-<body class="page-doorway">
+<body class="page-landing">
 <header class="topbar">
   <div class="group"></div>
   <div class="spacer"></div>
   <div class="group"></div>
 </header>
-<main class="page"><p class="muted">Opening Ensemble…</p></main>
+<main class="page">
+  <div class="landing">
+    <section class="land-continue" aria-label="Continue">
+      <div id="lContinue" class="land-row"><div class="muted">Loading your games…</div></div>
+      <div id="lRecentBox" class="hidden">
+        <h3>Recent games</h3>
+        <ul id="lRecent" class="land-recent"></ul>
+      </div>
+      <div id="lMore" class="muted small"></div>
+    </section>
+    <nav class="land-tiles" aria-label="Everything else">
+      <a class="land-tile" href="new.html"><b>New game</b><span>Pick a world, where you start and who you play, or make your own.</span></a>
+      <a class="land-tile" href="library.html"><b>Library</b><span>Every world as a card. Open your own from a folder or zip.</span></a>
+      <a class="land-tile desktop-only" href="creator.html"><b>Creator</b><span>Build and edit worlds, their people, maps, lore and timeline.</span></a>
+      <a class="land-tile" href="settings.html?back=index.html"><b>Settings</b><span>Your model, appearance, and your saved games.</span></a>
+    </nav>
+  </div>
+</main>
 
 <dialog id="setup">
   <form method="dialog" class="settings setup">
@@ -50,6 +67,6 @@ try { window.EnsembleAppearance(JSON.parse(localStorage.getItem('ensemble.appear
 <script src="js/ui/header.js"></script>
 <script src="js/ui/shared.js"></script>
 <script src="js/ui/settings.js"></script>
-<script src="js/ui/doorway.js"></script>
+<script src="js/ui/landing.js"></script>
 </body>
 </html>

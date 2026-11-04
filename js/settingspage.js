@@ -242,7 +242,7 @@
     const back = E.Header.backHref();
     if (back) {
       $('sBack').href = back;
-      const to = { 'creator.html': 'the Creator', 'library.html': 'the library', 'new.html': 'New game' }[back.split('?')[0]] || 'the game';
+      const to = { 'index.html': 'Home', 'creator.html': 'the Creator', 'library.html': 'the library', 'new.html': 'New game' }[back.split('?')[0]] || 'the game';
       $('sBack').textContent = `← Back to ${to}`;
       $('sBack').classList.remove('hidden');
       // Straight back when that page is the one behind this, so it comes back

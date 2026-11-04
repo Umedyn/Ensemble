@@ -100,12 +100,12 @@ test('the header needs no other UI module, so any page can load it', () => {
   ['creator.html', 'settings.html', 'library.html'].forEach((p) => assert.ok(!load(p).includes('js/ui/shared.js'), `${p} stays its own page`));
 });
 
-// Task A-6: the game page split in two, plus the doorway. Every module is
+// Tasks A-6, A-7: the game page split in two, plus the landing page. Every module is
 // loaded by a page, shared.js first, and each page boots last.
-test('each page loads its own modules: the game, New game and the doorway', () => {
+test('each page loads its own modules: the game, New game and the landing page', () => {
   const load = (page) => fs.readFileSync(path.join(__dirname, '..', page), 'utf8');
   const modules = (page) => [...load(page).matchAll(/src="js\/ui\/([\w]+\.js)"/g)].map((m) => m[1]);
-  const pages = { 'play.html': 'play.js', 'new.html': 'newgame.js', 'index.html': 'doorway.js' };
+  const pages = { 'play.html': 'play.js', 'new.html': 'newgame.js', 'index.html': 'landing.js' };
   for (const [page, boot] of Object.entries(pages)) {
     const m = modules(page);
     assert.equal(m[m.length - 1], boot, `${page} boots last`);

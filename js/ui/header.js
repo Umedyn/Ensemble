@@ -10,8 +10,8 @@
   // The Creator opens beside the game, so a game in progress stays on screen,
   // and Settings opens beside the Creator, whose working copy isn't kept.
   const PAGES = [
-    // index.html opens the last game (task A-6); on the game itself it isn't shown.
-    { href: 'index.html', label: 'Game', title: 'Your last game', also: ['play.html'] },
+    // The landing page (task A-7): Continue, recent games and the rest.
+    { href: 'index.html', label: 'Home', id: 'btnHome', title: 'Continue your last game, or start another', first: true },
     { href: 'library.html', label: 'Library', title: 'Every world, and opening your own', desktopOnlyOn: ['play.html'] },
     { href: 'creator.html', label: 'Creator', target: '_blank', cls: ' desktop-only', title: 'Build and edit worlds (opens in a new tab)' },
     { href: 'settings.html', label: 'Settings', id: 'btnSettings', last: true, title: 'Models, appearance and saves', newTabFrom: ['creator.html'] },
@@ -50,14 +50,14 @@
     theme.className = 'desktop-only';
     theme.textContent = '◐';
     theme.addEventListener('click', nextTheme);
-    const pages = PAGES.filter((p) => p.href !== here() && !(p.also || []).includes(here()));
+    const pages = PAGES.filter((p) => p.href !== here());
     const back = backHref();
     const links = pages.map((p) => {
       const a = document.createElement('a');
       // The game's top bar on a phone has no room for it.
       a.className = 'btn' + (p.cls || '') + ((p.desktopOnlyOn || []).includes(here()) ? ' desktop-only' : '');
       const backTo = back && back.split('?')[0];
-      a.href = backTo && (backTo === p.href || (p.also || []).includes(backTo)) ? back : p.href;
+      a.href = backTo === p.href ? back : p.href;
       a.textContent = p.label;
       const newTab = p.target || (p.newTabFrom || []).includes(here());
       if (newTab) { a.target = '_blank'; a.rel = 'noopener'; }
@@ -66,8 +66,12 @@
       if (p.title) a.title = p.title + (p.target ? '' : newTab ? ' (opens in a new tab)' : '');
       return a;
     });
-    const group = Array.from(bar.querySelectorAll('.group')).pop();
-    group.prepend(conn, theme, ...links.filter((a, i) => !pages[i].last));
+    // Home leads the first group, beside the page's own controls (on the
+    // game's phone bar, where it has room); the rest go to the last.
+    const groups = bar.querySelectorAll('.group');
+    const group = groups[groups.length - 1];
+    groups[0].prepend(...links.filter((a, i) => pages[i].first));
+    group.prepend(conn, theme, ...links.filter((a, i) => !pages[i].last && !pages[i].first));
     group.append(...links.filter((a, i) => pages[i].last));
     window.addEventListener('pageshow', (ev) => { if (ev.persisted) reread(); });
     // "Same as my device" follows the OS while the page is open.

@@ -1,4 +1,4 @@
-// The first-run setup, on index.html until the landing page (task A-7). The
+// The first-run setup, on the landing page (index.html, task A-7). The
 // settings themselves are on their own page (settings.html, task A-4).
 (function () {
   const E = window.Ensemble;

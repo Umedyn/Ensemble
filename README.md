@@ -7,7 +7,7 @@ A local, character-driven story sim in the spirit of Pax Historia, but at person
 1. For a local model, start KoboldCpp with any instruct or roleplay model. 8K context or more is recommended. Set the **chat completions adapter** to match your model's format (for Mistral Nemo-based models such as NemoMix, pick the Mistral/Nemo adapter). If the console says "Chat template heuristics failed… Alpaca will be used", the model is being prompted in the wrong format and quality will suffer. Using a hosted model instead? Skip this step; you only need an API key (see below).
 2. Double-click `start.bat` (Windows) or run `./start.sh`. This serves the folder at http://localhost:8000 (using Node if installed, otherwise Python) and opens your browser. With Node you can also run `npm run serve`.
 3. On your first visit, a short setup asks how you want to run the model (hosted, KoboldCpp, or both), checks whether KoboldCpp is running, and opens the Settings page where you finish up. **Settings → Setup guide** brings it back.
-4. On **New game**, pick a world (and, if it has more than one, where you start, and who you play), press **Start**, and type what you do. The game is saved after every turn; `index.html` takes you back to your last game, and **New game** in the game's top bar starts another one without losing it.
+4. On **New game**, pick a world (and, if it has more than one, where you start, and who you play), press **Start**, and type what you do. The game is saved after every turn; **Home** shows **Continue** for your last game, and starting another never loses it.
 
 No Python? Open `index.html` (or `new.html`, or `library.html`) directly and use **Open folder** to pick the `scenarios` folder (or a single world folder). Worlds you open are kept in the browser, so you do this once: they are there after a reload and on every page. In Firefox, use `start.bat` or `start.sh` instead: opened straight from a file, it keeps each page's saves and settings apart, and the page tells you so.
 
@@ -20,6 +20,17 @@ Each backend has its own context size: **Test** reads it from KoboldCpp, or from
 **Settings → Appearance** sets the theme (Dark, Light, **High visibility** for low vision, or the same as your device), text size (90–150%), story font (serif or sans), line spacing, reduce motion, map detail (detailed floor plans, or simple boxes for older phones) and names in the story. Changes show as you pick them, on the Settings page and in the game when you go back, and are kept in this browser. With a screen reader, each new beat and note is read out as it appears.
 
 **Names in the story.** People, places and lore terms in a scene are underlined: hover (or Tab to one) for a short note, click or tap for the whole entry, and a person opens their card. Only what you could know is linked: regions you know of, rooms you have seen, people in the story, and lore, never secrets. Settings → Appearance turns it off. The journal shows the latest chapter and folds the earlier ones to their titles.
+
+### The pages
+
+- **Home** (`index.html`): **Continue** your last game in one click, your other recent games, and the way to everything else. The first-run setup shows here.
+- **New game** (`new.html`): pick a world, where you start and who you play (or make your own character, or have a start built for you), lore packs, then **Start**. **Load** opens a saved game from a file.
+- **The game** (`play.html`): the story, your action, the people, the map, the journal and Debug. **Home** in its top bar goes back to the landing page; the game is saved after every turn, so leaving or refreshing is safe (in the middle of a turn, it goes back to that turn's start).
+- **Library** (`library.html`), **Creator** (`creator.html`) and **Settings** (`settings.html`), as described below.
+
+Every page opens straight from a file as well as from the local server. A page's address carries only ids (which save, which world), never the game itself.
+
+**Where your games live.** In this browser (its IndexedDB storage), never on a server. Clearing the site's data in the browser deletes them, and a different browser or computer has its own. **Settings → Saved games → Export all saves** downloads every game as one file; **Import saves** brings them back, here or on another computer. **Save** in the game downloads just that game. API keys stay in Settings and are never written into a save or an export.
 
 ## Models: local, remote or API
 
