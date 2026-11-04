@@ -5,8 +5,8 @@
   const { $, esc, store } = U;
 
   // ---------- worlds and starts ----------
-  // loaded: E.Library id ("server:<folder>", "disk:<folder>", or "test:…" for
-  // test play) -> a loaded world
+  // loaded: E.Library id ("server:<folder>", "stored:<folder>" for one opened
+  // from a folder or zip and kept (task A-5), or "test:…" for test play) -> a loaded world
   // (Scenario.prepareWorld) or { folder, title, error } when it failed to load.
   // The last pick is remembered across visits.
   const PICK_KEY = 'ensemble.pick';
@@ -143,23 +143,36 @@
   $('startSelect').addEventListener('change', () => { renderWho($('whoSelect').value); rememberPick(); showPickInfo(true); });
   $('whoSelect').addEventListener('change', () => { renderPickInfo(); rememberPick(); showPickInfo(true); });
 
-  // Server worlds load up front so the picker can show their summaries and starts.
+  // Every world in the library loads up front so the picker can show their
+  // summaries and starts: the server's, then the ones kept from a folder or
+  // zip (task A-5), whose pictures come from the store.
+  const optionLabel = (id, w) => worldLabel(w) + (E.Library.isStored(id) ? ' (opened)' : '');
+  function remember(id, w) {
+    U.loaded.set(id, w);
+    if (w.assets) U.diskAssets.set(w.folder, w.assets);
+  }
   async function loadServerList() {
-    if (location.protocol === 'file:') {
-      addScenarioOption('', '— use Open folder —', true);
-      return;
-    }
-    let list;
-    try { list = await E.Library.list('world'); }
-    catch (e) { addScenarioOption('', '— no scenarios/index.json —', true); return; }
+    const list = await E.Library.list('world');
+    if (E.Library.failed.server) addScenarioOption('', '— no scenarios/index.json —', true);
     const worlds = await Promise.all(list.map((s) => E.Library.load(s.id)
       .catch((e) => ({ folder: s.folder, title: s.title, error: e.message }))));
     allPacks = await readPacks();
     // Options appear once every world is loaded, in index.json order.
-    worlds.forEach((w, i) => { U.loaded.set(list[i].id, w); addScenarioOption(list[i].id, worldLabel(w)); });
+    worlds.forEach((w, i) => { if (!w) return; remember(list[i].id, w); addScenarioOption(list[i].id, optionLabel(list[i].id, w)); });
+    // From disk Ensemble can't see scenarios/ by itself: say what to do.
+    if (!U.loaded.size && location.protocol === 'file:') addScenarioOption('', '— use Open folder —', true);
     const pick = rememberedPick();
     if (pick.world && U.loaded.has(pick.world)) $('scenarioSelect').value = pick.world;
     renderStarts(pick.world === $('scenarioSelect').value ? pick.start : null, pick.who);
+  }
+  // A world and start picked on the library page (index.html?world=…&start=…).
+  function pickWorld(id, startId) {
+    if (!U.loaded.has(id)) return false;
+    $('scenarioSelect').value = id;
+    renderStarts(startId);
+    rememberPick();
+    showPickInfo(true);
+    return true;
   }
 
   // Every lore pack in the library; a pack opened later replaces one of its id.
@@ -192,28 +205,40 @@
       ev.target.value = '';
       return;
     }
-    // Lore packs in the folder (task 5-7) join the ones found; a folder of
-    // packs alone is fine.
-    const found = await E.Packs.readFolderFiles(ev.target.files);
+    // Lore packs in the folder (task 5-7) join the ones found, and are kept
+    // (task A-5); a folder of packs alone is fine.
+    const found = await E.Packs.readFolderRaw(ev.target.files);
     if (found.length) {
-      found.forEach((p) => E.Library.open('pack', p.folder, p.title, p));
+      const kept = [];
+      for (const raw of found) {
+        if (raw.error) { kept.push(Object.assign(E.Packs.read(raw.folder, {}), { problems: [raw.error] })); continue; }
+        try { kept.push((await E.Library.keep('pack', raw)).pack); } catch (e) { kept.push(Object.assign(E.Packs.read(raw.folder, {}), { problems: [e.message] })); }
+      }
       allPacks = await readPacks();
       renderPackButton();
       if (!Array.from(ev.target.files).some((f) => /(^|\/)(world|scenario)\.json$/.test(f.webkitRelativePath || f.name))) {
-        alert(`Found ${found.length} lore pack${found.length === 1 ? '' : 's'}: ${found.map((p) => p.title).join(', ')}. Pick their world, then Lore packs to turn them on.`);
+        alert(`Found ${kept.length} lore pack${kept.length === 1 ? '' : 's'}: ${kept.map((p) => p.title).join(', ')}. Pick their world, then Lore packs to turn them on.`);
         ev.target.value = '';
         return;
       }
     }
-    try {
-      const { worlds, errors } = await E.Scenario.loadFromFiles(ev.target.files);
-      worlds.forEach((w, i) => { const id = E.Library.open('world', w.folder, w.title, w); U.loaded.set(id, w); U.diskAssets.set(w.folder, w.assets || {}); addScenarioOption(id, w.title + ' (disk)', i === 0); });
-      renderStarts();
-      rememberPick();
-      if (errors.length) alert('Some worlds were skipped:\n\n' + errors.join('\n\n'));
-    } catch (e) {
-      alert(e.message);
+    // Worlds are kept (task A-5), so they are here after a reload and on the
+    // library page too.
+    const raw = await E.Scenario.readFolderFiles(ev.target.files);
+    const errors = raw.errors.slice();
+    let first = true;
+    for (const w of raw.worlds) {
+      try {
+        const { id } = await E.Library.keep('world', w);
+        const world = await E.Library.load(id);
+        remember(id, world);
+        addScenarioOption(id, optionLabel(id, world), first);
+        first = false;
+      } catch (e) { errors.push(`${w.folder}: ${e.message}`); }
     }
+    if (!first) { $('scenarioSelect').querySelector('option[value=""]')?.remove(); renderStarts(); rememberPick(); }
+    if (first) alert(errors.length ? errors.join('\n') : 'No world.json or scenario.json found in that folder.');
+    else if (errors.length) alert('Some worlds were skipped:\n\n' + errors.join('\n\n'));
     ev.target.value = '';
   });
 
@@ -361,5 +386,5 @@
     U.renderGen();
     $('genDialog').showModal();
   }
-  Object.assign(U, { worldLabel, addScenarioOption, renderStarts, showPickInfo, loadServerList, beginGame, openCharacterForm, GEN, savedJob, saveJob, dropJob });
+  Object.assign(U, { pickWorld, worldLabel, addScenarioOption, renderStarts, showPickInfo, loadServerList, beginGame, openCharacterForm, GEN, savedJob, saveJob, dropJob });
 })();

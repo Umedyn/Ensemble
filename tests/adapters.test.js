@@ -143,9 +143,12 @@ test('from disk the bundled source lists nothing, with no request made', async (
   for (const kind of ['world', 'pack', 'library']) assert.equal((await E.Library.list(kind)).length, 0);
 });
 
-test('a missing index fails the list, so the page can say so', async () => {
+test('a missing index lists nothing from the server and says why, and kept worlds still list', async () => {
   const E = loadEngine({ fetch: server({}) });
-  await assert.rejects(() => E.Library.list('world'));
+  assert.deepEqual([...(await E.Library.list('world'))], []);
+  assert.match(E.Library.failed.server, /scenarios\/index\.json: HTTP 404/);
+  await E.Library.keep('world', { folder: 'mine', files: { 'world.json': { title: 'Mine' } } });
+  assert.deepEqual([...(await E.Library.list('world'))].map((w) => w.id), ['stored:mine']);
 });
 
 test('a fake library and an added source are used with no other code changed', async () => {

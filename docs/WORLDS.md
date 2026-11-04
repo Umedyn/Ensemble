@@ -73,6 +73,8 @@ With no `starts` the picker offers only **✦ Make my own start** (as if the wor
 | `date` | `{day, hour}` | optional (R-0): the date a generated start begins on, and of an authored start that gives no `start`. Default day 1, 9:00 |
 | `calendar` | `{day1}` | optional (task 7-1): the real date of day 1, `"YYYY-MM-DD"`, so every day reads as a date ("Thursday 16 April 1942") in the game, the prompts, the timeline and the past; `timeLabel` is then unused. Day numbers stay the clock (`E.dayOfDate` converts). World-wide only |
 | `summary` | string | one or two lines for the world picker |
+| `author`, `credit`, `license` | string | optional (task A-5), shown on the library card: who made the world (up to 80 characters), credits for its material (up to 200) and the license it is shared under (up to 80) |
+| `cover` | string | optional (task A-5): an image in the world folder for the library card (png, jpg, webp, gif or svg). Without it, the card shows the world map's picture, or a plain tile |
 | `setting` | string | the always-on world context (keep it broad; regional detail goes in region lore) |
 | `rules` | string[] | |
 | `tags`, `toneNote` | string[], string | genre tags in order of importance (up to 8; known ones: `survival`, `slice-of-life`, `romance`, `intrigue`, `war`, `horror`, `mystery`, `comedy`, `cozy`, `grim`, `adventure`, `political`; others are freeform) and a short tone note (up to 300 characters). See `js/genres.js` |

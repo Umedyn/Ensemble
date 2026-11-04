@@ -9,6 +9,9 @@
     "hour": 9
   },
   "summary": "Five strangers barricaded inside a rural hardware store, 23 days into the outbreak. The dead are slow but endless; the living are the real danger.",
+  "author": "Ensemble",
+  "credit": "Written for Ensemble, the bundled example world",
+  "license": "PolyForm Noncommercial 1.0.0",
   "tags": [
     "survival",
     "horror",

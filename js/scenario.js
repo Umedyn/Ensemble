@@ -17,7 +17,7 @@
   // World fields a start may override (merge rules below).
   const OVERRIDABLE = ['setting', 'rules', 'tags', 'toneNote', 'timeLabel', 'wakeHour', 'skills', 'needs', 'skillPenalties', 'revealPressure', 'tagThresholds', 'portraitSet', 'factions', 'world',
     'eventRates', 'eventSeeds', 'majorEventDays', 'majorHorizonDays', 'majorSeeds', 'revealSkills', 'facts', 'locations', 'clocks', 'tiers', 'extras', 'inventExtras', 'regions', 'regionLabels', 'routines', 'routeKinds', 'travelTimes', 'presence', 'reputation', 'mapFocus', 'tactical', 'standees', 'site', 'siteInfo', 'localMap', 'map', 'entrances', 'lore', 'loreTopics', 'timeline', 'projectTimeline', 'endings'];
-  const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'date', 'calendar', 'authorNote', 'characters', 'starts', 'generatedStarts', 'generatedSites', 'generatedRegions', 'sites', 'lorePacks', ...OVERRIDABLE];
+  const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'author', 'credit', 'license', 'cover', 'date', 'calendar', 'authorNote', 'characters', 'starts', 'generatedStarts', 'generatedSites', 'generatedRegions', 'sites', 'lorePacks', ...OVERRIDABLE];
   const WORLD_RESERVED = [];
   const START_RESERVED = [];
   const CAST_FIELDS = ['id', 'status', 'needs', 'needsOff', 'groups', 'relations', 'knows', 'want', 'secret', 'guard', 'tags', 'tier', 'pinned', 'agenda', 'joins', 'routine', 'places', 'slots', 'items'];
@@ -285,6 +285,10 @@
       warnings.push(...unknownFields(world, [...WORLD_FIELDS, ...WORLD_RESERVED], 'world.json'));
     }
     req(world.title, 'missing "title"');
+    // The library card (task A-5): who made it, under what license, and a picture.
+    [['author', 80], ['credit', 200], ['license', 80]].forEach(([k, n]) =>
+      req(world[k] == null || (typeof world[k] === 'string' && world[k].length <= n), `"${k}" must be text of at most ${n} characters`));
+    req(world.cover == null || E.isImagePath(world.cover), '"cover" must be the path of an image in the world folder (png, jpg, webp, gif or svg)');
     // Open worlds (R-0): no character pool and no starts are fine; a world
     // with no starts gets generated ones (S.openWorld).
     req(world.characters == null || Array.isArray(world.characters), '"characters" must be a list of character ids');
@@ -513,6 +517,7 @@
     const w = bundle.world;
     return {
       folder, id: w.id || folder, title: w.title, summary: w.summary || '', tags: w.tags || [],
+      author: w.author || '', credit: w.credit || '', license: w.license || '', cover: w.cover || '',
       legacy: bundle.legacy, defaultStart: w.starts[0], warnings,
       // Generated starts (task 4-2) compose from the raw files.
       generate: w.generatedStarts != null, bundle: { world: w, characters: bundle.characters, starts: bundle.starts, siteMaps: bundle.siteMaps || {} },
@@ -636,6 +641,29 @@
     }
     return { worlds, errors };
   };
+  // A zip of a world folder (the creator's own export, or any zip of one):
+  // entries under one top folder or at the root. → { folder, files, assets: {path: bytes} }
+  S.readZip = function (entries, fallbackFolder) {
+    const list = [...entries].filter((e) => !e.name.endsWith('/'));
+    const isRoot = (n) => /^(world|scenario)\.json$/.test(n);
+    let prefix = '';
+    if (!list.some((e) => isRoot(e.name))) {
+      const top = list.find((e) => /^[^/]+\/(world|scenario)\.json$/.test(e.name));
+      if (!top) throw new Error('No world.json or scenario.json in that zip.');
+      prefix = top.name.split('/')[0] + '/';
+    }
+    const files = {}, assets = {};
+    list.forEach((e) => {
+      if (!e.name.startsWith(prefix)) return;
+      const rel = e.name.slice(prefix.length);
+      if (/\.json$/i.test(rel)) {
+        try { files[rel] = JSON.parse(E.Zip.text(e.data)); } catch (err) { throw new Error(`${rel} is not valid JSON: ${err.message}`); }
+      } else if (E.isImagePath(rel)) assets[rel] = e.data;
+    });
+    const folder = prefix ? prefix.slice(0, -1) : (files['world.json'] && files['world.json'].id) || fallbackFolder || 'world';
+    return { folder, files, assets };
+  };
+
   S.loadFromFiles = async function (fileList) {
     const raw = await S.readFolderFiles(fileList);
     const worlds = [];

@@ -105,7 +105,7 @@ test('API keys leave localStorage; only the appearance stays there, for the them
 });
 
 test('every page reads the appearance copy before first paint, and the old settings on the very first', () => {
-  for (const page of ['index.html', 'creator.html', 'settings.html']) {
+  for (const page of ['index.html', 'creator.html', 'settings.html', 'library.html']) {
     const html = fs.readFileSync(path.join(ROOT, page), 'utf8');
     assert.match(html, /localStorage\.getItem\('ensemble\.appearance'\)\) \|\| \(JSON\.parse\(localStorage\.getItem\('ensemble\.settings'\)\)/, page);
     assert.ok(html.indexOf('js/util.js') < html.indexOf('js/adapters.js'), page);
@@ -196,7 +196,7 @@ test('a refused write is reported and never throws', async () => {
 
 test('saves move to no other key: nothing writes the old autosave or settings keys to localStorage', () => {
   const ui = fs.readdirSync(path.join(ROOT, 'js', 'ui')).map((f) => 'ui/' + f);
-  for (const f of [...ui, 'creator.js', 'settingspage.js', 'util.js']) {
+  for (const f of [...ui, 'creator.js', 'settingspage.js', 'librarypage.js', 'util.js']) {
     assert.ok(!/localStorage\./.test(fs.readFileSync(path.join(ROOT, 'js', f), 'utf8')), f);
   }
 });

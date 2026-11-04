@@ -78,6 +78,8 @@ async function viaSettings(page, fn) {
   await page.waitForFunction(() => document.getElementById('btnNew') && document.querySelectorAll('#scenarioSelect option').length > 0);
   if (playing) await sceneReady(page);
 }
+// The library page (task A-5): its cards are drawn once every world has loaded.
+const libraryReady = (page) => page.waitForFunction(() => /library\.html/.test(location.pathname) && document.getElementById('lGrid') && !document.querySelector("#lGrid .lib-loading"));
 const openSection = async (page, id) => {
   const section = page.locator(`#settings details[data-section="${id}"]`);
   if (!(await section.evaluate((d) => d.open))) await section.locator('summary').click();
@@ -626,8 +628,8 @@ await check('phone: make my own character and play a turn', async (page) => {
 // the zooming map and Surprise me; the plain list is for small worlds only.
 await check('start anywhere in a big world: search, the map, Surprise me; a branch shut out can\'t be picked', async (page) => {
   await page.setInputFiles('#folderInput', path.join(here, 'fixtures', 'open-galaxy'));
-  await page.waitForFunction(() => [...document.querySelectorAll('#scenarioSelect option')].some((o) => o.value === 'disk:open-galaxy'));
-  await page.selectOption('#scenarioSelect', 'disk:open-galaxy');
+  await page.waitForFunction(() => [...document.querySelectorAll('#scenarioSelect option')].some((o) => o.value === 'stored:open-galaxy'));
+  await page.selectOption('#scenarioSelect', 'stored:open-galaxy');
   await page.click('#btnNew');
   await page.waitForSelector('#genDialog[open]');
   assert.equal(await page.locator('input[name="gen-region"]').count(), 0, 'not the plain list');
@@ -1353,8 +1355,8 @@ await check('creator: draw a region on a map image, export, and play the export'
   await page.goto(BASE);
   await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
   await page.setInputFiles('#folderInput', path.join(out, 'mars-station'));
-  await page.waitForFunction(() => [...document.querySelectorAll('#scenarioSelect option')].some((o) => o.value === 'disk:mars-station'));
-  await page.selectOption('#scenarioSelect', 'disk:mars-station');
+  await page.waitForFunction(() => [...document.querySelectorAll('#scenarioSelect option')].some((o) => o.value === 'stored:mars-station'));
+  await page.selectOption('#scenarioSelect', 'stored:mars-station');
   await newGame(page);
   await sceneReady(page);
   await page.click('[data-maplevel="root"]');
@@ -1684,8 +1686,8 @@ await check('creator: draw a site map on a battlemap, save it to the world, and 
   await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
   await page.setInputFiles('#folderInput', path.join(libDir, 'new-site-library'));
   await page.setInputFiles('#folderInput', path.join(out, 'zombie-holdout'));
-  await page.waitForFunction(() => [...document.querySelectorAll('#scenarioSelect option')].some((o) => o.value === 'disk:zombie-holdout'));
-  await page.selectOption('#scenarioSelect', 'disk:zombie-holdout');
+  await page.waitForFunction(() => [...document.querySelectorAll('#scenarioSelect option')].some((o) => o.value === 'stored:zombie-holdout'));
+  await page.selectOption('#scenarioSelect', 'stored:zombie-holdout');
   await page.selectOption('#startSelect', 'herd');
   await newGame(page);
   await act(page, 'I head to the tavern on Main Street.');
@@ -2039,7 +2041,7 @@ const fileUrl = (name) => pathToFileURL(path.join(here, '..', name)).href;
     await page.selectOption('#aTheme', 'light');
     await page.waitForFunction(() => document.getElementById('sStatus').textContent === 'Saved.');
     await page.click('#sBack');
-    await page.waitForFunction(() => document.getElementById('btnNew') && window.Ensemble && window.Ensemble.Prefs.ready());
+    await page.waitForFunction(() => document.getElementById('btnNew') && window.Ensemble && window.Ensemble.Prefs && window.Ensemble.Prefs.ready());
     assert.equal(await page.getAttribute('html', 'data-theme'), 'light');
     assert.equal(await page.evaluate(() => window.Ensemble.settings.appearance.theme), 'light');
     assert.deepEqual(errors, []);
@@ -2054,10 +2056,32 @@ const fileUrl = (name) => pathToFileURL(path.join(here, '..', name)).href;
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   try {
+    await page.goto(fileUrl('library.html'));
+    await libraryReady(page);
+    assert.match(await page.textContent('#lHelp'), /Open folder[\s\S]*scenarios/, 'says how to add worlds');
+    await page.setInputFiles('#lFolder', path.join(here, '..', 'scenarios', 'zombie-holdout'));
+    await page.waitForFunction(() => /world=stored/.test(location.search));
+    await page.goto(fileUrl('index.html'));
+    await page.waitForSelector('#scenarioSelect option[value="stored:zombie-holdout"]', { state: 'attached' });
+    await page.selectOption('#scenarioSelect', 'stored:zombie-holdout');
+    await newGame(page);
+    await act(page, 'I look around.');
+    assert.deepEqual(errors, []);
+    console.log('✓ from disk in Chromium: a world opened on the library page plays on the game page');
+  } catch (e) { failures++; console.error('✕ from disk: library page\n  ' + e.message); }
+  await ctx.close();
+}
+{
+  const ctx = await browser.newContext({ viewport: { width: 1360, height: 900 } });
+  await ctx.addInitScript(() => localStorage.setItem('ensemble.setupDone', '1'));
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  try {
     await page.goto(fileUrl('index.html'));
     await page.waitForFunction(() => window.Ensemble.Prefs.ready());
     await page.setInputFiles('#folderInput', path.join(here, '..', 'scenarios', 'zombie-holdout'));
-    await page.waitForFunction(() => document.querySelector('#scenarioSelect option[value^="disk:"]'));
+    await page.waitForFunction(() => document.querySelector('#scenarioSelect option[value^="stored:"]'));
     await newGame(page);
     await act(page, 'I look around.');
     assert.match(await page.textContent('#log'), /\w/);
@@ -2176,6 +2200,113 @@ await check('creator: the header has the status and the theme button, and the th
   assert.equal(await page.getAttribute('html', 'data-theme'), 'light');
 });
 
+// The library page (task A-5).
+const zipOf = (folder, top) => {
+  const E = helpers.loadEngine();
+  const files = helpers.worldFiles(folder);
+  return Buffer.from(E.Zip.build(Object.entries(files).map(([name, json]) => ({ name: `${top}/${name}`, data: E.Zip.utf8(JSON.stringify(json)) }))));
+};
+await check('library: a world opened from a folder is kept, once, plays, and its save outlives it', async (page) => {
+  await page.goto(BASE + 'library.html');
+  await libraryReady(page);
+  assert.ok(await page.locator('.lib-card[data-world^="server:"]').count() >= 9, 'the bundled worlds as cards');
+  await page.setInputFiles('#lFolder', path.join(here, '..', 'scenarios', 'zombie-holdout'));
+  await page.waitForFunction(() => new URLSearchParams(location.search).get('world') === 'stored:zombie-holdout');
+  assert.match(await page.textContent('#lStatus'), /^Added "Holdout at Harmon's"\.$/);
+  assert.match(await page.textContent('#lDetails h2'), /Holdout at Harmon's/);
+  assert.match(await page.textContent('#lDetails'), /by Ensemble · Written for Ensemble[\s\S]*Opened by you/);
+  await page.setInputFiles('#lFolder', path.join(here, '..', 'scenarios', 'zombie-holdout'));
+  await page.waitForFunction(() => /Already in your library/.test(document.getElementById('lStatus').textContent));
+  await page.reload();
+  await libraryReady(page);
+  await page.click('#lDetails a[data-all]');
+  assert.equal(await page.locator('.lib-card[data-world="stored:zombie-holdout"]').count(), 1, 'stored once, and there after a reload');
+  // A zip of a world joins the same way.
+  await page.setInputFiles('#lZip', { name: 'ares.zip', mimeType: 'application/zip', buffer: zipOf('mars-station', 'mars-station') });
+  await page.waitForFunction(() => new URLSearchParams(location.search).get('world') === 'stored:mars-station');
+  // Play a start: the game has it in the picker, ready for New game.
+  await page.goto(BASE + 'library.html?world=stored:zombie-holdout');
+  await libraryReady(page);
+  await page.locator('#lDetails [data-play]').first().click();
+  await page.waitForFunction(() => document.getElementById('scenarioSelect') && document.getElementById('scenarioSelect').value === 'stored:zombie-holdout');
+  assert.ok(!/world=/.test(page.url()), 'the address forgets the pick once made');
+  await newGame(page);
+  await act(page, 'I look around.');
+  const id = await page.evaluate(() => window.Ensemble.UI.saveId);
+  await page.reload();
+  await sceneReady(page);
+  assert.equal(await page.evaluate(() => window.Ensemble.UI.saveId), id);
+  // Remove it: it names the save that keeps playing.
+  await page.goto(BASE + 'library.html?world=stored:zombie-holdout');
+  await libraryReady(page);
+  // The handler is set before the click: the click waits for the dialog to close.
+  let asked = '';
+  page.once('dialog', (d) => { asked = d.message(); d.accept(); });
+  await page.click('#lRemove');
+  await page.waitForFunction(() => !new URLSearchParams(location.search).has('world'));
+  assert.match(asked, /^Remove "Holdout at Harmon's" from this browser\?[\s\S]*Your 1 saved game of it keep playing/);
+  await page.waitForFunction(() => !new URLSearchParams(location.search).has('world'));
+  assert.equal(await page.locator('.lib-card[data-world="stored:zombie-holdout"]').count(), 0);
+  assert.equal(await page.evaluate(async () => (await window.Ensemble.Store.list('bundle')).filter((k) => /zombie-holdout/.test(k)).length), 0, 'its space is freed');
+  await page.goto(BASE + 'index.html?save=' + id);
+  await sceneReady(page);
+  assert.equal(await page.locator('#scenarioSelect option[value="stored:zombie-holdout"]').count(), 0);
+  await act(page, 'I check the doors.');
+  assert.equal(await page.locator('.entry.action').count(), 2, 'the save still plays');
+});
+
+await check('library: filters by tag and source, and ?world= opens a world\'s details', async (page) => {
+  await page.goto(BASE + 'library.html');
+  await libraryReady(page);
+  const all = await page.locator('.lib-card').count();
+  await page.click('#lTags [data-tag="survival"]');
+  const shown = await page.locator('.lib-card').count();
+  assert.ok(shown > 0 && shown < all, `${shown} of ${all}`);
+  assert.ok((await page.locator('.lib-card').allTextContents()).every((t) => /survival/.test(t)));
+  await page.click('#lTags [data-tag=""]');
+  await page.selectOption('#lSource', 'stored');
+  assert.match(await page.textContent('#lGrid'), /No world matches/);
+  await page.selectOption('#lSource', '');
+  await page.click('.lib-card[data-world="server:mars-station"]');
+  await page.waitForSelector('#lDetails:not(.hidden) h2');
+  assert.match(await page.textContent('#lDetails h2'), /Ares Deep/);
+  assert.ok(await page.locator('#lDetails [data-play]').count() >= 1, 'its starts, to play');
+  assert.equal(await page.locator('#lRemove').count(), 0, 'a bundled world can\'t be removed');
+  await page.goBack();
+  await page.waitForSelector('#lAll:not(.hidden)');
+  await page.goto(BASE + 'library.html?world=server:seiryo-high');
+  await libraryReady(page);
+  assert.match(await page.textContent('#lDetails h2'), /Seiryo/);
+  assert.match(await page.textContent('#lDetails'), /Make my own/);
+  await page.goto(BASE + 'library.html?world=nowhere:x');
+  await libraryReady(page);
+  assert.match(await page.textContent('#lDetails'), /isn't in the library/);
+});
+
+for (const phone of [false, true]) {
+  await check(`${phone ? 'phone: ' : ''}the library in every theme, with nothing off the screen`, async (page) => {
+    for (const view of ['', '?world=server:zombie-holdout']) {
+      await page.goto(BASE + 'library.html' + view);
+      await libraryReady(page);
+      for (const theme of ['light', 'hv', 'dark']) {
+        await page.evaluate((t) => window.EnsembleAppearance({ theme: t }), theme);
+        const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+        assert.ok(overflow <= 0, `${view || 'cards'}, ${theme}: no sideways scrolling (${overflow}px too wide)`);
+        await page.screenshot({ path: path.join(shots, `library-${view ? 'details-' : ''}${phone ? 'phone-' : ''}${theme}.png`) });
+      }
+    }
+    const b = await page.locator('#lDetails [data-play]').first().boundingBox();
+    assert.ok(b && b.x >= 0 && b.x + b.width <= (phone ? 390 : 1360), 'Play is on screen');
+  });
+}
+
+await check('the header links the library from every page', async (page) => {
+  for (const p of ['', 'creator.html', 'settings.html']) {
+    await page.goto(BASE + p);
+    await page.waitForSelector('header.topbar a[href="library.html"]');
+  }
+});
+
 // The Settings page (task A-4).
 await check('settings page: a change there is seen by the game on return, in the same game', async (page) => {
   await newGame(page);
@@ -2224,13 +2355,15 @@ await check('settings page: export all, delete all (named first), import all bri
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#sExport')]);
   assert.match(dl.suggestedFilename(), /^ensemble-saves-\d{4}-\d\d-\d\d\.json$/);
   const file = fs.readFileSync(await dl.path(), 'utf8');
-  const [ask] = await Promise.all([page.waitForEvent('dialog'), page.click('#sClear')]);
-  const asked = ask.message();
-  await ask.dismiss();
+  // The handlers are set before each click: the click waits for the dialog to close.
+  let asked = '';
+  const seen = new Promise((r) => page.once('dialog', (d) => { asked = d.message(); d.dismiss(); r(); }));
+  await page.click('#sClear');
+  await seen;
   assert.match(asked, /^Delete all 2 saved games[\s\S]*Holdout at Harmon's[\s\S]*Ares Deep[\s\S]*can't be undone[\s\S]*Settings and API keys stay/);
   assert.equal(await page.evaluate(async () => (await window.Ensemble.Saves.list()).length), 2, 'nothing goes until asked');
-  const [sure] = await Promise.all([page.waitForEvent('dialog'), page.click('#sClear')]);
-  await sure.accept();
+  page.once('dialog', (d) => d.accept());
+  await page.click('#sClear');
   await page.waitForFunction(() => document.getElementById('sSaves').textContent === 'No saved games yet.');
   assert.ok(await page.locator('#sExport').isDisabled());
   assert.equal(await page.evaluate(async () => (await window.Ensemble.Store.list('save')).length), 0);

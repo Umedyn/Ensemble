@@ -7,6 +7,9 @@
     "hour": 7
   },
   "summary": "A five-person research outpost on the rim of Hellas Planitia, Mars, nine weeks from help. Everyone knows everyone's habits, not their secrets.",
+  "author": "Ensemble",
+  "credit": "Written for Ensemble, the bundled example world",
+  "license": "PolyForm Noncommercial 1.0.0",
   "tags": [
     "survival",
     "intrigue"

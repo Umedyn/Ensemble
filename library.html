@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1a1d22">
+<title>Library · Ensemble</title>
+<link rel="stylesheet" href="css/style.css">
+<script>
+// The appearance settings, applied before first paint, as in index.html.
+window.EnsembleAppearance = function (a) {
+  a = a || {};
+  var el = document.documentElement, mq = function (q) { try { return window.matchMedia(q).matches; } catch (e) { return false; } };
+  var theme = a.theme === 'system' ? (mq('(prefers-color-scheme: light)') ? 'light' : 'dark') : (a.theme || 'dark');
+  var motion = a.motion === 'on' || (a.motion !== 'off' && mq('(prefers-reduced-motion: reduce)')) ? 'reduce' : 'full';
+  el.setAttribute('data-theme', theme);
+  el.setAttribute('data-font', a.storyFont === 'sans' ? 'sans' : 'serif');
+  el.setAttribute('data-spacing', a.lineSpacing === 'relaxed' ? 'relaxed' : 'normal');
+  el.setAttribute('data-motion', motion);
+  el.style.setProperty('--text-scale', String(Math.min(150, Math.max(90, Number(a.textSize) || 100)) / 100));
+};
+try { window.EnsembleAppearance(JSON.parse(localStorage.getItem('ensemble.appearance')) || (JSON.parse(localStorage.getItem('ensemble.settings')) || {}).appearance); } catch (e) { window.EnsembleAppearance(); }
+</script>
+</head>
+<body class="page-library">
+<header class="topbar">
+  <div class="group">
+    <label class="btn" title="Add worlds or lore packs from a folder on your computer (one world's folder, or the whole scenarios folder)">Open folder<input type="file" id="lFolder" webkitdirectory directory multiple hidden></label>
+    <label class="btn" title="Add a world or lore pack from a zip of its folder">Open zip<input type="file" id="lZip" accept=".zip,application/zip" hidden></label>
+  </div>
+  <div class="spacer"></div>
+  <div class="group"></div>
+</header>
+
+<main class="page">
+  <div class="library">
+    <div id="lStatus" class="lib-status hidden" role="status" aria-live="polite"></div>
+
+    <section id="lAll">
+      <h2>Library</h2>
+      <div class="muted small">Every world you can play. Worlds you open from a folder or zip are kept in this browser, for every page.</div>
+      <div id="lHelp" class="lib-help hidden"></div>
+      <div class="lib-filters" role="group" aria-label="Filter the worlds">
+        <div id="lTags" class="chips" aria-label="Tags"></div>
+        <label class="lib-source">Show <select id="lSource">
+          <option value="">All worlds</option>
+          <option value="server">Comes with Ensemble</option>
+          <option value="stored">Opened by you</option>
+        </select></label>
+      </div>
+      <div id="lGrid" class="lib-grid" aria-live="polite"><div class="muted lib-loading">Loading worlds…</div></div>
+    </section>
+
+    <section id="lDetails" class="lib-details hidden" aria-labelledby="lTitle"></section>
+  </div>
+</main>
+
+<script src="js/util.js"></script>
+<script src="js/adapters.js"></script>
+<script src="js/jsonshape.js"></script>
+<script src="js/llm.js"></script>
+<script src="js/memory.js"></script>
+<script src="js/standing.js"></script>
+<script src="js/lore.js"></script>
+<script src="js/timeline.js"></script>
+<script src="js/genres.js"></script>
+<script src="js/prompts.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/scenario.js"></script>
+<script src="js/packs.js"></script>
+<script src="js/charmaker.js"></script>
+<script src="js/startgen.js"></script>
+<script src="js/sites.js"></script>
+<script src="js/geo.js"></script>
+<script src="js/layouts.js"></script>
+<script src="js/zip.js"></script>
+<script src="js/pagecheck.js"></script>
+<script src="js/ui/header.js"></script>
+<script src="js/librarypage.js"></script>
+</body>
+</html>

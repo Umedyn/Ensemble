@@ -11,6 +11,7 @@
   // and Settings opens beside the Creator, whose working copy isn't kept.
   const PAGES = [
     { href: 'index.html', label: 'Game' },
+    { href: 'library.html', label: 'Library', title: 'Every world, and opening your own', desktopOnlyOn: ['index.html'] },
     { href: 'creator.html', label: 'Creator', target: '_blank', cls: ' desktop-only', title: 'Build and edit worlds (opens in a new tab)' },
     { href: 'settings.html', label: 'Settings', id: 'btnSettings', last: true, title: 'Models, appearance and saves', newTabFrom: ['creator.html'] },
   ];
@@ -26,7 +27,7 @@
   function backHref() {
     let b = null;
     try { b = new URLSearchParams(location.search).get('back'); } catch (e) {}
-    return b && /^(index|creator)\.html(\?[^#]*)?$/.test(b) ? b : null;
+    return b && /^(index|creator|library)\.html(\?[^#]*)?$/.test(b) ? b : null;
   }
 
   let onSettings = null;
@@ -52,7 +53,8 @@
     const back = backHref();
     const links = pages.map((p) => {
       const a = document.createElement('a');
-      a.className = 'btn' + (p.cls || '');
+      // The game's top bar on a phone has no room for it.
+      a.className = 'btn' + (p.cls || '') + ((p.desktopOnlyOn || []).includes(here()) ? ' desktop-only' : '');
       a.href = back && back.split('?')[0] === p.href ? back : p.href;
       a.textContent = p.label;
       const newTab = p.target || (p.newTabFrom || []).includes(here());

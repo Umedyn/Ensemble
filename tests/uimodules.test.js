@@ -96,6 +96,6 @@ test('a name shared between modules is never used bare in another module', () =>
 test('the header needs no other UI module, so any page can load it', () => {
   assert.ok(!/\bE\.UI\b|\bU\./.test(read('header.js')));
   const load = (page) => fs.readFileSync(path.join(__dirname, '..', page), 'utf8');
-  ['index.html', 'creator.html', 'settings.html'].forEach((p) => assert.ok(load(p).includes('js/ui/header.js'), p));
-  ['creator.html', 'settings.html'].forEach((p) => assert.ok(!load(p).includes('js/ui/shared.js'), `${p} stays its own page`));
+  ['index.html', 'creator.html', 'settings.html', 'library.html'].forEach((p) => assert.ok(load(p).includes('js/ui/header.js'), p));
+  ['creator.html', 'settings.html', 'library.html'].forEach((p) => assert.ok(!load(p).includes('js/ui/shared.js'), `${p} stays its own page`));
 });

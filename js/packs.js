@@ -169,7 +169,9 @@
     }));
   };
   // A picked folder (FileList): every pack.json in it, with its lore files.
-  PK.readFolderFiles = async function (fileList) {
+  // → [{ folder, files }] as they are (kept as bundles, task A-5), or
+  // { folder, error } for one that couldn't be read.
+  PK.readFolderRaw = async function (fileList) {
     const byPath = new Map(Array.from(fileList).map((f) => [f.webkitRelativePath || f.name, f]));
     const out = [];
     for (const path of byPath.keys()) {
@@ -180,10 +182,16 @@
       try {
         files['pack.json'] = JSON.parse(await byPath.get(path).text());
         for (const p of PK.neededFiles(files['pack.json'])) if (byPath.has(dir + p)) files[p] = JSON.parse(await byPath.get(dir + p).text());
-      } catch (err) { out.push(Object.assign(PK.read(folder, {}), { problems: [`pack "${folder}": ${err.message}`] })); continue; }
-      out.push(PK.read(folder, files));
+      } catch (err) { out.push({ folder, error: err.message }); continue; }
+      out.push({ folder, files });
     }
     return out;
+  };
+  // The same, read: [pack].
+  PK.readFolderFiles = async function (fileList) {
+    return (await PK.readFolderRaw(fileList)).map((r) => (r.error
+      ? Object.assign(PK.read(r.folder, {}), { problems: [`pack "${r.folder}": ${r.error}`] })
+      : PK.read(r.folder, r.files)));
   };
   // A pack zip (the creator's own export, or any zip of a pack folder):
   // entries under one top folder or at the root → { folder, files }.

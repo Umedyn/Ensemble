@@ -2536,6 +2536,8 @@
     try {
       if (v.startsWith('disk:')) { const d = diskWorlds.get(v); return open(d.folder, d.files, d.assets, false); }
       if (v.startsWith('draft:')) { const d = JSON.parse(store.get(SAVE_KEY(v.slice(6)))); return open(v.slice(6), d.files, {}, false, true); }
+      // A kept world's pictures come from the store, not the server.
+      if (E.Library.isStored(v)) { const w = await E.Library.load(v); return open(w.folder, await E.Library.load(v, { raw: true }), w.assets, false); }
       open(v.slice(v.indexOf(':') + 1), await E.Library.load(v, { raw: true }), {}, true);
     } catch (err) { banner(`Couldn't open that world: ${esc(err.message)}`, 'bad'); }
   });
@@ -2692,7 +2694,8 @@
       const [shared] = await E.Library.list('library');
       if (shared) S.library = await E.Library.load(shared.id);
     } catch (e) { /* no library/ */ }
-    try { (await E.Library.list('world')).forEach((w) => addOption(w.id, w.title)); }
+    // The server's worlds and those kept from the library (task A-5).
+    try { (await E.Library.list('world')).forEach((w) => addOption(w.id, w.title + (E.Library.isStored(w.id) ? ' (opened)' : ''))); }
     catch (e) { /* opened without the server: folder picker only */ }
     listDrafts();
   })();

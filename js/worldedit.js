@@ -288,28 +288,9 @@
     return b;
   };
 
-  // A zip from the creator's own export (or any zip of a world folder):
-  // entries under one top folder or at the root. → { folder, files, assets: {path: bytes} }
-  WE.fromZip = function (entries, fallbackFolder) {
-    const list = [...entries].filter((e) => !e.name.endsWith('/'));
-    const isRoot = (n) => /^(world|scenario)\.json$/.test(n);
-    let prefix = '';
-    if (!list.some((e) => isRoot(e.name))) {
-      const top = list.find((e) => /^[^/]+\/(world|scenario)\.json$/.test(e.name));
-      if (!top) throw new Error('No world.json or scenario.json in that zip.');
-      prefix = top.name.split('/')[0] + '/';
-    }
-    const files = {}, assets = {};
-    list.forEach((e) => {
-      if (!e.name.startsWith(prefix)) return;
-      const rel = e.name.slice(prefix.length);
-      if (/\.json$/i.test(rel)) {
-        try { files[rel] = JSON.parse(E.Zip.text(e.data)); } catch (err) { throw new Error(`${rel} is not valid JSON: ${err.message}`); }
-      } else if (E.isImagePath(rel)) assets[rel] = e.data;
-    });
-    const folder = prefix ? prefix.slice(0, -1) : (files['world.json'] && files['world.json'].id) || fallbackFolder || 'world';
-    return { folder, files, assets };
-  };
+  // A zip of a world folder (moved to Scenario.readZip, task A-5, so the
+  // library reads zips too).
+  WE.fromZip = (entries, fallbackFolder) => E.Scenario.readZip(entries, fallbackFolder);
 
   // ---------- starts ----------
   WE.addStart = function (files, title) {

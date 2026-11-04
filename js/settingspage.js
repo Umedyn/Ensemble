@@ -246,7 +246,7 @@
     const back = E.Header.backHref();
     if (back) {
       $('sBack').href = back;
-      $('sBack').textContent = back.startsWith('creator.html') ? '← Back to the Creator' : '← Back to the game';
+      $('sBack').textContent = back.startsWith('creator.html') ? '← Back to the Creator' : back.startsWith('library.html') ? '← Back to the library' : '← Back to the game';
       $('sBack').classList.remove('hidden');
       // Straight back when that page is the one behind this, so it comes back
       // as it was left (a scene part read, the map open); otherwise it loads.

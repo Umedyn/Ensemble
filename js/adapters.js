@@ -296,8 +296,9 @@
   // (the shared site and base maps, whole), and 'table' once T-1 has any.
   // A world's id is "<source>:<name>", as the picker remembers it; the others
   // start with their kind ("pack:server:<folder>"). load(id, { raw: true })
-  // gives a world's files as they are, for the creator. Sources for stored
-  // bundles (A-5) and remote lists (A-8) join with addSource.
+  // gives a world's files as they are, for the creator. Worlds and packs
+  // opened from a folder or zip are kept (task A-5, the "stored" source);
+  // remote lists (A-8) join with addSource.
   const fromDisk = () => { try { return location.protocol === 'file:'; } catch (e) { return false; } };
   const entry = (kind, source, name, title) => ({
     id: (kind === 'world' ? '' : kind + ':') + source + ':' + name, kind, source, title: title || name, folder: name,
@@ -326,7 +327,122 @@
       },
     };
   }
-  // What this page opened from a folder; gone when the page is (A-5 keeps it).
+  // ---------- stored bundles (task A-5) ----------
+  // A world or lore pack opened from a folder or zip, kept in E.Store so it is
+  // on every page and there after a reload:
+  //   bundlemeta.<name>  what a list or a card shows, no files
+  //   bundle.<name>      { folder, files: {path: JSON}, assets: [paths], hash }
+  //   bundleblob.<name>/<path>  each image, a Blob
+  //   packbundle.<name>  { folder, files, hash }
+  // One copy per name: the same content again writes nothing, changed content
+  // replaces it (and its images that went). Meta is written last and removed
+  // first, so a half-written bundle is never listed.
+  const MIME = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif', svg: 'image/svg+xml' };
+  const asBlob = (data, path) => {
+    if (!root.Blob || data instanceof root.Blob) return data;
+    return new root.Blob([data], { type: MIME[String(path).split('.').pop().toLowerCase()] || 'application/octet-stream' });
+  };
+  const bytesOf = async (data) => (data && typeof data.arrayBuffer === 'function' ? new Uint8Array(await data.arrayBuffer()) : data);
+  // Two FNV-1a runs from different seeds: 64 bits, enough to tell copies apart.
+  function hasher() {
+    let a = 0x811c9dc5, b = 0x01000193 ^ 0x5bd1e995;
+    const byte = (x) => { a = Math.imul(a ^ x, 0x01000193) >>> 0; b = Math.imul(b ^ x, 0x01000193) >>> 0; };
+    return {
+      text(str) { for (let i = 0; i < str.length; i++) { const c = str.charCodeAt(i); byte(c & 0xff); byte(c >> 8); } byte(0); },
+      bytes(arr) { for (let i = 0; i < arr.length; i++) byte(arr[i]); byte(0); },
+      hex: () => a.toString(16).padStart(8, '0') + b.toString(16).padStart(8, '0'),
+    };
+  }
+  // files {path: JSON} and assets {path: Blob | bytes} → { hash, size }
+  E.bundleHash = async function (files, assets) {
+    const h = hasher();
+    let size = 0;
+    Object.keys(files || {}).sort().forEach((k) => { const t = JSON.stringify(files[k]); h.text(k); h.text(t); size += t.length; });
+    for (const k of Object.keys(assets || {}).sort()) {
+      const bytes = await bytesOf(assets[k]);
+      h.text(k);
+      h.bytes(bytes || []);
+      size += bytes ? bytes.length : 0;
+    }
+    return { hash: h.hex(), size };
+  };
+  const readJSON = async (k) => { try { return JSON.parse(await E.Store.get(k)); } catch (e) { return null; } };
+
+  function storedSource() {
+    const worldNames = async () => (await E.Store.list('bundlemeta.')).map((k) => k.slice('bundlemeta.'.length));
+    async function blobs(name) {
+      const prefix = `bundleblob.${name}/`;
+      const out = {};
+      for (const k of await E.Store.list(prefix)) out[k.slice(prefix.length)] = await E.Store.get(k);
+      return out;
+    }
+    return {
+      id: 'stored',
+      async list(kind) {
+        if (kind === 'world') {
+          const metas = await Promise.all((await worldNames()).map((n) => readJSON('bundlemeta.' + n)));
+          return metas.filter(Boolean).sort((x, y) => x.added - y.added)
+            .map((m) => Object.assign(entry('world', 'stored', m.folder, m.title), { meta: m }));
+        }
+        if (kind !== 'pack') return [];
+        const packs = await Promise.all((await E.Store.list('packbundle.')).map(readJSON));
+        return packs.filter(Boolean).map((p) => entry('pack', 'stored', p.folder, p.title));
+      },
+      async load(id, opts) {
+        const name = nameOf(id);
+        if (id.startsWith('pack:')) {
+          const p = await readJSON('packbundle.' + name);
+          return p && E.Packs.read(p.folder, p.files);
+        }
+        const b = await readJSON('bundle.' + name);
+        if (!b) return null;
+        if (opts && opts.raw) return b.files;
+        return Object.assign(E.Scenario.prepareWorld(b.folder, b.files), { assets: await blobs(name) });
+      },
+      // raw: { folder, files, assets? }. → { id, status: 'added' | 'same' | 'updated', world? }
+      async keep(kind, raw) {
+        const name = String(raw.folder || '').trim();
+        if (!name || name.includes('/')) throw new Error('A world or pack needs a folder name.');
+        const { hash, size } = await E.bundleHash(raw.files, raw.assets);
+        if (kind === 'pack') {
+          const pack = E.Packs.read(name, raw.files);
+          const old = await readJSON('packbundle.' + name);
+          if (old && old.hash === hash) return { id: entry('pack', 'stored', name).id, status: 'same', pack };
+          if (!(await E.Store.set('packbundle.' + name, JSON.stringify({ folder: name, title: pack.title, files: raw.files, hash })))) throw new Error('This browser didn\'t keep the pack (is it out of space?).');
+          return { id: entry('pack', 'stored', name).id, status: old ? 'updated' : 'added', pack };
+        }
+        const world = E.Scenario.prepareWorld(name, raw.files);
+        const id = entry('world', 'stored', name).id;
+        const old = await readJSON('bundlemeta.' + name);
+        if (old && old.hash === hash) return { id, status: 'same', world };
+        const paths = Object.keys(raw.assets || {});
+        const fail = () => { throw new Error(`This browser didn't keep "${world.title}" (is it out of space?).`); };
+        for (const p of paths) if (!(await E.Store.set(`bundleblob.${name}/${p}`, asBlob(raw.assets[p], p)))) fail();
+        if (!(await E.Store.set('bundle.' + name, JSON.stringify({ folder: name, files: raw.files, assets: paths, hash })))) fail();
+        const top = raw.files['world.json'] || raw.files['scenario.json'] || {};
+        const meta = {
+          folder: name, title: world.title, summary: world.summary, tags: world.tags,
+          author: world.author || '', credit: world.credit || '', license: world.license || '', cover: world.cover || '',
+          mapImage: (top.map && top.map.image) || '', starts: world.starts.length, generate: world.generate,
+          size, hash, added: old ? old.added : Date.now(), updated: Date.now(),
+        };
+        if (!(await E.Store.set('bundlemeta.' + name, JSON.stringify(meta)))) fail();
+        // Pictures the new copy no longer has.
+        for (const k of await E.Store.list(`bundleblob.${name}/`)) if (!paths.includes(k.slice(`bundleblob.${name}/`.length))) await E.Store.remove(k);
+        return { id, status: old ? 'updated' : 'added', world };
+      },
+      async remove(id) {
+        const name = nameOf(id);
+        if (id.startsWith('pack:')) return E.Store.remove('packbundle.' + name);
+        await E.Store.remove('bundlemeta.' + name);
+        await E.Store.remove('bundle.' + name);
+        for (const k of await E.Store.list(`bundleblob.${name}/`)) await E.Store.remove(k);
+        return true;
+      },
+    };
+  }
+
+  // What this page opened that isn't kept: a site map library from a folder.
   function openedSource() {
     const items = new Map();
     return {
@@ -346,13 +462,19 @@
   }
 
   const opened = openedSource();
-  let sources = [bundledSource(), opened];
+  const stored = storedSource();
+  let sources = [bundledSource(), stored, opened];
   E.Library = {
     // Replaces every source with this one.
     use(source) { sources = [source]; },
     addSource(source) { sources.push(source); },
+    // A source that can't list (no scenarios/index.json) lists nothing, and
+    // says why in failed[source id], so the others still show.
+    failed: {},
     async list(kind) {
-      const lists = await Promise.all(sources.map((s) => s.list(kind)));
+      const lists = await Promise.all(sources.map((s) => Promise.resolve().then(() => s.list(kind)).then(
+        (l) => { delete E.Library.failed[s.id]; return l; },
+        (e) => { E.Library.failed[s.id] = e.message; return []; })));
       return [].concat(...lists);
     },
     async load(id, opts) {
@@ -361,7 +483,14 @@
       if (!source) throw new Error(`Nothing in the library called "${id}".`);
       return source.load(id, opts);
     },
-    // Something picked with Open folder. → its id
+    // Something picked with Open folder that only this page keeps. → its id
     open: (kind, name, title, value) => opened.add(kind, name, title, value),
+    // A world or lore pack from a folder or zip, kept for every page (task
+    // A-5): raw { folder, files, assets? }. → { id, status, world | pack }
+    keep: (kind, raw) => stored.keep(kind, raw),
+    // Only what was kept can be removed; saves of a removed world still play.
+    remove: (id) => stored.remove(id),
+    // Stored on this machine (removable), as opposed to bundled or remote.
+    isStored: (id) => /^(pack:)?stored:/.test(String(id)),
   };
 })(typeof window !== 'undefined' ? window : globalThis);

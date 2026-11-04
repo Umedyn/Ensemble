@@ -78,6 +78,15 @@
     }
     else E.Header.checkConnection(false);
     if (TEST_PLAY) return startTestPlay();
+    // Play from the library page (task A-5): that world and start in the
+    // picker, ready for New game, instead of the last game.
+    if (query.has('world')) {
+      const picked = U.pickWorld(query.get('world'), query.get('start'));
+      query.delete('world');
+      query.delete('start');
+      setQuery();
+      if (picked) return $('btnNew').focus();
+    }
     let id = query.get('save');
     let saved = id && await E.Saves.load(id);
     if (!saved) {
