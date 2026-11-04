@@ -1383,6 +1383,49 @@
     });
   };
 
+  // Things spread between people (task B-2): at commit, in each room with two
+  // or more people besides the player, one fact a turn may pass from someone
+  // who knows it to someone they trust: the most trusted listener, then the
+  // weightiest fact, then the newest. Never a secret, a fact about the teller,
+  // a fact everyone knows, a narrated detail, or anything to the player. The
+  // dice are a hash of the turn, the pair and the fact, so replays agree
+  // without a draw of their own.
+  Eng.SPREAD = { trust: 15, chance: 0.5 };
+  Eng.spreadChance = (trust) => (trust < Eng.SPREAD.trust ? 0 : Math.min(Eng.SPREAD.chance, (trust - 10) / 100));
+  Eng.spreadFacts = function (state, res, turn) {
+    const t = turn != null ? turn : state.turn;
+    const people = Eng.cast(state, { alive: true, includePlayer: false });
+    const secrets = people.map((id) => Eng.contentWords(state.characters[id].secret)).filter((s) => s.size);
+    const isSecret = (f) => { const w = [...Eng.contentWords(f.text)]; return secrets.some((s) => w.filter((x) => s.has(x)).length >= 3); };
+    // Facts that could be passed on at all, weightiest then newest first.
+    const news = state.facts.filter((f) => !f.known_by.includes('all') && !E.Memory.narrated(f) && !isSecret(f))
+      .sort((x, y) => y.weight - x.weight || y.turn - x.turn);
+    if (!news.length) return;
+    const rooms = new Map();
+    people.forEach((id) => {
+      const loc = state.characters[id].status.location;
+      if (state.locations[loc] && Eng.isAt(state, id, loc)) rooms.set(loc, (rooms.get(loc) || []).concat(id));
+    });
+    rooms.forEach((here) => {
+      if (here.length < 2) return;
+      const pairs = [];
+      here.forEach((a) => here.forEach((b) => {
+        const trust = a === b ? 0 : state.characters[a].relations[b] || 0;
+        if (Eng.spreadChance(trust)) pairs.push({ a, b, trust });
+      }));
+      let pick = null;
+      pairs.sort((x, y) => y.trust - x.trust).some((p) => {
+        const f = news.find((n) => n.known_by.includes(p.a) && !n.known_by.includes(p.b) && !(n.about || []).includes(p.a));
+        if (f) pick = Object.assign({ f }, p);
+        return !!f;
+      });
+      if (!pick ||(E.hash(`${t}|${pick.a}|${pick.b}|${pick.f.id}`) % 1000) / 1000 >= Eng.spreadChance(pick.trust)) return;
+      pick.f.known_by.push(pick.b);
+      (pick.f.heard = pick.f.heard || {})[pick.b] = { from: pick.a, turn: t };
+      guard(res, 'memory', 'heard from', `${state.characters[pick.b].name} heard from ${state.characters[pick.a].name}: ${pick.f.text}`);
+    });
+  };
+
   // Accepts a location id, a location name ("Hydroponics"), or — when allowed —
   // a character id meaning "wherever that character is".
   Eng.resolveLocation = function (state, v, allowCharacter) {
@@ -4344,6 +4387,8 @@
     if (cut) report.applied.unshift(`interjected after beat ${cut} of ${total}`);
     // The turn's rolls came before any beat, so a step-in keeps them (task B-8).
     Eng.growSkills(state, p.res, p.turn);
+    // Then people who share a room pass something on (task B-2).
+    Eng.spreadFacts(state, p.res, p.turn);
     Eng.noteSeen(state, cut ? null : p.res, p.turn);
     // Tiers follow the scene as it played out. After a step-in the events may
     // not have reached the player, so only the people there count.
