@@ -105,7 +105,7 @@ test('API keys leave localStorage; only the appearance stays there, for the them
 });
 
 test('every page reads the appearance copy before first paint, and the old settings on the very first', () => {
-  for (const page of ['index.html', 'creator.html', 'settings.html', 'library.html']) {
+  for (const page of ['index.html', 'new.html', 'play.html', 'creator.html', 'settings.html', 'library.html']) {
     const html = fs.readFileSync(path.join(ROOT, page), 'utf8');
     assert.match(html, /localStorage\.getItem\('ensemble\.appearance'\)\) \|\| \(JSON\.parse\(localStorage\.getItem\('ensemble\.settings'\)\)/, page);
     assert.ok(html.indexOf('js/util.js') < html.indexOf('js/adapters.js'), page);

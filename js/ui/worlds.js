@@ -1,4 +1,6 @@
-// Worlds and starts, lore packs, the game lifecycle, the character maker and generated starts.
+// The New game page (task A-6): worlds and starts, lore packs, Open folder
+// and Load, the character maker and generated starts. Starting hands the game
+// over to play.html?save=<id>.
 (function () {
   const E = window.Ensemble;
   const U = E.UI;
@@ -242,53 +244,77 @@
     ev.target.value = '';
   });
 
-  // ---------- game lifecycle ----------
+  // ---------- starting ----------
+  // Busy while the world loads or the game is handed over, so Start can't
+  // fire twice.
+  function setBusy(b) {
+    U.busy = b;
+    $('btnNew').disabled = b;
+  }
   $('btnNew').addEventListener('click', async () => {
     if (U.busy) return;
-    if (U.state && U.state.turn > 0 && !confirm('Start a new game? Unsaved progress will be lost.')) return;
-    // Busy while the world loads, so Act can't fire into the old (or no) game.
-    U.setBusy(true);
+    setBusy(true);
     let world = null;
     const startId = $('startSelect').value || undefined;
     try {
       world = await resolveWorld($('scenarioSelect').value);
       // Someone else of the start's cast (task 7-6): "as:<id>".
       const as = !$('whoSelect').classList.contains('hidden') && /^as:/.test($('whoSelect').value) ? $('whoSelect').value.slice(3) : undefined;
-      if (startId === GEN_OPTION) { /* the generator below */ } else if (!makingOwn()) beginGame(world, E.Scenario.startScenario(world, startId, as));
+      if (startId === GEN_OPTION) { /* the generator below */ } else if (!makingOwn()) {
+        await beginGame(world, E.Scenario.startScenario(world, startId, as));
+        return;
+      }
     } catch (e) {
       world = null;
       alert(e.message);
-    } finally {
-      U.setBusy(false);
     }
+    setBusy(false);
     // Make my own (task 4-1): the game starts from the character form.
     if (world && startId === GEN_OPTION) return openGenerator(world);
     if (world && makingOwn()) return openMaker(world, startId || world.defaultStart);
-    if (U.state) U.renderAll();
-    $('actionInput').focus();
   });
 
-  // A fresh game from a scenario, with the page reset for it.
-  function beginGame(world, scenario) {
+  // A fresh game from a scenario: saved under a new id, with what New game
+  // noted for Debug beside it, then played on play.html. Only ids travel in
+  // the address; the game goes through E.Store. Test play (task 6-1) uses its
+  // own slot and never touches the player's saves.
+  async function beginGame(world, scenario) {
+    setBusy(true);
     // Lore packs (task 5-7): every new game goes through here.
     scenario = withPacks(world, scenario);
-    U.state = E.Engine.newGame(scenario);
-    U.saveId = null;
-    U.restoreView();
+    const state = E.Engine.newGame(scenario);
+    const notes = [];
+    if (world.warnings.length) notes.push({ kind: 'world', summary: `${world.warnings.length} unknown field${world.warnings.length === 1 ? '' : 's'} ignored in "${world.title}"`, detail: world.warnings.join('\n') });
+    if ((scenario.packs || []).length) notes.push({ kind: 'packs', summary: `lore packs: ${scenario.packs.map((p) => p.title).join(', ')}`, detail: scenario.packs.map((p) => `${p.title}${p.version ? ` v${p.version}` : ''} (${p.id})${p.credit ? `, by ${p.credit}` : ''}`).join('\n') });
+    if (scenario.madePlayer) notes.push({ kind: 'character', summary: `you made ${state.characters[state.player].name}`, detail: JSON.stringify(E.CharMaker.toFile(state.characters[state.player]), null, 1) });
     rememberPick();
-    showPickInfo(false);
-    U.uiCut = null;
-    U.uiShown = 1;
-    U.openTurns.clear();
-    E.LLM.calls.length = 0;
-    E.Engine.telemetry.length = 0;
-    U.stopRecording();
-    U.notes.length = 0;
-    if (world.warnings.length) U.notes.push({ kind: 'world', summary: `${world.warnings.length} unknown field${world.warnings.length === 1 ? '' : 's'} ignored in "${world.title}"`, detail: world.warnings.join('\n') });
-    if ((scenario.packs || []).length) U.notes.push({ kind: 'packs', summary: `lore packs: ${scenario.packs.map((p) => p.title).join(', ')}`, detail: scenario.packs.map((p) => `${p.title}${p.version ? ` v${p.version}` : ''} (${p.id})${p.credit ? `, by ${p.credit}` : ''}`).join('\n') });
-    if (scenario.madePlayer) U.notes.push({ kind: 'character', summary: `you made ${U.state.characters[U.state.player].name}`, detail: JSON.stringify(E.CharMaker.toFile(U.state.characters[U.state.player]), null, 1) });
-    U.autosave();
+    if (U.TEST_PLAY) {
+      await E.TestPlay.save(state);
+      await E.TestPlay.setNotes(notes);
+      location.href = 'play.html?testplay=1';
+      return;
+    }
+    const id = E.Saves.newId();
+    if (!(await E.Saves.save(id, state))) { setBusy(false); alert('This browser didn\'t keep the new game (is it out of space?).'); return; }
+    if (notes.length) await E.Saves.setNotes(id, notes);
+    location.href = 'play.html?save=' + encodeURIComponent(id);
   }
+
+  // Load: a saved game from a file becomes a save of its own, then plays.
+  $('loadInput').addEventListener('change', async (ev) => {
+    const f = ev.target.files[0];
+    ev.target.value = '';
+    if (!f) return;
+    let s;
+    try {
+      s = JSON.parse(await f.text());
+      if (!s.scenario || !s.characters || !s.player) throw new Error('That file is not an Ensemble save.');
+      s = E.Engine.migrate(s);
+    } catch (e) { return void alert('Could not load: ' + e.message); }
+    const id = E.Saves.newId();
+    await E.Saves.save(id, s);
+    location.href = 'play.html?save=' + encodeURIComponent(id);
+  });
 
   // ---------- character creator (task 4-1) ----------
   // The form for a start's playerSlot. E.CharMaker decides what's allowed and
@@ -308,8 +334,6 @@
         try { scenario = E.Scenario.startScenario(world, startId, c); } catch (e) { return [e.message]; }
         $('makerDialog').close();
         beginGame(world, scenario);
-        U.renderAll();
-        $('actionInput').focus();
         return null;
       },
     });

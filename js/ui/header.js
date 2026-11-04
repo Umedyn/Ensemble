@@ -10,8 +10,9 @@
   // The Creator opens beside the game, so a game in progress stays on screen,
   // and Settings opens beside the Creator, whose working copy isn't kept.
   const PAGES = [
-    { href: 'index.html', label: 'Game' },
-    { href: 'library.html', label: 'Library', title: 'Every world, and opening your own', desktopOnlyOn: ['index.html'] },
+    // index.html opens the last game (task A-6); on the game itself it isn't shown.
+    { href: 'index.html', label: 'Game', title: 'Your last game', also: ['play.html'] },
+    { href: 'library.html', label: 'Library', title: 'Every world, and opening your own', desktopOnlyOn: ['play.html'] },
     { href: 'creator.html', label: 'Creator', target: '_blank', cls: ' desktop-only', title: 'Build and edit worlds (opens in a new tab)' },
     { href: 'settings.html', label: 'Settings', id: 'btnSettings', last: true, title: 'Models, appearance and saves', newTabFrom: ['creator.html'] },
   ];
@@ -27,7 +28,7 @@
   function backHref() {
     let b = null;
     try { b = new URLSearchParams(location.search).get('back'); } catch (e) {}
-    return b && /^(index|creator|library)\.html(\?[^#]*)?$/.test(b) ? b : null;
+    return b && /^(index|creator|library|play|new)\.html(\?[^#]*)?$/.test(b) ? b : null;
   }
 
   let onSettings = null;
@@ -49,13 +50,14 @@
     theme.className = 'desktop-only';
     theme.textContent = '◐';
     theme.addEventListener('click', nextTheme);
-    const pages = PAGES.filter((p) => p.href !== here());
+    const pages = PAGES.filter((p) => p.href !== here() && !(p.also || []).includes(here()));
     const back = backHref();
     const links = pages.map((p) => {
       const a = document.createElement('a');
       // The game's top bar on a phone has no room for it.
       a.className = 'btn' + (p.cls || '') + ((p.desktopOnlyOn || []).includes(here()) ? ' desktop-only' : '');
-      a.href = back && back.split('?')[0] === p.href ? back : p.href;
+      const backTo = back && back.split('?')[0];
+      a.href = backTo && (backTo === p.href || (p.also || []).includes(backTo)) ? back : p.href;
       a.textContent = p.label;
       const newTab = p.target || (p.newTabFrom || []).includes(here());
       if (newTab) { a.target = '_blank'; a.rel = 'noopener'; }
@@ -68,6 +70,10 @@
     group.prepend(conn, theme, ...links.filter((a, i) => !pages[i].last));
     group.append(...links.filter((a, i) => pages[i].last));
     window.addEventListener('pageshow', (ev) => { if (ev.persisted) reread(); });
+    // "Same as my device" follows the OS while the page is open.
+    ['(prefers-color-scheme: light)', '(prefers-reduced-motion: reduce)'].forEach((q) => {
+      try { window.matchMedia(q).addEventListener('change', () => window.EnsembleAppearance(E.settings.appearance)); } catch (e) {}
+    });
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reread(); });
   }
 

@@ -225,8 +225,6 @@
       U.gen = null;
       $('genDialog').close();
       U.beginGame(world, scenario);
-      U.renderAll();
-      $('actionInput').focus();
     }
   });
   // ---------- review (task 4-3) ----------

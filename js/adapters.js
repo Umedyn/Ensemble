@@ -203,8 +203,15 @@
     },
     async remove(id) {
       const meta = await E.Store.remove('savemeta.' + id);
+      await E.Store.remove('savenotes.' + id);
       return (await E.Store.remove('save.' + id)) && meta;
     },
+    // What New game noted for Debug (task A-6: unknown world fields, lore
+    // packs, a made character), kept beside the save it started.
+    async notes(id) {
+      try { return JSON.parse(await E.Store.get('savenotes.' + id)) || []; } catch (e) { return []; }
+    },
+    setNotes: (id, notes) => E.Store.set('savenotes.' + id, JSON.stringify(notes || [])),
     // Newest first.
     async list() {
       const keys = await E.Store.list('savemeta.');
@@ -250,6 +257,41 @@
       const ids = new Set((await E.Store.list('savemeta.')).map((k) => k.slice(9)).concat((await E.Store.list('save.')).map((k) => k.slice(5))));
       for (const id of ids) await E.Saves.remove(id);
       return ids.size;
+    },
+  };
+
+  // ---------- test play (task A-6) ----------
+  // The creator's Test play: one world and one game at a time, kept apart from
+  // the player's saves and library (never listed, never in an export), so the
+  // move from New game to the game, and a refresh, keep them. A new test
+  // replaces the last one.
+  const TEST_WORLD = 'testplay.world', TEST_SAVE = 'testplay.save', TEST_BLOB = 'testplayblob.';
+  E.TestPlay = {
+    async putWorld(folder, files, assets) {
+      for (const k of await E.Store.list(TEST_BLOB)) await E.Store.remove(k);
+      await E.Store.remove(TEST_SAVE);
+      await E.Store.remove(TEST_SAVE + '.notes');
+      const paths = Object.keys(assets || {});
+      for (const p of paths) await E.Store.set(TEST_BLOB + p, assets[p]);
+      return E.Store.set(TEST_WORLD, JSON.stringify({ folder, files, paths }));
+    },
+    // → { folder, files, assets } or null
+    async world() {
+      let w = null;
+      try { w = JSON.parse(await E.Store.get(TEST_WORLD)); } catch (e) { /* none */ }
+      if (!w) return null;
+      const assets = {};
+      for (const p of w.paths || []) { const b = await E.Store.get(TEST_BLOB + p); if (b != null) assets[p] = b; }
+      return { folder: w.folder, files: w.files, assets };
+    },
+    save: (state) => E.Store.set(TEST_SAVE, JSON.stringify(state)),
+    setNotes: (notes) => E.Store.set(TEST_SAVE + '.notes', JSON.stringify(notes || [])),
+    // → { state, notes } or null
+    async load() {
+      let state = null, notes = [];
+      try { state = JSON.parse(await E.Store.get(TEST_SAVE)); } catch (e) { /* none */ }
+      try { notes = JSON.parse(await E.Store.get(TEST_SAVE + '.notes')) || []; } catch (e) { /* none */ }
+      return state ? { state, notes } : null;
     },
   };
 

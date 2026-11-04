@@ -2463,7 +2463,7 @@
   // the files as they are now (images as Blobs). Nothing is exported.
   const testTabs = new Map(); // window -> payload
   function testPlay(startId) {
-    const win = window.open('index.html?testplay=1', '_blank');
+    const win = window.open('new.html?testplay=1', '_blank');
     if (!win) return banner('The browser blocked the new tab: allow pop-ups for this page, then try again.', 'bad');
     testTabs.set(win, WE.testPlayPayload(cw.folder, cw.files, cw.assets, startId));
   }

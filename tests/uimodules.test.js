@@ -59,7 +59,7 @@ function idents(text) {
   code(false);
   return out;
 }
-const sharedKeys = [...read('shared.js').matchAll(/^    (\w+|\$):/gm)].map((m) => m[1]);
+const sharedKeys = [...read('shared.js').matchAll(/^    (\w+|\$)[:,]/gm)].map((m) => m[1]);
 const exportedBy = {};
 files.forEach((f) => {
   const m = /Object\.assign\(U, \{ ([^}]*) \}\);/.exec(read(f));
@@ -96,6 +96,22 @@ test('a name shared between modules is never used bare in another module', () =>
 test('the header needs no other UI module, so any page can load it', () => {
   assert.ok(!/\bE\.UI\b|\bU\./.test(read('header.js')));
   const load = (page) => fs.readFileSync(path.join(__dirname, '..', page), 'utf8');
-  ['index.html', 'creator.html', 'settings.html', 'library.html'].forEach((p) => assert.ok(load(p).includes('js/ui/header.js'), p));
+  ['index.html', 'new.html', 'play.html', 'creator.html', 'settings.html', 'library.html'].forEach((p) => assert.ok(load(p).includes('js/ui/header.js'), p));
   ['creator.html', 'settings.html', 'library.html'].forEach((p) => assert.ok(!load(p).includes('js/ui/shared.js'), `${p} stays its own page`));
+});
+
+// Task A-6: the game page split in two, plus the doorway. Every module is
+// loaded by a page, shared.js first, and each page boots last.
+test('each page loads its own modules: the game, New game and the doorway', () => {
+  const load = (page) => fs.readFileSync(path.join(__dirname, '..', page), 'utf8');
+  const modules = (page) => [...load(page).matchAll(/src="js\/ui\/([\w]+\.js)"/g)].map((m) => m[1]);
+  const pages = { 'play.html': 'play.js', 'new.html': 'newgame.js', 'index.html': 'doorway.js' };
+  for (const [page, boot] of Object.entries(pages)) {
+    const m = modules(page);
+    assert.equal(m[m.length - 1], boot, `${page} boots last`);
+    assert.ok(m.indexOf('shared.js') >= 0 && m.indexOf('shared.js') < m.indexOf(boot), page);
+  }
+  const used = new Set(Object.keys(pages).flatMap(modules));
+  files.forEach((f) => assert.ok(used.has(f), `${f} is loaded by a page`));
+  assert.ok(!modules('new.html').includes('story.js') && !modules('play.html').includes('worlds.js'), 'the game and New game stay apart');
 });

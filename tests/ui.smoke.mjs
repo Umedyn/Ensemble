@@ -25,7 +25,9 @@ const mocks = await startMocks();
 const browser = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
 let failures = 0;
 
+// ONLY=<pattern> runs only the checks whose names match (the blocks outside check() still run).
 async function check(name, fn) {
+  if (process.env.ONLY && !new RegExp(process.env.ONLY, 'i').test(name)) return;
   const ctx = await browser.newContext(name.startsWith('phone') ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } : { viewport: { width: 1360, height: 900 } });
   // Before the page's first script, so the store's first run moves it over.
   await ctx.addInitScript(() => { if (!localStorage.getItem('smoke.seeded')) { localStorage.setItem('smoke.seeded', '1'); localStorage.setItem('ensemble.setupDone', '1'); } });
@@ -34,7 +36,7 @@ async function check(name, fn) {
   page.on('pageerror', (e) => errors.push(String(e)));
   try {
     await page.goto(BASE);
-    await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
+    await pageReady(page);
     await fn(page);
     assert.deepEqual(errors, [], 'no page errors');
     console.log(`✓ ${name}`);
@@ -42,7 +44,7 @@ async function check(name, fn) {
     failures++;
     console.error(`✕ ${name}\n  ${e.message.split('\n').join('\n  ')}`);
   } finally {
-    await page.screenshot({ path: path.join(shots, name.replace(/\W+/g, '-') + '.png') });
+    await page.screenshot({ path: path.join(shots, name.replace(/\W+/g, '-') + '.png'), timeout: 5000 }).catch(() => {});
     await ctx.close();
   }
 }
@@ -66,7 +68,7 @@ const sceneReady = (page) => page.waitForFunction(() => { const bar = document.g
 // Back link home. fn sets controls there; each change is kept as it is made.
 const settingsReady = (page) => page.waitForFunction(() => /settings\.html/.test(location.pathname) && document.getElementById('sSaves') && document.getElementById('sSaves').textContent !== '');
 async function viaSettings(page, fn) {
-  const playing = await page.evaluate(() => document.getElementById('sceneBar').textContent.trim() !== '');
+  const playing = await page.evaluate(() => ((document.getElementById('sceneBar') || {}).textContent || '').trim() !== '');
   await page.click('#btnSettings');
   await settingsReady(page);
   if (fn) {
@@ -75,7 +77,7 @@ async function viaSettings(page, fn) {
     await page.waitForFunction(() => document.getElementById('sStatus').textContent === 'Saved.');
   }
   await page.click('#sBack');
-  await page.waitForFunction(() => document.getElementById('btnNew') && document.querySelectorAll('#scenarioSelect option').length > 0);
+  await page.waitForFunction(() => !/settings\.html/.test(location.pathname) && document.body && document.body.dataset.ready === '1');
   if (playing) await sceneReady(page);
 }
 // The library page (task A-5): its cards are drawn once every world has loaded.
@@ -85,16 +87,29 @@ const openSection = async (page, id) => {
   if (!(await section.evaluate((d) => d.open))) await section.locator('summary').click();
 };
 
+// New game and the game are their own pages (task A-6); each marks its body
+// once it has started. pickWorld goes to New game first if needed.
+const pageReady = (page) => page.waitForFunction(() => document.body && document.body.dataset.ready === '1');
+async function toNewGame(page) {
+  if (/\/new\.html/.test(page.url())) return;
+  await page.goto(BASE + 'new.html');
+  await pageReady(page);
+}
+async function pickWorld(page, id) {
+  await toNewGame(page);
+  await page.selectOption('#scenarioSelect', id);
+}
 // Act is only enabled at the end of a scene or after choosing "Step in here",
 // so unless a test picked a step-in point, read the scene to the end first.
 // New game loads the world before it starts, so wait for turn 0 on the scene
 // bar before acting (acting too early was silently ignored: the flaky
 // portraits check, 2026-10-20).
 const newGame = async (page) => {
+  await toNewGame(page);
   await page.click('#btnNew');
-  await page.waitForFunction(() => /turn 0$/.test(document.getElementById('sceneBar').textContent.trim()));
+  await page.waitForFunction(() => /play\.html/.test(location.pathname) && /turn 0$/.test(((document.getElementById('sceneBar') || {}).textContent || '').trim()));
 };
-const turnDone = (page) => page.waitForFunction(() => !document.getElementById('btnNew').disabled, null, { timeout: 15000 });
+const turnDone = (page) => page.waitForFunction(() => document.getElementById('btnAct') && !window.Ensemble.UI.busy, null, { timeout: 15000 });
 const act = async (page, text, step) => {
   if (!(await page.locator('button[data-cut].active').count())) {
     while (await page.locator('button[data-next]').count()) await page.click('button[data-next]');
@@ -196,7 +211,7 @@ await check('undo and reroll', async (page) => {
 // Task 5-7: lore packs from packs/, turned on per world in the picker.
 await check('lore packs: only for their world, ticked in the picker, in the game and its Debug notes', async (page) => {
   assert.equal(await page.isVisible('#btnPacks'), false, 'Ares Deep has no packs');
-  await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+  await pickWorld(page, 'server:zombie-holdout');
   await page.waitForSelector('#btnPacks:not(.hidden)');
   assert.equal(await page.textContent('#btnPacks'), 'Lore packs');
   await page.click('#btnPacks');
@@ -209,8 +224,9 @@ await check('lore packs: only for their world, ticked in the picker, in the game
   await sceneReady(page);
   await page.click('#btnDebug');
   assert.match(await page.textContent('#debugBody'), /lore packs: Harmon County life/);
-  // Remembered for the world after a reload.
-  await page.reload();
+  // Remembered for the world on the next New game.
+  await page.goto(BASE + 'new.html');
+  await pageReady(page);
   await page.waitForSelector('#btnPacks:not(.hidden)');
   assert.equal(await page.textContent('#btnPacks'), 'Lore packs (1)');
 });
@@ -348,7 +364,7 @@ await check('a scene that runs long stops at a paragraph, and KoboldCpp is told 
 // Task R-10: a trip longer than the step stops on the way, says what is left,
 // and Travel there goes on with it.
 await check('a trip longer than the step stops on the way, and Travel there goes on', async (page) => {
-  await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+  await pickWorld(page, 'server:zombie-holdout');
   await newGame(page);
   assert.ok(await page.locator('#btnTravel').evaluate((b) => b.classList.contains('hidden')), 'no trip, no button');
   await act(page, 'I drive to Ridge.', 'moment');
@@ -364,7 +380,7 @@ await check('a trip longer than the step stops on the way, and Travel there goes
 
 // Task G-11: the map follows the player's trip beat by beat, not only at the end of the turn.
 await check('the map shows the player along the way while a trip is read beat by beat', async (page) => {
-  await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+  await pickWorld(page, 'server:zombie-holdout');
   await newGame(page);
   await act(page, 'I drive to Ridge.', 'hour');
   const here = async () => (await page.locator('#mapList li', { hasText: '(you are here)' }).first().textContent()).split(' (you are here)')[0];
@@ -380,8 +396,8 @@ await check('the map shows the player along the way while a trip is read beat by
 // Also writes the sample fixture when run as `npm run fixture:mock`.
 await check('record a session and export it as a fixture', async (page) => {
   // A key and a private URL that must never reach the recording.
-  await page.evaluate(() => Object.assign(window.Ensemble.settings.backends.external, { key: 'sk-secret-test', url: 'https://private-tunnel.example/v1' }));
   await newGame(page);
+  await page.evaluate(() => Object.assign(window.Ensemble.settings.backends.external, { key: 'sk-secret-test', url: 'https://private-tunnel.example/v1' }));
   await page.click('#btnDebug');
   assert.ok(await page.locator('#btnExportRec').isDisabled(), 'nothing to export yet');
   await page.click('#btnRecord');
@@ -414,7 +430,7 @@ await check('record a session and export it as a fixture', async (page) => {
 
 await check('first run: setup picks a hosted model and opens its settings', async (page) => {
   await page.evaluate(() => window.Ensemble.Prefs.remove('ensemble.setupDone'));
-  await page.reload();
+  await page.goto(BASE);
   await page.waitForSelector('#setup[open]');
   await page.waitForFunction(() => /KoboldCpp is running here/.test(document.getElementById('setupLocal').textContent));
   await page.click('#setup button[value="external"]');
@@ -424,10 +440,10 @@ await check('first run: setup picks a hosted model and opens its settings', asyn
   assert.equal(await page.evaluate(() => document.activeElement.className), 'bKey', 'cursor in the API key field');
   assert.match(await page.textContent('#sSetupNote'), /Paste your API key/);
   await page.click('#sBack');
-  await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
+  await pageReady(page);
   assert.equal(await page.evaluate(() => window.Ensemble.settings.routing.narrate), 'external', 'the game has the setup\'s routing');
   await page.reload();
-  await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
+  await pageReady(page);
   assert.equal(await page.locator('#setup[open]').count(), 0, 'asked only once');
 });
 
@@ -452,7 +468,7 @@ await check('settings: API key errors and hybrid routing', async (page) => {
   await page.click('button[data-route="hybrid"]');
   await page.waitForFunction(() => document.getElementById('sStatus').textContent === 'Saved.');
   await page.click('#sBack');
-  await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
+  await pageReady(page);
   await newGame(page);
   await act(page, 'Ask Teo about the rattle.');
   await act(page, 'Nod.', 'moment');
@@ -468,8 +484,9 @@ await check('settings: API key errors and hybrid routing', async (page) => {
 });
 
 await check('major-event skip with an empty plan', async (page) => {
-  await page.evaluate(() => { window.Ensemble.rng = () => 0.995; });
   await newGame(page);
+  // On the game page: New game is another page, with its own copy of the engine.
+  await page.evaluate(() => { window.Ensemble.rng = () => 0.995; });
   await page.selectOption('#timeStep', 'major');
   assert.match(await page.getAttribute('#actionInput', 'placeholder'), /downtime/);
   await page.click('#btnAct');
@@ -511,12 +528,12 @@ await check('pick a world, then a start, and play a turn', async (page) => {
   assert.match(await page.textContent('#log'), /battery pack/, "Priya's opening");
   await act(page, 'Look around.');
   assert.equal(await page.locator('.entry.action').count(), 1);
-  // remembered after a reload
-  await page.reload();
-  await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
+  // remembered on the next New game
+  await page.goto(BASE + 'new.html');
+  await pageReady(page);
   assert.equal(await page.inputValue('#startSelect'), 'garage');
   // a world with one start skips the start step, unless it can also generate one (task 4-2)
-  await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+  await pickWorld(page, 'server:zombie-holdout');
   assert.deepEqual(await page.locator('#startSelect option').evaluateAll((els) => els.map((e) => e.value)), ['herd', '__generate'], 'its start, or make one');
   assert.equal(await page.inputValue('#startSelect'), 'herd');
   assert.match(await page.textContent('#pickInfo'), /Jordan Pike/);
@@ -530,7 +547,7 @@ await check('a broken start shows its error in the picker instead of starting', 
     await route.fulfill({ response: res, json: st });
   });
   await page.reload();
-  await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
+  await pageReady(page);
   await page.selectOption('#startSelect', 'garage');
   assert.match(await page.textContent('#startSelect option[value="garage"]'), /has errors/);
   assert.match(await page.textContent('#pickInfo'), /can't be played[\s\S]*unknown location "orbit"/);
@@ -551,7 +568,7 @@ const makerOpen = async (page) => {
   await page.click('#btnNew');
   await page.waitForSelector('#makerDialog[open]');
 };
-const gameStarted = (page) => page.waitForFunction(() => /turn 0$/.test(document.getElementById('sceneBar').textContent.trim()));
+const gameStarted = (page) => page.waitForFunction(() => /turn 0$/.test(((document.getElementById('sceneBar') || {}).textContent || '').trim()));
 
 await check('make my own character and play a turn', async (page) => {
   assert.ok(await page.isVisible('#whoSelect'), 'the recycler start has a player slot');
@@ -602,7 +619,7 @@ await check('make my own character and play a turn', async (page) => {
 });
 
 await check('phone: make my own character and play a turn', async (page) => {
-  await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+  await pickWorld(page, 'server:zombie-holdout');
   const who = await page.locator('#whoSelect').boundingBox();
   assert.ok(who && who.x + who.width <= 390, 'who you play: a third stacked select, on screen');
   await page.selectOption('#whoSelect', 'own');
@@ -629,7 +646,7 @@ await check('phone: make my own character and play a turn', async (page) => {
 await check('start anywhere in a big world: search, the map, Surprise me; a branch shut out can\'t be picked', async (page) => {
   await page.setInputFiles('#folderInput', path.join(here, 'fixtures', 'open-galaxy'));
   await page.waitForFunction(() => [...document.querySelectorAll('#scenarioSelect option')].some((o) => o.value === 'stored:open-galaxy'));
-  await page.selectOption('#scenarioSelect', 'stored:open-galaxy');
+  await pickWorld(page, 'stored:open-galaxy');
   await page.click('#btnNew');
   await page.waitForSelector('#genDialog[open]');
   assert.equal(await page.locator('input[name="gen-region"]').count(), 0, 'not the plain list');
@@ -672,7 +689,7 @@ await check('start anywhere in a big world: search, the map, Surprise me; a bran
 
 // Task 4-2: generated starts.
 const genOpen = async (page) => {
-  await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+  await pickWorld(page, 'server:zombie-holdout');
   await page.selectOption('#startSelect', '__generate');
   await page.click('#btnNew');
   await page.waitForSelector('#genDialog[open]');
@@ -682,7 +699,7 @@ const genDone = (page) => page.waitForSelector('#genPlay', { timeout: 20000 });
 // Task 7-4: a start in a region with one of the world's drawn places begins there.
 // Task 7-6: a start's whole cast is playable.
 await check('the frontier: play Salt Lick as anyone in its cast', async (page) => {
-  await page.selectOption('#scenarioSelect', 'server:frontier');
+  await pickWorld(page, 'server:frontier');
   await page.selectOption('#startSelect', 'salt-lick');
   const who = await page.locator('#whoSelect option').evaluateAll((els) => els.map((e) => e.textContent));
   assert.deepEqual(who, ['Play as Hollis Brandt', 'Play as Rosa Delgado, owner of the Drovers\' Rest', 'Play as Amos Tull, speculator who built the shipping pens',
@@ -695,7 +712,7 @@ await check('the frontier: play Salt Lick as anyone in its cast', async (page) =
 });
 
 await check('the frontier: make my own start in Salt Lick, and play on its drawn town plan', async (page) => {
-  await page.selectOption('#scenarioSelect', 'server:frontier');
+  await pickWorld(page, 'server:frontier');
   await page.selectOption('#startSelect', '__generate');
   await page.click('#btnNew');
   await page.waitForSelector('#genDialog[open]');
@@ -725,7 +742,7 @@ await check('make my own start: generate a place and people, retry a failed step
     }
     return route.continue();
   });
-  await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+  await pickWorld(page, 'server:zombie-holdout');
   assert.ok(await page.isVisible('#startSelect'), 'the holdout now has a start to pick: its own, or make one');
   await page.selectOption('#startSelect', '__generate');
   assert.ok(!(await page.isVisible('#whoSelect')));
@@ -761,7 +778,7 @@ await check('make my own start: generate a place and people, retry a failed step
 
 // A world the player describes (customSetting): the bundled blank world.
 await check('your own story: describe a world, generate a start there, review its setting and play', async (page) => {
-  await page.selectOption('#scenarioSelect', 'server:your-story');
+  await pickWorld(page, 'server:your-story');
   await page.click('#btnNew');
   await page.waitForSelector('#genDialog[open]');
   await page.check('input[name="gen-mode"][value="line"]');
@@ -849,7 +866,7 @@ await check('phone: make my own start with the character form, and resume it aft
   // closed without playing, and the page reloaded: the finished start waits
   await page.click('#genClose');
   await page.reload();
-  await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
+  await pageReady(page);
   await genOpen(page);
   assert.match(await page.textContent('.gen-resume'), /finished start you haven't played/);
   await page.click('#genResume');
@@ -861,7 +878,7 @@ await check('phone: make my own start with the character form, and resume it aft
 
 // Task 4-4: generated sites.
 await check('go somewhere new: the engine builds the place, the map shows it, Debug says why', async (page) => {
-  await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+  await pickWorld(page, 'server:zombie-holdout');
   await page.selectOption('#startSelect', 'herd');
   await newGame(page);
   await act(page, 'I head to the pharmacy on Main Street for antibiotics.');
@@ -891,7 +908,7 @@ await check('phone: pick a world and a start, and play a turn', async (page) => 
   const world = await page.locator('#scenarioSelect').boundingBox();
   const start = await page.locator('#startSelect').boundingBox();
   assert.ok(start && start.y > world.y && start.x + start.width <= 390, 'two stacked selects, on screen');
-  assert.ok(!(await page.isVisible('#pickInfo')), 'no summaries on a phone');
+  assert.ok(await page.isVisible('#pickInfo'), 'New game has room for the summary on a phone too');
   await page.selectOption('#startSelect', 'garage');
   await newGame(page);
   await sceneReady(page);
@@ -931,7 +948,7 @@ async function withPortraits(page) {
   }
   await page.route('**/scenarios/mars-station/portraits/okafor.png', (route) => route.fulfill({ status: 200, contentType: 'image/png', body: PNG_1PX }));
   await page.reload();
-  await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
+  await pageReady(page);
 }
 const card = (page, name) => page.locator('#cast .card', { hasText: name });
 
@@ -1063,7 +1080,7 @@ await check('the map sits beside the story, switches views, and clicking fills i
   await page.click('.view-switch button[data-view="text"]');
   assert.ok((await page.isVisible('#log')) && !(await page.isVisible('#mapPane')), 'text only');
   await page.reload();
-  await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
+  await pageReady(page);
   await sceneReady(page);
   assert.ok(!(await page.isVisible('#mapPane')), 'the view is remembered for this world');
   await page.click('.view-switch button[data-view="split"]');
@@ -1071,7 +1088,7 @@ await check('the map sits beside the story, switches views, and clicking fills i
 });
 
 await check('phone: the map button swaps the story for the map', async (page) => {
-  await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+  await pickWorld(page, 'server:zombie-holdout');
   await newGame(page);
   await sceneReady(page);
   assert.ok(!(await page.isVisible('#mapPane')), 'story first on a phone');
@@ -1090,7 +1107,7 @@ await check('phone: the map button swaps the story for the map', async (page) =>
 // and without (Ares Deep). Since R-3 the levels are the zooming map's: the
 // world (root) and the player's region (a leaf, zoomed as the Region view was).
 await check('world and regional views: regions by who holds them, the info strip, zoom', async (page) => {
-  await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+  await pickWorld(page, 'server:zombie-holdout');
   await newGame(page);
   await sceneReady(page);
   await page.click('[data-maplevel="root"]');
@@ -1132,7 +1149,7 @@ await check('world and regional views: regions by who holds them, the info strip
   assert.match(await page.textContent('#mapPane'), /forklift/);
   // Ares Deep has its own map image (the Hellas rim) since the coffee-skips playtest;
   // the node map for worlds without one is covered in worldmap.test.js.
-  await page.selectOption('#scenarioSelect', 'server:mars-station');
+  await pickWorld(page, 'server:mars-station');
   await newGame(page);
   await sceneReady(page);
   await page.click('[data-maplevel="root"]');
@@ -1148,7 +1165,7 @@ await check('world and regional views: regions by who holds them, the info strip
 });
 
 await check('phone: the world view fits and the level switch works', async (page) => {
-  await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+  await pickWorld(page, 'server:zombie-holdout');
   await newGame(page);
   await sceneReady(page);
   await page.click('#btnMapPhone');
@@ -1171,17 +1188,17 @@ await check('phone: the world view fits and the level switch works', async (page
 // (the convoy and the Ridge); Ares Deep's lava tube is hidden until the
 // story reveals it, then it is on the map.
 await check('presence and unknown regions: a contested junction, a hidden lava tube', async (page) => {
-  await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+  await pickWorld(page, 'server:zombie-holdout');
   await newGame(page);
   await sceneReady(page);
   await page.click('[data-maplevel="root"]');
   assert.ok(await page.locator('.region-g[data-region="junction"] .region-shape.contested').count(), 'drawn as contested');
   await page.locator('.region-g[data-region="junction"] .region-shape').click({ position: { x: 60, y: 40 } });
   assert.match(await page.textContent('#regionInfo'), /present: Coastal rescue convoy \(some\), The Ridge \(a little\); contested/);
-  await page.selectOption('#scenarioSelect', 'server:mars-station');
+  await pickWorld(page, 'server:mars-station');
   await newGame(page);
   // The holdout's scene also ended on turn 0: wait for the station's.
-  await page.waitForFunction(() => /Ares Deep/.test(document.getElementById('sceneBar').textContent));
+  await page.waitForFunction(() => /Ares Deep/.test(((document.getElementById('sceneBar') || {}).textContent || '')));
   await page.click('[data-maplevel="root"]');
   assert.equal(await page.locator('.region-g[data-region="lava-tube"]').count(), 0, 'hidden: not on the map');
   assert.ok(!/lava/i.test(await page.textContent('#mapPane')));
@@ -1199,7 +1216,7 @@ await check('presence and unknown regions: a contested junction, a hidden lava t
 // without (the same world with its picture taken out: node maps of each
 // level's children and their routes); travel buttons fill the action box.
 await check('the zooming map: breadcrumb, levels with and without a picture, travel buttons', async (page) => {
-  await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+  await pickWorld(page, 'server:zombie-holdout');
   await newGame(page);
   await sceneReady(page);
   await page.click('[data-maplevel="local"]');
@@ -1353,10 +1370,10 @@ await check('creator: draw a region on a map image, export, and play the export'
   assert.equal(audit.onBroken, 'diverge');
   // Play it: open the exported folder in the game and look at the world map.
   await page.goto(BASE);
-  await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
+  await pageReady(page);
   await page.setInputFiles('#folderInput', path.join(out, 'mars-station'));
   await page.waitForFunction(() => [...document.querySelectorAll('#scenarioSelect option')].some((o) => o.value === 'stored:mars-station'));
-  await page.selectOption('#scenarioSelect', 'stored:mars-station');
+  await pickWorld(page, 'stored:mars-station');
   await newGame(page);
   await sceneReady(page);
   await page.click('[data-maplevel="root"]');
@@ -1509,10 +1526,14 @@ await check('creator: a new world from nothing, test played and exported', async
   const [game] = await Promise.all([page.context().waitForEvent('page'), page.click('#cTest')]);
   game.on('pageerror', (e) => { throw e; });
   await game.waitForFunction(() => /turn 0$/.test(((document.getElementById('sceneBar') || {}).textContent || '').trim()), null, { timeout: 15000 });
-  assert.equal(await game.inputValue('#scenarioSelect'), 'test:harbor-watch');
+  assert.match(game.url(), /play\.html\?testplay/);
+  assert.match(await game.title(), /^Test play: /);
   assert.match(await game.textContent('#log'), /harbor bell rings twice/);
   await act(game, 'I walk over to Ana.');
   assert.deepEqual(await game.evaluate(() => window.Ensemble.Saves.list()), [], "test play leaves the player's own game alone");
+  // A refresh keeps the test game, in its own slot.
+  await game.reload();
+  await game.waitForFunction(() => /turn 1$/.test(((document.getElementById('sceneBar') || {}).textContent || '').trim()));
   await game.close();
   // Export: the zip loads as a world, and its start plays.
   const [download] = await Promise.all([page.waitForEvent('download'), page.click('#cExport')]);
@@ -1683,11 +1704,11 @@ await check('creator: draw a site map on a battlemap, save it to the world, and 
   assert.ok(fs.existsSync(path.join(out, 'zombie-holdout', 'sites', 'new-site.svg')), 'the image is in the export');
   // Play it.
   await page.goto(BASE);
-  await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
+  await pageReady(page);
   await page.setInputFiles('#folderInput', path.join(libDir, 'new-site-library'));
   await page.setInputFiles('#folderInput', path.join(out, 'zombie-holdout'));
   await page.waitForFunction(() => [...document.querySelectorAll('#scenarioSelect option')].some((o) => o.value === 'stored:zombie-holdout'));
-  await page.selectOption('#scenarioSelect', 'stored:zombie-holdout');
+  await pickWorld(page, 'stored:zombie-holdout');
   await page.selectOption('#startSelect', 'herd');
   await newGame(page);
   await act(page, 'I head to the tavern on Main Street.');
@@ -1787,7 +1808,7 @@ await check('the floor plan zooms and pans: the drawn school and the laid-out do
     const { state } = helpers.newGame('seiryo-high', start);
     state.characters[state.player].status.location = room;
     await page.setInputFiles('#loadInput', { name: `${start}.json`, mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(state)) });
-    await page.waitForFunction(() => /turn 0$/.test(document.getElementById('sceneBar').textContent.trim()));
+    await page.waitForFunction(() => /turn 0$/.test(((document.getElementById('sceneBar') || {}).textContent || '').trim()));
     await page.click('.view-switch button[data-view="map"]');
     await page.click('[data-maplevel="local"]');
     await page.waitForSelector(`#siteSvg${kind.replace('svg', '')}`);
@@ -1810,8 +1831,8 @@ await check('the floor plan zooms and pans: the drawn school and the laid-out do
 
 // Screen readers hear each new beat from a polite live region.
 await check('screen readers hear each new beat', async (page) => {
-  assert.equal(await page.getAttribute('#srAnnounce', 'aria-live'), 'polite');
   await newGame(page);
+  assert.equal(await page.getAttribute('#srAnnounce', 'aria-live'), 'polite');
   await page.fill('#actionInput', 'Look around.');
   await page.click('#btnAct');
   await turnDone(page);
@@ -1857,7 +1878,7 @@ await check('appearance: themes, text size and story font apply on return from S
   assert.equal(await rootAttr(page, 'data-motion'), 'reduce');
   await page.screenshot({ path: path.join(shots, 'appearance-light-150.png') });
   await page.reload();
-  await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
+  await pageReady(page);
   assert.equal(await rootAttr(page, 'data-theme'), 'light', 'saved and applied on load');
   assert.equal(await rootAttr(page, 'data-spacing'), 'relaxed');
 });
@@ -1866,7 +1887,7 @@ await check('appearance: themes, text size and story font apply on return from S
 // detail: simple" draws the boxes.
 for (const phone of [false, true]) {
   await check(`${phone ? 'phone: ' : ''}the detailed map in every theme, and the simple one`, async (page) => {
-    await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+    await pickWorld(page, 'server:zombie-holdout');
     await newGame(page);
     await sceneReady(page);
     if (phone) await page.click('#btnMapPhone');
@@ -1895,7 +1916,7 @@ await check('phone: high visibility at 150% fits the screen', async (page) => {
   await act(page, 'Look around.');
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   assert.ok(overflow <= 0, `no sideways scrolling (${overflow}px too wide)`);
-  for (const id of ['#btnSettings', '#btnNew', '#btnAct', '#btnUndo', '#btnSide']) {
+  for (const id of ['#btnSettings', '#btnNewGame', '#btnAct', '#btnUndo', '#btnSide']) {
     const b = await page.locator(id).boundingBox();
     assert.ok(b && b.x >= 0 && b.x + b.width <= 390, `${id} is on screen`);
   }
@@ -1909,8 +1930,7 @@ await check('phone: high visibility at 150% fits the screen', async (page) => {
 await check('a new game gets its own save; a reload resumes the newest; Load adds one', async (page) => {
   await newGame(page);
   await act(page, 'I open up the recycler.');
-  page.once('dialog', (d) => d.accept());
-  await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+  await pickWorld(page, 'server:zombie-holdout');
   await newGame(page);
   const list = () => page.evaluate(() => window.Ensemble.Saves.list());
   await page.waitForFunction(async () => (await window.Ensemble.Saves.list()).length === 2);
@@ -1963,12 +1983,15 @@ await check('an old autosave and old settings move over and play on', async (pag
   page.on('pageerror', (e) => errors.push(String(e)));
   try {
     await page.goto(BASE);
-    await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
+    await pageReady(page);
     assert.match(await page.textContent('#storeNotice'), /isn't letting Ensemble keep anything/);
-    await newGame(page);
-    await act(page, 'I open up the recycler.');
+    // With nothing kept, a game can't move from New game to the game page (task A-6): it says so.
+    await page.click('#btnNew');
+    await page.waitForFunction(() => /play\.html/.test(location.pathname) && document.body.dataset.ready === '1');
+    assert.match(await page.textContent('#log'), /isn't keeping anything[\s\S]*normal window/);
+    assert.match(await page.textContent('#storeNotice'), /isn't letting Ensemble keep anything/);
     assert.deepEqual(errors, []);
-    console.log('✓ IndexedDB blocked: the game still plays, and says nothing is kept');
+    console.log('✓ IndexedDB blocked: it says plainly that nothing is kept, and a game can not move between pages');
   } catch (e) { failures++; console.error('✕ IndexedDB blocked\n  ' + e.message); }
   await ctx.close();
 }
@@ -1996,7 +2019,7 @@ await check('an old autosave and old settings move over and play on', async (pag
   const page = await ctx.newPage();
   try {
     await page.goto(BASE);
-    await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
+    await pageReady(page);
     assert.deepEqual(await page.locator('#scenarioSelect option').evaluateAll((els) => els.map((o) => o.value)), ['fake:one']);
     await newGame(page);
     await act(page, 'I open up the recycler.');
@@ -2019,7 +2042,7 @@ const fileUrl = (name) => pathToFileURL(path.join(here, '..', name)).href;
   const page = await ctx.newPage();
   try {
     await page.goto(fileUrl('index.html'));
-    await page.waitForFunction(() => window.Ensemble.Prefs.ready());
+    await page.waitForFunction(() => window.Ensemble && window.Ensemble.Prefs && window.Ensemble.Prefs.ready());
     await page.waitForFunction(() => !document.querySelector('iframe[src="storecheck.html"]'));
     assert.equal(await page.locator('#storeNotice').count(), 0);
     console.log('✓ from disk in Chromium: pages share storage, no notice');
@@ -2034,14 +2057,14 @@ const fileUrl = (name) => pathToFileURL(path.join(here, '..', name)).href;
   page.on('pageerror', (e) => errors.push(String(e)));
   try {
     await page.goto(fileUrl('index.html'));
-    await page.waitForFunction(() => window.Ensemble.Prefs.ready());
+    await pageReady(page);
     await page.click('#btnSettings');
     await settingsReady(page);
     await openSection(page, 'appearance');
     await page.selectOption('#aTheme', 'light');
     await page.waitForFunction(() => document.getElementById('sStatus').textContent === 'Saved.');
     await page.click('#sBack');
-    await page.waitForFunction(() => document.getElementById('btnNew') && window.Ensemble && window.Ensemble.Prefs && window.Ensemble.Prefs.ready());
+    await pageReady(page);
     assert.equal(await page.getAttribute('html', 'data-theme'), 'light');
     assert.equal(await page.evaluate(() => window.Ensemble.settings.appearance.theme), 'light');
     assert.deepEqual(errors, []);
@@ -2063,7 +2086,7 @@ const fileUrl = (name) => pathToFileURL(path.join(here, '..', name)).href;
     await page.waitForFunction(() => /world=stored/.test(location.search));
     await page.goto(fileUrl('index.html'));
     await page.waitForSelector('#scenarioSelect option[value="stored:zombie-holdout"]', { state: 'attached' });
-    await page.selectOption('#scenarioSelect', 'stored:zombie-holdout');
+    await pickWorld(page, 'stored:zombie-holdout');
     await newGame(page);
     await act(page, 'I look around.');
     assert.deepEqual(errors, []);
@@ -2079,7 +2102,7 @@ const fileUrl = (name) => pathToFileURL(path.join(here, '..', name)).href;
   page.on('pageerror', (e) => errors.push(String(e)));
   try {
     await page.goto(fileUrl('index.html'));
-    await page.waitForFunction(() => window.Ensemble.Prefs.ready());
+    await pageReady(page);
     await page.setInputFiles('#folderInput', path.join(here, '..', 'scenarios', 'zombie-holdout'));
     await page.waitForFunction(() => document.querySelector('#scenarioSelect option[value^="stored:"]'));
     await newGame(page);
@@ -2121,7 +2144,7 @@ await check('Save downloads the game without its undo copy, and Load brings it b
   assert.equal(saved.undo, undefined);
   await act(page, 'I look around.');
   await page.setInputFiles('#loadInput', { name: 'game.json', mimeType: 'application/json', buffer: Buffer.from(text) });
-  await page.waitForFunction(() => /turn 1$/.test(document.getElementById('sceneBar').textContent.trim()));
+  await page.waitForFunction(() => /turn 1$/.test(((document.getElementById('sceneBar') || {}).textContent || '').trim()));
 });
 
 await check('Load refuses a file that is not a save', async (page) => {
@@ -2153,11 +2176,15 @@ await check('phone: the side sheet opens and closes', async (page) => {
   await page.waitForFunction(() => !document.querySelector('#side.open'));
 });
 
-await check('the top bar keeps every control, and Creator opens in a new tab', async (page) => {
-  for (const id of ['scenarioSelect', 'startSelect', 'whoSelect', 'btnNew', 'folderInput', 'conn', 'btnSave', 'loadInput', 'btnDebug', 'btnSettings']) assert.equal(await page.locator('header.topbar #' + id).count(), 1, id);
+await check('New game and the game keep every control, and Creator opens in a new tab', async (page) => {
+  for (const id of ['scenarioSelect', 'startSelect', 'whoSelect', 'btnNew', 'btnPacks']) assert.equal(await page.locator('#newForm #' + id).count(), 1, id);
+  for (const id of ['folderInput', 'loadInput', 'conn', 'btnSettings']) assert.equal(await page.locator('header.topbar #' + id).count(), 1, id);
+  assert.equal(await page.getAttribute('header.topbar a[href="creator.html"]', 'target'), '_blank');
+  await newGame(page);
+  for (const id of ['btnNewGame', 'conn', 'btnSave', 'loadInput', 'btnDebug', 'btnSettings']) assert.equal(await page.locator('header.topbar #' + id).count(), 1, id);
   await page.waitForFunction(() => /test\/story|koboldcpp|●/.test(document.getElementById('conn').textContent));
-  const link = page.locator('header.topbar a[href="creator.html"]');
-  assert.equal(await link.getAttribute('target'), '_blank');
+  assert.equal(await page.getAttribute('header.topbar a[href="creator.html"]', 'target'), '_blank');
+  assert.equal(await page.locator('header.topbar a[href="index.html"]').count(), 0, 'no Game link on the game');
 });
 
 await check('phone: the top bar stays as it was: no title and no Creator link', async (page) => {
@@ -2183,7 +2210,7 @@ await check('the theme button changes the theme, keeps it, and leaves other sett
   await page.waitForFunction(async () => /"theme":"hv"/.test(await window.Ensemble.Store.get('ensemble.settings')));
   assert.equal(await page.evaluate(async () => JSON.parse(await window.Ensemble.Store.get('ensemble.settings')).temperature), 0.11);
   await page.reload();
-  await page.waitForFunction(() => document.querySelectorAll('#scenarioSelect option').length > 0);
+  await pageReady(page);
   assert.equal(await page.getAttribute('html', 'data-theme'), 'hv');
   await page.click('#btnSettings');
   await settingsReady(page);
@@ -2197,7 +2224,97 @@ await check('creator: the header has the status and the theme button, and the th
   await page.waitForFunction(async () => /"theme":"light"/.test(await window.Ensemble.Store.get('ensemble.settings')));
   assert.equal(await page.getAttribute('header.topbar #btnSettings', 'target'), '_blank', 'Settings opens beside the creator, whose working copy isn\'t kept');
   await page.goto(BASE);
+  await pageReady(page);
   assert.equal(await page.getAttribute('html', 'data-theme'), 'light');
+});
+
+// New game and the game as their own pages (task A-6).
+await check('a refresh during a model call goes back to the start of the turn, never half of it', async (page) => {
+  await newGame(page);
+  await act(page, 'I open up the recycler.');
+  while (await page.locator('button[data-next]').count()) await page.click('button[data-next]');
+  await page.waitForFunction(async () => (await window.Ensemble.Saves.last()).turn === 1);
+  const saved = () => page.evaluate(() => window.Ensemble.Store.get('save.' + window.Ensemble.UI.saveId));
+  const before = await saved();
+  // The model never answers this turn's first call.
+  let held = false;
+  await page.route('http://localhost:5001/v1/chat/completions', () => { held = true; });
+  await page.fill('#actionInput', 'I check the pressure gauge.');
+  await page.click('#btnAct');
+  while (!held) await page.waitForTimeout(50);
+  assert.ok(await page.evaluate(() => window.Ensemble.UI.busy), 'mid-turn');
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+  await page.reload();
+  await sceneReady(page);
+  assert.equal(await saved(), before, 'the save is the turn\'s start, byte for byte');
+  assert.match(await page.textContent('#sceneBar'), /turn 1$/);
+  await act(page, 'I check the pressure gauge.');
+  assert.match(await page.textContent('#sceneBar'), /turn 2$/, 'and it plays on');
+});
+
+await check('the game page with no save, or one that is not here, says so and links on', async (page) => {
+  await page.goto(BASE + 'play.html');
+  await pageReady(page);
+  assert.match(await page.textContent('#log'), /No game is open/);
+  assert.ok(await page.locator('#log a[href="new.html"]').count() && await page.locator('#log a[href="library.html"]').count());
+  await page.goto(BASE + 'play.html?save=nope');
+  await pageReady(page);
+  assert.match(await page.textContent('#log'), /isn't in this browser/);
+  assert.ok(await page.locator('#actionInput').isDisabled());
+});
+
+await check('old links land somewhere useful: index.html opens the last game, a save, or New game with a world picked', async (page) => {
+  assert.match(page.url(), /new\.html$/, 'no saves yet: New game');
+  await newGame(page);
+  const id = await page.evaluate(() => window.Ensemble.UI.saveId);
+  await page.goto(BASE);
+  await sceneReady(page);
+  assert.equal(new URL(page.url()).pathname + new URL(page.url()).search, `/play.html?save=${id}`, 'the last game');
+  await page.goto(BASE + `index.html?save=${id}`);
+  await sceneReady(page);
+  assert.ok(page.url().endsWith(`/play.html?save=${id}`), page.url());
+  await page.goto(BASE + 'index.html?world=server:zombie-holdout&start=herd');
+  await pageReady(page);
+  assert.match(page.url(), /new\.html\?world=/);
+  assert.equal(await page.inputValue('#scenarioSelect'), 'server:zombie-holdout');
+  assert.equal(await page.inputValue('#startSelect'), 'herd');
+  await page.goBack();
+  assert.ok(!/index\.html/.test(page.url()), 'Back never bounces through the doorway');
+});
+
+for (const phone of [false, true]) {
+  await check(`${phone ? 'phone: ' : ''}New game in every theme, with nothing off the screen`, async (page) => {
+    await pickWorld(page, 'server:mars-station');
+    for (const theme of ['light', 'hv', 'dark']) {
+      await page.evaluate((t) => window.EnsembleAppearance({ theme: t }), theme);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      assert.ok(overflow <= 0, `${theme}: no sideways scrolling (${overflow}px too wide)`);
+      await page.screenshot({ path: path.join(shots, `new-game-${phone ? 'phone-' : ''}${theme}.png`) });
+    }
+    const b = await page.locator('#btnNew').boundingBox();
+    assert.ok(b && b.x >= 0 && b.x + b.width <= (phone ? 390 : 1360), 'Start is on screen');
+  });
+}
+
+// Carried over from B-10: the journal's arcs, each holding its chapters.
+await check('the journal shows arcs folded with their chapters inside', async (page) => {
+  const { state } = helpers.newGame('mars-station');
+  for (let n = 1; n <= 7; n++) state.chapters.push({ n, title: `Chapter title ${n}`, summary: `What happened in chapter ${n}.`, fromTurn: (n - 1) * 5 + 1, toTurn: n * 5, reason: 'size', arc: n <= 6 ? 1 : undefined });
+  state.arcs = [{ n: 1, from: 1, to: 6, title: 'The long winter', summary: 'Six chapters of rationing and suspicion.', fromTurn: 1, toTurn: 30 }];
+  state.chapter = 8;
+  state.turn = 36;
+  await page.setInputFiles('#loadInput', { name: 'arcs.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(state)) });
+  await sceneReady(page);
+  const top = await page.locator('#journal > details.journal-entry').evaluateAll((ds) => ds.map((d) => [d.dataset.journal, d.open, d.querySelector('summary').textContent]));
+  assert.deepEqual(top.map(([k, open]) => [k, open]), [['7', true], ['a1', false], ['0', false]], 'the latest chapter open, the arc folded, the past last');
+  assert.match(top[1][2], /1–6\. The long winter\s*turns 1–30/);
+  await page.click('#journal details[data-journal="a1"] > summary');
+  assert.match(await page.textContent('#journal details[data-journal="a1"]'), /Six chapters of rationing[\s\S]*Chapter title 6[\s\S]*Chapter title 1/);
+  assert.equal(await page.locator('#journal details[data-journal="a1"] details.journal-entry').count(), 6, 'its six chapters inside, newest first');
+  await page.locator('#journal').screenshot({ path: path.join(shots, 'journal-arcs.png') });
+  await page.reload();
+  await sceneReady(page);
+  assert.equal(await page.locator('#journal details[data-journal="a1"]').evaluate((d) => d.open), false, 'folded again after a reload');
 });
 
 // The library page (task A-5).
@@ -2228,8 +2345,8 @@ await check('library: a world opened from a folder is kept, once, plays, and its
   await page.goto(BASE + 'library.html?world=stored:zombie-holdout');
   await libraryReady(page);
   await page.locator('#lDetails [data-play]').first().click();
-  await page.waitForFunction(() => document.getElementById('scenarioSelect') && document.getElementById('scenarioSelect').value === 'stored:zombie-holdout');
-  assert.ok(!/world=/.test(page.url()), 'the address forgets the pick once made');
+  await page.waitForFunction(() => /new\.html/.test(location.pathname) && document.body.dataset.ready === '1');
+  assert.equal(await page.inputValue('#scenarioSelect'), 'stored:zombie-holdout', 'New game, with that world picked');
   await newGame(page);
   await act(page, 'I look around.');
   const id = await page.evaluate(() => window.Ensemble.UI.saveId);
@@ -2322,7 +2439,7 @@ await check('settings page: a change there is seen by the game on return, in the
   });
   await page.click('#btnSettings');
   await settingsReady(page);
-  assert.equal(new URL(page.url()).searchParams.get('back'), `index.html?save=${id}`);
+  assert.equal(new URL(page.url()).searchParams.get('back'), `play.html?save=${id}`);
   await openSection(page, 'story');
   await page.fill('#sTemp', '0.35');
   await page.waitForFunction(() => document.getElementById('sStatus').textContent === 'Saved.');
@@ -2341,8 +2458,7 @@ await check('settings page: a change there is seen by the game on return, in the
 await check('settings page: export all, delete all (named first), import all brings every save back', async (page) => {
   await newGame(page);
   await act(page, 'I open up the recycler.');
-  page.once('dialog', (d) => d.accept());
-  await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+  await pickWorld(page, 'server:zombie-holdout');
   await newGame(page);
   await page.waitForFunction(async () => (await window.Ensemble.Saves.list()).length === 2);
   const before = await page.evaluate(async () => JSON.stringify(await window.Ensemble.Saves.list()));

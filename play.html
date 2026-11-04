@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1a1d22">
+<title>Ensemble</title>
+<link rel="stylesheet" href="css/style.css">
+<script>
+// Appearance (Settings > Appearance), applied before first paint so the page
+// never flashes the wrong theme. The pages call it again when settings change.
+window.EnsembleAppearance = function (a) {
+  a = a || {};
+  var el = document.documentElement, mq = function (q) { try { return window.matchMedia(q).matches; } catch (e) { return false; } };
+  var theme = a.theme === 'system' ? (mq('(prefers-color-scheme: light)') ? 'light' : 'dark') : (a.theme || 'dark');
+  var motion = a.motion === 'on' || (a.motion !== 'off' && mq('(prefers-reduced-motion: reduce)')) ? 'reduce' : 'full';
+  el.setAttribute('data-theme', theme);
+  el.setAttribute('data-font', a.storyFont === 'sans' ? 'sans' : 'serif');
+  el.setAttribute('data-spacing', a.lineSpacing === 'relaxed' ? 'relaxed' : 'normal');
+  el.setAttribute('data-motion', motion);
+  el.style.setProperty('--text-scale', String(Math.min(150, Math.max(90, Number(a.textSize) || 100)) / 100));
+};
+try { window.EnsembleAppearance(JSON.parse(localStorage.getItem('ensemble.appearance')) || (JSON.parse(localStorage.getItem('ensemble.settings')) || {}).appearance); } catch (e) { window.EnsembleAppearance(); }
+</script>
+</head>
+<body>
+<header class="topbar">
+  <div class="group">
+    <a id="btnNewGame" class="btn" href="new.html" title="Start another game (this one stays saved)">New game</a>
+  </div>
+  <div class="spacer"></div>
+  <div class="group">
+    <button id="btnSave">Save</button>
+    <label class="btn" title="Open a saved game from a file">Load<input type="file" id="loadInput" accept=".json,application/json" hidden></label>
+    <button id="btnDebug">Debug</button>
+  </div>
+</header>
+
+<main class="layout">
+  <section class="story view-split" id="story">
+    <div class="story-head">
+      <div id="sceneBar" class="scene-bar"></div>
+      <div class="view-switch desktop-only" role="group" aria-label="Story and map">
+        <button type="button" data-view="text" title="Story only">Text</button><button type="button" data-view="split" title="Story and map side by side">Split</button><button type="button" data-view="map" title="Map only">Map</button>
+      </div>
+    </div>
+    <div class="story-body">
+    <div id="log" class="log">
+      <div class="empty">Loading your game…</div>
+    </div>
+    <div id="mapPane" class="map-pane" aria-label="Map of where you are"></div>
+    </div>
+    <form id="actionForm" class="action">
+      <textarea id="actionInput" rows="3" placeholder="What do you do? (Ctrl+Enter to act)"></textarea>
+      <div id="suggestions" class="suggestions hidden" aria-label="Suggested actions"></div>
+      <div class="action-row">
+        <select id="timeStep" title="How much time this action takes"></select>
+        <button type="button" id="btnMapPhone" class="mobile-only" aria-label="Map" title="Map" aria-pressed="false">🗺</button>
+        <button type="button" id="btnSide" class="mobile-only" aria-label="Situation, people and journal" title="Situation, people and journal">👥</button>
+        <span id="phase" class="phase"></span>
+        <button type="button" id="btnUndo" class="tool" aria-label="Undo last turn" title="Undo the last turn and put your action back in the box. Only one turn can be undone." disabled>↶<span class="lbl"> Undo</span></button>
+        <button type="button" id="btnReroll" class="tool" aria-label="Reroll scene" title="Rewrite this scene: same rolls, moves and events, new prose" disabled>⟳<span class="lbl"> Reroll</span></button>
+        <button type="button" id="btnTravel" class="tool hidden" aria-label="Travel there" title="Go on with the trip until you arrive, or something major happens">➜<span class="lbl"> Travel there</span></button>
+        <button type="button" id="btnSuggest" class="tool" aria-label="Suggest actions" title="Ask for a few ideas; clicking one puts it in the box" disabled>💡<span class="lbl"> Suggest</span></button>
+        <button type="submit" id="btnAct" class="primary">Act</button>
+      </div>
+    </form>
+  </section>
+
+  <aside class="side" id="side">
+    <div class="side-head mobile-only"><b>Situation &amp; people</b><button type="button" id="btnSideClose">Close</button></div>
+    <section class="panel"><h3>Situation</h3><div id="situation"></div></section>
+    <section class="panel" id="newsPanel"><h3>News</h3><div id="news"></div></section>
+    <section class="panel"><div class="panel-head"><h3 id="castTitle">People</h3><span class="head-tools"><button type="button" id="btnWeb" class="ghost small" title="Who feels what about whom">Web</button><button type="button" id="btnCollapseAll" class="ghost small">Collapse all</button></span></div><div id="cast"></div></section>
+    <section class="panel"><h3>Journal</h3><div id="journal"><div class="muted">Chapters appear here every few turns.</div></div></section>
+  </aside>
+</main>
+
+<section id="debug" class="debug hidden">
+  <div class="debug-head">
+    <b>Debug</b>
+    <span class="muted">Raw prompts, model output and what the engine accepted.</span>
+    <div class="spacer"></div>
+    <button id="btnGuardTally" title="Copy how often each guard has fired, over every game on this machine">Copy guard tally</button>
+    <button id="btnRecord" title="Record every model reply and dice roll from now on, for a replay test">● Record</button>
+    <button id="btnExportRec" title="Download the recording as a test fixture (no API keys or URLs)" disabled>Export recording</button>
+    <button id="btnDebugClose">Close</button>
+  </div>
+  <div id="debugBody" class="debug-body"></div>
+</section>
+
+<dialog id="termDialog" class="term-dialog" aria-labelledby="termTitle">
+  <form method="dialog" class="settings">
+    <div id="termBody"></div>
+    <div class="row end"><button value="close">Close</button></div>
+  </form>
+</dialog>
+<div id="termTip" class="term-tip" role="tooltip" hidden></div>
+
+<dialog id="webDialog" aria-labelledby="webTitle">
+  <form method="dialog" class="settings web">
+    <h3 id="webTitle">Who feels what</h3>
+    <label class="web-toggle"><input type="checkbox" id="webSecondary"> Include people in the background</label>
+    <div id="webGraph" class="web-graph"></div>
+    <ul id="webList" class="web-list"></ul>
+    <div class="muted small">Your own feelings, and how others treat you. Between other people, only what you have seen or been told (dashed). Exact numbers are in Debug.</div>
+    <div class="row end"><button value="close">Close</button></div>
+  </form>
+</dialog>
+
+<!-- Screen readers hear each new beat and note from here (the story log itself is redrawn whole). -->
+<div id="srAnnounce" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+<script src="js/util.js"></script>
+<script src="js/adapters.js"></script>
+<script src="js/jsonshape.js"></script>
+<script src="js/llm.js"></script>
+<script src="js/recorder.js"></script>
+<script src="js/memory.js"></script>
+<script src="js/standing.js"></script>
+<script src="js/lore.js"></script>
+<script src="js/timeline.js"></script>
+<script src="js/genres.js"></script>
+<script src="js/prompts.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/scenario.js"></script>
+<script src="js/packs.js"></script>
+<script src="js/charmaker.js"></script>
+<script src="js/startgen.js"></script>
+<script src="js/sites.js"></script>
+<script src="js/geo.js"></script>
+<script src="js/layouts.js"></script>
+<script src="js/sitedraw.js"></script>
+<script src="js/mapdraw.js"></script>
+<script src="js/glossary.js"></script>
+<script src="js/zip.js"></script>
+<script src="js/worldedit.js"></script>
+<script src="js/charform.js"></script>
+<script src="js/pagecheck.js"></script>
+<script src="js/ui/header.js"></script>
+<script src="js/ui/shared.js"></script>
+<script src="js/ui/assets.js"></script>
+<script src="js/ui/story.js"></script>
+<script src="js/ui/mapview.js"></script>
+<script src="js/ui/cards.js"></script>
+<script src="js/ui/debug.js"></script>
+<script src="js/ui/play.js"></script>
+</body>
+</html>

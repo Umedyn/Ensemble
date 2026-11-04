@@ -10,28 +10,22 @@
     return [sc.worldTitle || sc.title, sc.startTitle].map(slug).filter(Boolean).join('-') || slug(sc.folder || sc.id) || 'game';
   }
 
-  // A test-play tab (task 6-1) never overwrites the player's own game.
+  // Saved after each turn and nowhere in the middle of one, so leaving or
+  // refreshing during a model call goes back to the turn's start (rule 8).
   function autosave() {
-    if (!U.state || U.TEST_PLAY) return;
+    if (!U.state) return;
+    // Test play (task 6-1) has its own slot and never touches the player's saves.
+    if (U.TEST_PLAY) return void E.TestPlay.save(U.state);
     if (!U.saveId) U.saveId = E.Saves.newId();
     E.Saves.save(U.saveId, U.state);
     U.showSaveId();
   }
 
-  // obj: a Blob as it is, or anything else as JSON.
-  function download(name, obj) {
-    const blob = obj instanceof Blob ? obj : new Blob([JSON.stringify(obj, null, 1)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = name;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-  }
 
   $('btnSave').addEventListener('click', () => {
     if (!U.state) return;
     // The undo snapshot is a second copy of the game; save files leave it out.
-    download(`ensemble-${gameSlug(U.state.scenario)}-turn${U.state.turn}.json`, Object.assign({}, U.state, { undo: undefined }));
+    U.download(`ensemble-${gameSlug(U.state.scenario)}-turn${U.state.turn}.json`, Object.assign({}, U.state, { undo: undefined }));
   });
 
   // ---------- recorder (Debug) ----------
@@ -58,13 +52,13 @@
     const f = E.Recorder.fixture();
     if (!f) return;
     const sc = f.start.scenario || {};
-    download(`ensemble-recording-${gameSlug(sc)}-${f.recorded.slice(0, 16).replace(/[:T]/g, '-')}.json`, f);
+    U.download(`ensemble-recording-${gameSlug(sc)}-${f.recorded.slice(0, 16).replace(/[:T]/g, '-')}.json`, f);
   });
 
   $('loadInput').addEventListener('change', async (ev) => {
     const f = ev.target.files[0];
     ev.target.value = '';
-    if (!f) return;
+    if (!f || U.busy) return;
     try {
       const s = JSON.parse(await f.text());
       if (!s.scenario || !s.characters || !s.player) throw new Error('That file is not an Ensemble save.');
@@ -72,7 +66,6 @@
       U.state = E.Engine.migrate(s);
       U.saveId = null;
       U.restoreView();
-      U.showPickInfo(false);
       U.openTurns.clear();
       U.uiCut = null;
       U.uiShown = 1;
@@ -128,7 +121,7 @@
     $('actionInput').value = info.action || '';
     if (E.timeSteps.some((s) => s.id === info.stepId)) $('timeStep').value = info.stepId;
     // Back on the previous scene, as far as it had been read, with the step-in point re-selected.
-    const live = liveScene();
+    const live = U.liveScene();
     U.uiCut = live && info.cutAt && info.cutAt < live.beats.length ? info.cutAt : null;
     U.uiShown = live ? U.uiCut || live.beats.length : 1;
     const removed = info.chaptersRemoved.length ? ` Removed chapter ${info.chaptersRemoved.join(', ')}.` : '';
@@ -163,7 +156,7 @@
   // Acting is only possible at the end of the scene, or after choosing
   // "Step in here"; acting never steps in by accident.
   function canAct() {
-    const live = liveScene();
+    const live = U.liveScene();
     return !live || U.uiShown >= live.beats.length || U.uiCut != null;
   }
 
@@ -202,7 +195,7 @@
   });
   $('btnSuggest').addEventListener('click', async () => {
     if (U.busy || !U.state || !canAct()) return;
-    const live = liveScene();
+    const live = U.liveScene();
     // Only what the player has read: up to the step-in point if one is chosen.
     const sceneText = live && U.uiCut ? live.beats.slice(0, U.uiCut).map((b) => b.text).join('\n\n') + `\n\n[${U.state.characters[U.state.player].name} steps in here.]` : undefined;
     setBusy(true);
@@ -227,7 +220,6 @@
 
   function setBusy(b) {
     U.busy = b;
-    $('btnNew').disabled = b;
     $('actionInput').disabled = b;
     renderControls();
   }
@@ -250,7 +242,7 @@
     if (!e) return;
     const beats = e.beats && e.beats.length ? e.beats : [{ text: e.text }];
     const b = beats[Math.min(n, beats.length - 1)];
-    const more = n < beats.length - 1 && liveScene();
+    const more = n < beats.length - 1 && U.liveScene();
     announce(`${b.text}${more ? ' (Next for more, or Step in here.)' : ' (Your turn.)'}`);
   }
 
@@ -335,7 +327,7 @@
     if (e.type === 'chapter') return `<div class="entry chapter">Chapter ${e.chapter.n} ends<b>${esc(e.chapter.title)}</b></div>`;
     // An ending: its closing scene (a judged one) and the title, once the scene before it is read.
     if (e.type === 'ending') {
-      const live = liveScene();
+      const live = U.liveScene();
       if (live && live.turn === e.turn && !canAct()) return '';
       const word = { win: 'A win', loss: 'A loss', bittersweet: 'Bittersweet', neutral: 'An ending' }[e.kind] || 'An ending';
       return (e.text ? `<div class="entry scene ending">${String(e.text).split(/\n\s*\n/).map((p) => `<p>${storyHtml(p.trim())}</p>`).join('')}</div>` : '') +
@@ -394,10 +386,6 @@
     return `${E.dayName(U.state.scenario, t.day)}, ${t.hhmm}`;
   }
 
-  function liveScene() {
-    const e = U.state && U.state.pending && U.state.log.find((x) => x.type === 'scene' && x.turn === U.state.pending.turn);
-    return e && e.beats && e.beats.length > 1 ? e : null;
-  }
 
   // The live scene is revealed one beat at a time. Under the newest beat the
   // player either steps in or moves on; moving on settles that beat for good.
@@ -484,7 +472,7 @@
   });
 
   function actionPlaceholder() {
-    const entry = liveScene();
+    const entry = U.liveScene();
     if (entry && !canAct()) return 'Read on with Next ▸, or press "Step in here" to act now. (You can type ahead.)';
     if (U.uiCut && entry) return `What do you do at ${beatClock(entry, entry.beats[U.uiCut - 1])}–${beatClock(entry, entry.beats[U.uiCut], entry.beats[U.uiCut - 1])}? (Ctrl+Enter to act)`;
     return $('timeStep').value === 'major'
@@ -579,5 +567,5 @@
       (n.effects && n.effects.length ? `<div class="muted small">${n.effects.map(esc).join(' · ')}</div>` : '') + '</div>'
     ).join('');
   }
-  Object.assign(U, { autosave, download, renderRecorder, stopRecording, setBusy, renderAll, renderLog, liveScene, actionPlaceholder });
+  Object.assign(U, { autosave, renderRecorder, stopRecording, setBusy, renderAll, renderLog, actionPlaceholder });
 })();

@@ -605,6 +605,11 @@ main.page > .settings { max-width: 40rem; margin: 0 auto; }
 .save-list { margin: 0; padding-left: 1.125rem; font-size: 0.8125rem; line-height: 1.5; }
 .save-list:empty { display: none; }
 button.danger { color: var(--bad); border-color: var(--bad); }
+/* New game (task A-6): the pickers as a form; a hidden picker hides its row */
+main.page > .newgame { max-width: 40rem; margin: 0 auto; }
+.newgame label:has(> select.hidden) { display: none; }
+.newgame .pick-info { font-size: 0.8125rem; }
+.newgame a { color: var(--accent); }
 /* the library (task A-5): cards in a grid that becomes one column on phones */
 .library { max-width: 72rem; margin: 0 auto; display: flex; flex-direction: column; gap: 0.75rem; }
 .library h2 { margin: 0 0 0.25rem; font-family: var(--serif); font-size: 1.25rem; font-weight: 400; }

@@ -5,45 +5,21 @@
   const { $, esc, store } = U;
 
   // ---------- portraits ----------
-  // Paths in the scenario are relative to the world folder. Server worlds load
-  // them from scenarios/<folder>/; worlds opened from disk use object URLs made
-  // from the picked files. Neither URL is ever saved. A picture that fails to
-  // load falls back to the monogram.
-  const diskAssets = new Map(); // world folder -> { path: File }
-  const assetUrls = new Map(); // "folder/path" -> object URL
-  const portraitUrl = (path) => assetUrl(U.state.scenario.folder, path);
-  // Site maps from the shared library (task 6-3) have their images there:
-  // picked with Open folder (object URLs) or on the server.
-  const siteMapUrl = (m) => {
-    if (!m.library) return portraitUrl(m.image);
-    const f = U.libraryAssets[m.image];
-    if (f) { const key = 'library/' + m.image; if (!assetUrls.has(key)) assetUrls.set(key, URL.createObjectURL(f)); return assetUrls.get(key); }
-    return location.protocol === 'file:' ? null : `library/${m.image.split('/').map(encodeURIComponent).join('/')}`;
-  };
-  function assetUrl(folder, path) {
-    const files = diskAssets.get(folder);
-    if (files && files[path]) {
-      const key = folder + '/' + path;
-      if (!assetUrls.has(key)) assetUrls.set(key, URL.createObjectURL(files[path]));
-      return assetUrls.get(key);
-    }
-    return location.protocol === 'file:' ? null : `scenarios/${encodeURIComponent(folder)}/${path.split('/').map(encodeURIComponent).join('/')}`;
-  }
+  // Picture URLs are in assets.js (shared with the New game page).
   function monogramHtml(id) {
     const m = E.Engine.monogram(U.state, id);
     return `<span class="portrait monogram" aria-hidden="true" style="background:hsl(${m.hue} 38% 32%)">${esc(m.monogram)}</span>`;
   }
-  const failedUrls = new Set(); // pictures that didn't load: monogram from then on, no flicker
   function portraitHtml(id) {
     const p = E.Engine.portrait(U.state, id);
-    const url = p.path && portraitUrl(p.path);
-    return url && !failedUrls.has(url) ? `<img class="portrait" src="${esc(url)}" alt="" data-fallback="${esc(id)}">` : monogramHtml(id);
+    const url = p.path && U.portraitUrl(p.path);
+    return url && !U.failedUrls.has(url) ? `<img class="portrait" src="${esc(url)}" alt="" data-fallback="${esc(id)}">` : monogramHtml(id);
   }
   // error doesn't bubble, so listen in the capture phase.
   const portraitFallback = (ev) => {
     const img = ev.target;
     if (img.tagName !== 'IMG' || !img.dataset.fallback) return;
-    failedUrls.add(img.getAttribute('src'));
+    U.failedUrls.add(img.getAttribute('src'));
     img.outerHTML = monogramHtml(img.dataset.fallback);
   };
   $('cast').addEventListener('error', portraitFallback, true);
@@ -96,9 +72,9 @@
   }
   function webNode(n, p) {
     const pic = E.Engine.portrait(U.state, n.id);
-    const url = pic.path && portraitUrl(pic.path);
+    const url = pic.path && U.portraitUrl(pic.path);
     const r = 18;
-    const face = url && !failedUrls.has(url)
+    const face = url && !U.failedUrls.has(url)
       ? `<clipPath id="webclip-${esc(n.id)}"><circle cx="${p.x}" cy="${p.y}" r="${r}"/></clipPath><image href="${esc(url)}" x="${p.x - r}" y="${p.y - r}" width="${2 * r}" height="${2 * r}" clip-path="url(#webclip-${esc(n.id)})" preserveAspectRatio="xMidYMid slice"/>`
       : ((m) => `<circle cx="${p.x}" cy="${p.y}" r="${r}" style="fill:hsl(${m.hue} 38% 32%)"/><text class="web-mono" x="${p.x}" y="${p.y}" dy="0.35em" text-anchor="middle">${esc(m.monogram)}</text>`)(E.Engine.monogram(U.state, n.id));
     const short = n.isPlayer ? 'You' : E.Engine.shortName(U.state.characters[n.id]);
@@ -332,5 +308,5 @@
     if (key === String(U.state.chapters[U.state.chapters.length - 1].n)) return;
     if (d.open) U.openJournal.add(key); else U.openJournal.delete(key);
   }, true);
-  Object.assign(U, { diskAssets, portraitUrl, siteMapUrl, assetUrl, failedUrls, isMinimized, cardMini, cardHeader, cardStatus, cardDetails, cardBody, renderJournal });
+  Object.assign(U, { isMinimized, cardMini, cardHeader, cardStatus, cardDetails, cardBody, renderJournal });
 })();

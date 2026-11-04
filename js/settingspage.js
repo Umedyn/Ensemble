@@ -110,10 +110,6 @@
       storyLinks: $('aStoryLinks').value,
     };
   }
-  // "Same as my device" follows the OS while the page is open.
-  ['(prefers-color-scheme: light)', '(prefers-reduced-motion: reduce)'].forEach((q) => {
-    try { window.matchMedia(q).addEventListener('change', () => window.EnsembleAppearance(E.settings.appearance)); } catch (e) {}
-  });
 
   // ---------- the whole form ----------
   function fill() {
@@ -246,7 +242,8 @@
     const back = E.Header.backHref();
     if (back) {
       $('sBack').href = back;
-      $('sBack').textContent = back.startsWith('creator.html') ? '← Back to the Creator' : back.startsWith('library.html') ? '← Back to the library' : '← Back to the game';
+      const to = { 'creator.html': 'the Creator', 'library.html': 'the library', 'new.html': 'New game' }[back.split('?')[0]] || 'the game';
+      $('sBack').textContent = `← Back to ${to}`;
       $('sBack').classList.remove('hidden');
       // Straight back when that page is the one behind this, so it comes back
       // as it was left (a scene part read, the map open); otherwise it loads.

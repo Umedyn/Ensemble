@@ -3,6 +3,9 @@
   const E = window.Ensemble;
   const U = E.UI;
   const { $, esc, store } = U;
+  // The New game page (task A-6) loads this module for the review's map
+  // preview only, so the game's own controls are bound only where they exist.
+  const on = (id, type, fn, opt) => { const el = $(id); if (el) el.addEventListener(type, fn, opt); };
 
   // ---------- local map (task 3-3) ----------
   // E.Layouts.plan places the rooms; E.SiteDraw draws them as floor plans
@@ -32,8 +35,13 @@
   // them (task G-11): the player along their trip or day, and anyone who
   // moves in a beat not shown yet still where they were (up to the step-in
   // point, if one is chosen). → { here, later: { id: room } }.
+  // The scene being read beat by beat, if any.
+  function liveScene() {
+    const e = U.state && U.state.pending && U.state.log.find((x) => x.type === 'scene' && x.turn === U.state.pending.turn);
+    return e && e.beats && e.beats.length > 1 ? e : null;
+  }
   function sceneView() {
-    const live = U.liveScene();
+    const live = liveScene();
     const at = live ? E.Engine.sceneAt(U.state, (U.uiCut || U.uiShown) - 1) : null;
     return { here: (at && at.player) || U.state.characters[U.state.player].status.location, later: (at && at.people) || {}, time: at && at.time, with: at && at.with };
   }
@@ -472,14 +480,14 @@
   const pointers = new Map();
   let drag = null;
   let draggedAt = 0; // a pan never counts as a click on a room
-  $('mapPane').addEventListener('pointerdown', (ev) => {
+  on('mapPane', 'pointerdown', (ev) => {
     const svg = ev.target.closest && ev.target.closest('#worldSvg, #siteSvg');
     if (!svg) return;
     pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
     drag = { svg, moved: false, start: { x: ev.clientX, y: ev.clientY }, vb: svg.getAttribute('viewBox').split(/\s+/).map(Number), dist: null };
     if (pointers.size === 2) { const [a, b] = [...pointers.values()]; drag.dist = Math.hypot(a.x - b.x, a.y - b.y); }
   });
-  $('mapPane').addEventListener('pointermove', (ev) => {
+  on('mapPane', 'pointermove', (ev) => {
     const svg = drag && drag.svg;
     if (!svg || !drag || !pointers.has(ev.pointerId)) return;
     pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
@@ -518,16 +526,16 @@
     renderMap();
   }
 
-  $('mapPane').addEventListener('pointerup', endDrag);
-  $('mapPane').addEventListener('pointercancel', endDrag);
-  $('mapPane').addEventListener('wheel', (ev) => {
+  on('mapPane', 'pointerup', endDrag);
+  on('mapPane', 'pointercancel', endDrag);
+  on('mapPane', 'wheel', (ev) => {
     const svg = ev.target.closest && ev.target.closest('#worldSvg, #siteSvg');
     if (!svg) return;
     ev.preventDefault();
     const p = toMap(svg, ev);
     zoomWorld(ev.deltaY > 0 ? 1.15 : 1 / 1.15, p.x, p.y);
   }, { passive: false });
-  $('mapPane').addEventListener('click', (ev) => {
+  on('mapPane', 'click', (ev) => {
     const lvl = ev.target.closest('[data-maplevel]');
     if (lvl && U.state) return setMapView(lvl.dataset.maplevel);
     const z = ev.target.closest('[data-zoom]');
@@ -568,8 +576,8 @@
     if (id === U.state.characters[U.state.player].status.location) return;
     fillAction(U.state.seenRooms.includes(id) ? `Go to the ${U.state.locations[id].name}.` : 'Find out what is through there.');
   }
-  $('mapPane').addEventListener('click', (ev) => { if (Date.now() - draggedAt > 300) mapActivate(ev.target); });
-  $('mapPane').addEventListener('keydown', (ev) => {
+  on('mapPane', 'click', (ev) => { if (Date.now() - draggedAt > 300) mapActivate(ev.target); });
+  on('mapPane', 'keydown', (ev) => {
     if (ev.key !== 'Enter' && ev.key !== ' ') return;
     const reg = ev.target.closest && ev.target.closest('.region-g');
     if (reg) {
@@ -600,8 +608,8 @@
     mapSel = null;
   }
   document.querySelectorAll('.view-switch button').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view, true)));
-  $('btnMapPhone').addEventListener('click', () => setView($('story').classList.contains('view-map') ? 'text' : 'map', false));
-  setView('split', false);
+  on('btnMapPhone', 'click', () => setView($('story').classList.contains('view-map') ? 'text' : 'map', false));
+  if ($('story')) setView('split', false);
 
   // A cast card is composed from one function per section, in renderCast. Each
   // section returns its markup, or '' to leave it out.
@@ -635,11 +643,11 @@
     try { return JSON.parse(store.get(ELSEWHERE_KEY)) || {}; } catch (e) { return {}; }
   }
   const elsewhereOpen = () => !!elsewhereAll()[U.state.scenario.worldId];
-  $('cast').addEventListener('toggle', (ev) => {
+  on('cast', 'toggle', (ev) => {
     if (!ev.target.matches || !ev.target.matches('details.elsewhere')) return;
     const all = elsewhereAll();
     all[U.state.scenario.worldId] = ev.target.open;
     store.set(ELSEWHERE_KEY, JSON.stringify(all));
   }, true);
-  Object.assign(U, { localMapHtml, renderMap, restoreView, renderCast, sceneView });
+  Object.assign(U, { localMapHtml, renderMap, restoreView, renderCast, sceneView, liveScene });
 })();

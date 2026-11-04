@@ -83,7 +83,7 @@
       return;
     }
     const w = item.world;
-    const play = (startId) => `index.html?world=${encodeURIComponent(id)}${startId ? `&start=${encodeURIComponent(startId)}` : ''}`;
+    const play = (startId) => `new.html?world=${encodeURIComponent(id)}${startId ? `&start=${encodeURIComponent(startId)}` : ''}`;
     const starts = (w.starts || []).map((s) => `<li class="lib-start">
       <div><b>${esc(s.title)}</b>${s.summary ? `<div class="small">${esc(s.summary)}</div>` : ''}${s.error ? `<div class="fail small">Can't be played: ${esc(s.error)}</div>` : ''}</div>
       ${s.error ? '' : `<a class="btn primary" href="${play(s.id)}" data-play="${esc(s.id)}">Play</a>`}</li>`).join('');

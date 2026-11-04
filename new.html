@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1a1d22">
+<title>New game · Ensemble</title>
+<link rel="stylesheet" href="css/style.css">
+<script>
+// Appearance (Settings > Appearance), applied before first paint so the page
+// never flashes the wrong theme. The pages call it again when settings change.
+window.EnsembleAppearance = function (a) {
+  a = a || {};
+  var el = document.documentElement, mq = function (q) { try { return window.matchMedia(q).matches; } catch (e) { return false; } };
+  var theme = a.theme === 'system' ? (mq('(prefers-color-scheme: light)') ? 'light' : 'dark') : (a.theme || 'dark');
+  var motion = a.motion === 'on' || (a.motion !== 'off' && mq('(prefers-reduced-motion: reduce)')) ? 'reduce' : 'full';
+  el.setAttribute('data-theme', theme);
+  el.setAttribute('data-font', a.storyFont === 'sans' ? 'sans' : 'serif');
+  el.setAttribute('data-spacing', a.lineSpacing === 'relaxed' ? 'relaxed' : 'normal');
+  el.setAttribute('data-motion', motion);
+  el.style.setProperty('--text-scale', String(Math.min(150, Math.max(90, Number(a.textSize) || 100)) / 100));
+};
+try { window.EnsembleAppearance(JSON.parse(localStorage.getItem('ensemble.appearance')) || (JSON.parse(localStorage.getItem('ensemble.settings')) || {}).appearance); } catch (e) { window.EnsembleAppearance(); }
+</script>
+</head>
+<body class="page-new">
+<header class="topbar">
+  <div class="group">
+    <label class="btn desktop-only" title="Add worlds from disk (pick one world folder or the whole scenarios folder); they are kept in your library">Open folder<input type="file" id="folderInput" webkitdirectory directory multiple hidden></label>
+    <label class="btn" title="Open a saved game from a file">Load<input type="file" id="loadInput" accept=".json,application/json" hidden></label>
+  </div>
+  <div class="spacer"></div>
+  <div class="group"></div>
+</header>
+
+<main class="page">
+  <form id="newForm" class="settings newgame" onsubmit="return false">
+    <h2>New game</h2>
+    <label>World <select id="scenarioSelect"></select></label>
+    <label id="startRow">Where you start <select id="startSelect" class="hidden"></select></label>
+    <label id="whoRow">Who you play <select id="whoSelect" class="hidden"></select></label>
+    <div id="pickInfo" class="pick-info"></div>
+    <div class="row wrap">
+      <button type="button" id="btnPacks" class="hidden" title="Add-on lore for this world, from the packs/ folder or ones you opened">Lore packs</button>
+      <div class="spacer"></div>
+      <button type="button" id="btnNew" class="primary">Start</button>
+    </div>
+    <div class="muted small">More worlds, and ones you open from a folder or zip, are in the <a href="library.html">Library</a>.</div>
+  </form>
+</main>
+
+<dialog id="packDialog" aria-labelledby="packTitle">
+  <form method="dialog" class="settings packs">
+    <h3 id="packTitle">Lore packs</h3>
+    <div class="muted small">Add-on lore made for this world. The ones you tick are added at New game, in the order you ticked them; a game keeps the packs it started with.</div>
+    <ul id="packList" class="pack-list"></ul>
+    <div class="row end"><button value="close">Done</button></div>
+  </form>
+</dialog>
+
+<dialog id="makerDialog" class="maker-dialog" aria-labelledby="makerTitle">
+  <form id="makerForm" class="settings maker">
+    <div class="row"><h3 id="makerTitle">Make your character</h3><div class="spacer"></div><button type="button" id="mkClose" class="ghost" aria-label="Close (your draft is kept)" title="Close (your draft is kept)">✕</button></div>
+    <div id="makerBody" class="maker-body"></div>
+    <ul id="makerErrors" class="maker-errors fail" aria-live="polite"></ul>
+    <div class="row wrap maker-foot">
+      <label class="btn" title="Fill the form from a saved character file">Load character<input type="file" id="mkLoad" accept=".json,application/json" hidden></label>
+      <button type="button" id="mkSave" title="Download this character as a file you can load again">Save this character</button>
+      <div class="spacer"></div>
+      <button type="button" id="mkStart" class="primary">Start game</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="genDialog" class="gen-dialog" aria-labelledby="genTitle">
+  <form id="genForm" class="settings gen">
+    <div class="row"><h3 id="genTitle">Make your own start</h3><div class="spacer"></div><button type="button" id="genClose" class="ghost" aria-label="Close (progress is kept)" title="Close (progress is kept)">✕</button></div>
+    <div id="genBody" class="maker-body"></div>
+  </form>
+</dialog>
+
+<script src="js/util.js"></script>
+<script src="js/adapters.js"></script>
+<script src="js/jsonshape.js"></script>
+<script src="js/llm.js"></script>
+<script src="js/recorder.js"></script>
+<script src="js/memory.js"></script>
+<script src="js/standing.js"></script>
+<script src="js/lore.js"></script>
+<script src="js/timeline.js"></script>
+<script src="js/genres.js"></script>
+<script src="js/prompts.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/scenario.js"></script>
+<script src="js/packs.js"></script>
+<script src="js/charmaker.js"></script>
+<script src="js/startgen.js"></script>
+<script src="js/sites.js"></script>
+<script src="js/geo.js"></script>
+<script src="js/layouts.js"></script>
+<script src="js/sitedraw.js"></script>
+<script src="js/mapdraw.js"></script>
+<script src="js/glossary.js"></script>
+<script src="js/zip.js"></script>
+<script src="js/worldedit.js"></script>
+<script src="js/charform.js"></script>
+<script src="js/pagecheck.js"></script>
+<script src="js/ui/header.js"></script>
+<script src="js/ui/shared.js"></script>
+<script src="js/ui/assets.js"></script>
+<script src="js/ui/worlds.js"></script>
+<script src="js/ui/review.js"></script>
+<script src="js/ui/mapview.js"></script>
+<script src="js/ui/newgame.js"></script>
+</body>
+</html>
