@@ -35,7 +35,7 @@
   function sceneView() {
     const live = U.liveScene();
     const at = live ? E.Engine.sceneAt(U.state, (U.uiCut || U.uiShown) - 1) : null;
-    return { here: (at && at.player) || U.state.characters[U.state.player].status.location, later: (at && at.people) || {} };
+    return { here: (at && at.player) || U.state.characters[U.state.player].status.location, later: (at && at.people) || {}, time: at && at.time, with: at && at.with };
   }
   // Tokens by room, as the player knows them.
   function mapTokens() {
@@ -641,5 +641,5 @@
     all[U.state.scenario.worldId] = ev.target.open;
     store.set(ELSEWHERE_KEY, JSON.stringify(all));
   }, true);
-  Object.assign(U, { localMapHtml, renderMap, restoreView, renderCast });
+  Object.assign(U, { localMapHtml, renderMap, restoreView, renderCast, sceneView });
 })();

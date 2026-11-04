@@ -1014,7 +1014,12 @@
     Eng.sceneMoves(state).forEach((m) => { if (m.beat > i) people[m.id] = m.from; });
     // Those who went along are where the player is.
     ((p.travel && p.travel.companions) || []).forEach((id) => { people[id] = player; });
-    return { player, people };
+    // The beat's own time, and who is with the player then: the scene bar.
+    let hour = p.pre.time.hour + (beats[i] ? beats[i].at : 0) / 60, day = p.pre.time.day;
+    while (hour >= 24) { hour -= 24; day += 1; }
+    const withPlayer = Eng.cast(state, { alive: true, includePlayer: false })
+      .filter((id) => (id in people ? people[id] === player : Eng.isAt(state, id, player)));
+    return { player, people, time: { day, hour }, with: withPlayer };
   };
   // The words a scene uses for someone: their full name, a first name or
   // surname of 3+ letters, or a group's label ("the dead", "stragglers").

@@ -186,11 +186,13 @@
     const g = E.dateOfDay(sc, day);
     return g ? `${g.weekday} ${g.d} ${MONTHS[g.m - 1]} ${g.y}` : `${(sc && sc.timeLabel) || 'Day'} ${day}`;
   };
-  E.fmtTime = function (state) {
-    const mins = Math.round(state.time.hour * 60);
+  E.fmtTime = (state, time) => E.fmtClock(state.scenario, time || state.time);
+  // Any moment on the world's clock, { day, hour }: "Thursday 16 April 1942, 09:30".
+  E.fmtClock = function (sc, time) {
+    const mins = Math.round(time.hour * 60);
     const hh = String(Math.floor(mins / 60) % 24).padStart(2, '0');
     const mm = String(mins % 60).padStart(2, '0');
-    return `${E.dayName(state.scenario, state.time.day)}, ${hh}:${mm}`;
+    return `${E.dayName(sc, time.day)}, ${hh}:${mm}`;
   };
 
   E.esc = (s) =>

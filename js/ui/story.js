@@ -509,6 +509,7 @@
     // People who move in this beat move on the map and the people panel now (task G-11).
     U.renderMap();
     U.renderCast();
+    renderSceneBar();
     log.scrollTop = top;
     if (nextBtn) {
       announceBeat(U.uiShown - 1);
@@ -522,15 +523,18 @@
     }
   });
 
+  // The time, the place and the company of the beat being read (task G-11),
+  // like the map and the people panel; the end of the turn once it's read.
   function renderSceneBar() {
-    const pc = U.state.characters[U.state.player];
-    const loc = U.state.locations[pc.status.location];
-    const present = E.Engine.present(U.state).map(nm);
-    $('sceneBar').innerHTML = `<b>${esc(E.fmtTime(U.state))}</b> · ${esc(U.state.scenario.worldTitle || U.state.scenario.title)}${U.state.scenario.startTitle ? `<span class="desktop-only"> (${esc(U.state.scenario.startTitle)})</span>` : ''} · You are in <b>${esc(loc ? loc.name : '?')}</b>` +
+    const view = U.sceneView();
+    const here = view.here;
+    const loc = U.state.locations[here];
+    const present = (view.with || E.Engine.present(U.state)).map(nm);
+    $('sceneBar').innerHTML = `<b>${esc(E.fmtTime(U.state, view.time))}</b> · ${esc(U.state.scenario.worldTitle || U.state.scenario.title)}${U.state.scenario.startTitle ? `<span class="desktop-only"> (${esc(U.state.scenario.startTitle)})</span>` : ''} · You are in <b>${esc(loc ? loc.name : '?')}</b>` +
       (present.length ? ` with ${esc(present.join(', '))}` : ', alone') +
-      ((m) => (m.length ? `<span class="desktop-only"> · also here: ${esc(m.map((x) => `${x.name} (${x.role})`).join(', '))}</span>` : ''))(E.Engine.extrasAt(U.state, pc.status.location)) +
+      ((m) => (m.length ? `<span class="desktop-only"> · also here: ${esc(m.map((x) => `${x.name} (${x.role})`).join(', '))}</span>` : ''))(E.Engine.extrasAt(U.state, here)) +
       // Unnamed groups (task 3-2) on every screen size: a hostile crowd matters.
-      ((g) => (g.length ? ` · ${esc(g.map((x) => `${x.count} ${x.label}, ${x.state}`).join('; '))}` : ''))(E.Engine.standeesAt(U.state, pc.status.location)) +
+      ((g) => (g.length ? ` · ${esc(g.map((x) => `${x.count} ${x.label}, ${x.state}`).join('; '))}` : ''))(E.Engine.standeesAt(U.state, here)) +
       ` · Chapter ${U.state.chapter}, turn ${U.state.turn}`;
   }
 

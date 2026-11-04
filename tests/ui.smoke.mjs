@@ -345,12 +345,14 @@ await check('the map shows the player along the way while a trip is read beat by
   await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
   await newGame(page);
   await act(page, 'I drive to Ridge.', 'hour');
-  const here = async () => ((await page.textContent('#mapList')).match(/([^:\n]+?) \(you are here\)/) || [])[1];
+  const here = async () => (await page.locator('#mapList li', { hasText: '(you are here)' }).first().textContent()).split(' (you are here)')[0];
   const first = await here();
   assert.ok(first, 'the map says where you are');
+  assert.match(await page.textContent('#sceneBar'), new RegExp(`You are in ${first}`), 'the scene bar agrees with the map');
   while (await page.locator('button[data-next]').count()) await page.click('button[data-next]');
   const last = await here();
   assert.notEqual(last, first, `still at ${first} at the first beat, somewhere else by the last`);
+  assert.match(await page.textContent('#sceneBar'), new RegExp(`You are in ${last}`), 'and at the last beat too');
 });
 
 // Also writes the sample fixture when run as `npm run fixture:mock`.

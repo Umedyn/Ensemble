@@ -66,6 +66,17 @@ test('stepping in after a beat leaves things as that beat showed them', async ()
   assert.equal(h.state.characters.aoi.status.location, before, 'still home at the step-in, as shown');
 });
 
+test('each beat has its own time and company, for the scene bar', async () => {
+  const g = game(8.5, 'aoi-room');
+  g.state.characters.aoi.status.location = 'aoi-room';
+  await play(g, '[+0m] Sora waits by the window.\n\n[+20m] The kettle clicks off.\n\n[+50m] The street outside is busy now.');
+  const first = g.Eng.sceneAt(g.state, 0), second = g.Eng.sceneAt(g.state, 1);
+  assert.deepEqual([first.time.day, first.time.hour], [MONDAY, 8.5]);
+  assert.equal(g.E.fmtTime(g.state, second.time).slice(-5), '08:50');
+  assert.ok([...first.with].includes('aoi'), 'Aoi is still with Sora at the first beat');
+  assert.ok(![...second.with].includes('aoi'), 'and gone by the second');
+});
+
 test('with no scene being read there is nothing to show', () => {
   const g = game(10, 'classroom');
   assert.equal(g.Eng.sceneAt(g.state, 0), null);
