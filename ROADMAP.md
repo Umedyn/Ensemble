@@ -31,7 +31,7 @@ The plan from here to a game that can host any kind of story: a Mars crew, a zom
 - [ ] **Context tiers** (task G-4, built 2026-10-27; waiting for a real-model check at 8K): prompt scope that shifts with the context window. Facts, chapters and lore already scale; the fixed blocks (region outline, nearby regions, groups, rules, the task text) get a size per tier, so small windows keep only what the engine needs and the room freed goes to the story. Measure every block first.
 - [ ] **Routines** (tasks G-7 to G-9, planned 2026-10-29): people move around the map as the hours pass, with no model call: each person's routine says where they usually are by day type and hour (several places a slot, picked per person and day without dice; home off the map means away). The story wins until the next slot; routines pause for the dead, the hurt and emergencies. People leave and arrive in the player's scene by routine unless the player is engaging them; the player follows their own routine on hour-or-longer steps when their words hand the time to it, planned like a trip; skips place everyone by routine. Seiryo High and Ares Deep get routines (not the holdout's siege), cards show them, the creator edits them.
 - [ ] **Everyone has a schedule** (G-10, planned 2026-11-03): built-in routines (worker, homebody, shopkeeper, farmhand, student, night-shift, wander) any world can use; anyone without one follows a worker's day from where they began; the first turn's update gives them a real one; generated people always get one; `"routine": "fixed"` for a cow or a guard on post, and a world-wide fixed tag for the siege and the evacuation.
-- [ ] **Positions change beat by beat** (G-11, before A-10): the map and the people panel follow the scene as it is read, for routine moves at their minute and the player's own trip or day.
+- [x] **Positions change beat by beat** (G-11, before A-10): the map and the people panel follow the scene as it is read, for routine moves at their minute and the player's own trip or day.
 
 ## Phase 0: Playtest tools
 
@@ -291,10 +291,23 @@ Decided 2026-10-30. The engine decides and the model only writes it up; results 
 - [x] **Breaking routine is a clue** (B-1, with routines G-7 to G-9): someone missing from where they always are, or somewhere they never are, gets noticed, at most once a scene, with the reason hidden.
 - [x] **Headless run harness** (B-9, before B-2 and B-3): `npm run soak` plays hundreds of turns and reports clocks, needs, people, endings, budgets and guards that look wrong; runs in CI (`.github/workflows/ci.yml`, with `npm test` and `npm run check`). Alarms we accept are listed with why in `tests/soak-known.json`; the first runs found region lookups costing 5 seconds a turn in the 730-region world (fixed).
 - [x] **Offstage needs** (from B-9): people offstage only eat and sleep in long skips, so over played turns their hunger and fatigue climb to the top and stay there (Navarro in the garage start). People following a routine offscreen now settle (G-7), and Ares Deep's crew have routines (G-9), so the two lines are gone from `tests/soak-known.json`.
-- [ ] **Beliefs and spreading** (B-2, B-3): facts pass between people who spend time together, with no model call; beliefs can be false, the player and the cast can lie, rumours blur, and lies can be exposed. Secrets never spread this way.
-- [ ] **Light and private places** (B-4, B-5): a derived light level feeds sneaking, sight and the scene; rooms can have owners, and being found there costs something.
-- [ ] **Items, promises, skills** (B-6, B-7, B-8, any order): named items and counted resources owned by the engine; promises both ways, kept or broken, feeding the reckoning; skills improve slowly with use.
-- [ ] **Director and arc memory** (B-10, when long campaigns need it; after T-1): tension nudges story tables and event rates within the genre's limits; arc summaries, and a "history with you" line per character.
+**Small additions** (cut down 2026-10-31, owner's decision): interactions between turn-path systems caused most recent bugs, so each remaining system is a field on something that exists plus one engine check. Anything needing a new turn step, model call or rewind rule gets cut down first. After these, the work is UI, display and quality of life.
+- [ ] **Skills improve with use** (B-8): a real-stakes success adds progress; enough raises the skill by one, capped, at most weekly.
+- [ ] **Things spread** (B-2): one rule at commit copies a fact between people sharing a room (trust, one a room a turn, never secrets or anything to the player); no model call.
+- [ ] **Rumours** (B-3): a fact with `source: hearsay`, worded "people say…", that never counts as true (the same check as narration-only facts).
+- [ ] **Items people carry** (B-6): an `items` list on characters, `{ name, amount? }`, the amount a loose word, never arithmetic; scenes add, the engine only drops clear contradictions.
+- [ ] **Promises** (B-7): a fact with who it's owed to, a due time and a cost the engine applies when broken. Dropped at the start if it only repeats memory and the reckoning.
+- ~~**Light and private places** (B-4, B-5)~~: dropped 2026-10-31; the model handles both from the time and place.
+- **Director and arc memory** (B-10): later, when long campaigns need it, after T-1.
+
+## Worlds as a library
+
+Many bundled worlds on purpose (owner, 2026-10-31): they show the engine's range, give players variety while the community is small, and are a library creators can fork. Not started; after the pages (A-4 to A-7), since they live on the library page.
+
+- [ ] **One front door**: a suggested world for new players on the landing page, the rest one click away.
+- [ ] **What a world shows off**: a short note on each world's card (Seiryo High for routines, Occupied France for historical timelines and zone changes, Ares Deep for life under pressure, Vesper Station for a timed, smaller scenario).
+- [ ] **Duplicate a world** in the creator, as a starting point for your own.
+- [ ] **Lorebooks**: bundle existing lore into importable packs (on lore packs, 5-7), then mix them: a generic fantasy world's non-setting lore (races, magic) with the frontier for a fantasy western.
 
 ## Content settings
 

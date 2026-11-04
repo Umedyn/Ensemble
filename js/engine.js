@@ -966,15 +966,23 @@
     + '|excuses (?:him|her|them)sel(?:f|ves)'
     + '|(?:walks?|walked|steps?|stepped|slips?|slipped|ducks?|ducked|hurries|hurried|storms?|stormed|wanders?|wandered|runs?|ran|goes|went|heads|headed|heading|comes?|came|makes? (?:his|her|their) way)'
     + ' (?:out|off|away|outside|inside|in|back|upstairs|downstairs|over to|to|into|through|toward|towards|for))\\b', 'i');
+  // The minute a beat of the scene runs to: halfway to the next beat's
+  // marker, the moment a step-in after it rewinds to (task G-11).
+  Eng.beatEnd = (beats, i) => (i + 1 >= beats.length ? Infinity : Math.round((beats[i].at + beats[i + 1].at) / 2));
   Eng.sceneMoves = function (state) {
     const p = state.pending;
     if (!p || !p.pre || !p.res) return [];
     const beats = p.beats || [];
     const last = Math.max(0, beats.length - 1);
     const out = [];
-    const add = (id, to) => {
+    const add = (id, to, minute) => {
       const from = whereIs(p.pre, id);
       if (!to || !from || from === to) return;
+      // A routine move has its minute (task G-11): the beat that runs to it.
+      if (minute != null) {
+        const beat = beats.findIndex((b, i) => minute <= Eng.beatEnd(beats, i));
+        return out.push({ id, from, to, beat: beat < 0 ? last : beat });
+      }
       const names = Eng.moverNames(state, id);
       const room = state.locations[to] && state.locations[to].name;
       const named = (t) => names.some((n) => E.Lore.matches(n, t));
@@ -983,8 +991,30 @@
     };
     (p.res.outcomes || []).forEach((o) => { if (o.visible && o.moved && o.id !== state.player) add(o.id, o.moved); });
     (p.res.groups || []).forEach((g) => { if (g.visible && g.moved) add(g.id, g.moved); });
-    (p.res.routineMoves || []).forEach((m) => add(m.id, m.to));
+    (p.res.routineMoves || []).forEach((m) => add(m.id, m.to, m.at));
     return out;
+  };
+  // Where everyone stands at a beat of the scene being read (task G-11), for
+  // the map and the people panel: { player: room, people: { id: room } } for
+  // those not yet where the turn ends. Shows only what the scene showed; the
+  // state itself changes at the end of the turn.
+  Eng.sceneAt = function (state, beat) {
+    const p = state.pending;
+    if (!p || !p.pre || !p.res) return null;
+    const beats = p.beats || [];
+    const i = Math.max(0, Math.min(beat, beats.length - 1));
+    const end = Eng.beatEnd(beats, i);
+    let player = state.characters[state.player].status.location;
+    if (p.travel && end !== Infinity) player = Eng.travelReach(p.travel.plan, end).room;
+    else if (p.routineDay && end !== Infinity) {
+      const stop = p.routineDay.stops.filter((s) => s.at <= end).pop();
+      player = stop ? stop.room : p.frame.startLoc;
+    }
+    const people = {};
+    Eng.sceneMoves(state).forEach((m) => { if (m.beat > i) people[m.id] = m.from; });
+    // Those who went along are where the player is.
+    ((p.travel && p.travel.companions) || []).forEach((id) => { people[id] = player; });
+    return { player, people };
   };
   // The words a scene uses for someone: their full name, a first name or
   // surname of 3+ letters, or a group's label ("the dead", "stragglers").

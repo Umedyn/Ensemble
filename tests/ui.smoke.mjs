@@ -340,6 +340,19 @@ await check('a trip longer than the step stops on the way, and Travel there goes
   assert.equal(await page.locator('.turn-current .travel-note').count(), 0);
 });
 
+// Task G-11: the map follows the player's trip beat by beat, not only at the end of the turn.
+await check('the map shows the player along the way while a trip is read beat by beat', async (page) => {
+  await page.selectOption('#scenarioSelect', 'server:zombie-holdout');
+  await newGame(page);
+  await act(page, 'I drive to Ridge.', 'hour');
+  const here = async () => ((await page.textContent('#mapList')).match(/([^:\n]+?) \(you are here\)/) || [])[1];
+  const first = await here();
+  assert.ok(first, 'the map says where you are');
+  while (await page.locator('button[data-next]').count()) await page.click('button[data-next]');
+  const last = await here();
+  assert.notEqual(last, first, `still at ${first} at the first beat, somewhere else by the last`);
+});
+
 // Also writes the sample fixture when run as `npm run fixture:mock`.
 await check('record a session and export it as a fixture', async (page) => {
   // A key and a private URL that must never reach the recording.
@@ -822,6 +835,8 @@ await check('go somewhere new: the engine builds the place, the map shows it, De
   await page.selectOption('#startSelect', 'herd');
   await newGame(page);
   await act(page, 'I head to the pharmacy on Main Street for antibiotics.');
+  // The map follows the scene (task G-11): read it to the arrival.
+  while (await page.locator('button[data-next]').count()) await page.click('button[data-next]');
   assert.match(await page.textContent('#sceneBar'), /Pharmacy Storefront/, 'arrived at the entry');
   assert.match(await page.textContent('#mapList'), /Pharmacy Storefront \(you are here\)/);
   assert.doesNotMatch(await page.textContent('#mapList'), /Sales Floor/, 'the map shows the place you are in');
@@ -1646,6 +1661,7 @@ await check('creator: draw a site map on a battlemap, save it to the world, and 
   await page.selectOption('#startSelect', 'herd');
   await newGame(page);
   await act(page, 'I head to the tavern on Main Street.');
+  while (await page.locator('button[data-next]').count()) await page.click('button[data-next]');
   assert.match(await page.textContent('#sceneBar'), /Common Room/, 'arrived at the way in');
   await page.waitForSelector('#mapPane svg.sd-image image');
   assert.equal(await page.locator('#mapPane .sd-image .map-room').count(), 1, 'only the room you are in shows; the rest is fog');

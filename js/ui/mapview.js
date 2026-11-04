@@ -28,19 +28,22 @@
     if (planCache.key !== key) planCache = { key, plan: E.Layouts.plan(authored, { type: home ? (sc.site ? sc.site.type : null) : ((U.state.sites || {})[site] || {}).layout, seed: `${sc.worldId}:${home ? sc.startId : site}`, linkLocs: U.state.locations }) };
     return planCache.plan;
   }
+  // While the scene is read beat by beat, everyone is where that beat has
+  // them (task G-11): the player along their trip or day, and anyone who
+  // moves in a beat not shown yet still where they were (up to the step-in
+  // point, if one is chosen). → { here, later: { id: room } }.
+  function sceneView() {
+    const live = U.liveScene();
+    const at = live ? E.Engine.sceneAt(U.state, (U.uiCut || U.uiShown) - 1) : null;
+    return { here: (at && at.player) || U.state.characters[U.state.player].status.location, later: (at && at.people) || {} };
+  }
   // Tokens by room, as the player knows them.
   function mapTokens() {
     const byRoom = {};
     const add = (loc, t) => { if (loc && U.state.seenRooms.includes(loc)) (byRoom[loc] = byRoom[loc] || []).push(t); };
     const pc = U.state.characters[U.state.player];
-    add(pc.status.location, { kind: 'character', id: U.state.player, label: pc.name, player: true, now: true });
-    // While the scene is read beat by beat, someone who moves in a beat not
-    // shown yet is still where they were (up to the step-in point, if one is
-    // chosen), so the map follows the scene instead of jumping to its end.
-    const live = U.liveScene();
-    const read = live ? U.uiCut || U.uiShown : Infinity;
-    const later = {};
-    if (live) E.Engine.sceneMoves(U.state).forEach((m) => { if (m.beat >= read) later[m.id] = m.from; });
+    const { here, later } = sceneView();
+    add(here, { kind: 'character', id: U.state.player, label: pc.name, player: true, now: true });
     const where = (id) => (later[id] ? { loc: later[id], now: true, turn: U.state.turn } : E.Engine.knownWhere(U.state, id));
     E.Engine.cast(U.state, { alive: true, includePlayer: false }).forEach((id) => {
       const kw = where(id);
@@ -219,11 +222,11 @@
       `<ul class="sr-only" id="mapList"><li>${esc(l.name)} (you are here): ${esc(who.join(', ') || 'no one you know of')}</li></ul>`;
   }
   function localMapHtml() {
-    const here = U.state.characters[U.state.player].status.location;
+    const here = sceneView().here;
     const tokens = mapTokens();
     const seen = (id) => U.state.seenRooms.includes(id);
     const roomName = (id) => (seen(id) ? U.state.locations[id].name : 'unknown room');
-    const site = E.Sites.playerSite(U.state);
+    const site = E.Sites.siteOf(U.state, here);
     const lm = site === E.Sites.HOME ? U.state.scenario.localMap : null;
     const im = site !== E.Sites.HOME ? E.Sites.imageMap(U.state, site) : null;
     let svg;
@@ -606,7 +609,8 @@
   // characters (task 2-1) in a collapsed "Elsewhere" list below.
   function renderCast() {
     $('castTitle').textContent = U.state.scenario.castLabel || 'People';
-    const here = U.state.characters[U.state.player].status.location;
+    const { here, later } = sceneView();
+    const at = (id) => (later[id] ? later[id] === here : E.Engine.isAt(U.state, id, here));
     const ids = E.Engine.cast(U.state);
     const card = (id) => {
       const c = U.state.characters[id];
@@ -614,10 +618,10 @@
       const dead = c.status.health === 'dead';
       const min = U.isMinimized(id);
       const sections = min ? [U.cardMini(id, c, isPlayer)] : [U.cardHeader(id, c, isPlayer), U.cardStatus(c, isPlayer), U.cardDetails(id, c, dead)].filter(Boolean);
-      return `<div class="card ${!isPlayer && E.Engine.isAt(U.state, id, here) ? 'here' : ''} ${dead ? 'dead' : ''} ${min ? 'min' : ''}" data-id="${esc(id)}">${sections.join('')}</div>`;
+      return `<div class="card ${!isPlayer && at(id) ? 'here' : ''} ${dead ? 'dead' : ''} ${min ? 'min' : ''}" data-id="${esc(id)}">${sections.join('')}</div>`;
     };
     const others = ids.filter((id) => id !== U.state.player);
-    const withYou = others.filter((id) => E.Engine.isAt(U.state, id, here));
+    const withYou = others.filter((id) => at(id));
     const local = others.filter((id) => !withYou.includes(id) && E.Engine.tier(U.state, id) === 'local');
     const away = others.filter((id) => !withYou.includes(id) && !local.includes(id));
     $('cast').innerHTML = [U.state.player].concat(withYou, local).map(card).join('') + (away.length

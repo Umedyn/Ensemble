@@ -506,8 +506,9 @@
     const top = log.scrollTop;
     renderLog();
     renderControls();
-    // People who move in this beat move on the map now.
+    // People who move in this beat move on the map and the people panel now (task G-11).
     U.renderMap();
+    U.renderCast();
     log.scrollTop = top;
     if (nextBtn) {
       announceBeat(U.uiShown - 1);
