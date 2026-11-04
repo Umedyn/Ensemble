@@ -25,6 +25,14 @@
     "medicine": 1,
     "stealth": 2
   },
+  "items": [
+    {
+      "name": "carbine"
+    },
+    {
+      "name": "handheld radio"
+    }
+  ],
   "groups": [
     "convoy"
   ],

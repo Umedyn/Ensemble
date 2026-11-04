@@ -20,7 +20,7 @@
   const WORLD_FIELDS = ['format', 'id', 'title', 'summary', 'date', 'calendar', 'authorNote', 'characters', 'starts', 'generatedStarts', 'generatedSites', 'generatedRegions', 'sites', 'lorePacks', ...OVERRIDABLE];
   const WORLD_RESERVED = [];
   const START_RESERVED = [];
-  const CAST_FIELDS = ['id', 'status', 'needs', 'needsOff', 'groups', 'relations', 'knows', 'want', 'secret', 'guard', 'tags', 'tier', 'pinned', 'agenda', 'joins', 'routine', 'places', 'slots'];
+  const CAST_FIELDS = ['id', 'status', 'needs', 'needsOff', 'groups', 'relations', 'knows', 'want', 'secret', 'guard', 'tags', 'tier', 'pinned', 'agenda', 'joins', 'routine', 'places', 'slots', 'items'];
   // Merge rules: lists of {id} objects merge by id, lists of strings are
   // unioned, plain objects merge shallowly; anything else is replaced.
   const ID_LISTS = ['locations', 'clocks', 'factions', 'extras', 'regions', 'standees', 'lore', 'timeline', 'endings'];
@@ -781,6 +781,20 @@
       const known = E.Lore.topicIds(sc);
       if (!Array.isArray(c.topics) || c.topics.length > E.Lore.LIMITS.topics || !c.topics.every((t) => typeof t === 'string')) problems.push(`character "${c.id}" topics must be a list of at most ${E.Lore.LIMITS.topics} topic tags`);
       else c.topics.filter((t) => !known.includes(t)).forEach((t) => problems.push(`character "${c.id}": "${t}" is not a topic this world knows (${known.join(', ')})`));
+    }
+    // What they carry (task B-6): names, with an amount word, never a number.
+    if (c.items != null) {
+      if (!Array.isArray(c.items)) problems.push(`character "${c.id}" items must be a list like [{"name": "flashlight"}, {"name": "rations", "amount": "some"}]`);
+      else {
+        const max = (E.Engine && E.Engine.ITEMS_MAX) || 10;
+        if (c.items.length > max) problems.push(`character "${c.id}" carries more than ${max} items`);
+        c.items.forEach((it, i) => {
+          const at = `character "${c.id}" item ${i + 1}`;
+          if (!isObj(it) || typeof it.name !== 'string' || !it.name.trim() || it.name.length > 40) return problems.push(`${at} needs a "name" of at most 40 characters`);
+          Object.keys(it).filter((k) => !['name', 'amount'].includes(k)).forEach((k) => problems.push(`${at} ("${it.name}") has an unknown field "${k}"`));
+          if (it.amount != null && (typeof it.amount !== 'string' || /\d/.test(it.amount) || it.amount.length > 20)) problems.push(`${at} ("${it.name}"): "amount" must be a short word like "a little", "some" or "a lot", not a number`);
+        });
+      }
     }
     req(c.status && locIds.has(c.status.location), `character "${c.id}" starts at unknown location "${c.status && c.status.location}"`);
     Object.keys(c.skills || {}).forEach((k) => req(sc.skills.includes(k), `character "${c.id}" has skill "${k}" not in scenario skills`));

@@ -24,6 +24,14 @@
     "medicine": 0,
     "persuasion": 1
   },
+  "items": [
+    {
+      "name": "toolbox"
+    },
+    {
+      "name": "tire iron"
+    }
+  ],
   "relations": {
     "pike": 10,
     "ortiz": 5,

@@ -24,6 +24,14 @@
     "medicine": 1,
     "stealth": 1
   },
+  "items": [
+    {
+      "name": "Mule keycard"
+    },
+    {
+      "name": "photo of her daughter"
+    }
+  ],
   "relations": {
     "navarro": 25,
     "okafor": 5,

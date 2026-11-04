@@ -22,6 +22,14 @@
     "stealth": 2,
     "persuasion": 2
   },
+  "items": [
+    {
+      "name": "county road map"
+    },
+    {
+      "name": "delivery van keys"
+    }
+  ],
   "relations": {
     "ortiz": 20,
     "coleman": 5,

@@ -22,6 +22,15 @@
     "social": 2,
     "stealth": 1
   },
+  "items": [
+    {
+      "name": "multitool"
+    },
+    {
+      "name": "spare recycler seals",
+      "amount": "a few"
+    }
+  ],
   "relations": {
     "okafor": 10,
     "sorensen": 15,

@@ -24,6 +24,15 @@
     "stealth": 1,
     "mechanics": 0
   },
+  "items": [
+    {
+      "name": "first-aid bag"
+    },
+    {
+      "name": "painkillers",
+      "amount": "a little"
+    }
+  ],
   "relations": {
     "pike": 20,
     "coleman": 10,

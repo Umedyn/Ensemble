@@ -24,6 +24,15 @@
     "stealth": 1,
     "persuasion": 1
   },
+  "items": [
+    {
+      "name": "service rifle"
+    },
+    {
+      "name": "rifle rounds",
+      "amount": "a little"
+    }
+  ],
   "relations": {
     "pike": 5,
     "ortiz": 10,

@@ -24,6 +24,14 @@
     "athletics": 1,
     "stealth": 2
   },
+  "items": [
+    {
+      "name": "station tablet"
+    },
+    {
+      "name": "core sample case"
+    }
+  ],
   "relations": {
     "navarro": 10,
     "sorensen": -10,

@@ -24,6 +24,15 @@
     "piloting": 1,
     "stealth": 2
   },
+  "items": [
+    {
+      "name": "pruning shears"
+    },
+    {
+      "name": "seed packets",
+      "amount": "some"
+    }
+  ],
   "relations": {
     "navarro": 20,
     "okafor": 10,

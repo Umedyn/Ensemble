@@ -474,6 +474,7 @@ details.rolls li { margin: 2px 0; }
 .known li { margin: 2px 0; }
 .mood { font-style: italic; font-size: 0.8125rem; margin-top: 4px; }
 .mood.stale { color: var(--muted); }
+.carries { font-size: 0.8125rem; margin-top: 4px; }
 .tag.derived { background: transparent; border: 1px solid var(--line-strong); }
 .card-details { margin-top: 4px; }
 .card-details > summary { cursor: pointer; font-size: 0.7188rem; color: var(--muted); }

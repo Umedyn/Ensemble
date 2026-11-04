@@ -56,6 +56,8 @@
       delete c.status.conditions;
       c.relations = c.relations || {};
       c.skills = c.skills || {};
+      // What they carry (task B-6): names and loose amount words.
+      if (Array.isArray(c.items)) c.items = c.items.map(Eng.cleanItem).filter(Boolean).slice(0, Eng.ITEMS_MAX);
       if (c.id === sc.player) delete c.agenda;
       else if ('agenda' in c) c.agenda = Eng.cleanAgenda(c.agenda).agenda || null;
       state.characters[c.id] = c;
@@ -3601,8 +3603,86 @@
       else if (made.note) report.applied.push(`feature: ${made.note}`);
     });
 
+    // Items people carry (task B-6); what the people in the scene carry is seen.
+    applyItems(state, upd.items, new Set(witnesses), reject, report);
+    witnesses.forEach((id) => ((state.characters[id] || {}).items || []).forEach((i) => { i.seen = true; }));
+
     return report;
   };
+
+  // ---------- items people carry (task B-6) ----------
+  // A list on a character, [{ name, amount? }]: the amount is a loose word,
+  // never a number the engine counts. A world uses items when anyone in it
+  // has an `items` list (even empty); without one nothing changes.
+  Eng.ITEMS_MAX = 10;
+  Eng.itemsOn = (state) => Object.values(state.characters || {}).some((c) => Array.isArray(c.items));
+  // A count becomes a word; words are kept short.
+  Eng.amountWord = function (v) {
+    if (v == null || v === '' || v === false) return null;
+    const n = typeof v === 'number' ? v : /\d/.test(String(v)) ? Number(String(v).replace(/[^\d.]/g, '')) : NaN;
+    if (!Number.isNaN(n)) return n <= 1 ? null : n <= 3 ? 'a few' : n <= 12 ? 'some' : 'a lot';
+    const w = String(v).replace(/\s+/g, ' ').trim().toLowerCase();
+    return w ? w.split(' ').slice(0, 3).join(' ').slice(0, 20) : null;
+  };
+  Eng.cleanItem = function (raw) {
+    const r = typeof raw === 'string' ? { name: raw } : raw && typeof raw === 'object' ? raw : {};
+    const name = typeof r.name === 'string' ? r.name.replace(/\s+/g, ' ').trim().slice(0, 40) : '';
+    if (!name) return null;
+    const amount = Eng.amountWord(r.amount);
+    return amount ? { name, amount } : { name };
+  };
+  const itemKey = (name) => String(name || '').toLowerCase().replace(/^(?:a|an|the|some)\s+/, '').trim();
+  Eng.findItem = (c, name) => (c.items || []).find((i) => itemKey(i.name) === itemKey(name)) || null;
+  Eng.itemsText = (items) => items.map((i) => (i.amount ? `${i.name} (${i.amount})` : i.name)).join(', ');
+  // What the player sees on a card: all of their own, and others' once seen in a scene.
+  Eng.shownItems = (state, id) => ((state.characters[id] || {}).items || []).filter((i) => id === state.player || i.seen);
+
+  // The update step's item changes, for people in the scene: add or change
+  // the amount word, "gone" when used up or lost, "to" when given to someone
+  // there. The one check: no giving away or losing what you don't hold, and
+  // no two people holding the one named thing (an item without an amount).
+  function applyItems(state, list, inScene, reject, report) {
+    if (!Array.isArray(list) || !list.length) return;
+    if (!Eng.itemsOn(state)) return reject('items', 'this world has no items');
+    const who = (x) => (typeof x === 'string' ? x.replace(/^\s*(?:char|character)\s*:\s*/i, '').trim() : x);
+    list.slice(0, 6).forEach((x) => {
+      if (!x || typeof x !== 'object') return;
+      const id = who(x.who), c = state.characters[id];
+      const it = Eng.cleanItem({ name: x.item || x.name, amount: x.amount });
+      const label = `item ${it ? `"${it.name}"` : '?'}`;
+      if (!c || !inScene.has(id)) return reject(label, `${id || 'nobody'} is not in the scene`);
+      if (!it) return reject('item', `${c.name}: no item named`);
+      c.items = c.items || [];
+      const held = Eng.findItem(c, it.name);
+      const to = x.to != null && x.to !== '' && x.to !== false ? who(x.to) : null;
+      if (to) {
+        const tc = state.characters[to];
+        if (!tc || !inScene.has(to) || to === id) return reject(label, `${c.name} gives it to ${to}, who is not someone else in the scene`);
+        if (!held) return reject(label, `${c.name} gives away ${it.name}, which they don't hold`);
+        c.items = c.items.filter((i) => i !== held);
+        tc.items = tc.items || [];
+        const there = Eng.findItem(tc, held.name);
+        if (there) { if (it.amount || held.amount) there.amount = it.amount || held.amount; } else tc.items.push(Object.assign(Eng.cleanItem(Object.assign({}, held, it.amount ? { amount: it.amount } : {})), { seen: true }));
+        return report.applied.push(`item: ${c.name} gives ${held.name} to ${tc.name}`);
+      }
+      if (x.gone === true) {
+        if (!held) return reject(label, `${c.name} loses or uses up ${it.name}, which they don't hold`);
+        c.items = c.items.filter((i) => i !== held);
+        return report.applied.push(`item: ${c.name} no longer has ${held.name}`);
+      }
+      if (held) {
+        if (!it.amount || it.amount === held.amount) return;
+        held.amount = it.amount;
+        held.seen = true;
+        return report.applied.push(`item: ${c.name}'s ${held.name} now ${it.amount}`);
+      }
+      const other = !it.amount && Object.values(state.characters).find((o) => { const h = o.id !== id && Eng.findItem(o, it.name); return h && !h.amount; });
+      if (other) return reject(label, `${other.name} holds the ${itemKey(it.name)}; it would need giving`);
+      if (c.items.length >= Eng.ITEMS_MAX) return reject(label, `${c.name} already carries ${Eng.ITEMS_MAX} things`);
+      c.items.push(Object.assign(it, { seen: true }));
+      report.applied.push(`item: ${c.name} has ${Eng.itemsText([it])}`);
+    });
+  }
 
   // ---------- narrated details (task B-0b) ----------
   Eng.DETAILS_MAX = 3;

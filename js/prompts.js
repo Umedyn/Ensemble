@@ -514,6 +514,8 @@
     if ((c.tags || []).length) parts.push(`tags: ${c.tags.map((t) => t.text).join(', ')}`);
     const needs = needsText(state, c, forNarrator);
     if (needs) parts.push(needs);
+    // What they carry (task B-6), per call like the rest of the status.
+    if ((c.items || []).length) parts.push(`carries: ${Eng().itemsText(c.items)}`);
     if (id === state.player && around && around.length) {
       const att = playerAttitude(state, around);
       if (att.length) parts.push(`feels toward: ${att.join(', ')}`);
@@ -1306,7 +1308,14 @@ locations: ${Object.keys(state.locations).join(', ')}
 world keys: ${Object.keys(state.world).join(', ') || '(none)'}
 groups: ${(state.factions || []).map((f) => f.id).join(', ') || '(none)'}
 clocks (higher = closer to going off; a negative delta puts it off): ${state.clocks.filter((c) => !c.fired).map((c) => `${c.id} ("${c.name}")`).join(', ') || '(none)'}
-${factPlaces(state).length ? `regions and sites around: ${factPlaces(state).join(', ')}\n` : ''}${updateSiteIds(state)}${Object.keys(state.standees || {}).length ? `unnamed groups (count, state, location only): ${Object.values(state.standees).map((g) => `${g.id} (${g.count}, ${g.state}) in ${g.location}`).join(', ')}\n` : ''}${Object.keys(state.extras || {}).length ? `minor people (facts and location only): ${Object.values(state.extras).map((x) => `${x.id}${x.location ? ' in ' + x.location : ''}`).join(', ')}\n` : ''}${sc.needs.length ? `needs: ${sc.needs.map((n) => n.id).join(', ')}\n` : ''}present this turn: ${[state.player].concat(present).join(', ')}`;
+${factPlaces(state).length ? `regions and sites around: ${factPlaces(state).join(', ')}\n` : ''}${updateSiteIds(state)}${Object.keys(state.standees || {}).length ? `unnamed groups (count, state, location only): ${Object.values(state.standees).map((g) => `${g.id} (${g.count}, ${g.state}) in ${g.location}`).join(', ')}\n` : ''}${Object.keys(state.extras || {}).length ? `minor people (facts and location only): ${Object.values(state.extras).map((x) => `${x.id}${x.location ? ' in ' + x.location : ''}`).join(', ')}\n` : ''}${sc.needs.length ? `needs: ${sc.needs.map((n) => n.id).join(', ')}\n` : ''}present this turn: ${[state.player].concat(present).join(', ')}${carried(state, present)}`;
+  // What the people in the scene carry (task B-6), so the update keeps to it.
+  function carried(state, present) {
+    if (!Eng().itemsOn(state)) return '';
+    const who = [state.player].concat(present).filter((id) => state.characters[id] && (state.characters[id].items || []).length);
+    return `
+carried: ${who.length ? who.map((id) => `${id}: ${Eng().itemsText(state.characters[id].items)}`).join('; ') : '(nothing)'}`;
+  }
   // Where a fact can live beyond the rooms (task B-0): what's around the
   // player, never the whole tree, and nothing they don't know of yet (R-5).
   function factPlaces(state) {
@@ -1406,6 +1415,11 @@ ${factPlaces(state).length ? `regions and sites around: ${factPlaces(state).join
       shape.group_role = S.maybe(S.obj({ group: S.oneOf(rep, 'group_id'), role: S.oneOf(['member', 'favored', 'leader', 'none'], 'member|favored|leader|none'), quote: S.str('4+ words from the scene that show it') }));
     }
     if (sc.inventExtras) shape.new_extras = newExtras(state);
+    // Items people carry (task B-6), in worlds that have them.
+    if (Eng().itemsOn(state)) {
+      const here = ids(Eng().cast(state), 'character_id');
+      shape.items = S.opt(S.list(S.obj({ who: here, item: S.str('the thing, a few words'), amount: S.opt(S.str('a word: a little, some, a lot')), to: S.opt(here), gone: S.opt(S.bool(true)) }), { n: 0, max: 4 }));
+    }
     // A usual day for people without one (task G-10).
     const gaps = Eng().routineGaps(state);
     if (gaps.length) {
@@ -1445,6 +1459,7 @@ ${factPlaces(state).length ? `regions and sites around: ${factPlaces(state).join
     if (site) g.push(['state', site]);
     const gaps = Eng().routineGaps(state);
     if (gaps.length) g.push(['state', `- routines: a usual day for ${gaps.map((id) => `${id} (${state.characters[id].role || '?'}, ${Eng().inWords(state, id)})`).join(', ')}: "routine" one of ${Eng().routineNames(state).join(', ')}; "home" and "work" room ids, or null when it is off the map.`]);
+    if (Eng().itemsOn(state)) g.push(['state', '- items: only things someone in the scene picked up, was given, used up or lost (see "carried"). "amount" is a word (a little, some, a lot), never a number; "to" gives it to someone present; "gone": true when used up or lost.']);
     if (sc.inventExtras) g.push(['state', '- new_extras: only if the scene clearly brought in a new minor person or group not listed above: {"name","role","location","group":false}. At most 1.']);
     return g;
   }
@@ -1462,7 +1477,7 @@ Use [] for any list with nothing to record.`;
   // KoboldCpp reprocesses only the task; each gets only its own guidelines.
   P.UPDATE_PARTS = {
     facts: { keys: ['facts', 'details'], what: 'the facts this turn established: what happened or came out, and who knows it' },
-    state: { keys: ['state', 'new_extras', 'routines', 'ending'], what: "what changed this turn in people's state, the place and the world" },
+    state: { keys: ['state', 'items', 'new_extras', 'routines', 'ending'], what: "what changed this turn in people's state, the place and the world" },
     feelings: { keys: ['relations', 'player_attitude', 'reputation', 'group_role'], what: 'how feelings changed this turn' },
   };
   P.shapes.updatePart = function (state, part) {

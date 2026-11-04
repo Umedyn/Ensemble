@@ -214,7 +214,10 @@
       return `<span class="tag" title="${esc(tip)}">${esc(t.text)}</span>`;
     });
     const tags = derived.concat(story);
-    return mood + grown + (tags.length ? `<div class="tags">${tags.join('')}</div>` : '');
+    // What they carry (task B-6): all of the player's, others' once seen.
+    const items = E.Engine.shownItems(U.state, c.id);
+    const carries = items.length ? `<div class="carries">Carries: ${esc(E.Engine.itemsText(items))}</div>` : '';
+    return mood + grown + (tags.length ? `<div class="tags">${tags.join('')}</div>` : '') + carries;
   }
 
   function cardNeeds(c, dead) {
